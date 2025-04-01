@@ -1,0 +1,12 @@
+.{
+    .name = .system_sdk,
+    .version = "0.1.1",
+    .fingerprint = 0xbfbfb3b371164ce9,
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "linux",
+        "macos12",
+        "windows",
+    },
+}

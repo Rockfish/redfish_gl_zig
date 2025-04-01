@@ -1,2 +1,15 @@
-.zig-cache/
-zig-out/
+# Ignore some special directories
+zig-cache
+.zig-cache
+zig-out
+
+# vim 
+*~
+
+# Ignore some special system files
+*.DS_Store
+.DS_Store
+
+# Ignore tmp files
+*.tmp
+backup
