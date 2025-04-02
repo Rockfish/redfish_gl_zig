@@ -157,11 +157,11 @@ pub const Movement = struct {
             // Target-based movements.
             // Radial movement: move in/out along the vector from the position to the target.
             .RadiusIn => {
-                const dir = self.target.sub(&self.position).normalize();
+                const dir = self.target.sub(&self.position).normalizeTo();
                 self.position = self.position.add(&dir.mulScalar(translationVelocity));
             },
             .RadiusOut => {
-                const dir = self.target.sub(&self.position).normalize();
+                const dir = self.target.sub(&self.position).normalizeTo();
                 self.position = self.position.sub(&dir.mulScalar(translationVelocity));
             },
             // Orbit movements: rotate the position around the target.
@@ -196,4 +196,33 @@ pub const Movement = struct {
             },
         }
     }
+
+    pub fn processMouseMovement(self: *Self, xoffset_in: f32, yoffset_in: f32, constrain_pitch: bool) void {
+        _ = self;
+        _ = xoffset_in;
+        _ = yoffset_in;
+        _ = constrain_pitch;
+        // const xoffset: f32 = xoffset_in * self.mouse_sensitivity;
+        // const yoffset: f32 = yoffset_in * self.mouse_sensitivity;
+        //
+        // self.yaw += xoffset;
+        // self.pitch += yoffset;
+        //
+        // // make sure that when pitch is out of bounds, screen doesn't get flipped
+        // if (constrain_pitch) {
+        //     if (self.pitch > 89.0) {
+        //         self.pitch = 89.0;
+        //     }
+        //     if (self.pitch < -89.0) {
+        //         self.pitch = -89.0;
+        //     }
+        // }
+        //
+        // // update Front, Right and Up Vectors using the updated Euler angles
+        // self.updateCameraVectors();
+        //
+        // // debug!("camera: {:#?}", self);
+    }
+
 };
+

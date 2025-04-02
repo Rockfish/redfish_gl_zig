@@ -80,7 +80,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []con
         .scaled_height = scaled_height,
         .window_scale = window_scale,
         .camera = camera,
-        .projection = camera.getProjectionMatrix(),
+        .projection = camera.getProjectionMatrix(.Perspective),
         .projection_type = .Perspective,
         .view_type = .LookAt,
         .light_postion = vec3(10.0, 10.0, -30.0),

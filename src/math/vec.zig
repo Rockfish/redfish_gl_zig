@@ -113,6 +113,10 @@ pub const Vec3 = extern struct {
         return .{ .x = a.x * b.x, .y = a.y * b.y, .z = a.z * b.z };
     }
 
+    pub fn normalize(v: *Vec3) void {
+        cglm.glmc_vec3_normalize(v);
+    }
+
     pub fn addScalar(a: *const Vec3, b: f32) Vec3 {
         return .{ .x = a.x + b, .y = a.y + b, .z = a.z + b };
     }

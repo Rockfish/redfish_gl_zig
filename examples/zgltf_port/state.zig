@@ -178,11 +178,11 @@ pub fn processKeys() void {
             },
             .four => {
                 state.projection_type = .Perspective;
-                state.projection = state.camera.getPerspectiveProjection();
+                state.projection = state.camera.getProjectionMatrix(.Perspective);
             },
             .five => {
                 state.projection_type = .Orthographic;
-                state.projection = state.camera.getOrthoProjection();
+                state.projection = state.camera.getProjectionMatrix(.Orthographic);
             },
             .zero => { 
                 if (last_time + delay_time < state.total_time) {
@@ -233,11 +233,11 @@ pub fn setViewPort(w: i32, h: i32) void {
 
     switch (state.projection_type) {
         .Perspective => {
-            state.projection = state.camera.getPerspectiveProjection();
+            state.projection = state.camera.getProjectionMatrix(state.projection_type);
         },
         .Orthographic => {
             state.camera.setScreenDimensions(state.scaled_width, state.scaled_height);
-            state.projection = state.camera.getOrthoProjection();
+            state.projection = state.camera.getProjectionMatrix(state.projection_type);
         },
     }
 }
@@ -270,9 +270,12 @@ pub fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) cal
     state.input.mouse_x = xpos;
     state.input.mouse_y = ypos;
 
-    if (state.input.key_shift) {
-        state.camera.processMouseMovement(xoffset, yoffset, true);
-    }
+    _ = xoffset;
+    _ = yoffset;
+
+    // if (state.input.key_shift) {
+    //     state.camera.processMouseMovement(xoffset, yoffset, true);
+    // }
 }
 
 pub fn scrollHandler(window: *Window, xoffset: f64, yoffset: f64) callconv(.C) void {
