@@ -32,7 +32,7 @@ pub fn build(b: *std.Build) void {
 
     const zopengl = b.dependency("zopengl", .{
         .target = target,
-        .optimize = optimize,
+        // .optimize = optimize,
     });
 
     const zgui = b.dependency("zgui", .{

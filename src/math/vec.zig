@@ -85,12 +85,6 @@ pub const Vec3 = extern struct {
         return @as(*[3]f32, @ptrCast(@constCast(self)));
     }
 
-    pub fn normalizeTo(v: *const Vec3) Vec3 {
-        var result: [3]f32 = undefined;
-        cglm.glm_vec3_normalize_to(@as([*c]f32, @ptrCast(@constCast(v))), &result);
-        return @as(*Vec3, @ptrCast(&result)).*;
-    }
-
     pub fn add(a: *const Vec3, b: *const Vec3) Vec3 {
         return .{ .x = a.x + b.x, .y = a.y + b.y, .z = a.z + b.z };
     }
@@ -117,6 +111,12 @@ pub const Vec3 = extern struct {
         cglm.glmc_vec3_normalize(v);
     }
 
+    pub fn normalizeTo(v: *const Vec3) Vec3 {
+        var result: [3]f32 = undefined;
+        cglm.glmc_vec4_normalize_to(@as([*c]f32, @ptrCast(@constCast(v))), &result);
+        return @as(*Vec3, @ptrCast(&result)).*;
+    }
+ 
     pub fn addScalar(a: *const Vec3, b: f32) Vec3 {
         return .{ .x = a.x + b, .y = a.y + b, .z = a.z + b };
     }

@@ -13,3 +13,5 @@ zig-out
 # Ignore tmp files
 *.tmp
 backup
+error_log.txt
+
