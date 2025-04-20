@@ -27,23 +27,29 @@ pub const ViewType = enum {
 pub const Camera = struct {
     allocator: Allocator,
     movement: Movement,
-    zoom: f32 = 45.0, // ?
-    fovy: f32,
-    aspect: f32,
-    near: f32,
-    far: f32,
-    ortho_scale: f32,
-    view_type: ViewType,
-    translation_speed: f32 = 100.5,
-    rotation_speed: f32 = 100.5,
-    orbit_speed: f32 = 100.5,
+    // are fovy and zoom the same thing?
+    fovy: f32 = 45.0,
+    zoom: f32 = 45.0,
+    near: f32 = 0.01,
+    far: f32 = 2000.0,
+    aspect: f32 = 1.0,
+    ortho_scale: f32 = 40.0,
+    view_type: ViewType = ViewType.LookAt,
+    translation_speed: f32 = 100.0,
+    rotation_speed: f32 = 100.0,
+    orbit_speed: f32 = 200.0,
 
     const Self = @This();
 
     const Config = struct {
+        /// Camera position
         position: Vec3,
+        /// target for LookAt and orbiting
         target: Vec3,
-        rotation: Quat,
+        /// Rotation in degrees
+        rotation: f32,
+        /// LookAt faces target, LookTo faces in direction of rotation
+        view_type: ViewType = ViewType.LookAt,
         scr_width: f32,
         scr_height: f32,
     };
@@ -53,28 +59,20 @@ pub const Camera = struct {
     }
 
     pub fn init(allocator: Allocator, config: Config) !*Camera {
-        const rotation = Quat.identity();
-
+        const rot_quat = Quat.fromAxisAngle(&Vec3.init(0, 1, 0), math.degreesToRadians(config.rotation));
         const camera = try allocator.create(Camera);
         camera.* = Camera{
             .allocator = allocator,
-            .movement = Movement.init(config.position, rotation, config.target),
+            .movement = Movement.init(config.position, rot_quat, config.target),
             .fovy = 45.0,
             .aspect = config.scr_width / config.scr_height,
             .near = 0.01,
             .far = 2000.0,
             .ortho_scale = 40.0,
             //.projection_type = ProjectionType.Perspective,
-            .view_type = ViewType.LookTo,
+            .view_type = ViewType.LookAt,
         };
         return camera;
-    }
-
-    pub fn getViewMatrix(self: *Camera) Mat4 {
-        return switch (self.view_type) {
-            .LookTo => Mat4.lookToRhGl(&self.movement.position, &self.movement.forward, &self.movement.up),
-            .LookAt => Mat4.lookAtRhGl(&self.movement.position, &self.movement.target, &self.movement.up),
-        };
     }
 
     pub fn getProjectionMatrix(self: *Camera, projection_type: ProjectionType) Mat4 {
@@ -102,6 +100,13 @@ pub const Camera = struct {
         }
     }
 
+    pub fn getViewMatrix(self: *Self) Mat4 {
+        return switch (self.view_type) {
+            .LookTo => self.getLookToView(),
+            .LookAt => self.getLookAtView(),
+        };
+    }
+
     pub fn getLookToView(self: *Self) Mat4 {
         return Mat4.lookToRhGl(&self.movement.position, &self.movement.forward, &self.movement.up);
     }
@@ -126,12 +131,6 @@ pub const Camera = struct {
         self.aspect = width / height;
     }
 
-    pub fn getViewByType(self: *Self) Mat4 {
-        return switch (self.view_type) {
-            .LookTo => self.getLookToView(),
-            .LookAt => self.getLookAtView(),
-        };
-    }
     /// Pass through the movement command to the Movement component.
     pub fn processMovement(self: *Camera, direction: MovementDirection, delta_time: f32) void {
         // Use the same speed values or make these configurable.

@@ -49,7 +49,7 @@ const content_dir = "assets";
 const state_ = @import("state.zig");
 const State = state_.State;
 
-const camera_position = vec3(0.0, 12.0, 40.0);
+const camera_position = vec3(0.0, 12.0, -40.0);
 const camera_target = vec3(0.0, 12.0, 0.0);
 
 pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []const u8) !void {
@@ -67,7 +67,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []con
         .{
             .position = camera_position,
             .target = camera_target,
-            .rotation = Quat.identity(),
+            .rotation = 0.0,
             .scr_width = scaled_width,
             .scr_height = scaled_height,
         },
@@ -103,33 +103,16 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []con
 
     const shader = try Shader.init(
         allocator,
-        // "examples/zgltf_port/shaders/player_shader.vert",
-        // "examples/zgltf_port/shaders/basic_model.frag",
-        "examples/zgltf_port/shaders/pbr.vert",
-        "examples/zgltf_port/shaders/pbr.frag",
+        "examples/zgltf_port/shaders/player_shader.vert",
+        "examples/zgltf_port/shaders/basic_model.frag",
+        // "examples/zgltf_port/shaders/pbr.vert",
+        // "examples/zgltf_port/shaders/pbr.frag",
     );
 
     std.debug.print("Shader id: {d}\n", .{shader.id});
 
-    // const ambientColor: Vec3 = vec3(NON_BLUE * 0.7, NON_BLUE * 0.7, 0.7);
+    const ambientColor: Vec3 = vec3(NON_BLUE * 0.7, NON_BLUE * 0.7, 0.7);
     var texture_cache = std.ArrayList(*Texture).init(allocator);
-
-    // var texture_map = std.HashMap(usize, *Texture).init(allocator);
-
-    // var model = blk: {
-    //     std.debug.print("Main: loading model: {s}\n", .{model_path});
-    //     var builder = try ModelBuilder.init(allocator, &texture_cache, "Spacesuit", model_path);
-    //     const model = try builder.build();
-    //     builder.deinit();
-    //     break :blk model;
-    // };
-
-    // std.debug.print("\n--- Assimp model ----------------------\n\n", .{});
-    //
-    // const mesh = model.meshes.items[0];
-    // for (mesh.vertices.items, 0..) |vertex, i| {
-    //     std.debug.print("  {d} : {any}\n", .{i, vertex.position});
-    // }
 
     std.debug.print("\n--- Build gltf model ----------------------\n\n", .{});
     const gltf_model = blk: {
@@ -141,26 +124,6 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []con
     };
 
     std.debug.print("\n----------------------\n", .{});
-
-    // const clip = AnimationClip {
-    //     .id = 16,
-    //     .start_tick = 0.0,
-    //     .end_tick = 60.0,
-    //     .repeat_mode = .Forever
-    // };
-    // CesiumMan
-    // const clip = AnimationClip {
-    //     .id = 0,
-    //     .start_tick = 1.0,
-    //     .end_tick = 2000.0,
-    //     .repeat_mode = .Forever
-    // };
-    // // const clip = AnimationClip.new(1.0, 2.0, AnimationRepeat.Forever);
-    // try model.playClip(clip);
-
-    // try model.animator.playAnimationById(0);
-
-    // try core.dumpModelNodes(model);
 
     // --- event loop
     state.total_time = @floatCast(glfw.getTime());
@@ -220,7 +183,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []con
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         shader.setMat4("matProjection", &state.projection);
-        shader.setMat4("matView", &state.camera.getViewByType());
+        shader.setMat4("matView", &state.camera.getViewMatrix());
 
         // _ = conversion_matrix;
         var model_transform = Mat4.identity();
@@ -231,16 +194,18 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []con
         //model_transform.scale(&vec3(1.0, 1.0, 1.0));
         ////model_transform.translation(&vec3(0.0, 0.0, 0.0));
         // model_transform.rotateByDegrees(&vec3(0.0, 1.0, 0.0), 180.0);
-        // model_transform.scale(&vec3(3.0, 3.0, 3.0));
+        model_transform.scale(&vec3(3.0, 3.0, 3.0));
         // model_transform.scale(&vec3(0.02, 0.02, 0.02));
         shader.setMat4("matModel", &model_transform);
 
-        // shader.setBool("useLight", true);
-        // shader.setVec3("ambient", &ambientColor);
-        // shader.setVec3("ambient_light", &vec3(1.0, 0.8, 0.8));
-        // shader.setVec3("light_color", &vec3(0.1, 0.1, 0.1));
-        // shader.setVec3("light_dir", &vec3(10.0, 10.0, 2.0));
+        // Basic shader
+        shader.setBool("useLight", true);
+        shader.setVec3("ambient", &ambientColor);
+        shader.setVec3("ambient_light", &vec3(1.0, 0.8, 0.8));
+        shader.setVec3("light_color", &vec3(0.1, 0.1, 0.1));
+        shader.setVec3("light_dir", &vec3(10.0, 10.0, 2.0));
 
+        // PBR shader
         shader.setVec3("lightPosition", &vec3(0.0, 20.0, 5.0));
         shader.setVec3("lightColor", &vec3(1.0, 1.0, 1.0));
         shader.setFloat("lightIntensity", 1500.0);

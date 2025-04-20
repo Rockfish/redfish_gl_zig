@@ -52,7 +52,8 @@ pub const Mesh = struct {
 
     pub fn render(self: *Self, gltf: *Gltf, shader: *const Shader) void {
         for (self.primitives.items) |primitive| {
-            primitive.renderPBR(gltf, shader);
+            primitive.render(gltf, shader);
+            // primitive.renderPBR(gltf, shader);
         }
     }
 };
@@ -177,7 +178,7 @@ pub const MeshPrimitive = struct {
             const texture = gltf.loaded_textures.get(baseColorTexture.index) orelse std.debug.panic("texture not loaded.", .{});
             gl.activeTexture(gl.TEXTURE0 + @as(c_uint, @intCast(texUnit)));
             gl.bindTexture(gl.TEXTURE_2D, texture.gl_texture_id);
-            shader.set_int("texture_diffuse", texUnit);
+            shader.setInt("texture_diffuse", texUnit);
             shader.setBool("has_texture", true);
         } else {
             const color = self.material.pbr_metallic_roughness.base_color_factor;

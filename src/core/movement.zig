@@ -43,9 +43,9 @@ pub const Movement = struct {
     up: Vec3,
     right: Vec3,
     direction: MovementDirection = .Forward,
-    move_speed: f32 = 10.0,
-    rotation_speed: f32 = 10.0,
-    orbit_speed: f32 = 10.0,
+    translate_speed: f32 = 50.0,
+    rotation_speed: f32 = 50.0,
+    orbit_speed: f32 = 50.0,
 
     const Self = @This();
 
@@ -103,7 +103,7 @@ pub const Movement = struct {
         delta_time: f32,
     ) void {
         self.direction = direction;
-        const translationVelocity = self.move_speed * delta_time;
+        const translationVelocity = self.translate_speed * delta_time;
         // For in-place rotations:
         const rotAngle = math.degreesToRadians(self.rotation_speed * delta_time);
         // For orbit rotations:
