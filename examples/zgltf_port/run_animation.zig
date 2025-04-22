@@ -49,7 +49,7 @@ const content_dir = "assets";
 const state_ = @import("state.zig");
 const State = state_.State;
 
-const camera_position = vec3(0.0, 12.0, -40.0);
+const camera_position = vec3(0.0, 12.0, 40.0);
 const camera_target = vec3(0.0, 12.0, 0.0);
 
 pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []const u8) !void {
@@ -67,7 +67,6 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []con
         .{
             .position = camera_position,
             .target = camera_target,
-            .rotation = 0.0,
             .scr_width = scaled_width,
             .scr_height = scaled_height,
         },

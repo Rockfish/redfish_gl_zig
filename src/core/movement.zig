@@ -28,20 +28,23 @@ pub const MovementDirection = enum {
     OrbitRight,
 };
 
+const world_up = Vec3.init(0, 1, 0);
+
 /// - `moveSpeed` is in world-units per second.
 /// - `rotationSpeed` is in degrees per second for in-place rotations.
 /// - `orbitSpeed` is in degrees per second for orbit movements.
 pub const Movement = struct {
     /// World position.
     position: Vec3,
-    /// Orientation as a quaternion.
-    rotation: Quat,
     /// The target point used for orbit and radial movements.
     target: Vec3,
+    /// Orientation as a quaternion.
+    orientation: Quat,
     /// Cached axes derived from the current rotation.
-    forward: Vec3,
-    up: Vec3,
-    right: Vec3,
+    forward: Vec3 = undefined,
+    right: Vec3 = undefined,
+    up: Vec3 = undefined,
+    world_up: Vec3 = world_up,
     direction: MovementDirection = .Forward,
     translate_speed: f32 = 50.0,
     rotation_speed: f32 = 50.0,
@@ -49,16 +52,14 @@ pub const Movement = struct {
 
     const Self = @This();
 
-    /// Initialize with a starting position, rotation, and target.
-    /// The target can default to the origin.
-    pub fn init(position: Vec3, rotation: Quat, target: Vec3) Movement {
+    /// Initialize with a starting position and target.
+    /// Orientation is calculated from position and target to face target
+    pub fn init(position: Vec3, target: Vec3) Movement {
+        const orientation = Quat.lookAtOrientation(position, target, world_up);
         var m = Movement{
             .position = position,
-            .rotation = rotation,
             .target = target,
-            .forward = Vec3.init(0, 0, -1),
-            .up = Vec3.init(0, 1, 0),
-            .right = Vec3.init(1, 0, 0),
+            .orientation = orientation,
         };
         m.updateAxes();
         return m;
@@ -66,7 +67,7 @@ pub const Movement = struct {
 
     pub fn reset(self: *Self, position: Vec3, rotation: Quat, target: Vec3) void {
         self.position = position;
-        self.rotation = rotation;
+        self.orientation = rotation;
         self.target = target;
         self.updateAxes();
     }
@@ -76,10 +77,10 @@ pub const Movement = struct {
         // Assume Quat.toAxes() returns an array of three Vec4 values:
         // axes[0]: right, axes[1]: up, axes[2]: forward.
         // Use a helper method (xyz()) to convert a Vec4 to Vec3.
-        const axes = self.rotation.toAxes();
+        const axes = self.orientation.toAxes();
+        self.forward = axes[2].xyz();
         self.right = axes[0].xyz();
         self.up = axes[1].xyz();
-        self.forward = axes[2].xyz();
     }
 
     /// Translate the position by an offset.
@@ -90,8 +91,8 @@ pub const Movement = struct {
     /// Rotate the movement by a quaternion delta.
     pub fn rotate(self: *Movement, delta: Quat) void {
         // Multiply delta on the left. (Check your convention!)
-        self.rotation = Quat.mulQuat(&delta, &self.rotation);
-        self.rotation.normalize();
+        self.orientation = Quat.mulQuat(&delta, &self.orientation);
+        self.orientation.normalize();
         self.updateAxes();
     }
 

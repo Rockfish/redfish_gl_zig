@@ -45,7 +45,7 @@
    CGLM_INLINE void glm_quat_for(vec3 dir, vec3 fwd, vec3 up, versor dest);
    CGLM_INLINE void glm_quat_forp(vec3 from,
                                   vec3 to,
-                                  vec3 fwd,
+                                 // vec3 fwd, doc error
                                   vec3 up,
                                   versor dest);
    CGLM_INLINE void glm_quat_rotatev(versor q, vec3 v, vec3 dest);

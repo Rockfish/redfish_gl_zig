@@ -2,15 +2,17 @@ const std = @import("std");
 const cglm = @import("cglm.zig").CGLM;
 const vec = @import("vec.zig");
 const mat4_ = @import("mat4.zig");
+const utils = @import("utils.zig");
 
 const Vec3 = vec.Vec3;
 const Vec4 = vec.Vec4;
 const Mat4 = mat4_.Mat4;
-
 pub const Versor = [4]f32;
 
+pub const asCF32 = utils.asCF32;
+
 pub fn quat(x: f32, y: f32, z: f32, w: f32) Quat {
-    return Quat { .data = .{x, y, z, w} };
+    return Quat{ .data = .{ x, y, z, w } };
 }
 
 pub const Quat = extern struct {
@@ -19,29 +21,29 @@ pub const Quat = extern struct {
     const Self = @This();
 
     pub fn identity() Self {
-        return Quat { .data = .{0.0, 0.0, 0.0, 1.0} };
+        return Quat{ .data = .{ 0.0, 0.0, 0.0, 1.0 } };
     }
 
     pub fn default() Self {
-        return Quat { .data = .{0.0, 0.0, 0.0, 1.0} };
+        return Quat{ .data = .{ 0.0, 0.0, 0.0, 1.0 } };
     }
 
-    pub fn new(x: f32, y: f32, z: f32, w: f32) Self {
-        return Quat { .data = .{x, y, z, w} };
+    pub fn init(x: f32, y: f32, z: f32, w: f32) Self {
+        return Quat{ .data = .{ x, y, z, w } };
     }
 
     pub fn clone(self: *const Self) Quat {
-        return Quat { .data = self.data };
+        return Quat{ .data = self.data };
     }
 
     pub fn fromArray(val: [4]f32) Self {
-        return Quat { .data = .{val[0], val[1], val[2], val[3]} };
+        return Quat{ .data = .{ val[0], val[1], val[2], val[3] } };
     }
 
     pub fn fromMat4(mat4: Mat4) Quat {
-        var result: [4]f32 = undefined;
-        cglm.glmc_mat4_quat(@constCast(&mat4.data), &result);
-        return Quat { .data = result, };
+        var result: Quat = undefined;
+        cglm.glmc_mat4_quat(@constCast(&mat4.data), result.asCPtrF32());
+        return result;
     }
 
     pub fn fromAxisAngle(axis: *const Vec3, angle: f32) Quat {
@@ -50,7 +52,11 @@ pub const Quat = extern struct {
         const s = std.math.sin(angle * 0.5);
         const c = std.math.cos(angle * 0.5);
         const v = normalized_axis.mulScalar(s);
-        return new(v.x, v.y, v.z, c);
+        return init(v.x, v.y, v.z, c);
+    }
+
+    pub inline fn asCPtrF32(q: *const Quat) [*c]f32 {
+        return @as([*c]f32, @ptrCast(@constCast(q)));
     }
 
     pub fn normalize(self: *Self) void {
@@ -66,7 +72,7 @@ pub const Quat = extern struct {
     pub fn mulQuat(p: *const Quat, q: *const Quat) Quat {
         var result: [4]f32 = undefined;
         cglm.glmc_quat_mul(@constCast(&p.data), @constCast(&q.data), &result);
-        return Quat { .data = result };
+        return Quat{ .data = result };
     }
 
     pub fn mulByQuat(self: *Self, other: *const Quat) void {
@@ -84,7 +90,7 @@ pub const Quat = extern struct {
     pub fn slerp(self: *const Self, rot: *const Quat, t: f32) Quat {
         var result: [4]f32 = undefined;
         cglm.glmc_quat_slerp(@constCast(&self.data), @constCast(&rot.data), t, &result);
-        return Quat { .data = result };
+        return Quat{ .data = result };
     }
 
     pub fn toAxes(rotation: *const Quat) [3]Vec4 {
@@ -111,5 +117,20 @@ pub const Quat = extern struct {
         const y_axis: Vec4 = Vec4.init(xy - wz, 1.0 - (xx + zz), yz + wx, 0.0);
         const z_axis: Vec4 = Vec4.init(xz + wy, yz - wx, 1.0 - (xx + yy), 0.0);
         return .{ x_axis, y_axis, z_axis };
+    }
+
+    pub fn lookAtOrientation(position: Vec3, target: Vec3, world_up: Vec3) Quat {
+        var dir = position.sub(&target);
+        dir.normalize();
+
+        var result: Quat = undefined;
+
+        cglm.glmc_quat_for(
+            dir.asCPtrF32(),
+            world_up.asCPtrF32(),
+            result.asCPtrF32(),
+        );
+
+        return result;
     }
 };

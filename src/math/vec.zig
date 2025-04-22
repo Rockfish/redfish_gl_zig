@@ -25,6 +25,10 @@ pub const Vec2 = extern struct {
         return @as(*[2]f32, @ptrCast(@constCast(self)));
     }
 
+    pub inline fn asCPtrF32(v: *const Vec2) [*c]f32 {
+        return @as([*c]f32, @ptrCast(@constCast(v)));
+    }
+
     pub fn lengthSquared(v: *const Vec2) f32 {
         return v.dot(v);
     }
@@ -108,7 +112,7 @@ pub const Vec3 = extern struct {
     }
 
     pub fn normalize(v: *Vec3) void {
-        cglm.glmc_vec3_normalize(v);
+        cglm.glmc_vec3_normalize(@as([*c]f32, @ptrCast(@constCast(v))));
     }
 
     pub fn normalizeTo(v: *const Vec3) Vec3 {
@@ -186,6 +190,10 @@ pub const Vec3 = extern struct {
         );
     }
 
+    pub inline fn asCPtrF32(v: *const Vec3) [*c]f32 {
+        return @as([*c]f32, @ptrCast(@constCast(v)));
+    }
+
     pub fn asString(self: *const Self, buf: []u8) []u8 {
         return std.fmt.bufPrint(buf, "Vec3{{ {d}, {d}, {d} }}", .{ self.x, self.y, self.z }) catch |err| std.debug.panic("{any}", .{err});
     }
@@ -217,6 +225,10 @@ pub const Vec4 = extern struct {
         return @as(*[4]f32, @ptrCast(@constCast(self)));
     }
 
+    pub inline fn asCPtrF32(v: *const Vec4) [*c]f32 {
+        return @as([*c]f32, @ptrCast(@constCast(v)));
+    }
+
     pub fn splat(v: f32) Vec4 {
         return .{ .x = v, .y = v, .z = v, .w = v };
     }
@@ -241,7 +253,7 @@ pub const Vec4 = extern struct {
     }
 
     pub fn normalize(v: *Vec4) void {
-        cglm.glmc_vec4_normalize(v);
+        cglm.glmc_vec4_normalize(@as([*c]f32, @ptrCast(@constCast(v))));
     }
 
     pub fn normalizeTo(v: *const Vec4) Vec4 {

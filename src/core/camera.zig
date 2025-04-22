@@ -47,7 +47,6 @@ pub const Camera = struct {
         /// target for LookAt and orbiting
         target: Vec3,
         /// Rotation in degrees
-        rotation: f32,
         /// LookAt faces target, LookTo faces in direction of rotation
         view_type: ViewType = ViewType.LookAt,
         scr_width: f32,
@@ -59,11 +58,10 @@ pub const Camera = struct {
     }
 
     pub fn init(allocator: Allocator, config: Config) !*Camera {
-        const rot_quat = Quat.fromAxisAngle(&Vec3.init(0, 1, 0), math.degreesToRadians(config.rotation));
         const camera = try allocator.create(Camera);
         camera.* = Camera{
             .allocator = allocator,
-            .movement = Movement.init(config.position, rot_quat, config.target),
+            .movement = Movement.init(config.position, config.target),
             .fovy = 45.0,
             .aspect = config.scr_width / config.scr_height,
             .near = 0.01,
@@ -108,10 +106,12 @@ pub const Camera = struct {
     }
 
     pub fn getLookToView(self: *Self) Mat4 {
+        // std.debug.print("LookTo position: {any}  forward: {any}\n", .{self.movement.position, self.movement.forward});
         return Mat4.lookToRhGl(&self.movement.position, &self.movement.forward, &self.movement.up);
     }
 
     pub fn getLookAtView(self: *Self) Mat4 {
+        // std.debug.print("LookAt position: {any}  target: {any}\n", .{self.movement.position, self.movement.target});
         return Mat4.lookAtRhGl(&self.movement.position, &self.movement.target, &self.movement.up);
     }
 
