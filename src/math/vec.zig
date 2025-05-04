@@ -117,7 +117,7 @@ pub const Vec3 = extern struct {
 
     pub fn normalizeTo(v: *const Vec3) Vec3 {
         var result: [3]f32 = undefined;
-        cglm.glmc_vec4_normalize_to(@as([*c]f32, @ptrCast(@constCast(v))), &result);
+        cglm.glmc_vec3_normalize_to(@as([*c]f32, @ptrCast(@constCast(v))), &result);
         return @as(*Vec3, @ptrCast(&result)).*;
     }
  
