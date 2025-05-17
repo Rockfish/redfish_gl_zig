@@ -118,7 +118,8 @@ pub fn processKeys() void {
             },
             .a => {
                 if (state.input.key_shift) {
-                    state.camera.processMovement(.OrbitLeft, state.delta_time);
+                    //state.camera.processMovement(.OrbitLeft, state.delta_time);
+                    state.camera.processMovement(.CircleLeft, state.delta_time);
                 } else if (state.input.key_alt) {
                     state.camera.processMovement(.RotateLeft, state.delta_time);
                 } else {
@@ -127,9 +128,10 @@ pub fn processKeys() void {
             },
             .d => {
                 if (state.input.key_shift) {
-                    state.camera.processMovement(.OrbitRight, state.delta_time);
+                    state.camera.processMovement(.CircleRight, state.delta_time);
                 } else if (state.input.key_alt) {
-                    state.camera.processMovement(.RotateRight, state.delta_time);
+                    state.camera.processMovement(.OrbitRight, state.delta_time);
+                    //state.camera.processMovement(.RotateRight, state.delta_time);
                 } else {
                     state.camera.processMovement(.Right, state.delta_time);
                 }

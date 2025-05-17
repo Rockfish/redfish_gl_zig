@@ -26,9 +26,11 @@ pub const MovementDirection = enum {
     OrbitDown,
     OrbitLeft,
     OrbitRight,
+    CircleRight,
+    CircleLeft,
 };
 
-const world_up = Vec3.init(0, 1, 0);
+const world_up = Vec3.init(0.0, 1.0, -0.0);
 
 /// - `moveSpeed` is in world-units per second.
 /// - `rotationSpeed` is in degrees per second for in-place rotations.
@@ -41,14 +43,14 @@ pub const Movement = struct {
     /// Orientation as a quaternion.
     orientation: Quat,
     /// Cached axes derived from the current rotation.
+    world_up: Vec3 = world_up,
+    up: Vec3 = undefined,
     forward: Vec3 = undefined,
     right: Vec3 = undefined,
-    up: Vec3 = undefined,
-    world_up: Vec3 = world_up,
-    direction: MovementDirection = .Forward,
     translate_speed: f32 = 50.0,
     rotation_speed: f32 = 50.0,
     orbit_speed: f32 = 50.0,
+    direction: MovementDirection = .Forward,
 
     const Self = @This();
 
@@ -109,14 +111,14 @@ pub const Movement = struct {
         const rotAngle = math.degreesToRadians(self.rotation_speed * delta_time);
         // For orbit rotations:
         const orbitAngle = math.degreesToRadians(self.orbit_speed * delta_time);
+
         switch (direction) {
             // Translation along the current axes.
             .Forward => {
-                // Optionally use a scaling factor (0.2) if desired.
-                self.position = self.position.add(&self.forward.mulScalar(translationVelocity * 0.2));
+                self.position = self.position.add(&self.forward.mulScalar(translationVelocity));
             },
             .Backward => {
-                self.position = self.position.sub(&self.forward.mulScalar(translationVelocity * 0.2));
+                self.position = self.position.sub(&self.forward.mulScalar(translationVelocity));
             },
             .Left => {
                 self.position = self.position.sub(&self.right.mulScalar(translationVelocity));
@@ -171,7 +173,6 @@ pub const Movement = struct {
                 const offset = self.position.sub(&self.target);
                 const rotated_offset = rot.rotateVec(&offset);
                 self.position = self.target.add(&rotated_offset);
-                // Optionally update the rotation to face the target.
                 self.updateAxes();
             },
             .OrbitLeft => {
@@ -194,6 +195,42 @@ pub const Movement = struct {
                 const rotated_offset = rot.rotateVec(&offset);
                 self.position = self.target.add(&rotated_offset);
                 self.updateAxes();
+            },
+            .CircleRight => {
+                const original_position = self.position;
+                // 1) quaternion rotating around world Y by -angle
+                const rot = Quat.fromAxisAngle(&self.world_up, -orbitAngle);
+                // const rot = Quat.fromAxisAngle(&self.up, -orbitAngle);
+
+                // 2) full offset from target
+                const offset = self.position.sub(&self.target);
+
+                // 3) flatten to XZ plane
+                const flat = Vec3.init(offset.x, 0.0, offset.z);
+
+                // 4) rotate the flat vector
+                const rotated = rot.rotateVec(&flat);
+
+                // 5) rebuild position: keep original Y
+                self.position = self.target.add(&Vec3.init(rotated.x, offset.y, rotated.z));
+
+                self.updateAxes();
+
+                std.debug.print(
+                    "CircleRight:\n  world_up: {any}\n  up: {any}\n  angle: {d}\n  >rot: {any}\n  offset: {any}\n  rotated: {any}\n  original: {any}\n  updated: {any}\n", 
+                    .{world_up, self.up, orbitAngle, rot, offset, rotated, original_position, self.position,},
+                );
+            },
+            .CircleLeft => {
+                const original_position = self.position;
+                // same as above but positive angle
+                const rot = Quat.fromAxisAngle(&world_up, orbitAngle);
+                const offset = self.position.sub(&self.target);
+                const flat = Vec3.init(offset.x, 0.0, offset.z);
+                const rotated = rot.rotateVec(&flat);
+                self.position = self.target.add(&Vec3.init(rotated.x, offset.y, rotated.z));
+                self.updateAxes();
+                std.debug.print("CircleLeft: original: {any}  updated: {any}\n", .{original_position, self.position});
             },
         }
     }
@@ -224,6 +261,4 @@ pub const Movement = struct {
         //
         // // debug!("camera: {:#?}", self);
     }
-
 };
-
