@@ -39,6 +39,7 @@ pub const pow = std.math.pow;
 pub const sin = std.math.sin;
 pub const cos = std.math.cos;
 pub const acos = std.math.acos;
+pub const asin = std.math.asin;
 pub const tan = std.math.tan;
 pub const atan = std.math.atan;
 pub const isNan = std.math.isNan;

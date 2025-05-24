@@ -19,6 +19,17 @@ const EnumSet = std.EnumSet;
 const Window = glfw.Window;
 const Camera = core.Camera;
 
+pub const MotionType = enum {
+    /// Direct movement along camera's local axes (Left, Right, Up, Down)
+    Translate,
+    /// Rotation around target point (OrbitLeft, OrbitRight, OrbitUp, OrbitDown)
+    Orbit,
+    /// Movement around target maintaining height (CircleLeft, CircleRight)
+    Circle,
+    /// In-place rotation (RotateLeft, RotateRight, RotateUp, RotateDown)
+    Rotate,
+};
+
 pub const Input = struct {
     first_mouse: bool = false,
     mouse_x: f32 = 0.0,
@@ -51,6 +62,7 @@ pub const State = struct {
     camera_initial_target: Vec3,
     single_mesh_id: i32 = -1,
     animation_id: i32 = -1,
+    motion_type: MotionType = .Orbit,
 
     const Self = @This();
 };
@@ -99,69 +111,135 @@ pub fn processKeys() void {
         switch (k) {
             .t => std.debug.print("time: {d}\n", .{state.delta_time}),
             .w => {
-                if (state.input.key_shift) {
-                    state.camera.processMovement(.RadiusIn, state.delta_time);
-                } else if (state.input.key_alt) {
-                    state.camera.processMovement(.RotateUp, state.delta_time);
-                } else {
-                    state.camera.processMovement(.Forward, state.delta_time);
+                switch (state.motion_type) {
+                    .Translate => {
+                        state.camera.processMovement(.Forward, state.delta_time);
+                    },
+                    .Orbit => {
+                        state.camera.processMovement(.OrbitUp, state.delta_time);
+                    },
+                    .Circle => {
+                        // No circle movement for W key
+                        state.camera.processMovement(.OrbitUp, state.delta_time);
+                    },
+                    .Rotate => {
+                        state.camera.processMovement(.RotateUp, state.delta_time);
+                    },
                 }
             },
             .s => {
-                if (state.input.key_shift) {
-                    state.camera.processMovement(.RadiusOut, state.delta_time);
-                } else if (state.input.key_alt) {
-                    state.camera.processMovement(.RotateDown, state.delta_time);
-                } else {
-                    state.camera.processMovement(.Backward, state.delta_time);
+                switch (state.motion_type) {
+                    .Translate => {
+                        state.camera.processMovement(.Backward, state.delta_time);
+                    },
+                    .Orbit => {
+                        state.camera.processMovement(.OrbitDown, state.delta_time);
+                    },
+                    .Circle => {
+                        // No circle movement for S key
+                        state.camera.processMovement(.OrbitDown, state.delta_time);
+                    },
+                    .Rotate => {
+                        state.camera.processMovement(.RotateDown, state.delta_time);
+                    },
                 }
             },
             .a => {
-                if (state.input.key_shift) {
-                    //state.camera.processMovement(.OrbitLeft, state.delta_time);
-                    state.camera.processMovement(.CircleLeft, state.delta_time);
-                } else if (state.input.key_alt) {
-                    state.camera.processMovement(.RotateLeft, state.delta_time);
-                } else {
-                    state.camera.processMovement(.Left, state.delta_time);
+                switch (state.motion_type) {
+                    .Translate => {
+                        state.camera.processMovement(.Left, state.delta_time);
+                    },
+                    .Orbit => {
+                        state.camera.processMovement(.OrbitLeft, state.delta_time);
+                    },
+                    .Circle => {
+                        state.camera.processMovement(.CircleLeft, state.delta_time);
+                    },
+                    .Rotate => {
+                        state.camera.processMovement(.RotateLeft, state.delta_time);
+                    },
                 }
             },
             .d => {
-                if (state.input.key_shift) {
-                    state.camera.processMovement(.CircleRight, state.delta_time);
-                } else if (state.input.key_alt) {
-                    state.camera.processMovement(.OrbitRight, state.delta_time);
-                    //state.camera.processMovement(.RotateRight, state.delta_time);
-                } else {
-                    state.camera.processMovement(.Right, state.delta_time);
+                switch (state.motion_type) {
+                    .Translate => {
+                        state.camera.processMovement(.Right, state.delta_time);
+                    },
+                    .Orbit => {
+                        state.camera.processMovement(.OrbitRight, state.delta_time);
+                    },
+                    .Circle => {
+                        state.camera.processMovement(.CircleRight, state.delta_time);
+                    },
+                    .Rotate => {
+                        state.camera.processMovement(.RotateRight, state.delta_time);
+                    },
                 }
             },
             .up => {
-                if (state.input.key_shift) {
-                    state.camera.processMovement(.OrbitUp, state.delta_time);
-                } else {
-                    state.camera.processMovement(.Up, state.delta_time);
+                switch (state.motion_type) {
+                    .Translate => {
+                        state.camera.processMovement(.Up, state.delta_time);
+                    },
+                    .Orbit => {
+                        state.camera.processMovement(.OrbitUp, state.delta_time);
+                    },
+                    .Circle => {
+                        // No circle movement for Up key
+                        state.camera.processMovement(.OrbitUp, state.delta_time);
+                    },
+                    .Rotate => {
+                        state.camera.processMovement(.RotateUp, state.delta_time);
+                    },
                 }
             },
             .down => {
-                if (state.input.key_shift) {
-                    state.camera.processMovement(.OrbitDown, state.delta_time);
-                } else {
-                    state.camera.processMovement(.Down, state.delta_time);
+                switch (state.motion_type) {
+                    .Translate => {
+                        state.camera.processMovement(.Down, state.delta_time);
+                    },
+                    .Orbit => {
+                        state.camera.processMovement(.OrbitDown, state.delta_time);
+                    },
+                    .Circle => {
+                        // No circle movement for Down key
+                        state.camera.processMovement(.OrbitDown, state.delta_time);
+                    },
+                    .Rotate => {
+                        state.camera.processMovement(.RotateDown, state.delta_time);
+                    },
                 }
             },
             .right => {
-                if (state.input.key_shift) {
-                    state.camera.processMovement(.OrbitRight, state.delta_time);
-                } else {
-                    state.camera.processMovement(.Right, state.delta_time);
+                switch (state.motion_type) {
+                    .Translate => {
+                        state.camera.processMovement(.Right, state.delta_time);
+                    },
+                    .Orbit => {
+                        state.camera.processMovement(.OrbitRight, state.delta_time);
+                    },
+                    .Circle => {
+                        state.camera.processMovement(.CircleRight, state.delta_time);
+                    },
+                    .Rotate => {
+                        state.camera.processMovement(.RotateRight, state.delta_time);
+                    },
                 }
             },
             .left => {
-                if (state.input.key_shift) {
-                    state.camera.processMovement(.OrbitLeft, state.delta_time);
-                } else {
-                    state.camera.processMovement(.Left, state.delta_time);
+                switch (state.motion_type) {
+                    .Translate => {
+                        state.camera.processMovement(.Left, state.delta_time);
+                    },
+                    .Orbit => {
+                        state.camera.processMovement(.OrbitLeft, state.delta_time);
+                    },
+                    .Circle => {
+                        state.camera.processMovement(.CircleLeft, state.delta_time);
+                    },
+                    .Rotate => {
+                        state.camera.processMovement(.RotateLeft, state.delta_time);
+                    },
                 }
             },
             .r => {
@@ -169,9 +247,11 @@ pub fn processKeys() void {
             },
             .one => {
                 state.camera.setLookTo();
+                std.debug.print("Look To\n", .{});
             },
             .two => {
                 state.camera.setLookAt();
+                std.debug.print("Look At\n", .{});
             },
             .three => {
                 if (!toggle.spin_is_set) {
@@ -186,7 +266,7 @@ pub fn processKeys() void {
                 state.projection_type = .Orthographic;
                 state.projection = state.camera.getProjectionMatrix(.Orthographic);
             },
-            .zero => { 
+            .zero => {
                 if (last_time + delay_time < state.total_time) {
                     last_time = state.total_time;
                     // state.single_mesh_id = -1;
@@ -208,6 +288,22 @@ pub fn processKeys() void {
                         state.animation_id = 0;
                     }
                 }
+            },
+            .six => {
+                state.motion_type = .Translate;
+                std.debug.print("Motion Type: Translate\n", .{});
+            },
+            .seven => {
+                state.motion_type = .Orbit;
+                std.debug.print("Motion Type: Orbit\n", .{});
+            },
+            .eight => {
+                state.motion_type = .Circle;
+                std.debug.print("Motion Type: Circle\n", .{});
+            },
+            .nine => {
+                state.motion_type = .Rotate;
+                std.debug.print("Motion Type: Rotate\n", .{});
             },
             else => {},
         }

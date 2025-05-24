@@ -5,21 +5,18 @@ pub const Vec3 = math.Vec3;
 pub const Quat = math.Quat;
 
 pub const MovementDirection = enum {
-    // Translation relative to the current axes.
     Forward,
     Backward,
     Left,
     Right,
     Up,
     Down,
-    // Rotation about the movement’s own axes.
     RotateRight,
     RotateLeft,
     RotateUp,
     RotateDown,
     RollRight,
     RollLeft,
-    // Movements that depend on a target.
     RadiusIn,
     RadiusOut,
     OrbitUp,
@@ -31,22 +28,18 @@ pub const MovementDirection = enum {
 };
 
 const world_up = Vec3.init(0.0, 1.0, -0.0);
+var buf: [1024]u8 = undefined;
+var buf2: [1024]u8 = undefined;
+var buf3: [1024]u8 = undefined;
+var buf4: [1024]u8 = undefined;
 
-/// - `moveSpeed` is in world-units per second.
-/// - `rotationSpeed` is in degrees per second for in-place rotations.
-/// - `orbitSpeed` is in degrees per second for orbit movements.
 pub const Movement = struct {
-    /// World position.
     position: Vec3,
-    /// The target point used for orbit and radial movements.
     target: Vec3,
-    /// Orientation as a quaternion.
-    orientation: Quat,
-    /// Cached axes derived from the current rotation.
+    up: Vec3,
+    forward: Vec3,
+    right: Vec3,
     world_up: Vec3 = world_up,
-    up: Vec3 = undefined,
-    forward: Vec3 = undefined,
-    right: Vec3 = undefined,
     translate_speed: f32 = 50.0,
     rotation_speed: f32 = 50.0,
     orbit_speed: f32 = 50.0,
@@ -54,183 +47,189 @@ pub const Movement = struct {
 
     const Self = @This();
 
-    /// Initialize with a starting position and target.
-    /// Orientation is calculated from position and target to face target
     pub fn init(position: Vec3, target: Vec3) Movement {
         const orientation = Quat.lookAtOrientation(position, target, world_up);
-        var m = Movement{
+        const axes = orientation.toAxes();
+        return Movement{
             .position = position,
             .target = target,
-            .orientation = orientation,
+            .right = axes[0].xyz(),
+            .up = axes[1].xyz(),
+            .forward = axes[2].xyz(),
         };
-        m.updateAxes();
-        return m;
     }
 
-    pub fn reset(self: *Self, position: Vec3, rotation: Quat, target: Vec3) void {
+    pub fn reset(self: *Self, position: Vec3, target: Vec3) void {
         self.position = position;
-        self.orientation = rotation;
         self.target = target;
-        self.updateAxes();
-    }
-
-    /// Recalculate the forward/up/right axes from the current rotation.
-    pub fn updateAxes(self: *Movement) void {
-        // Assume Quat.toAxes() returns an array of three Vec4 values:
-        // axes[0]: right, axes[1]: up, axes[2]: forward.
-        // Use a helper method (xyz()) to convert a Vec4 to Vec3.
-        const axes = self.orientation.toAxes();
-        self.forward = axes[2].xyz();
+        const orientation = Quat.lookAtOrientation(position, target, self.world_up);
+        const axes = orientation.toAxes();
         self.right = axes[0].xyz();
         self.up = axes[1].xyz();
+        self.forward = axes[2].xyz();
     }
 
-    /// Translate the position by an offset.
-    pub fn translate(self: *Movement, offset: Vec3) void {
+    pub fn translate(self: *Self, offset: Vec3) void {
         self.position = self.position.add(&offset);
     }
 
-    /// Rotate the movement by a quaternion delta.
-    pub fn rotate(self: *Movement, delta: Quat) void {
-        // Multiply delta on the left. (Check your convention!)
-        self.orientation = Quat.mulQuat(&delta, &self.orientation);
-        self.orientation.normalize();
-        self.updateAxes();
-    }
-
-    /// Process a movement command that covers translation, rotation,
-    /// and target-based (orbit and radial) movements.
     pub fn processMovement(
-        self: *Movement,
+        self: *Self,
         direction: MovementDirection,
         delta_time: f32,
     ) void {
         self.direction = direction;
-        const translationVelocity = self.translate_speed * delta_time;
-        // For in-place rotations:
-        const rotAngle = math.degreesToRadians(self.rotation_speed * delta_time);
-        // For orbit rotations:
-        const orbitAngle = math.degreesToRadians(self.orbit_speed * delta_time);
+        const translation_velocity = self.translate_speed * delta_time;
+        const rot_angle = math.degreesToRadians(self.rotation_speed * delta_time);
+        const orbit_angle = math.degreesToRadians(self.orbit_speed * delta_time);
 
         switch (direction) {
-            // Translation along the current axes.
             .Forward => {
-                self.position = self.position.add(&self.forward.mulScalar(translationVelocity));
+                self.position = self.position.add(&self.forward.mulScalar(translation_velocity));
             },
             .Backward => {
-                self.position = self.position.sub(&self.forward.mulScalar(translationVelocity));
+                self.position = self.position.sub(&self.forward.mulScalar(translation_velocity));
             },
             .Left => {
-                self.position = self.position.sub(&self.right.mulScalar(translationVelocity));
+                self.position = self.position.sub(&self.right.mulScalar(translation_velocity));
             },
             .Right => {
-                self.position = self.position.add(&self.right.mulScalar(translationVelocity));
+                self.position = self.position.add(&self.right.mulScalar(translation_velocity));
             },
             .Up => {
-                self.position = self.position.add(&self.up.mulScalar(translationVelocity));
+                self.position = self.position.add(&self.up.mulScalar(translation_velocity));
             },
             .Down => {
-                self.position = self.position.sub(&self.up.mulScalar(translationVelocity));
+                self.position = self.position.sub(&self.up.mulScalar(translation_velocity));
             },
-            // In-place rotations.
             .RotateRight => {
-                const rot = Quat.fromAxisAngle(&self.up, -rotAngle);
-                self.rotate(rot);
+                const rot = Quat.fromAxisAngle(&self.up, -rot_angle);
+                const translated_target = self.target.sub(&self.position);
+                const rotated_target = rot.rotateVec(&translated_target);
+                self.target = self.position.add(&rotated_target);
+                self.right = rot.rotateVec(&self.right);
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .RotateLeft => {
-                const rot = Quat.fromAxisAngle(&self.up, rotAngle);
-                self.rotate(rot);
+                const rot = Quat.fromAxisAngle(&self.up, rot_angle);
+                const translated_target = self.target.sub(&self.position);
+                const rotated_target = rot.rotateVec(&translated_target);
+                self.target = self.position.add(&rotated_target);
+                self.right = rot.rotateVec(&self.right);
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .RotateUp => {
-                const rot = Quat.fromAxisAngle(&self.right, rotAngle);
-                self.rotate(rot);
+                const rot = Quat.fromAxisAngle(&self.right, rot_angle);
+                const translated_target = self.target.sub(&self.position);
+                const rotated_target = rot.rotateVec(&translated_target);
+                self.target = self.position.add(&rotated_target);
+                self.up = rot.rotateVec(&self.up);
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .RotateDown => {
-                const rot = Quat.fromAxisAngle(&self.right, -rotAngle);
-                self.rotate(rot);
+                const rot = Quat.fromAxisAngle(&self.right, -rot_angle);
+                const translated_target = self.target.sub(&self.position);
+                const rotated_target = rot.rotateVec(&translated_target);
+                self.target = self.position.add(&rotated_target);
+                self.up = rot.rotateVec(&self.up);
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .RollRight => {
-                const rot = Quat.fromAxisAngle(&self.forward, rotAngle);
-                self.rotate(rot);
+                const rot = Quat.fromAxisAngle(&self.forward, rot_angle);
+                const translated_target = self.target.sub(&self.position);
+                const rotated_target = rot.rotateVec(&translated_target);
+                self.target = self.position.add(&rotated_target);
+                self.up = rot.rotateVec(&self.up);
+                self.right = rot.rotateVec(&self.right);
             },
             .RollLeft => {
-                const rot = Quat.fromAxisAngle(&self.forward, -rotAngle);
-                self.rotate(rot);
+                const rot = Quat.fromAxisAngle(&self.forward, -rot_angle);
+                const translated_target = self.target.sub(&self.position);
+                const rotated_target = rot.rotateVec(&translated_target);
+                self.target = self.position.add(&rotated_target);
+                self.up = rot.rotateVec(&self.up);
+                self.right = rot.rotateVec(&self.right);
             },
-            // Target-based movements.
-            // Radial movement: move in/out along the vector from the position to the target.
             .RadiusIn => {
                 const dir = self.target.sub(&self.position).normalizeTo();
-                self.position = self.position.add(&dir.mulScalar(translationVelocity));
+                self.position = self.position.add(&dir.mulScalar(translation_velocity));
             },
             .RadiusOut => {
                 const dir = self.target.sub(&self.position).normalizeTo();
-                self.position = self.position.sub(&dir.mulScalar(translationVelocity));
+                self.position = self.position.sub(&dir.mulScalar(translation_velocity));
             },
-            // Orbit movements: rotate the position around the target.
             .OrbitRight => {
-                const rot = Quat.fromAxisAngle(&self.up, orbitAngle);
-                const offset = self.position.sub(&self.target);
-                const rotated_offset = rot.rotateVec(&offset);
-                self.position = self.target.add(&rotated_offset);
-                self.updateAxes();
+                const rot = Quat.fromAxisAngle(&self.up, -orbit_angle);
+                const translated_position = self.position.sub(&self.target);
+                const rotated_position = rot.rotateVec(&translated_position);
+                self.position = self.target.add(&rotated_position);
+                self.right = rot.rotateVec(&self.right);
+                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.up = self.forward.cross(&self.right).normalizeTo();
             },
             .OrbitLeft => {
-                const rot = Quat.fromAxisAngle(&self.up, -orbitAngle);
-                const offset = self.position.sub(&self.target);
-                const rotated_offset = rot.rotateVec(&offset);
-                self.position = self.target.add(&rotated_offset);
-                self.updateAxes();
+                const rot = Quat.fromAxisAngle(&self.up, orbit_angle);
+                const translated_position = self.position.sub(&self.target);
+                const rotated_position = rot.rotateVec(&translated_position);
+                self.position = self.target.add(&rotated_position);
+                self.right = rot.rotateVec(&self.right);
+                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.up = self.forward.cross(&self.right).normalizeTo();
             },
             .OrbitUp => {
-                const rot = Quat.fromAxisAngle(&self.right, -orbitAngle);
-                const offset = self.position.sub(&self.target);
-                const rotated_offset = rot.rotateVec(&offset);
-                self.position = self.target.add(&rotated_offset);
-                self.updateAxes();
+                const rot = Quat.fromAxisAngle(&self.right, -orbit_angle);
+                const translated_position = self.position.sub(&self.target);
+                const rotated_position = rot.rotateVec(&translated_position);
+                self.position = self.target.add(&rotated_position);
+                self.up = rot.rotateVec(&self.up);
+                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.right = self.up.cross(&self.forward).normalizeTo();
             },
             .OrbitDown => {
-                const rot = Quat.fromAxisAngle(&self.right, orbitAngle);
-                const offset = self.position.sub(&self.target);
-                const rotated_offset = rot.rotateVec(&offset);
-                self.position = self.target.add(&rotated_offset);
-                self.updateAxes();
+                const rot = Quat.fromAxisAngle(&self.right, orbit_angle);
+                const translated_position = self.position.sub(&self.target);
+                const rotated_position = rot.rotateVec(&translated_position);
+                self.position = self.target.add(&rotated_position);
+                self.up = rot.rotateVec(&self.up);
+                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.right = self.up.cross(&self.forward).normalizeTo();
             },
             .CircleRight => {
                 const original_position = self.position;
-                // 1) quaternion rotating around world Y by -angle
-                const rot = Quat.fromAxisAngle(&self.world_up, -orbitAngle);
-                // const rot = Quat.fromAxisAngle(&self.up, -orbitAngle);
-
-                // 2) full offset from target
-                const offset = self.position.sub(&self.target);
-
-                // 3) flatten to XZ plane
-                const flat = Vec3.init(offset.x, 0.0, offset.z);
-
-                // 4) rotate the flat vector
-                const rotated = rot.rotateVec(&flat);
-
-                // 5) rebuild position: keep original Y
-                self.position = self.target.add(&Vec3.init(rotated.x, offset.y, rotated.z));
-
-                self.updateAxes();
-
+                const rot = Quat.fromAxisAngle(&self.world_up, -orbit_angle);
+                const translated_position = self.position.sub(&self.target);
+                const flat = Vec3.init(translated_position.x, 0.0, translated_position.z);
+                const rotated_position = rot.rotateVec(&flat);
+                self.position = self.target.add(&Vec3.init(rotated_position.x, translated_position.y, rotated_position.z));
+                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.right = self.up.cross(&self.forward).normalizeTo();
                 std.debug.print(
-                    "CircleRight:\n  world_up: {any}\n  up: {any}\n  angle: {d}\n  >rot: {any}\n  offset: {any}\n  rotated: {any}\n  original: {any}\n  updated: {any}\n", 
-                    .{world_up, self.up, orbitAngle, rot, offset, rotated, original_position, self.position,},
+                    "CircleRight:\n  world_up: {s}\n  up: {s}\n  angle: {d}\n  >rot: {any}\n  offset: {s}\n  rotated: {s}\n  original: {s}\n  updated: {s}\n",
+                    .{
+                        self.world_up.asString(&buf),
+                        self.up.asString(&buf2),
+                        orbit_angle,
+                        rot,
+                        translated_position.asString(&buf3),
+                        rotated_position.asString(&buf4),
+                        original_position.asString(&buf),
+                        self.position.asString(&buf2),
+                    },
                 );
             },
             .CircleLeft => {
                 const original_position = self.position;
-                // same as above but positive angle
-                const rot = Quat.fromAxisAngle(&world_up, orbitAngle);
-                const offset = self.position.sub(&self.target);
-                const flat = Vec3.init(offset.x, 0.0, offset.z);
-                const rotated = rot.rotateVec(&flat);
-                self.position = self.target.add(&Vec3.init(rotated.x, offset.y, rotated.z));
-                self.updateAxes();
-                std.debug.print("CircleLeft: original: {any}  updated: {any}\n", .{original_position, self.position});
+                const rot = Quat.fromAxisAngle(&self.world_up, orbit_angle);
+                const translated_position = self.position.sub(&self.target);
+                const flat = Vec3.init(translated_position.x, 0.0, translated_position.z);
+                const rotated_position = rot.rotateVec(&flat);
+                self.position = self.target.add(&Vec3.init(rotated_position.x, translated_position.y, rotated_position.z));
+                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.right = self.up.cross(&self.forward).normalizeTo();
+                std.debug.print("CircleLeft: original: {s}  updated: {s}\n", .{
+                    original_position.asString(&buf),
+                    self.position.asString(&buf2),
+                });
             },
         }
     }
@@ -240,25 +239,73 @@ pub const Movement = struct {
         _ = xoffset_in;
         _ = yoffset_in;
         _ = constrain_pitch;
-        // const xoffset: f32 = xoffset_in * self.mouse_sensitivity;
-        // const yoffset: f32 = yoffset_in * self.mouse_sensitivity;
-        //
-        // self.yaw += xoffset;
-        // self.pitch += yoffset;
-        //
-        // // make sure that when pitch is out of bounds, screen doesn't get flipped
-        // if (constrain_pitch) {
-        //     if (self.pitch > 89.0) {
-        //         self.pitch = 89.0;
-        //     }
-        //     if (self.pitch < -89.0) {
-        //         self.pitch = -89.0;
-        //     }
-        // }
-        //
-        // // update Front, Right and Up Vectors using the updated Euler angles
-        // self.updateCameraVectors();
-        //
-        // // debug!("camera: {:#?}", self);
+    }
+
+    pub fn printState(self: *Self) void {
+        std.debug.print("Position: {s}\n", .{self.position.asString(&buf)});
+        std.debug.print("Up: {s}\n", .{self.up.asString(&buf2)});
+        std.debug.print("Right: {s}\n", .{self.right.asString(&buf3)});
+        std.debug.print("Forward: {s}\n", .{self.forward.asString(&buf4)});
+        std.debug.print("Target: {s}\n", .{self.target.asString(&buf)});
+    }
+
+    pub fn update(self: *Self, angle: f32, direction: MovementDirection) void {
+        const angle_degrees = math.radiansToDegrees(angle);
+        const delta_time = angle_degrees / self.orbit_speed;
+        self.processMovement(direction, delta_time);
+    }
+
+    test "orbit right left motion" {
+        const target = Vec3.init(0.0, 0.0, 0.0);
+        const radius: f32 = 10.0;
+        const tilt_angle = math.degreesToRadians(45.0);
+        var position = Vec3.init(radius, 0.0, 0.0);
+        const tilt_axis = Vec3.init(0.0, 0.0, 1.0);
+        const tilt_quat = Quat.fromAxisAngle(&tilt_axis, tilt_angle);
+        position = tilt_quat.rotateVec(&position);
+        var movement = Movement.init(position, target);
+        movement.up = tilt_quat.rotateVec(&Vec3.init(0.0, 1.0, 0.0));
+        movement.right = movement.up.cross(&movement.forward).normalizeTo();
+        const start_pos = position.clone();
+        const steps = 12;
+        const step_angle = math.degreesToRadians(30.0);
+        const epsilon = 0.001;
+        for (0..steps) |i| {
+            movement.update(step_angle, .OrbitRight);
+            if (i % 3 == 0) {
+                std.debug.print("\nStep {d}:\n", .{i});
+                movement.printState();
+                const current_radius = movement.position.sub(&target).length();
+                try std.testing.expectApproxEqAbs(current_radius, radius, epsilon);
+                const translated_position = movement.position.sub(&target);
+                const translated_position_norm = translated_position.normalizeTo();
+                const dot_with_up = translated_position_norm.dot(&movement.up);
+                try std.testing.expectApproxEqAbs(dot_with_up, 0.0, epsilon);
+            }
+        }
+        try std.testing.expectApproxEqAbs(movement.position.x, start_pos.x, epsilon);
+        try std.testing.expectApproxEqAbs(movement.position.y, start_pos.y, epsilon);
+        try std.testing.expectApproxEqAbs(movement.position.z, start_pos.z, epsilon);
+    }
+
+    test "rotate right motion" {
+        const position = Vec3.init(10.0, 0.0, 0.0);
+        const target = Vec3.init(0.0, 0.0, 0.0);
+        var movement = Movement.init(position, target);
+        const start_target = target.clone();
+        const steps = 12;
+        const step_angle = math.degreesToRadians(30.0);
+        const epsilon = 0.001;
+        for (0..steps) |_| {
+            movement.update(step_angle, .RotateRight);
+        }
+        // After 360 degrees, target should return to start
+        try std.testing.expectApproxEqAbs(movement.target.x, start_target.x, epsilon);
+        try std.testing.expectApproxEqAbs(movement.target.y, start_target.y, epsilon);
+        try std.testing.expectApproxEqAbs(movement.target.z, start_target.z, epsilon);
+        // Position should remain unchanged
+        try std.testing.expectApproxEqAbs(movement.position.x, position.x, epsilon);
+        try std.testing.expectApproxEqAbs(movement.position.y, position.y, epsilon);
+        try std.testing.expectApproxEqAbs(movement.position.z, position.z, epsilon);
     }
 };

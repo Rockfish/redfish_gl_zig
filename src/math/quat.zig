@@ -119,15 +119,20 @@ pub const Quat = extern struct {
         return .{ x_axis, y_axis, z_axis };
     }
 
-    pub fn lookAtOrientation(position: Vec3, target: Vec3, world_up: Vec3) Quat {
-        var dir = position.sub(&target);
+    pub fn lookAtOrientation(position: Vec3, target: Vec3, up: Vec3) Quat {
+        var dir = target.sub(&position);
+        if (dir.lengthSquared() == 0.0) {
+            return Quat.identity();
+        }
         dir.normalize();
 
-        var result: Quat = undefined;
+        var up_normalized = up;
+        up_normalized.normalize();
 
+        var result: Quat = Quat.identity();
         cglm.glmc_quat_for(
             dir.asCPtrF32(),
-            world_up.asCPtrF32(),
+            up_normalized.asCPtrF32(),
             result.asCPtrF32(),
         );
 

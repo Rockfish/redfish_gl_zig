@@ -160,6 +160,23 @@ pub fn build(b: *std.Build) void {
 
     const check = b.step("check", "Check if game compiles");
     check.dependOn(&exe_check.step);
+
+    // Add test step for movement
+    const movement_tests = b.addTest(.{
+        .root_source_file = b.path("src/core/movement.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add required dependencies
+    movement_tests.root_module.addImport("math", math);
+    movement_tests.root_module.addImport("cglm", cglm.module("root"));
+    movement_tests.addIncludePath(b.path("src/include"));
+    movement_tests.linkLibrary(cglm.artifact("cglm"));
+
+    const run_movement_tests = b.addRunArtifact(movement_tests);
+    const test_step = b.step("test-movement", "Run movement tests");
+    test_step.dependOn(&run_movement_tests.step);
 }
 
 pub const Options = struct {

@@ -40,6 +40,10 @@ pub const Vec2 = extern struct {
     pub fn asString(self: *const Vec2, buf: []u8) []u8 {
         return std.fmt.bufPrint(buf, "Vec2{{ {d}, {d} }}", .{ self.x, self.y }) catch |err| std.debug.panic("{any}", .{err});
     }
+
+    pub fn clone(self: *const Vec2) Vec2 {
+        return .{ .x = self.x, .y = self.y };
+    }
 };
 
 pub fn vec2(x: f32, y: f32) Vec2 {
@@ -112,6 +116,7 @@ pub const Vec3 = extern struct {
     }
 
     pub fn normalize(v: *Vec3) void {
+        if (v.lengthSquared() == 0.0) return;
         cglm.glmc_vec3_normalize(@as([*c]f32, @ptrCast(@constCast(v))));
     }
 
@@ -120,7 +125,7 @@ pub const Vec3 = extern struct {
         cglm.glmc_vec3_normalize_to(@as([*c]f32, @ptrCast(@constCast(v))), &result);
         return @as(*Vec3, @ptrCast(&result)).*;
     }
- 
+
     pub fn addScalar(a: *const Vec3, b: f32) Vec3 {
         return .{ .x = a.x + b, .y = a.y + b, .z = a.z + b };
     }
@@ -197,6 +202,10 @@ pub const Vec3 = extern struct {
     pub fn asString(self: *const Self, buf: []u8) []u8 {
         return std.fmt.bufPrint(buf, "Vec3{{ {d}, {d}, {d} }}", .{ self.x, self.y, self.z }) catch |err| std.debug.panic("{any}", .{err});
     }
+
+    pub fn clone(self: *const Vec3) Vec3 {
+        return .{ .x = self.x, .y = self.y, .z = self.z };
+    }
 };
 
 pub fn vec3(x: f32, y: f32, z: f32) Vec3 {
@@ -267,6 +276,10 @@ pub const Vec4 = extern struct {
 
     pub fn asString(self: *const Vec4, buf: []u8) []u8 {
         return std.fmt.bufPrint(buf, "Vec4{{ {d}, {d}, {d}, {d} }", .{ self.x, self.y, self.z, self.w }) catch |err| std.debug.panic("{any}", .{err});
+    }
+
+    pub fn clone(self: *const Vec4) Vec4 {
+        return .{ .x = self.x, .y = self.y, .z = self.z, .w = self.w };
     }
 };
 

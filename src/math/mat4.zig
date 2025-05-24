@@ -43,6 +43,41 @@ pub const Mat4 = extern struct {
         } };
     }
 
+    pub fn fromAxes(axes: [3]Vec4) Self {
+        // axes[0]: right, axes[1]: up, axes[2]: forward
+        const right = axes[0];
+        const up = axes[1];
+        const forward = axes[2];
+
+        // Construct 4x4 matrix:
+        // [ right.x   up.x   forward.x   0 ]
+        // [ right.y   up.y   forward.y   0 ]
+        // [ right.z   up.z   forward.z   0 ]
+        // [    0       0        0        1 ]
+        var result: [4][4]f32 = undefined;
+        result[0][0] = right.x;
+        result[1][0] = right.y;
+        result[2][0] = right.z;
+        result[3][0] = 0.0;
+
+        result[0][1] = up.x;
+        result[1][1] = up.y;
+        result[2][1] = up.z;
+        result[3][1] = 0.0;
+
+        result[0][2] = forward.x;
+        result[1][2] = forward.y;
+        result[2][2] = forward.z;
+        result[3][2] = 0.0;
+
+        result[0][3] = 0.0;
+        result[1][3] = 0.0;
+        result[2][3] = 0.0;
+        result[3][3] = 1.0;
+
+        return .{ .data = result };
+    }    
+
     pub fn toArray(self: *const Self) [16]f32 {
         return @as(*[16]f32, @ptrCast(@constCast(self))).*;
     }
@@ -195,12 +230,10 @@ pub const Mat4 = extern struct {
 
     pub fn getTranslationRotationScale(self: *const Self) TrnRotScl {
         var tran: [4]f32 = undefined;
-        var rota: [4][4]f32 = undefined;
         var scal: [3]f32 = undefined;
-
-        cglm.glmc_decompose(@constCast(&self.data), &tran, &rota, &scal);
-
         var quat: [4]f32 = undefined;
+
+        cglm.glmc_decompose(@constCast(&self.data), &tran, null, &scal);
         cglm.glmc_mat4_quat(@constCast(&self.data), &quat);
 
         return TrnRotScl{
