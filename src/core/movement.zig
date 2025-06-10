@@ -27,7 +27,7 @@ pub const MovementDirection = enum {
     CircleLeft,
 };
 
-const world_up = Vec3.init(0.0, 1.0, -0.0);
+const world_up = Vec3.init(0.0, 1.0, 0.0);
 var buf: [1024]u8 = undefined;
 var buf2: [1024]u8 = undefined;
 var buf3: [1024]u8 = undefined;
@@ -44,6 +44,8 @@ pub const Movement = struct {
     rotation_speed: f32 = 50.0,
     orbit_speed: f32 = 50.0,
     direction: MovementDirection = .Forward,
+    frame_count: u32 = 0,
+    period: u32 = 100,
 
     const Self = @This();
 
@@ -67,10 +69,49 @@ pub const Movement = struct {
         self.right = axes[0].xyz();
         self.up = axes[1].xyz();
         self.forward = axes[2].xyz();
+        self.frame_count = 0;
     }
 
     pub fn translate(self: *Self, offset: Vec3) void {
         self.position = self.position.add(&offset);
+    }
+
+    pub fn orthonormalizeUp(self: *Self) void {
+        if (self.target.sub(&self.position).lengthSquared() < 0.0001) {
+            return; // Skip if position == target
+        }
+        std.debug.print("\northonormalize Up current state\n", .{});
+        self.printState();
+        self.up = self.up.normalizeTo();
+        self.forward = self.target.sub(&self.position).normalizeTo();
+        self.right = self.forward.cross(&self.up).normalizeTo();
+        std.debug.print("\northonormalize Up new state\n", .{});
+        self.printState();
+    }
+
+    pub fn orthonormalizeRight(self: *Self) void {
+        if (self.target.sub(&self.position).lengthSquared() < 0.0001) {
+            return; // Skip if position == target
+        }
+        std.debug.print("\northonormalize Right current state\n", .{});
+        self.printState();
+        self.right = self.right.normalizeTo();
+        self.forward = self.target.sub(&self.position).normalizeTo();
+        self.up = self.right.cross(&self.forward).normalizeTo();
+        std.debug.print("\northonormalize Right new state\n", .{});
+        self.printState();
+    }
+
+    pub fn orthonormalizeUpPeriodic(self: *Self) void {
+        if (@mod(self.frame_count, self.period) == 0) {
+            self.orthonormalizeUp();
+        }
+    }
+
+    pub fn orthonormalizeRightPeriodic(self: *Self) void {
+        if (@mod(self.frame_count, self.period) == 0) {
+            self.orthonormalizeRight();
+        }
     }
 
     pub fn processMovement(
@@ -78,6 +119,10 @@ pub const Movement = struct {
         direction: MovementDirection,
         delta_time: f32,
     ) void {
+        self.frame_count += 1;
+        if (self.direction != direction) {
+            std.debug.print("direction: {any}\n", .{direction});
+        }
         self.direction = direction;
         const translation_velocity = self.translate_speed * delta_time;
         const rot_angle = math.degreesToRadians(self.rotation_speed * delta_time);
@@ -86,21 +131,26 @@ pub const Movement = struct {
         switch (direction) {
             .Forward => {
                 self.position = self.position.add(&self.forward.mulScalar(translation_velocity));
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .Backward => {
                 self.position = self.position.sub(&self.forward.mulScalar(translation_velocity));
             },
             .Left => {
                 self.position = self.position.sub(&self.right.mulScalar(translation_velocity));
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .Right => {
                 self.position = self.position.add(&self.right.mulScalar(translation_velocity));
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .Up => {
                 self.position = self.position.add(&self.up.mulScalar(translation_velocity));
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .Down => {
                 self.position = self.position.sub(&self.up.mulScalar(translation_velocity));
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .RotateRight => {
                 const rot = Quat.fromAxisAngle(&self.up, -rot_angle);
@@ -153,83 +203,74 @@ pub const Movement = struct {
             .RadiusIn => {
                 const dir = self.target.sub(&self.position).normalizeTo();
                 self.position = self.position.add(&dir.mulScalar(translation_velocity));
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .RadiusOut => {
                 const dir = self.target.sub(&self.position).normalizeTo();
                 self.position = self.position.sub(&dir.mulScalar(translation_velocity));
+                self.forward = self.target.sub(&self.position).normalizeTo();
             },
             .OrbitRight => {
                 const rot = Quat.fromAxisAngle(&self.up, -orbit_angle);
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.right = rot.rotateVec(&self.right);
                 self.forward = self.target.sub(&self.position).normalizeTo();
-                self.up = self.forward.cross(&self.right).normalizeTo();
+                self.right = rot.rotateVec(&self.right);
+                self.orthonormalizeUpPeriodic();
             },
             .OrbitLeft => {
                 const rot = Quat.fromAxisAngle(&self.up, orbit_angle);
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.right = rot.rotateVec(&self.right);
                 self.forward = self.target.sub(&self.position).normalizeTo();
-                self.up = self.forward.cross(&self.right).normalizeTo();
+                self.right = rot.rotateVec(&self.right);
+                self.orthonormalizeUpPeriodic();
             },
             .OrbitUp => {
                 const rot = Quat.fromAxisAngle(&self.right, -orbit_angle);
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.up = rot.rotateVec(&self.up);
                 self.forward = self.target.sub(&self.position).normalizeTo();
-                self.right = self.up.cross(&self.forward).normalizeTo();
+                self.up = rot.rotateVec(&self.up);
+                self.orthonormalizeRightPeriodic();
             },
             .OrbitDown => {
                 const rot = Quat.fromAxisAngle(&self.right, orbit_angle);
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.up = rot.rotateVec(&self.up);
                 self.forward = self.target.sub(&self.position).normalizeTo();
-                self.right = self.up.cross(&self.forward).normalizeTo();
+                self.up = rot.rotateVec(&self.up);
+                self.orthonormalizeRightPeriodic();
             },
             .CircleRight => {
-                const original_position = self.position;
+                std.debug.print("\ncircle Right current state\n", .{});
+                self.printState();
                 const rot = Quat.fromAxisAngle(&self.world_up, -orbit_angle);
                 const translated_position = self.position.sub(&self.target);
                 const flat = Vec3.init(translated_position.x, 0.0, translated_position.z);
                 const rotated_position = rot.rotateVec(&flat);
                 self.position = self.target.add(&Vec3.init(rotated_position.x, translated_position.y, rotated_position.z));
                 self.forward = self.target.sub(&self.position).normalizeTo();
-                self.right = self.up.cross(&self.forward).normalizeTo();
-                std.debug.print(
-                    "CircleRight:\n  world_up: {s}\n  up: {s}\n  angle: {d}\n  >rot: {any}\n  offset: {s}\n  rotated: {s}\n  original: {s}\n  updated: {s}\n",
-                    .{
-                        self.world_up.asString(&buf),
-                        self.up.asString(&buf2),
-                        orbit_angle,
-                        rot,
-                        translated_position.asString(&buf3),
-                        rotated_position.asString(&buf4),
-                        original_position.asString(&buf),
-                        self.position.asString(&buf2),
-                    },
-                );
+                self.right = self.forward.cross(&self.up).normalizeTo();
+                std.debug.print("\ncircle Right new state\n", .{});
+                self.printState();
             },
             .CircleLeft => {
-                const original_position = self.position;
+                std.debug.print("\ncircle Left current state\n", .{});
+                self.printState();
                 const rot = Quat.fromAxisAngle(&self.world_up, orbit_angle);
                 const translated_position = self.position.sub(&self.target);
                 const flat = Vec3.init(translated_position.x, 0.0, translated_position.z);
                 const rotated_position = rot.rotateVec(&flat);
                 self.position = self.target.add(&Vec3.init(rotated_position.x, translated_position.y, rotated_position.z));
                 self.forward = self.target.sub(&self.position).normalizeTo();
-                self.right = self.up.cross(&self.forward).normalizeTo();
-                std.debug.print("CircleLeft: original: {s}  updated: {s}\n", .{
-                    original_position.asString(&buf),
-                    self.position.asString(&buf2),
-                });
+                self.right = self.forward.cross(&self.up).normalizeTo();
+                std.debug.print("\ncircle Left new state\n", .{});
+                self.printState();
             },
         }
     }
@@ -243,10 +284,10 @@ pub const Movement = struct {
 
     pub fn printState(self: *Self) void {
         std.debug.print("Position: {s}\n", .{self.position.asString(&buf)});
+        std.debug.print("Target: {s}\n", .{self.target.asString(&buf)});
+        std.debug.print("Forward: {s}\n", .{self.forward.asString(&buf4)});
         std.debug.print("Up: {s}\n", .{self.up.asString(&buf2)});
         std.debug.print("Right: {s}\n", .{self.right.asString(&buf3)});
-        std.debug.print("Forward: {s}\n", .{self.forward.asString(&buf4)});
-        std.debug.print("Target: {s}\n", .{self.target.asString(&buf)});
     }
 
     pub fn update(self: *Self, angle: f32, direction: MovementDirection) void {
@@ -254,58 +295,58 @@ pub const Movement = struct {
         const delta_time = angle_degrees / self.orbit_speed;
         self.processMovement(direction, delta_time);
     }
-
-    test "orbit right left motion" {
-        const target = Vec3.init(0.0, 0.0, 0.0);
-        const radius: f32 = 10.0;
-        const tilt_angle = math.degreesToRadians(45.0);
-        var position = Vec3.init(radius, 0.0, 0.0);
-        const tilt_axis = Vec3.init(0.0, 0.0, 1.0);
-        const tilt_quat = Quat.fromAxisAngle(&tilt_axis, tilt_angle);
-        position = tilt_quat.rotateVec(&position);
-        var movement = Movement.init(position, target);
-        movement.up = tilt_quat.rotateVec(&Vec3.init(0.0, 1.0, 0.0));
-        movement.right = movement.up.cross(&movement.forward).normalizeTo();
-        const start_pos = position.clone();
-        const steps = 12;
-        const step_angle = math.degreesToRadians(30.0);
-        const epsilon = 0.001;
-        for (0..steps) |i| {
-            movement.update(step_angle, .OrbitRight);
-            if (i % 3 == 0) {
-                std.debug.print("\nStep {d}:\n", .{i});
-                movement.printState();
-                const current_radius = movement.position.sub(&target).length();
-                try std.testing.expectApproxEqAbs(current_radius, radius, epsilon);
-                const translated_position = movement.position.sub(&target);
-                const translated_position_norm = translated_position.normalizeTo();
-                const dot_with_up = translated_position_norm.dot(&movement.up);
-                try std.testing.expectApproxEqAbs(dot_with_up, 0.0, epsilon);
-            }
-        }
-        try std.testing.expectApproxEqAbs(movement.position.x, start_pos.x, epsilon);
-        try std.testing.expectApproxEqAbs(movement.position.y, start_pos.y, epsilon);
-        try std.testing.expectApproxEqAbs(movement.position.z, start_pos.z, epsilon);
-    }
-
-    test "rotate right motion" {
-        const position = Vec3.init(10.0, 0.0, 0.0);
-        const target = Vec3.init(0.0, 0.0, 0.0);
-        var movement = Movement.init(position, target);
-        const start_target = target.clone();
-        const steps = 12;
-        const step_angle = math.degreesToRadians(30.0);
-        const epsilon = 0.001;
-        for (0..steps) |_| {
-            movement.update(step_angle, .RotateRight);
-        }
-        // After 360 degrees, target should return to start
-        try std.testing.expectApproxEqAbs(movement.target.x, start_target.x, epsilon);
-        try std.testing.expectApproxEqAbs(movement.target.y, start_target.y, epsilon);
-        try std.testing.expectApproxEqAbs(movement.target.z, start_target.z, epsilon);
-        // Position should remain unchanged
-        try std.testing.expectApproxEqAbs(movement.position.x, position.x, epsilon);
-        try std.testing.expectApproxEqAbs(movement.position.y, position.y, epsilon);
-        try std.testing.expectApproxEqAbs(movement.position.z, position.z, epsilon);
-    }
 };
+
+test "orbit right left motion" {
+    const target = Vec3.init(0.0, 0.0, 0.0);
+    const radius: f32 = 10.0;
+    const tilt_angle = math.degreesToRadians(45.0);
+    var position = Vec3.init(radius, 0.0, 0.0);
+    const tilt_axis = Vec3.init(0.0, 0.0, 1.0);
+    const tilt_quat = Quat.fromAxisAngle(&tilt_axis, tilt_angle);
+    position = tilt_quat.rotateVec(&position);
+    var movement = Movement.init(position, target);
+    movement.up = tilt_quat.rotateVec(&Vec3.init(0.0, 1.0, 0.0));
+    movement.right = movement.up.cross(&movement.forward).normalizeTo();
+    const start_pos = position.clone();
+    const steps = 12;
+    const step_angle = math.degreesToRadians(30.0);
+    const epsilon = 0.001;
+    for (0..steps) |i| {
+        movement.update(step_angle, .OrbitRight);
+        if (i % 3 == 0) {
+            std.debug.print("\nStep {d}:\n", .{i});
+            movement.printState();
+            const current_radius = movement.position.sub(&target).length();
+            try std.testing.expectApproxEqAbs(current_radius, radius, epsilon);
+            const translated_position = movement.position.sub(&target);
+            const translated_position_norm = translated_position.normalizeTo();
+            const dot_with_up = translated_position_norm.dot(&movement.up);
+            try std.testing.expectApproxEqAbs(dot_with_up, 0.0, epsilon);
+        }
+    }
+    try std.testing.expectApproxEqAbs(movement.position.x, start_pos.x, epsilon);
+    try std.testing.expectApproxEqAbs(movement.position.y, start_pos.y, epsilon);
+    try std.testing.expectApproxEqAbs(movement.position.z, start_pos.z, epsilon);
+}
+
+test "rotate right motion" {
+    const position = Vec3.init(10.0, 0.0, 0.0);
+    const target = Vec3.init(0.0, 0.0, 0.0);
+    var movement = Movement.init(position, target);
+    const start_target = target.clone();
+    const steps = 12;
+    const step_angle = math.degreesToRadians(30.0);
+    const epsilon = 0.001;
+    for (0..steps) |_| {
+        movement.update(step_angle, .RotateRight);
+    }
+    // After 360 degrees, target should return to start
+    try std.testing.expectApproxEqAbs(movement.target.x, start_target.x, epsilon);
+    try std.testing.expectApproxEqAbs(movement.target.y, start_target.y, epsilon);
+    try std.testing.expectApproxEqAbs(movement.target.z, start_target.z, epsilon);
+    // Position should remain unchanged
+    try std.testing.expectApproxEqAbs(movement.position.x, position.x, epsilon);
+    try std.testing.expectApproxEqAbs(movement.position.y, position.y, epsilon);
+    try std.testing.expectApproxEqAbs(movement.position.z, position.z, epsilon);
+}
