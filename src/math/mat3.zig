@@ -1,5 +1,4 @@
 const std = @import("std");
-const cglm = @import("cglm.zig").CGLM;
 const _vec = @import("vec.zig");
 // const _quat = @import("quat.zig");
 

@@ -1,5 +1,4 @@
 const std = @import("std");
-const cglm = @import("cglm.zig").CGLM;
 const vec = @import("vec.zig");
 const mat4_ = @import("mat4.zig");
 const utils = @import("utils.zig");
@@ -41,9 +40,8 @@ pub const Quat = extern struct {
     }
 
     pub fn fromMat4(mat4: Mat4) Quat {
-        var result: Quat = undefined;
-        cglm.glmc_mat4_quat(@constCast(&mat4.data), result.asCPtrF32());
-        return result;
+        // Use the Mat4.toQuat() method which we've already implemented
+        return mat4.toQuat();
     }
 
     pub fn fromAxisAngle(axis: *const Vec3, angle: f32) Quat {
@@ -60,14 +58,14 @@ pub const Quat = extern struct {
     }
 
     pub fn normalize(self: *Self) void {
-        const length_squared = self.data[0]*self.data[0] + self.data[1]*self.data[1] + self.data[2]*self.data[2] + self.data[3]*self.data[3];
-        
+        const length_squared = self.data[0] * self.data[0] + self.data[1] * self.data[1] + self.data[2] * self.data[2] + self.data[3] * self.data[3];
+
         if (length_squared == 0.0) {
             // Set to identity quaternion if zero length
             self.data = .{ 0.0, 0.0, 0.0, 1.0 };
             return;
         }
-        
+
         const inv_length = 1.0 / std.math.sqrt(length_squared);
         self.data[0] *= inv_length;
         self.data[1] *= inv_length;
@@ -76,13 +74,13 @@ pub const Quat = extern struct {
     }
 
     pub fn normalizeTo(q: *const Quat) Quat {
-        const length_squared = q.data[0]*q.data[0] + q.data[1]*q.data[1] + q.data[2]*q.data[2] + q.data[3]*q.data[3];
-        
+        const length_squared = q.data[0] * q.data[0] + q.data[1] * q.data[1] + q.data[2] * q.data[2] + q.data[3] * q.data[3];
+
         if (length_squared == 0.0) {
             // Return identity quaternion if zero length
             return Quat{ .data = .{ 0.0, 0.0, 0.0, 1.0 } };
         }
-        
+
         const inv_length = 1.0 / std.math.sqrt(length_squared);
         return Quat{ .data = .{
             q.data[0] * inv_length,
@@ -99,15 +97,23 @@ pub const Quat = extern struct {
         //                   pw*qz + px*qy - py*qx + pz*qw,
         //                   pw*qw - px*qx - py*qy - pz*qz]
         // Where p = [px, py, pz, pw] and q = [qx, qy, qz, qw]
-        const px = p.data[0]; const py = p.data[1]; const pz = p.data[2]; const pw = p.data[3];
-        const qx = q.data[0]; const qy = q.data[1]; const qz = q.data[2]; const qw = q.data[3];
-        
-        return Quat{ .data = .{
-            pw*qx + px*qw + py*qz - pz*qy,  // x
-            pw*qy - px*qz + py*qw + pz*qx,  // y  
-            pw*qz + px*qy - py*qx + pz*qw,  // z
-            pw*qw - px*qx - py*qy - pz*qz,  // w
-        } };
+        const px = p.data[0];
+        const py = p.data[1];
+        const pz = p.data[2];
+        const pw = p.data[3];
+        const qx = q.data[0];
+        const qy = q.data[1];
+        const qz = q.data[2];
+        const qw = q.data[3];
+
+        return Quat{
+            .data = .{
+                pw * qx + px * qw + py * qz - pz * qy, // x
+                pw * qy - px * qz + py * qw + pz * qx, // y
+                pw * qz + px * qy - py * qx + pz * qw, // z
+                pw * qw - px * qx - py * qy - pz * qz, // w
+            },
+        };
     }
 
     pub fn mulByQuat(self: *Self, other: *const Quat) void {
@@ -117,21 +123,26 @@ pub const Quat = extern struct {
 
     pub fn rotateVec(self: *const Self, v: *const Vec3) Vec3 {
         // Rotate vector v by quaternion self using the formula:
-        // v' = q * (0, v) * q^-1 
+        // v' = q * (0, v) * q^-1
         // Optimized version: v' = v + 2 * cross(q.xyz, cross(q.xyz, v) + q.w * v)
-        const qx = self.data[0]; const qy = self.data[1]; const qz = self.data[2]; const qw = self.data[3];
-        const vx = v.x; const vy = v.y; const vz = v.z;
-        
+        const qx = self.data[0];
+        const qy = self.data[1];
+        const qz = self.data[2];
+        const qw = self.data[3];
+        const vx = v.x;
+        const vy = v.y;
+        const vz = v.z;
+
         // First cross product: cross(q.xyz, v) + q.w * v
         const cx1 = qy * vz - qz * vy + qw * vx;
         const cy1 = qz * vx - qx * vz + qw * vy;
         const cz1 = qx * vy - qy * vx + qw * vz;
-        
+
         // Second cross product: cross(q.xyz, cross(q.xyz, v) + q.w * v)
         const cx2 = qy * cz1 - qz * cy1;
         const cy2 = qz * cx1 - qx * cz1;
         const cz2 = qx * cy1 - qy * cx1;
-        
+
         // Final result: v + 2 * cross(q.xyz, cross(q.xyz, v) + q.w * v)
         return Vec3{
             .x = vx + 2.0 * cx2,
@@ -142,10 +153,10 @@ pub const Quat = extern struct {
 
     pub fn slerp(self: *const Self, rot: *const Quat, t: f32) Quat {
         const clamped_t = @max(0.0, @min(1.0, t));
-        
+
         // Compute dot product
-        var dot = self.data[0]*rot.data[0] + self.data[1]*rot.data[1] + self.data[2]*rot.data[2] + self.data[3]*rot.data[3];
-        
+        var dot = self.data[0] * rot.data[0] + self.data[1] * rot.data[1] + self.data[2] * rot.data[2] + self.data[3] * rot.data[3];
+
         // Take the shorter path by flipping one quaternion if dot product is negative
         var q2 = rot.*;
         if (dot < 0.0) {
@@ -155,7 +166,7 @@ pub const Quat = extern struct {
             q2.data[3] = -q2.data[3];
             dot = -dot;
         }
-        
+
         // If quaternions are very close, use linear interpolation to avoid division by zero
         if (dot > 0.9995) {
             const lerp_result = Quat{ .data = .{
@@ -166,16 +177,16 @@ pub const Quat = extern struct {
             } };
             return lerp_result.normalizeTo();
         }
-        
+
         // Spherical interpolation
         const theta_0 = std.math.acos(@max(-1.0, @min(1.0, dot)));
         const sin_theta_0 = std.math.sin(theta_0);
         const theta = theta_0 * clamped_t;
         const sin_theta = std.math.sin(theta);
-        
+
         const s0 = std.math.cos(theta) - dot * sin_theta / sin_theta_0;
         const s1 = sin_theta / sin_theta_0;
-        
+
         return Quat{ .data = .{
             s0 * self.data[0] + s1 * q2.data[0],
             s0 * self.data[1] + s1 * q2.data[1],
@@ -211,22 +222,32 @@ pub const Quat = extern struct {
     }
 
     pub fn lookAtOrientation(position: Vec3, target: Vec3, up: Vec3) Quat {
+        // Calculate direction vector
         var dir = target.sub(&position);
         if (dir.lengthSquared() == 0.0) {
             return Quat.identity();
         }
         dir.normalize();
 
+        // Normalize up vector
         var up_normalized = up;
         up_normalized.normalize();
 
-        var result: Quat = Quat.identity();
-        cglm.glmc_quat_for(
-            dir.asCPtrF32(),
-            up_normalized.asCPtrF32(),
-            result.asCPtrF32(),
-        );
+        // Calculate right vector (cross product of forward and up)
+        const right = dir.crossNormalized(&up_normalized);
 
-        return result;
+        // Recalculate up vector to ensure orthogonality
+        const new_up = right.crossNormalized(&dir);
+
+        // Create rotation matrix from basis vectors
+        const rotation_matrix = Mat4{ .data = .{
+            .{ right.x, right.y, right.z, 0.0 },
+            .{ new_up.x, new_up.y, new_up.z, 0.0 },
+            .{ dir.x, dir.y, dir.z, 0.0 },
+            .{ 0.0, 0.0, 0.0, 1.0 },
+        } };
+
+        // Convert rotation matrix to quaternion
+        return rotation_matrix.toQuat();
     }
 };

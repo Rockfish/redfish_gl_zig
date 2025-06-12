@@ -1,5 +1,4 @@
 const std = @import("std");
-pub const cglm = @import("cglm.zig").CGLM;
 const vec = @import("vec.zig");
 const mat3_ = @import("mat3.zig");
 const mat4_ = @import("mat4.zig");
@@ -7,7 +6,7 @@ const quat_ = @import("quat.zig");
 const ray_ = @import("ray.zig");
 const utils = @import("utils.zig");
 
-pub const Versor = cglm.versor;
+pub const Versor = [4]f32;
 
 pub const Vec2 = vec.Vec2;
 pub const Vec3 = vec.Vec3;
