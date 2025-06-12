@@ -82,9 +82,9 @@ pub const Movement = struct {
         }
         std.debug.print("\northonormalize Up current state\n", .{});
         self.printState();
-        self.up = self.up.normalizeTo();
+        self.up.normalize();
         self.forward = self.target.sub(&self.position).normalizeTo();
-        self.right = self.forward.cross(&self.up).normalizeTo();
+        self.right = self.forward.crossNormalized(&self.up);
         std.debug.print("\northonormalize Up new state\n", .{});
         self.printState();
     }
@@ -95,9 +95,9 @@ pub const Movement = struct {
         }
         std.debug.print("\northonormalize Right current state\n", .{});
         self.printState();
-        self.right = self.right.normalizeTo();
+        self.right.normalize();
         self.forward = self.target.sub(&self.position).normalizeTo();
-        self.up = self.right.cross(&self.forward).normalizeTo();
+        self.up = self.right.crossNormalized(&self.forward);
         std.debug.print("\northonormalize Right new state\n", .{});
         self.printState();
     }
@@ -247,30 +247,22 @@ pub const Movement = struct {
                 self.orthonormalizeRightPeriodic();
             },
             .CircleRight => {
-                std.debug.print("\ncircle Right current state\n", .{});
-                self.printState();
                 const rot = Quat.fromAxisAngle(&self.world_up, -orbit_angle);
                 const translated_position = self.position.sub(&self.target);
-                const flat = Vec3.init(translated_position.x, 0.0, translated_position.z);
-                const rotated_position = rot.rotateVec(&flat);
-                self.position = self.target.add(&Vec3.init(rotated_position.x, translated_position.y, rotated_position.z));
+                const rotated_position = rot.rotateVec(&translated_position);
+                self.position = self.target.add(&rotated_position);
                 self.forward = self.target.sub(&self.position).normalizeTo();
-                self.right = self.forward.cross(&self.up).normalizeTo();
-                std.debug.print("\ncircle Right new state\n", .{});
-                self.printState();
+                self.up = rot.rotateVec(&self.up);
+                self.right = self.forward.crossNormalized(&self.up);
             },
             .CircleLeft => {
-                std.debug.print("\ncircle Left current state\n", .{});
-                self.printState();
                 const rot = Quat.fromAxisAngle(&self.world_up, orbit_angle);
                 const translated_position = self.position.sub(&self.target);
-                const flat = Vec3.init(translated_position.x, 0.0, translated_position.z);
-                const rotated_position = rot.rotateVec(&flat);
-                self.position = self.target.add(&Vec3.init(rotated_position.x, translated_position.y, rotated_position.z));
+                const rotated_position = rot.rotateVec(&translated_position);
+                self.position = self.target.add(&rotated_position);
                 self.forward = self.target.sub(&self.position).normalizeTo();
-                self.right = self.forward.cross(&self.up).normalizeTo();
-                std.debug.print("\ncircle Left new state\n", .{});
-                self.printState();
+                self.up = rot.rotateVec(&self.up);
+                self.right = self.forward.crossNormalized(&self.up);
             },
         }
     }
@@ -307,7 +299,7 @@ test "orbit right left motion" {
     position = tilt_quat.rotateVec(&position);
     var movement = Movement.init(position, target);
     movement.up = tilt_quat.rotateVec(&Vec3.init(0.0, 1.0, 0.0));
-    movement.right = movement.up.cross(&movement.forward).normalizeTo();
+    movement.right = movement.up.crossNormalized(&movement.forward);
     const start_pos = position.clone();
     const steps = 12;
     const step_angle = math.degreesToRadians(30.0);

@@ -115,15 +115,43 @@ pub const Vec3 = extern struct {
         return .{ .x = a.x * b.x, .y = a.y * b.y, .z = a.z * b.z };
     }
 
+    // pub fn _normalize(v: *Vec3) void {
+    //     if (v.lengthSquared() == 0.0) return;
+    //     cglm.glmc_vec3_normalize(@as([*c]f32, @ptrCast(@constCast(v))));
+    // }
+    //
+    // pub fn _normalizeTo(v: *const Vec3) Vec3 {
+    //     var result: [3]f32 = undefined;
+    //     cglm.glmc_vec3_normalize_to(@as([*c]f32, @ptrCast(@constCast(v))), &result);
+    //     return @as(*Vec3, @ptrCast(&result)).*;
+    // }
+
     pub fn normalize(v: *Vec3) void {
-        if (v.lengthSquared() == 0.0) return;
-        cglm.glmc_vec3_normalize(@as([*c]f32, @ptrCast(@constCast(v))));
+        const length_squared = v.lengthSquared();
+
+        if (length_squared == 0.0) return;
+
+        const magnitude = std.math.sqrt(length_squared);
+
+        v.x = v.x / magnitude;
+        v.y = v.y / magnitude;
+        v.z = v.z / magnitude;
     }
 
     pub fn normalizeTo(v: *const Vec3) Vec3 {
-        var result: [3]f32 = undefined;
-        cglm.glmc_vec3_normalize_to(@as([*c]f32, @ptrCast(@constCast(v))), &result);
-        return @as(*Vec3, @ptrCast(&result)).*;
+        var result: Vec3 = .{.x = 0.0, .y = 0.0, .z = 0.0 };
+
+        const length_squared = v.lengthSquared();
+
+        if (length_squared == 0.0) return result;
+
+        const magnitude = std.math.sqrt(length_squared);
+
+        result.x = v.x / magnitude;
+        result.y = v.y / magnitude;
+        result.z = v.z / magnitude;
+
+        return result;
     }
 
     pub fn addScalar(a: *const Vec3, b: f32) Vec3 {
@@ -150,6 +178,26 @@ pub const Vec3 = extern struct {
         };
     }
 
+    pub fn crossNormalized(a: *const Vec3, b: *const Vec3) Vec3 {
+        var v = Vec3{
+            .x = a.y * b.z - a.z * b.y,
+            .y = a.z * b.x - a.x * b.z,
+            .z = a.x * b.y - a.y * b.x,
+        };
+
+        const length_squared = v.lengthSquared();
+
+        if (length_squared == 0.0) return v;
+
+        const magnitude = std.math.sqrt(length_squared);
+
+        v.x = v.x / magnitude;
+        v.y = v.y / magnitude;
+        v.z = v.z / magnitude;
+
+        return v;
+    }
+ 
     pub fn lengthSquared(v: *const Vec3) f32 {
         return v.dot(v);
     }
