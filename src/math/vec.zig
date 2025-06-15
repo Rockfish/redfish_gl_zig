@@ -114,17 +114,6 @@ pub const Vec3 = extern struct {
         return .{ .x = a.x * b.x, .y = a.y * b.y, .z = a.z * b.z };
     }
 
-    // pub fn _normalize(v: *Vec3) void {
-    //     if (v.lengthSquared() == 0.0) return;
-    //     cglm.glmc_vec3_normalize(@as([*c]f32, @ptrCast(@constCast(v))));
-    // }
-    //
-    // pub fn _normalizeTo(v: *const Vec3) Vec3 {
-    //     var result: [3]f32 = undefined;
-    //     cglm.glmc_vec3_normalize_to(@as([*c]f32, @ptrCast(@constCast(v))), &result);
-    //     return @as(*Vec3, @ptrCast(&result)).*;
-    // }
-
     pub fn normalize(v: *Vec3) void {
         const length_squared = v.lengthSquared();
 

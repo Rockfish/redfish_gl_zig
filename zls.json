@@ -1,0 +1,21 @@
+{
+    "enable_build_on_save": true,
+    "build_on_save_step": "install",
+    "enable_autofix": true,
+    "semantic_tokens": "full",
+    "enable_inlay_hints": true,
+    "inlay_hints_exclude_single_argument": true,
+    "operator_completions": true,
+    "include_at_in_builtins": false,
+    "max_detail_length": 1000000,
+    "builtin_path": null,
+    "zig_lib_path": null,
+    "build_runner_path": null,
+    "global_cache_path": null,
+    "build_runner_global_cache_path": null,
+    "completions_with_replace": true,
+    "dangerous_comptime_experiments_do_not_enable": false,
+    "skip_std_references": false,
+    "highlight_global_var_declarations": false,
+    "use_comptime_interpreter": false
+}

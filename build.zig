@@ -5,6 +5,11 @@ const content_dir = "assets/";
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    
+    // Help ZLS understand our project structure
+    const build_options = b.addOptions();
+    build_options.addOption(bool, "enable_tracy", false);
+    
     // b.verbose = true;
 
     const miniaudio = b.dependency("miniaudio", .{
@@ -101,6 +106,7 @@ pub fn build(b: *std.Build) void {
         exe.root_module.addImport("zopengl", zopengl.module("root"));
         exe.root_module.addImport("zgui", zgui.module("root"));
         exe.root_module.addImport("zstbi", zstbi.module("root")); // gui
+        exe.root_module.addImport("build_options", build_options.createModule());
 
         exe.addIncludePath(b.path("src/include"));
         exe.addIncludePath(miniaudio.path("include"));
@@ -152,6 +158,11 @@ pub fn build(b: *std.Build) void {
     exe_check.root_module.addImport("miniaudio", miniaudio.module("root"));
     exe_check.root_module.addImport("zglfw", zglfw.module("root"));
     exe_check.root_module.addImport("zopengl", zopengl.module("root"));
+    exe_check.root_module.addImport("zgui", zgui.module("root"));
+    exe_check.root_module.addImport("zstbi", zstbi.module("root"));
+    exe_check.root_module.addImport("build_options", build_options.createModule());
+    exe_check.linkLibrary(zgui.artifact("imgui"));
+    exe_check.linkLibrary(zstbi.artifact("zstbi"));
     exe_check.linkLibrary(miniaudio.artifact("miniaudio"));
     exe_check.linkLibrary(zglfw.artifact("glfw"));
     exe_check.linkLibrary(cglm.artifact("cglm"));
