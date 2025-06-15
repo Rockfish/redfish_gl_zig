@@ -9,6 +9,8 @@ Note: It's not as complete as the glTF specification yet, but because it's strai
 
 If you would like to contribute, don't hesitate! :)
 
+Note: The main branch is for the latest Zig release (0.14.x).
+
 ## Examples
 
 ```zig
@@ -48,7 +50,7 @@ pub fn main() void {
         });
     }
 
-    // Or use the debugPrint method.
+    // Or use the debufPrint method.
     gltf.debugPrint();
 }
 ```
@@ -152,6 +154,8 @@ Also, we supports some glTF extensions:
 - [x] khr_materials_emissive_strength
 - [x] khr_materials_ior
 - [x] khr_materials_transmission
+- [x] khr_materials_volume
+- [x] khr_materials_dispersion
 
 ## Contributing to the project
 

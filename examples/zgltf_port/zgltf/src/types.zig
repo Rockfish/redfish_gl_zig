@@ -19,10 +19,10 @@ pub const Index = usize;
 /// When a node is targeted for animation (referenced by
 /// an animation.channel.target), matrix must not be present.
 ///
-/// from spec: Only the joint transforms are applied to the skinned mesh; 
+/// from spec: Only the joint transforms are applied to the skinned mesh;
 ///            the transform of the skinned mesh node MUST be ignored.
 ///
-///            The global transformation matrix of a node is the product of 
+///            The global transformation matrix of a node is the product of
 ///            the global transformation matrix of its parent node and its
 ///            own local transformation matrix. When the node has no parent node,
 ///            its global transformation matrix is identical to its local transformation matrix.
@@ -83,6 +83,12 @@ pub const BufferView = struct {
     /// The hint representing the intended GPU buffer type
     /// to use with this buffer view.
     target: ?Target = null,
+    /// The user-defined name of this object.
+    name: ?[]const u8 = null,
+    // JSON object with extension-specific objects.
+    // extensions: ?Extension = null,
+    // Application-specific data.
+    // extras: ?Extras = null,
 };
 
 /// A typed view into a buffer view that contains raw binary data.
@@ -99,10 +105,6 @@ pub const Accessor = struct {
     count: usize,
     /// Specifies whether integer data values are normalized before usage.
     normalized: bool = false,
-
-    // not part of the definition
-    /// /// Computed stride: @sizeOf(component_type) * type.
-    /// stride: usize,
 
     pub fn getComponentSize(accessor: Accessor) usize {
         return switch (accessor.component_type) {
@@ -160,22 +162,11 @@ pub const Accessor = struct {
             if (buffer_view.byte_stride) |byte_stride| {
                 break :blk byte_stride / comp_size;
             } else {
-                // break :blk accessor.stride / comp_size;
                 break :blk accessor.getTypeSize();
             }
         };
 
         const total_count: usize = @intCast(accessor.count);
-        // const datum_count: usize = switch (accessor.type) {
-        //     .scalar => 1,
-        //     .vec2 => 2,
-        //     .vec3 => 3,
-        //     .vec4 => 4,
-        //     .mat4x4 => 16,
-        //     else => {
-        //         panic("Accessor type '{}' not implemented.", .{accessor.type});
-        //     },
-        // };
         const datum_count: usize = accessor.getTypeSize();
 
         const data: [*]const T = @ptrCast(@alignCast(binary.ptr));
@@ -243,8 +234,8 @@ pub const Skin = struct {
     // TODO: Double check this comment: 
     //       the inverse_bind_matrices is an index to the accessor that has a list of
     //       matrices to be used as inverse bind matrices. The joints list is a list
-    //       of which matrix in the accessor list go with which joint. 
-    //       The order of the matrices in the inverseBindMatrices accessor must 
+    //       of which matrix in the accessor list go with which joint.
+    //       The order of the matrices in the inverseBindMatrices accessor must
     //       match the order of the joints listed in the joints array.
     //       Is this were the bone offset matrix come from in ASSIMP?
     inverse_bind_matrices: ?Index = null,
@@ -339,6 +330,21 @@ pub const Material = struct {
     /// The transmission texture.
     /// Note: from khr_materials_transmission extension.
     transmission_texture: ?TextureInfo = null,
+    /// The thickness of the volume beneath the surface.
+    /// Note: from khr_materials_volume extension.
+    thickness_factor: f32 = 0.0,
+    /// A texture that defines the thickness, stored in the G channel.
+    /// Note: from khr_materials_volume extension.
+    thickness_texture: ?TextureInfo = null,
+    /// Density of the medium.
+    /// Note: from khr_materials_volume extension.
+    attenuation_distance: f32 = std.math.inf(f32),
+    /// The color that white light turns into due to absorption.
+    /// Note: from khr_materials_volume extension.
+    attenuation_color: [3]f32 = [_]f32{ 1, 1, 1 },
+    /// The strength of the dispersion effect.
+    /// Note: from khr_materials_dispersion extension.
+    dispersion: f32 = 0.0,
 };
 
 /// The material’s alpha rendering mode enumeration specifying
@@ -367,11 +373,20 @@ pub const Texture = struct {
     /// When undefined, an extension or other mechanism should supply
     /// an alternate texture source, otherwise behavior is undefined.
     source: ?Index = null,
+    /// Extension object with extension-specific objects.
+    extensions: struct {
+        EXT_texture_webp: ?struct {
+            /// The index of the WebP image used by this texture.
+            source: Index,
+        } = null,
+    } = .{},
 };
 
 /// Image data used to create a texture.
 /// Image may be referenced by an uri or a buffer view index.
 pub const Image = struct {
+    /// The user-defined name of this object.
+    name: ?[]const u8 = null,
     /// The URI (or IRI) of the image.
     uri: ?[]const u8 = null,
     /// The image’s media type.
@@ -611,7 +626,7 @@ pub const Camera = struct {
     };
 
     name: []const u8,
-    type: union {
+    type: union(enum) {
         perspective: Perspective,
         orthographic: Orthographic,
     },
