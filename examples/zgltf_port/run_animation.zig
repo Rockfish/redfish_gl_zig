@@ -6,7 +6,7 @@ const core = @import("core");
 const math = @import("math");
 
 const Camera = core.Camera;
-const Builder = @import("builder.zig").GltfBuilder;
+const Builder = @import("gltf_builder.zig").GltfBuilder;
 
 const gl = zopengl.bindings;
 
@@ -54,6 +54,10 @@ const camera_target = vec3(0.0, 12.0, 0.0);
 
 pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []const u8) !void {
     std.debug.print("running test_animation\n", .{});
+
+    const buffer: []u8 = try allocator.alloc(u8, 1024);
+    defer allocator.free(buffer);
+    std.debug.print("buffer len: {d}\n", .{buffer.len});
 
     const window_scale = window.getContentScale();
 
