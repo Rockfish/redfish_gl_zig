@@ -1,4 +1,5 @@
 const std = @import("std");
+const math = @import("../../math/main.zig");
 
 ///////////////////////////////////////////////////////////////////////////////
 // Enum Definitions
@@ -256,16 +257,16 @@ pub const Node = struct {
 
     /// Optional. 4x4 transformation matrix (column-major).
     /// If provided, it overrides the separate translation, rotation, and scale.
-    matrix: ?[16]f32,
+    matrix: ?math.Mat4,
 
     /// Optional. Translation vector.
-    translation: ?[3]f32,
+    translation: ?math.Vec3,
 
     /// Optional. Rotation quaternion (x, y, z, w).
-    rotation: ?[4]f32,
+    rotation: ?math.Quat,
 
     /// Optional. Scale vector.
-    scale: ?[3]f32,
+    scale: ?math.Vec3,
 
     /// Optional. Name of the node.
     name: ?[]const u8,
@@ -462,7 +463,7 @@ pub const Material = struct {
     emissive_texture: ?TextureInfo,
 
     /// Emissive color factor.
-    emissive_factor: [3]f32 = [3]f32{ 0.0, 0.0, 0.0 },
+    emissive_factor: math.Vec3 = math.vec3(0.0, 0.0, 0.0),
 
     /// Alpha mode for the material.
     alpha_mode: AlphaMode = AlphaMode.opaque_mode,
@@ -480,7 +481,7 @@ pub const Material = struct {
 /// PBR metallic-roughness material configuration.
 pub const PBRMetallicRoughness = struct {
     /// RGBA multiplier for base color.
-    base_color_factor: [4]f32 = [4]f32{ 1.0, 1.0, 1.0, 1.0 },
+    base_color_factor: math.Vec4 = math.vec4(1.0, 1.0, 1.0, 1.0),
 
     /// Optional. Information about the base color texture.
     base_color_texture: ?TextureInfo,

@@ -3,6 +3,7 @@ const json = std.json;
 const gltf_types = @import("gltf.zig");
 const GLTF = gltf_types.GLTF;
 const Allocator = std.mem.Allocator;
+const math = @import("../../math/main.zig");
 
 const ParseError = error{
     OutOfMemory,
@@ -260,59 +261,63 @@ fn parseNode(allocator: Allocator, node_json: json.Value) !gltf_types.Node {
         }
     }
 
-    var matrix: ?[16]f32 = null;
+    var matrix: ?math.Mat4 = null;
     if (node_json.object.get("matrix")) |matrix_json| {
         if (matrix_json == .array and matrix_json.array.items.len == 16) {
-            matrix = [16]f32{0.0} ** 16;
+            var mat_data = [16]f32{0.0} ** 16;
             for (matrix_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
-                    matrix.?[index] = @floatCast(value_json.float);
+                    mat_data[index] = @floatCast(value_json.float);
                 } else if (value_json == .integer) {
-                    matrix.?[index] = @floatFromInt(value_json.integer);
+                    mat_data[index] = @floatFromInt(value_json.integer);
                 }
             }
+            matrix = math.Mat4{ .data = mat_data };
         }
     }
 
-    var translation: ?[3]f32 = null;
+    var translation: ?math.Vec3 = null;
     if (node_json.object.get("translation")) |translation_json| {
         if (translation_json == .array and translation_json.array.items.len == 3) {
-            translation = [3]f32{0.0} ** 3;
+            var vec_data = [3]f32{0.0} ** 3;
             for (translation_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
-                    translation.?[index] = @floatCast(value_json.float);
+                    vec_data[index] = @floatCast(value_json.float);
                 } else if (value_json == .integer) {
-                    translation.?[index] = @floatFromInt(value_json.integer);
+                    vec_data[index] = @floatFromInt(value_json.integer);
                 }
             }
+            translation = math.Vec3{ .x = vec_data[0], .y = vec_data[1], .z = vec_data[2] };
         }
     }
 
-    var rotation: ?[4]f32 = null;
+    var rotation: ?math.Quat = null;
     if (node_json.object.get("rotation")) |rotation_json| {
         if (rotation_json == .array and rotation_json.array.items.len == 4) {
-            rotation = [4]f32{0.0} ** 4;
+            var quat_data = [4]f32{0.0} ** 4;
             for (rotation_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
-                    rotation.?[index] = @floatCast(value_json.float);
+                    quat_data[index] = @floatCast(value_json.float);
                 } else if (value_json == .integer) {
-                    rotation.?[index] = @floatFromInt(value_json.integer);
+                    quat_data[index] = @floatFromInt(value_json.integer);
                 }
             }
+            rotation = math.Quat{ .x = quat_data[0], .y = quat_data[1], .z = quat_data[2], .w = quat_data[3] };
         }
     }
 
-    var scale: ?[3]f32 = null;
+    var scale: ?math.Vec3 = null;
     if (node_json.object.get("scale")) |scale_json| {
         if (scale_json == .array and scale_json.array.items.len == 3) {
-            scale = [3]f32{0.0} ** 3;
+            var vec_data = [3]f32{0.0} ** 3;
             for (scale_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
-                    scale.?[index] = @floatCast(value_json.float);
+                    vec_data[index] = @floatCast(value_json.float);
                 } else if (value_json == .integer) {
-                    scale.?[index] = @floatFromInt(value_json.integer);
+                    vec_data[index] = @floatFromInt(value_json.integer);
                 }
             }
+            scale = math.Vec3{ .x = vec_data[0], .y = vec_data[1], .z = vec_data[2] };
         }
     }
 
@@ -834,16 +839,18 @@ fn parseMaterial(allocator: Allocator, material_json: json.Value) !gltf_types.Ma
         emissive_texture = try parseTextureInfo(emissive_json);
     }
 
-    var emissive_factor = [3]f32{ 0.0, 0.0, 0.0 };
+    var emissive_factor = math.vec3(0.0, 0.0, 0.0);
     if (material_json.object.get("emissiveFactor")) |emissive_json| {
         if (emissive_json == .array and emissive_json.array.items.len == 3) {
+            var vec_data = [3]f32{0.0} ** 3;
             for (emissive_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
-                    emissive_factor[index] = @floatCast(value_json.float);
+                    vec_data[index] = @floatCast(value_json.float);
                 } else if (value_json == .integer) {
-                    emissive_factor[index] = @floatFromInt(value_json.integer);
+                    vec_data[index] = @floatFromInt(value_json.integer);
                 }
             }
+            emissive_factor = math.Vec3{ .x = vec_data[0], .y = vec_data[1], .z = vec_data[2] };
         }
     }
 
@@ -895,16 +902,18 @@ fn parsePBRMetallicRoughness(_: Allocator, pbr_json: json.Value) !gltf_types.PBR
         return ParseError.InvalidJson;
     }
 
-    var base_color_factor = [4]f32{ 1.0, 1.0, 1.0, 1.0 };
+    var base_color_factor = math.vec4(1.0, 1.0, 1.0, 1.0);
     if (pbr_json.object.get("baseColorFactor")) |color_json| {
         if (color_json == .array and color_json.array.items.len == 4) {
+            var vec_data = [4]f32{1.0} ** 4;
             for (color_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
-                    base_color_factor[index] = @floatCast(value_json.float);
+                    vec_data[index] = @floatCast(value_json.float);
                 } else if (value_json == .integer) {
-                    base_color_factor[index] = @floatFromInt(value_json.integer);
+                    vec_data[index] = @floatFromInt(value_json.integer);
                 }
             }
+            base_color_factor = math.Vec4{ .x = vec_data[0], .y = vec_data[1], .z = vec_data[2], .w = vec_data[3] };
         }
     }
 
