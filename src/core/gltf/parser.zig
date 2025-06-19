@@ -173,8 +173,7 @@ fn parseAsset(allocator: Allocator, asset_json: json.Value) !gltf_types.Asset {
 }
 
 fn parseScenes(allocator: Allocator, scenes_json: json.Value) ![]gltf_types.Scene {
-    const scene_count = scenes_json.array.items.len;
-    const scenes = try allocator.alloc(gltf_types.Scene, scene_count);
+    const scenes = try allocator.alloc(gltf_types.Scene, scenes_json.array.items.len);
 
     for (scenes_json.array.items, 0..) |scene_json, index| {
         scenes[index] = try parseScene(allocator, scene_json);
@@ -191,8 +190,7 @@ fn parseScene(allocator: Allocator, scene_json: json.Value) !gltf_types.Scene {
     var nodes: ?[]u32 = null;
     if (scene_json.object.get("nodes")) |nodes_json| {
         if (nodes_json == .array) {
-            const node_count = nodes_json.array.items.len;
-            nodes = try allocator.alloc(u32, node_count);
+            nodes = try allocator.alloc(u32, nodes_json.array.items.len);
             for (nodes_json.array.items, 0..) |node_json, index| {
                 if (node_json == .integer) {
                     nodes.?[index] = @intCast(node_json.integer);
@@ -215,8 +213,7 @@ fn parseScene(allocator: Allocator, scene_json: json.Value) !gltf_types.Scene {
 }
 
 fn parseNodes(allocator: Allocator, nodes_json: json.Value) ![]gltf_types.Node {
-    const node_count = nodes_json.array.items.len;
-    const nodes = try allocator.alloc(gltf_types.Node, node_count);
+    const nodes = try allocator.alloc(gltf_types.Node, nodes_json.array.items.len);
 
     for (nodes_json.array.items, 0..) |node_json, index| {
         nodes[index] = try parseNode(allocator, node_json);
@@ -233,8 +230,7 @@ fn parseNode(allocator: Allocator, node_json: json.Value) !gltf_types.Node {
     var children: ?[]u32 = null;
     if (node_json.object.get("children")) |children_json| {
         if (children_json == .array) {
-            const child_count = children_json.array.items.len;
-            children = try allocator.alloc(u32, child_count);
+            children = try allocator.alloc(u32, children_json.array.items.len);
             for (children_json.array.items, 0..) |child_json, index| {
                 if (child_json == .integer) {
                     children.?[index] = @intCast(child_json.integer);
@@ -392,8 +388,7 @@ fn parseAlphaMode(alpha_str: []const u8) gltf_types.AlphaMode {
 }
 
 fn parseMeshes(allocator: Allocator, meshes_json: json.Value) ![]gltf_types.Mesh {
-    const mesh_count = meshes_json.array.items.len;
-    const meshes = try allocator.alloc(gltf_types.Mesh, mesh_count);
+    const meshes = try allocator.alloc(gltf_types.Mesh, meshes_json.array.items.len);
 
     for (meshes_json.array.items, 0..) |mesh_json, index| {
         meshes[index] = try parseMesh(allocator, mesh_json);
@@ -412,8 +407,7 @@ fn parseMesh(allocator: Allocator, mesh_json: json.Value) !gltf_types.Mesh {
         return ParseError.InvalidJson;
     }
 
-    const primitive_count = primitives_json.array.items.len;
-    const primitives = try allocator.alloc(gltf_types.MeshPrimitive, primitive_count);
+    const primitives = try allocator.alloc(gltf_types.MeshPrimitive, primitives_json.array.items.len);
 
     for (primitives_json.array.items, 0..) |primitive_json, index| {
         primitives[index] = try parseMeshPrimitive(allocator, primitive_json);
@@ -422,8 +416,7 @@ fn parseMesh(allocator: Allocator, mesh_json: json.Value) !gltf_types.Mesh {
     var weights: ?[]f32 = null;
     if (mesh_json.object.get("weights")) |weights_json| {
         if (weights_json == .array) {
-            const weight_count = weights_json.array.items.len;
-            weights = try allocator.alloc(f32, weight_count);
+            weights = try allocator.alloc(f32, weights_json.array.items.len);
             for (weights_json.array.items, 0..) |weight_json, index| {
                 if (weight_json == .float) {
                     weights.?[index] = @floatCast(weight_json.float);
@@ -480,8 +473,7 @@ fn parseMeshPrimitive(allocator: Allocator, primitive_json: json.Value) !gltf_ty
     var targets: ?[]gltf_types.MorphTarget = null;
     if (primitive_json.object.get("targets")) |targets_json| {
         if (targets_json == .array) {
-            const target_count = targets_json.array.items.len;
-            targets = try allocator.alloc(gltf_types.MorphTarget, target_count);
+            targets = try allocator.alloc(gltf_types.MorphTarget, targets_json.array.items.len);
             for (targets_json.array.items, 0..) |target_json, index| {
                 targets.?[index] = try parseMorphTarget(target_json);
             }
@@ -597,8 +589,7 @@ fn parseMorphTarget(target_json: json.Value) !gltf_types.MorphTarget {
 }
 
 fn parseAccessors(allocator: Allocator, accessors_json: json.Value) ![]gltf_types.Accessor {
-    const accessor_count = accessors_json.array.items.len;
-    const accessors = try allocator.alloc(gltf_types.Accessor, accessor_count);
+    const accessors = try allocator.alloc(gltf_types.Accessor, accessors_json.array.items.len);
 
     for (accessors_json.array.items, 0..) |accessor_json, index| {
         accessors[index] = try parseAccessor(allocator, accessor_json);
@@ -654,8 +645,7 @@ fn parseAccessor(allocator: Allocator, accessor_json: json.Value) !gltf_types.Ac
     var max: ?[]f32 = null;
     if (accessor_json.object.get("max")) |max_json| {
         if (max_json == .array) {
-            const max_count = max_json.array.items.len;
-            max = try allocator.alloc(f32, max_count);
+            max = try allocator.alloc(f32, max_json.array.items.len);
             for (max_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
                     max.?[index] = @floatCast(value_json.float);
@@ -669,8 +659,7 @@ fn parseAccessor(allocator: Allocator, accessor_json: json.Value) !gltf_types.Ac
     var min: ?[]f32 = null;
     if (accessor_json.object.get("min")) |min_json| {
         if (min_json == .array) {
-            const min_count = min_json.array.items.len;
-            min = try allocator.alloc(f32, min_count);
+            min = try allocator.alloc(f32, min_json.array.items.len);
             for (min_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
                     min.?[index] = @floatCast(value_json.float);
@@ -703,8 +692,7 @@ fn parseAccessor(allocator: Allocator, accessor_json: json.Value) !gltf_types.Ac
 }
 
 fn parseBufferViews(allocator: Allocator, buffer_views_json: json.Value) ![]gltf_types.BufferView {
-    const buffer_view_count = buffer_views_json.array.items.len;
-    const buffer_views = try allocator.alloc(gltf_types.BufferView, buffer_view_count);
+    const buffer_views = try allocator.alloc(gltf_types.BufferView, buffer_views_json.array.items.len);
 
     for (buffer_views_json.array.items, 0..) |buffer_view_json, index| {
         buffer_views[index] = try parseBufferView(allocator, buffer_view_json);
@@ -769,8 +757,7 @@ fn parseBufferView(allocator: Allocator, buffer_view_json: json.Value) !gltf_typ
 }
 
 fn parseBuffers(allocator: Allocator, buffers_json: json.Value) ![]gltf_types.Buffer {
-    const buffer_count = buffers_json.array.items.len;
-    const buffers = try allocator.alloc(gltf_types.Buffer, buffer_count);
+    const buffers = try allocator.alloc(gltf_types.Buffer, buffers_json.array.items.len);
 
     for (buffers_json.array.items, 0..) |buffer_json, index| {
         buffers[index] = try parseBuffer(allocator, buffer_json);
@@ -813,8 +800,7 @@ fn parseBuffer(allocator: Allocator, buffer_json: json.Value) !gltf_types.Buffer
 }
 
 fn parseMaterials(allocator: Allocator, materials_json: json.Value) ![]gltf_types.Material {
-    const material_count = materials_json.array.items.len;
-    const materials = try allocator.alloc(gltf_types.Material, material_count);
+    const materials = try allocator.alloc(gltf_types.Material, materials_json.array.items.len);
 
     for (materials_json.array.items, 0..) |material_json, index| {
         materials[index] = try parseMaterial(allocator, material_json);
@@ -984,8 +970,7 @@ fn parseTextureInfo(texture_json: json.Value) !gltf_types.TextureInfo {
 }
 
 fn parseSamplers(allocator: Allocator, samplers_json: json.Value) ![]gltf_types.Sampler {
-    const sampler_count = samplers_json.array.items.len;
-    const samplers = try allocator.alloc(gltf_types.Sampler, sampler_count);
+    const samplers = try allocator.alloc(gltf_types.Sampler, samplers_json.array.items.len);
 
     for (samplers_json.array.items, 0..) |sampler_json, index| {
         samplers[index] = try parseSampler(allocator, sampler_json);
@@ -1066,8 +1051,7 @@ fn parseSampler(allocator: Allocator, sampler_json: json.Value) !gltf_types.Samp
 }
 
 fn parseTextures(allocator: Allocator, textures_json: json.Value) ![]gltf_types.Texture {
-    const texture_count = textures_json.array.items.len;
-    const textures = try allocator.alloc(gltf_types.Texture, texture_count);
+    const textures = try allocator.alloc(gltf_types.Texture, textures_json.array.items.len);
 
     for (textures_json.array.items, 0..) |texture_json, index| {
         textures[index] = try parseTexture(allocator, texture_json);
@@ -1110,8 +1094,7 @@ fn parseTexture(allocator: Allocator, texture_json: json.Value) !gltf_types.Text
 }
 
 fn parseImages(allocator: Allocator, images_json: json.Value) ![]gltf_types.Image {
-    const image_count = images_json.array.items.len;
-    const images = try allocator.alloc(gltf_types.Image, image_count);
+    const images = try allocator.alloc(gltf_types.Image, images_json.array.items.len);
 
     for (images_json.array.items, 0..) |image_json, index| {
         images[index] = try parseImage(allocator, image_json);
@@ -1163,8 +1146,7 @@ fn parseImage(allocator: Allocator, image_json: json.Value) !gltf_types.Image {
 }
 
 fn parseAnimations(allocator: Allocator, animations_json: json.Value) ![]gltf_types.Animation {
-    const animation_count = animations_json.array.items.len;
-    const animations = try allocator.alloc(gltf_types.Animation, animation_count);
+    const animations = try allocator.alloc(gltf_types.Animation, animations_json.array.items.len);
 
     for (animations_json.array.items, 0..) |animation_json, index| {
         animations[index] = try parseAnimation(allocator, animation_json);
@@ -1183,8 +1165,7 @@ fn parseAnimation(allocator: Allocator, animation_json: json.Value) !gltf_types.
         return ParseError.InvalidJson;
     }
 
-    const channel_count = channels_json.array.items.len;
-    const channels = try allocator.alloc(gltf_types.AnimationChannel, channel_count);
+    const channels = try allocator.alloc(gltf_types.AnimationChannel, channels_json.array.items.len);
 
     for (channels_json.array.items, 0..) |channel_json, index| {
         channels[index] = try parseAnimationChannel(channel_json);
@@ -1195,8 +1176,7 @@ fn parseAnimation(allocator: Allocator, animation_json: json.Value) !gltf_types.
         return ParseError.InvalidJson;
     }
 
-    const sampler_count = samplers_json.array.items.len;
-    const samplers = try allocator.alloc(gltf_types.AnimationSampler, sampler_count);
+    const samplers = try allocator.alloc(gltf_types.AnimationSampler, samplers_json.array.items.len);
 
     for (samplers_json.array.items, 0..) |sampler_json, index| {
         samplers[index] = try parseAnimationSampler(sampler_json);
@@ -1308,8 +1288,7 @@ fn parseInterpolation(interp_str: []const u8) gltf_types.Interpolation {
 }
 
 fn parseSkins(allocator: Allocator, skins_json: json.Value) ![]gltf_types.Skin {
-    const skin_count = skins_json.array.items.len;
-    const skins = try allocator.alloc(gltf_types.Skin, skin_count);
+    const skins = try allocator.alloc(gltf_types.Skin, skins_json.array.items.len);
 
     for (skins_json.array.items, 0..) |skin_json, index| {
         skins[index] = try parseSkin(allocator, skin_json);
@@ -1342,8 +1321,7 @@ fn parseSkin(allocator: Allocator, skin_json: json.Value) !gltf_types.Skin {
         return ParseError.InvalidJson;
     }
 
-    const joint_count = joints_json.array.items.len;
-    const joints = try allocator.alloc(u32, joint_count);
+    const joints = try allocator.alloc(u32, joints_json.array.items.len);
 
     for (joints_json.array.items, 0..) |joint_json, index| {
         if (joint_json == .integer) {
@@ -1367,8 +1345,7 @@ fn parseSkin(allocator: Allocator, skin_json: json.Value) !gltf_types.Skin {
 }
 
 fn parseCameras(allocator: Allocator, cameras_json: json.Value) ![]gltf_types.Camera {
-    const camera_count = cameras_json.array.items.len;
-    const cameras = try allocator.alloc(gltf_types.Camera, camera_count);
+    const cameras = try allocator.alloc(gltf_types.Camera, cameras_json.array.items.len);
 
     for (cameras_json.array.items, 0..) |camera_json, index| {
         cameras[index] = try parseCamera(allocator, camera_json);
