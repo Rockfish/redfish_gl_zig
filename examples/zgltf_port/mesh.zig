@@ -2,7 +2,7 @@ const std = @import("std");
 const core = @import("core");
 const gl = @import("zopengl").bindings;
 const Texture = @import("texture.zig").Texture;
-const Shader = @import("shader.zig").Shader;
+const Shader = core.Shader;
 const utils = core.utils;
 const math = @import("math");
 

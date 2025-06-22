@@ -12,11 +12,11 @@ const gl = zopengl.bindings;
 
 const Model = core.Model;
 const ModelBuilder = core.ModelBuilder;
-const animation = core.animation;
+// const animation = core.animation;
 const String = core.string.String;
 const FrameCount = core.FrameCount;
 
-const Shader = @import("shader.zig").Shader;
+const Shader =core.Shader;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
@@ -26,9 +26,9 @@ const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
 
-const Animator = animation.Animator;
-const AnimationClip = animation.AnimationClip;
-const AnimationRepeat = animation.AnimationRepeatMode;
+// const Animator = animation.Animator;
+// const AnimationClip = animation.AnimationClip;
+// const AnimationRepeat = animation.AnimationRepeatMode;
 
 const Window = glfw.Window;
 
