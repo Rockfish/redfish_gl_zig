@@ -2,6 +2,10 @@ const std = @import("std");
 const core = @import("core");
 const math = @import("math");
 const Gltf = @import("zgltf/src/main.zig");
+const Shader = @import("shader.zig").Shader;
+const Mesh = @import("mesh.zig").Mesh;
+const MeshPrimitive = @import("mesh.zig").MeshPrimitive;
+const Animator = @import("animator.zig").Animator;
 
 const Transform = core.Transform;
 const Mat4 = math.Mat4;
@@ -9,11 +13,6 @@ const mat4 = math.mat4;
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
 const Quat = math.Quat;
-
-const Shader = @import("shader.zig").Shader;
-const Mesh = @import("gltf_mesh.zig").Mesh;
-const MeshPrimitive = @import("gltf_mesh.zig").MeshPrimitive;
-const Animator = @import("animator.zig").Animator;
 
 // const animation = @import("animator.zig");
 // const AnimationClip = @import("animator.zig").AnimationClip;

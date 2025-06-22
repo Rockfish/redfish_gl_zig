@@ -79,14 +79,16 @@ pub const Data = struct {
 arena: *ArenaAllocator,
 data: Data,
 
-// glb_binary: ?[]align(4) const u8 = null,
-// TODO: consider moving these to a wrapper class
+/// glTF files can reference any number of external binary files through Buffer objects.
+/// Multiple buffers allow efficient management of large binary data across separate files.
+/// Each Buffer can either:
+/// - Reference an external binary file via the `uri` property (typically .bin files)
+/// - Embed data directly in the glTF JSON as base64-encoded data URIs (uri starts with "data:")
+/// - Have no uri (null) for embedded binary data in .glb files
 buffer_data: ArrayList([]align(4) const u8),
 
-// TODO: refactor so that we know the number of texture before
-// defining loaded_textures so we can use an array instead of a map.
+/// OpenGL textures that have been created indexed by gltf texture id
 loaded_textures: std.AutoHashMap(usize, *const _texture.Texture),
-//loaded_textures: ArrayList(?*const _texture.Texture),
 
 pub fn init(allocator: Allocator) Self {
     var arena = allocator.create(ArenaAllocator) catch {
@@ -99,7 +101,6 @@ pub fn init(allocator: Allocator) Self {
     return Self{
         .arena = arena,
         .buffer_data = ArrayList([]align(4) const u8).init(alloc),
-        //.loaded_textures = ArrayList(?*const _texture.Texture).initCapacity(alloc),
         .loaded_textures = std.AutoHashMap(usize, *const _texture.Texture).init(alloc),
         .data = .{
             .asset = Asset{ .version = "Undefined" },
@@ -384,16 +385,16 @@ fn parseGlb(self: *Self, glb_buffer: []align(4) const u8) !void {
 
     try self.parseGltfJson(json_buffer);
 
-    const buffer_views = self.data.buffer_views.items;
+    // const buffer_views = self.data.buffer_views.items;
 
-    for (self.data.images.items) |*image| {
-        if (image.buffer_view) |buffer_view_index| {
-            const buffer_view = buffer_views[buffer_view_index];
-            const start = buffer_view.byte_offset;
-            const end = start + buffer_view.byte_length;
-            image.data = binary_buffer[start..end];
-        }
-    }
+    // for (self.data.images.items) |*image| {
+    //     if (image.buffer_view) |buffer_view_index| {
+    //         const buffer_view = buffer_views[buffer_view_index];
+    //         const start = buffer_view.byte_offset;
+    //         const end = start + buffer_view.byte_length;
+    //         image.data = binary_buffer[start..end];
+    //     }
+    // }
 }
 
 fn parseGltfJson(self: *Self, gltf_json: []const u8) !void {

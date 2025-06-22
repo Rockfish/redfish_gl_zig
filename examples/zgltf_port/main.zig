@@ -41,34 +41,9 @@ pub fn main() !void {
     );
     defer window.destroy();
 
-    // _ = window.setKeyCallback(keyHandler);
-    // _ = window.setFramebufferSizeCallback(framebufferSizeHandler);
-    // _ = window.setCursorPosCallback(cursorPositionHandler);
-    // _ = window.setScrollCallback(scrollHandler);
-    // _ = window.setMouseButtonCallback(mouseHandler);
-    // window.setInputMode(.cursor, glfw.Cursor.Mode.disabled);
- 
     glfw.makeContextCurrent(window);
     glfw.swapInterval(1);
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
-
-    // const model_paths = [_][]const u8 {
-    //     "/Users/john/Dev/Zig/Repos/zgltf/test-samples/rigged_simple/RiggedSimple.gltf",
-    //     "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/BoxVertexColors/glTF/BoxVertexColors.gltf",
-    //     "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/BoxTextured/glTF/BoxTextured.gltf",
-    //     "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/CesiumMan/glTF/CesiumMan.gltf",
-    //     "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/BrainStem/glTF/BrainStem.gltf",
-    //     "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/StainedGlassLamp/glTF/StainedGlassLamp.gltf",
-    //     "/Users/john/Dev/Assets/glTF-Sample-Models/1.0/WalkingLady/glTF/WalkingLady.gltf",
-    //     "/Users/john/Dev/Assets/modular_characters/Individual Characters/glTF/Spacesuit.gltf",
-    //     "/Users/john/Dev/Assets/modular_characters/Individual Characters/glTF/Adventurer.gltf",
-    //     "/Users/john/Dev/Assets/astronaut_character/astronaut_game_character_animated/scene.gltf",
-    //     "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/CesiumMan/glTF-Binary/CesiumMan.glb",
-    //     "/Users/john/spacesuit_blender_export.glb",
-    // };
-
-    // try run_app(allocator, window);
-    // try glftReport(model_paths[4]);
 
     const path = try std.fs.path.join(allocator, &[_][]const u8{ root, model_paths[52] });
     defer allocator.free(path);

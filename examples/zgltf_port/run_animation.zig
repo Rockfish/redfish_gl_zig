@@ -6,7 +6,7 @@ const core = @import("core");
 const math = @import("math");
 
 const Camera = core.Camera;
-const Builder = @import("gltf_builder.zig").GltfBuilder;
+const Builder = @import("builder.zig").GltfBuilder;
 
 const gl = zopengl.bindings;
 
@@ -26,8 +26,6 @@ const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
 
-const Texture = core.texture.Texture;
-const TextureType = core.texture.TextureType;
 const Animator = animation.Animator;
 const AnimationClip = animation.AnimationClip;
 const AnimationRepeat = animation.AnimationRepeatMode;
@@ -115,12 +113,12 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []con
     std.debug.print("Shader id: {d}\n", .{shader.id});
 
     const ambientColor: Vec3 = vec3(NON_BLUE * 0.7, NON_BLUE * 0.7, 0.7);
-    var texture_cache = std.ArrayList(*Texture).init(allocator);
+    // var texture_cache = std.ArrayList(*Texture).init(allocator);
 
     std.debug.print("\n--- Build gltf model ----------------------\n\n", .{});
     const gltf_model = blk: {
         std.debug.print("Main: loading model: {s}\n", .{model_path});
-        var builder = try Builder.init(allocator, &texture_cache, "Spacesuit", model_path);
+        var builder = try Builder.init(allocator, "Spacesuit", model_path);
         const gltfmodel = try builder.build();
         builder.deinit();
         break :blk gltfmodel;
@@ -238,8 +236,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []con
     // model.deinit();
     gltf_model.deinit();
 
-    for (texture_cache.items) |_texture| {
-        _texture.deinit();
-    }
-    texture_cache.deinit();
+    // for (texture_cache.items) |_texture| {
+    //     _texture.deinit();
+    // }
+    // texture_cache.deinit();
 }

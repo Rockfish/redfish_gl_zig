@@ -88,13 +88,13 @@ pub fn loadImage(allocator: Allocator, gltf: *Gltf, gltf_image: Gltf.Image, dire
                 const decoded_length = decoder.calcSizeForSlice(uri[idx..uri.len]) catch |err| {
                     std.debug.panic("Texture base64 decoder error: {any}\n", .{ err });
                 };
-                // TODO: review if the data_buffer needs to be freed. May not since the allocator does not complain on exit.
                 const data_buffer: []align(4) u8 = allocator.allocWithOptions(u8, decoded_length, 4, null) catch |err| {
                     std.debug.panic("Texture allocator error: {any}\n", .{ err });
                 };
                 decoder.decode(data_buffer, uri[idx..uri.len]) catch |err| {
                     std.debug.panic("Texture base64 decoder error: {any}\n", .{ err });
                 };
+                // zstbi will own the data_buffer and free it on image deinit.
                 const image = zstbi.Image.loadFromMemory(data_buffer, 0) catch |err| {
                     std.debug.print("Texture loadFromMemory error: {any}  using uri: {any}\n", .{ err, uri[0..5] });
                     @panic(@errorName(err));
@@ -119,7 +119,7 @@ pub fn loadImage(allocator: Allocator, gltf: *Gltf, gltf_image: Gltf.Image, dire
         const buffer_view = gltf.data.buffer_views.items[buffer_view_id];
 
         // TODO: testing the length of the buffer should include the byte_offset:width:
-        //const data = gltf.buffer_data.items[buffer_view.buffer][buffer_view.byte_offset..buffer_view.byte_length];
+        // const data = gltf.buffer_data.items[buffer_view.buffer][buffer_view.byte_offset..buffer_view.byte_length];
         const data = gltf.buffer_data.items[buffer_view.buffer][buffer_view.byte_offset .. buffer_view.byte_offset + buffer_view.byte_length];
 
         const image = zstbi.Image.loadFromMemory(data, 0) catch |err| {

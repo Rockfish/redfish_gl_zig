@@ -1,12 +1,15 @@
 const std = @import("std");
 const core = @import("core");
 const gl = @import("zopengl").bindings;
-const Texture = core.texture.Texture;
-const Shader = core.Shader;
+const Texture = @import("texture.zig").Texture;
+const Shader = @import("shader.zig").Shader;
 const utils = core.utils;
 const math = @import("math");
 
-const Material = @import("material.zig").Material;
+const Gltf = @import("zgltf/src/main.zig");
+const gltf_utils = @import("utils.zig");
+
+const getBufferSlice = gltf_utils.getBufferSlice;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -15,291 +18,357 @@ const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
 const Vec4 = math.Vec4;
 
-
-pub const ModelMesh = struct {
+pub const Mesh = struct {
     allocator: Allocator,
     name: []const u8,
-    primitives: *ArrayList(MeshPrimitive),
-    // weights
-    // extensions
-    // extras
-};
-
-pub const PrimitiveVertex = extern struct {
-    position: Vec3,
-    normal: Vec3,
-    uv: Vec2,
-    tangent: Vec3,
-    bi_tangent: Vec3,
-    bone_ids: [4]u16,
-    bone_weights: [4]f32,
+    primitives: ArrayList(*MeshPrimitive),
 
     const Self = @This();
 
-    pub fn init() Self {
-        return Self{
-            .position = undefined,
-            .normal = undefined,
-            .uv = undefined,
-            .tangent = undefined,
-            .bi_tangent = undefined,
-            .bone_ids = [_]u32{ 0, 0, 0, 0 },
-            .bone_weights = [_]f32{ 0.0, 0.0, 0.0, 0.0 },
-        };
-    }
-};
-
-const OFFSET_OF_POSITION = 0;
-const OFFSET_OF_NORMAL = @offsetOf(PrimitiveVertex, "normal");
-const OFFSET_OF_TEXCOORDS = @offsetOf(PrimitiveVertex, "uv");
-const OFFSET_OF_TANGENT = @offsetOf(PrimitiveVertex, "tangent");
-const OFFSET_OF_BITANGENT = @offsetOf(PrimitiveVertex, "bi_tangent");
-const OFFSET_OF_BONE_IDS = @offsetOf(PrimitiveVertex, "bone_ids");
-const OFFSET_OF_WEIGHTS = @offsetOf(PrimitiveVertex, "bone_weights");
-
-pub const MeshColor = struct {
-    uniform: [:0]const u8,
-    color: Vec4,
-};
-
-pub const MeshPrimitive = struct {
-    allocator: Allocator,
-    id: i32,
-    name: []const u8,
-    vertices: *ArrayList(PrimitiveVertex),
-    indices: ?[]u32,
-    material: Material,
-    vao: c_uint,
-    vbo: c_uint,
-    ebo: c_uint,
-
-    const Self = @This();
-
-    pub fn deinit(self: *MeshPrimitive) void {
-        gl.deleteVertexArrays(1, &self.vao);
-        gl.deleteBuffers(1, &self.vbo);
-        gl.deleteBuffers(1, &self.ebo);
-        self.vertices.deinit();
-        self.allocator.destroy(self.vertices);
-        // self.indices.deinit();
-        // self.allocator.destroy(self.indices);
-        self.allocator.free(self.name);
+    pub fn deinit(self: *Self) void {
+        for (self.primitives.items) |primitive| {
+            primitive.deinit();
+        }
+        self.primitives.deinit();
         self.allocator.destroy(self);
     }
 
-    pub fn init(
-        allocator: Allocator,
-        id: i32,
-        name: []const u8,
-        vertices: *ArrayList(PrimitiveVertex),
-        indices: *ArrayList(u32),
-    ) !*MeshPrimitive {
-        const model_mesh = try allocator.create(MeshPrimitive);
-        model_mesh.* = MeshPrimitive{
+    pub fn init(allocator: Allocator, gltf: *Gltf, directory: []const u8, gltf_mesh: Gltf.Mesh) !*Mesh {
+        const mesh = try allocator.create(Mesh);
+
+        mesh.* = Mesh{
             .allocator = allocator,
-            .id = id,
-            .name = try allocator.dupe(u8, name),
-            .vertices = vertices,
-            .indices = indices,
-            .vao = 0,
-            .vbo = 0,
-            .ebo = 0,
+            .name = gltf_mesh.name,
+            .primitives = ArrayList(*MeshPrimitive).init(allocator),
         };
 
-        // std.debug.print("MeshPrimitive: setting up mesh, name: {s}\n", .{name});
-        model_mesh.setupMesh();
-        // print_model_mesh(model_mesh);
-        return model_mesh;
+        for (gltf_mesh.primitives.items, 0..) |primitive, id| {
+            const mesh_primitive = try MeshPrimitive.init(allocator, gltf, directory, primitive, id);
+            try mesh.primitives.append(mesh_primitive);
+        }
+
+        return mesh;
     }
 
-    pub fn render(self: *MeshPrimitive, shader: *const Shader) void {
-        // TODO: replace with material
-        // const has_texture = self.*.textures.items.len > 0;
-        // shader.set_bool("has_texture", has_texture);
-        // for (self.*.textures.items, 0..) |texture, i| {
-        //     const texture_unit: u32 = @intCast(i);
-        //
-        //     gl.activeTexture(gl.TEXTURE0 + texture_unit);
-        //     gl.bindTexture(gl.TEXTURE_2D, texture.id);
-        //
-        //     const uniform = texture.texture_type.toString();
-        //     shader.set_int(uniform, @as(i32, @intCast(texture_unit)));
-        //     // std.debug.print("has_texture: {any} texture id: {d}  name: {s}\n", .{has_texture, i, texture.texture_path});
-        // }
-        // const has_color = self.*.colors.items.len > 0;
-        // shader.set_bool("has_color", has_color);
-        // for (self.*.colors.items) |mesh_color| {
-        //     shader.set_vec4(mesh_color.uniform, &mesh_color.color);
-        //     // std.debug.print("rendering color: {any}\n", .{mesh_color.color});
-        // }
-
-        gl.bindVertexArray(self.vao);
-        gl.drawElements(
-            gl.TRIANGLES,
-            @intCast(self.indices.items.len),
-            gl.UNSIGNED_INT,
-            null,
-        );
-        gl.bindVertexArray(0);
-
-        shader.set_bool("has_color", false);
-    }
-
-    pub fn renderNoTextures(self: *MeshPrimitive) void {
-        gl.bindVertexArray(self.vao);
-        gl.drawElements(
-            gl.TRIANGLES,
-            self.indices.items.len,
-            gl.UNSIGNED_INT,
-            null,
-        );
-        gl.bindVertexArray(0);
-    }
-
-    pub fn setupMesh(self: *MeshPrimitive) void {
-        // std.debug.print("MeshPrimitive: calling opengl\n", .{});
-
-        var vao: gl.Uint = undefined;
-        var vbo: gl.Uint = undefined;
-        var ebo: gl.Uint = undefined;
-
-        gl.genVertexArrays(1, &vao);
-        gl.genBuffers(1, &vbo);
-        gl.genBuffers(1, &ebo);
-        self.vao = vao;
-        self.vbo = vbo;
-        self.ebo = ebo;
-
-        // load vertex data into vertex buffers
-        gl.bindVertexArray(self.vao);
-        gl.bindBuffer(gl.ARRAY_BUFFER, self.vbo);
-        gl.bufferData(
-            gl.ARRAY_BUFFER,
-            @intCast(self.vertices.items.len * @sizeOf(PrimitiveVertex)),
-            self.vertices.items.ptr,
-            gl.STATIC_DRAW,
-        );
-
-        // load index data into indices element buffer
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, self.ebo);
-        gl.bufferData(
-            gl.ELEMENT_ARRAY_BUFFER,
-            @intCast(self.indices.items.len * @sizeOf(u32)),
-            self.indices.items.ptr,
-            gl.STATIC_DRAW,
-        );
-
-        // set the vertex attribute pointers vertex Positions
-        gl.enableVertexAttribArray(0);
-        gl.vertexAttribPointer( 0,
-            3,
-            gl.FLOAT,
-            gl.FALSE,
-            @sizeOf(PrimitiveVertex),
-            @ptrFromInt(OFFSET_OF_POSITION),
-        );
-
-        // vertex normals
-        gl.enableVertexAttribArray(1);
-        gl.vertexAttribPointer(
-            1,
-            3,
-            gl.FLOAT,
-            gl.FALSE,
-            @sizeOf(PrimitiveVertex),
-            @ptrFromInt(OFFSET_OF_NORMAL),
-        );
-
-        // vertex texture coordinates
-        gl.enableVertexAttribArray(2);
-        gl.vertexAttribPointer(
-            2,
-            2,
-            gl.FLOAT,
-            gl.FALSE,
-            @sizeOf(PrimitiveVertex),
-            @ptrFromInt(OFFSET_OF_TEXCOORDS),
-        );
-
-        // vertex tangent
-        gl.enableVertexAttribArray(3);
-        gl.vertexAttribPointer(
-            3,
-            3,
-            gl.FLOAT,
-            gl.FALSE,
-            @sizeOf(PrimitiveVertex),
-            @ptrFromInt(OFFSET_OF_TANGENT),
-        );
-
-        // vertex bitangent
-        gl.enableVertexAttribArray(4);
-        gl.vertexAttribPointer(
-            4,
-            3,
-            gl.FLOAT,
-            gl.FALSE,
-            @sizeOf(PrimitiveVertex),
-            @ptrFromInt(OFFSET_OF_BITANGENT),
-        );
-
-        // bone ids
-        gl.enableVertexAttribArray(5);
-        gl.vertexAttribIPointer(
-            5,
-            4,
-            gl.INT,
-            @sizeOf(PrimitiveVertex),
-            @ptrFromInt(OFFSET_OF_BONE_IDS),
-        );
-
-        // weights
-        gl.enableVertexAttribArray(6);
-        gl.vertexAttribPointer(
-            6,
-            4,
-            gl.FLOAT,
-            gl.FALSE,
-            @sizeOf(PrimitiveVertex),
-            @ptrFromInt(OFFSET_OF_WEIGHTS),
-        );
-
-        gl.bindVertexArray(0);
-    }
-
-    pub fn printMeshVertices(self: *const MeshPrimitive) void {
-        std.debug.print("mesh: {s}\n", .{self.name});
-        for (self.vertices.items) |v| {
-            std.debug.print("vert: {{{d}, {d}, {d}}} bone_ids: [{d}, {d}, {d}, {d}], bone_weights: [{d}, {d}, {d}, {d}]\n", .{
-                v.position.x,      v.position.y,      v.position.z, 
-                v.bone_ids[0],     v.bone_ids[1],     v.bone_ids[2], v.bone_ids[3],
-                v.bone_weights[0], v.bone_weights[1], v.bone_weights[2], v.bone_weights[3],
-            });
+    pub fn render(self: *Self, gltf: *Gltf, shader: *const Shader) void {
+        for (self.primitives.items) |primitive| {
+            primitive.render(gltf, shader);
+            // primitive.renderPBR(gltf, shader);
         }
     }
 };
 
-pub fn printMeshPrimitive(mesh: *MeshPrimitive) void {
-    // _ = mesh;
+pub const MeshPrimitive = struct {
+    allocator: Allocator,
+    id: usize,
+    name: ?[]const u8 = null,
+    material: Gltf.Material = undefined,
+    indices_count: u32,
+    vao: c_uint = undefined,
+    vbo_positions: c_uint = undefined,
+    vbo_normals: c_uint = undefined,
+    vbo_texcoords: c_uint = undefined,
+    vbo_tangents: c_uint = undefined,
+    vbo_colors: c_uint = undefined,
+    vbo_joints: c_uint = undefined,
+    vbo_weights: c_uint = undefined,
+    ebo_indices: c_uint = undefined,
 
-    std.debug.print("OFFSET_OF_POSITION: {any}\n", .{OFFSET_OF_POSITION});
-    std.debug.print("OFFSET_OF_NORMAL: {any}\n", .{OFFSET_OF_NORMAL});
-    std.debug.print("OFFSET_OF_TEXCOORDS: {any}\n", .{OFFSET_OF_TEXCOORDS});
-    std.debug.print("OFFSET_OF_TANGENT: {any}\n", .{OFFSET_OF_TANGENT});
-    std.debug.print("OFFSET_OF_BITANGENT: {any}\n", .{OFFSET_OF_BITANGENT});
-    std.debug.print("OFFSET_OF_BONE_IDS: {any}\n", .{OFFSET_OF_BONE_IDS});
-    std.debug.print("OFFSET_OF_WEIGHTS: {any}\n", .{OFFSET_OF_WEIGHTS});
+    const Self = @This();
 
-    std.debug.print("size of CVec2: {d}\n", .{@sizeOf(Vec2)});
-    std.debug.print("size of CVec3: {d}\n", .{@sizeOf(Vec3)});
-    std.debug.print("size of [4]i32: {d}\n", .{@sizeOf([4]i32)});
-    std.debug.print("size of [4]f32: {d}\n", .{@sizeOf([4]f32)});
+    pub fn deinit(self: *Self) void {
+        // depending on who owns the name.
+        // if (self.name) |name| {
+        //     self.allocator.free(name);
+        // }
+        self.allocator.destroy(self);
+    }
 
-    std.debug.print("size vertex: {d}\n", .{@sizeOf(PrimitiveVertex)});
-    std.debug.print("size of vertex parts: {d}\n", .{@sizeOf(Vec3) * 4 + @sizeOf(Vec2) + @sizeOf([4]i32) + @sizeOf([4]f32)});
+    pub fn init(allocator: Allocator, gltf: *Gltf, directory: []const u8, primitive: Gltf.Primitive, id: usize) !*MeshPrimitive {
+        const mesh_primitive = try allocator.create(MeshPrimitive);
+        mesh_primitive.* = MeshPrimitive{
+            .allocator = allocator,
+            .id = id,
+            .indices_count = 0,
+        };
 
-    std.debug.print("mesh.id: {any}\n", .{mesh.id});
-    std.debug.print("mesh.vertex[0]: {any}\n", .{mesh.vertices.items[0]});
-    std.debug.print("mesh.indices[0]: {any}\n", .{mesh.indices.items[0]});
-    std.debug.print("\n", .{});
+        gl.genVertexArrays(1, &mesh_primitive.vao);
+        gl.bindVertexArray(mesh_primitive.vao);
+
+        for (primitive.attributes.items) |attribute| {
+            switch (attribute) {
+                .position => |accessor_id| {
+                    mesh_primitive.vbo_positions = createGlArrayBuffer(gltf, 0, accessor_id);
+                    std.debug.print("has_positions\n", .{});
+                    const aabb = getAABB(gltf, accessor_id);
+                    std.debug.print("aabb: {any}\n", .{aabb});
+                },
+                .normal => |accessor_id| {
+                    mesh_primitive.vbo_normals = createGlArrayBuffer(gltf, 1, accessor_id);
+                    std.debug.print("has_normals\n", .{});
+                },
+                .texcoord => |accessor_id| {
+                    mesh_primitive.vbo_texcoords = createGlArrayBuffer(gltf, 2, accessor_id);
+                    std.debug.print("has_texcoords\n", .{});
+                },
+                .tangent => |accessor_id| {
+                    mesh_primitive.vbo_tangents = createGlArrayBuffer(gltf, 3, accessor_id);
+                    std.debug.print("has_tangents\n", .{});
+                },
+                .color => |accessor_id| {
+                    mesh_primitive.vbo_colors = createGlArrayBuffer(gltf, 4, accessor_id);
+                    std.debug.print("has_colors\n", .{});
+                },
+                .joints => |accessor_id| {
+                    mesh_primitive.vbo_joints = createGlArrayBuffer(gltf, 5, accessor_id);
+                    std.debug.print("has_joints\n", .{});
+                },
+                .weights => |accessor_id| {
+                    mesh_primitive.vbo_weights = createGlArrayBuffer(gltf, 6, accessor_id);
+                    std.debug.print("has_weights\n", .{});
+                },
+            }
+        }
+
+        if (primitive.indices) |accessor_id| {
+            mesh_primitive.ebo_indices = createGlElementBuffer(gltf, accessor_id);
+            const accessor = gltf.data.accessors.items[accessor_id];
+            mesh_primitive.indices_count = @intCast(accessor.count);
+            std.debug.print("has_indices count: {d}\n", .{accessor.count});
+        }
+
+        if (primitive.material) |accessor_id| {
+            const material = gltf.data.materials.items[accessor_id];
+            mesh_primitive.material = material;
+            std.debug.print("has_material: {any}\n", .{material});
+
+            if (material.pbr_metallic_roughness.base_color_texture) |base_color_texture| {
+                loadMaterialTexture(allocator, directory, gltf, base_color_texture.index);
+            }
+            if (material.pbr_metallic_roughness.metallic_roughness_texture) |metallic_roughness_texture| {
+                loadMaterialTexture(allocator, directory, gltf, metallic_roughness_texture.index);
+            }
+            if (material.normal_texture) |normal_texture| {
+                loadMaterialTexture(allocator, directory, gltf, normal_texture.index);
+            }
+            if (material.emissive_texture) |emissive_texture| {
+                loadMaterialTexture(allocator, directory, gltf, emissive_texture.index);
+            }
+            if (material.occlusion_texture) |occlusion_texture| {
+                loadMaterialTexture(allocator, directory, gltf, occlusion_texture.index);
+            }
+        }
+
+        return mesh_primitive;
+    }
+
+    // Gltf Material to Assimp Mapping
+    //
+    // material.metallic_roughness.base_color_factor  : diffuse_color
+    // material.metallic_roughness.base_color_factor  : base_color
+    // material.pbrMetallicRoughness.baseColorTexture : aiTextureType_DIFFUSE
+    // material.pbrMetallicRoughness.baseColorTexture :  aiTextureType_BASE_COLOR
+    // mat.pbrMetallicRoughness.metallicRoughnessTexture : AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE
+    // mat.pbrMetallicRoughness.metallicRoughnessTexture : aiTextureType_METALNESS
+    // mat.pbrMetallicRoughness.metallicRoughnessTexture : aiTextureType_DIFFUSE_ROUGHNESS
+
+    pub fn render(self: *MeshPrimitive, gltf: *Gltf, shader: *const Shader) void {
+        if (self.material.pbr_metallic_roughness.base_color_texture) |baseColorTexture| {
+            const texUnit: u32 = 0;
+            const texture = gltf.loaded_textures.get(baseColorTexture.index) orelse std.debug.panic("texture not loaded.", .{});
+            gl.activeTexture(gl.TEXTURE0 + @as(c_uint, @intCast(texUnit)));
+            gl.bindTexture(gl.TEXTURE_2D, texture.gl_texture_id);
+            shader.setInt("texture_diffuse", texUnit);
+            shader.setBool("has_texture", true);
+        } else {
+            const color = self.material.pbr_metallic_roughness.base_color_factor;
+            shader.set4Float("diffuse_color", &color);
+            shader.setBool("has_color", true);
+        }
+
+        gl.bindVertexArray(self.vao);
+        gl.drawElements(
+            gl.TRIANGLES,
+            @intCast(self.indices_count),
+            gl.UNSIGNED_SHORT,
+            null,
+        );
+        gl.bindVertexArray(0);
+
+        shader.setBool("has_color", false);
+    }
+
+    pub fn renderPBR(self: *MeshPrimitive, gltf: *Gltf, shader: *const Shader) void {
+
+        // Base Color
+        shader.set4Float("material.baseColorFactor", &self.material.pbr_metallic_roughness.base_color_factor);
+        shader.setFloat("material.metallicFactor", self.material.pbr_metallic_roughness.metallic_factor);
+        shader.setFloat("material.roughnessFactor", self.material.pbr_metallic_roughness.roughness_factor);
+        shader.set3Float("material.emissiveFactor", &self.material.emissive_factor);
+
+        if (self.material.pbr_metallic_roughness.base_color_texture) |baseColorTexture| {
+            const texture = gltf.loaded_textures.get(baseColorTexture.index) orelse std.debug.panic("texture not loaded.", .{});
+            shader.bindTexture(0, "baseColorTexture", texture);
+            shader.setBool("has_baseColorTexture", true);
+        } else {
+            shader.setBool("has_baseColorTexture", false);
+        }
+
+        if (self.material.pbr_metallic_roughness.metallic_roughness_texture) |metallicRoughnessTexture| {
+            const texture = gltf.loaded_textures.get(metallicRoughnessTexture.index) orelse std.debug.panic("texture not loaded.", .{});
+            shader.bindTexture(1, "metallicRoughnessTexture", texture);
+            shader.setBool("has_metallicRoughnessTexture", true);
+        } else {
+            shader.setBool("has_metallicRoughnessTexture", false);
+        }
+
+        if (self.material.normal_texture) |normalTexture| {
+            const texture = gltf.loaded_textures.get(normalTexture.index) orelse std.debug.panic("texture not loaded.", .{});
+            shader.bindTexture(2, "normalTexture", texture);
+            shader.setBool("has_normalTexture", true);
+        } else {
+            shader.setBool("has_normalTexture", false);
+        }
+
+        if (self.material.emissive_texture) |emissiveTexture| {
+            const texture = gltf.loaded_textures.get(emissiveTexture.index) orelse std.debug.panic("texture not loaded.", .{});
+            shader.bindTexture(3, "emissiveTexture", texture);
+            shader.setBool("has_emissiveTexture", true);
+        } else {
+            shader.setBool("has_emissiveTexture", false);
+        }
+
+        if (self.material.occlusion_texture) |occlusionTexture| {
+            const texture = gltf.loaded_textures.get(occlusionTexture.index) orelse std.debug.panic("texture not loaded.", .{});
+            shader.setBool("has_occlusionTexture", true);
+            shader.bindTexture(4, "occlusionTexture", texture);
+        } else {
+            shader.setBool("has_occlusionTexture", false);
+        }
+
+        gl.bindVertexArray(self.vao);
+        gl.drawElements(
+            gl.TRIANGLES,
+            @intCast(self.indices_count),
+            gl.UNSIGNED_SHORT,
+            null,
+        );
+        gl.bindVertexArray(0);
+    }
+};
+
+fn loadMaterialTexture(allocator: Allocator, directory: []const u8, gltf: *Gltf, texture_index: usize) void {
+    if (!gltf.loaded_textures.contains(texture_index)) {
+        const texture = Texture.init(
+            allocator,
+            gltf,
+            directory,
+            texture_index,
+        ) catch |err| {
+            std.debug.panic("Error loading texture index: {d} error: {any}", .{ texture_index, err });
+        };
+        gltf.loaded_textures.put(texture_index, texture) catch |err| {
+            std.debug.panic("Error storing texture index: {d} error: {any}", .{ texture_index, err });
+        };
+    }
+}
+
+pub fn getAABB(gltf: *Gltf, accessor_id: usize) core.AABB {
+    const accessor = gltf.data.accessors.items[accessor_id];
+    const buffer_view = gltf.data.buffer_views.items[accessor.buffer_view.?];
+    const buffer_data = gltf.buffer_data.items[buffer_view.buffer];
+
+    const data_size = accessor.getComponentSize() * accessor.getTypeSize() * accessor.count;
+    const start = accessor.byte_offset + buffer_view.byte_offset;
+    const end = start + data_size;
+
+    const data = buffer_data[start..end];
+    const len: usize = data.len/@sizeOf(Vec3);
+    std.debug.assert(len == accessor.count);
+    std.debug.print("aabb number of positions: {d}\n", .{len});
+
+    const positions = @as([*]Vec3, @ptrCast(@alignCast(@constCast(data))))[0..len];
+
+    var aabb = core.AABB.init();
+    for (positions) |position| {
+        aabb.expand_to_include(position);
+    }
+
+    return aabb;
+}
+
+pub fn createGlArrayBuffer(gltf: *Gltf, gl_index: u32, accessor_id: usize) c_uint {
+    const accessor = gltf.data.accessors.items[accessor_id];
+    const buffer_view = gltf.data.buffer_views.items[accessor.buffer_view.?];
+    const buffer_data = gltf.buffer_data.items[buffer_view.buffer];
+
+    const element_size = accessor.getComponentSize() * accessor.getTypeSize();
+    const data_size = element_size * accessor.count;
+
+    const start = accessor.byte_offset + buffer_view.byte_offset;
+    const end = start + data_size;
+
+    std.debug.print("\naccessor:  {any}\n", .{accessor});
+    std.debug.print("buffer_view:  {any}\n", .{buffer_view});
+    std.debug.print("buffer len:  {d}\n", .{buffer_data.len});
+    std.debug.print("data size:  {d}\n", .{data_size});
+    std.debug.print("start:  {d}\n", .{start});
+    std.debug.print("end:  {d}\n", .{end});
+    std.debug.print("element_size: {d}  byte_stride: {d}  type size: {d}\n", .{element_size, buffer_view.byte_stride, accessor.getTypeSize()});
+
+    const data = buffer_data[start..end];
+
+    // Note: this will break if the data is interleved with other data. 
+    std.debug.assert(buffer_view.byte_stride == 0);
+
+    var vbo: gl.Uint = undefined;
+    gl.genBuffers(1, &vbo);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        @intCast(data.len),
+        data.ptr,
+        gl.STATIC_DRAW,
+    );
+    gl.enableVertexAttribArray(gl_index);
+    gl.vertexAttribPointer(
+        gl_index,
+        @intCast(accessor.getTypeSize()),
+        gl.FLOAT,
+        gl.FALSE,
+        @intCast(buffer_view.byte_stride),
+        @ptrFromInt(0),
+    );
+    return vbo;
+}
+
+pub fn createGlElementBuffer(gltf: *Gltf, accessor_id: usize) c_uint {
+    const accessor = gltf.data.accessors.items[accessor_id];
+    const buffer_view = gltf.data.buffer_views.items[accessor.buffer_view.?];
+    const buffer_data = gltf.buffer_data.items[buffer_view.buffer];
+
+    const data_size = accessor.getComponentSize() * accessor.getTypeSize() * accessor.count;
+
+    const start = accessor.byte_offset + buffer_view.byte_offset;
+    const end = start + data_size; // buffer_view.byte_length;
+
+    std.debug.print("\naccessor:  {any}\n", .{accessor});
+    std.debug.print("buffer_view:  {any}\n", .{buffer_view});
+    std.debug.print("buffer len:  {d}\n", .{buffer_data.len});
+    std.debug.print("data size:  {d}\n", .{data_size});
+    std.debug.print("start:  {d}\n", .{start});
+    std.debug.print("end:  {d}\n", .{end});
+
+    const data = buffer_data[start..end];
+
+    var ebo: gl.Uint = undefined;
+    gl.genBuffers(1, &ebo);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+    gl.bufferData(
+        gl.ELEMENT_ARRAY_BUFFER,
+        @intCast(data.len),
+        data.ptr,
+        gl.STATIC_DRAW,
+    );
+    return ebo;
 }
