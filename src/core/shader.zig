@@ -166,6 +166,7 @@ pub const Shader = struct {
         const key = self.allocator.dupe(u8, uniform) catch unreachable;
         const val = gl.getUniformLocation(self.id, uniform);
         self.locations.put(key, val) catch unreachable;
+
         std.debug.print("Shader saving uniform: {s} location: {d}  value: {any}\n", .{ key, val, value });
         return val;
     }
@@ -285,7 +286,7 @@ pub const Shader = struct {
         self.useShader();
         const location = gl.getUniformLocation(self.id, uniform);
         if (location != -1) {
-            gl.uniformMatrix3fv(location, 1, gl.FALSE, &mat);
+            gl.uniformMatrix3fv(location, 1, gl.FALSE, mat);
         }
     }
 
@@ -297,16 +298,16 @@ pub const Shader = struct {
         }
     }
 
-    pub fn setTextureUnit(self: *const Shader, texture_unit: u32, texture_id: u32) void {
+    pub fn setTextureUnit(self: *const Shader, texture_unit: u32, gl_texture_id: u32) void {
         self.useShader();
         gl.activeTexture(gl.TEXTURE0 + texture_unit);
-        gl.bindTexture(gl.TEXTURE_2D, texture_id);
+        gl.bindTexture(gl.TEXTURE_2D, gl_texture_id);
     }
 
-    pub fn bindTexture(self: *const Shader, texture_unit: i32, uniform_name: [:0]const u8, texture: *const Texture) void {
+    pub fn bindTexture(self: *const Shader, texture_unit: i32, uniform_name: [:0]const u8, gl_texture_id: u32) void {
         self.useShader();
         gl.activeTexture(gl.TEXTURE0 + @as(c_uint, @intCast(texture_unit)));
-        gl.bindTexture(gl.TEXTURE_2D, texture.gl_texture_id);
+        gl.bindTexture(gl.TEXTURE_2D, gl_texture_id);
         self.setInt(uniform_name, texture_unit);
     }
 };

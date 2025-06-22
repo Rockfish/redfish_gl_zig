@@ -1,5 +1,5 @@
 const std = @import("std");
-const math = @import("../../math/main.zig");
+const math = @import("math");
 
 ///////////////////////////////////////////////////////////////////////////////
 // Enum Definitions
@@ -432,6 +432,13 @@ pub const BufferView = struct {
 };
 
 /// A buffer holds binary data for vertices, animations, etc.
+///
+/// glTF files can reference any number of external binary files through Buffer objects.
+/// Each Buffer can either:
+/// - Reference an external binary file via the `uri` property (typically .bin files)
+/// - Embed data directly in the glTF JSON as base64-encoded data URIs (uri starts with "data:")
+/// - Have no uri (null) for embedded binary data in .glb files
+/// Multiple buffers allow efficient management of large binary data across separate files.
 pub const Buffer = struct {
     /// Optional. URI to load the buffer from. If null, the data is embedded.
     uri: ?[]const u8,
@@ -537,20 +544,17 @@ pub const Texture = struct {
 
 /// An image used as a texture source.
 pub const Image = struct {
-    /// Optional. URI of the image.
+    /// Optional. URI of the image. This field MUST NOT be defined when bufferView is defined.
     uri: ?[]const u8,
 
     /// Optional. MIME type of the image.
     mime_type: ?[]const u8,
 
-    /// Optional. BufferView index if the image is embedded.
+    /// Optional. BufferView index if the image is embedded. This field MUST NOT be defined when uri is defined.
     buffer_view: ?u32,
 
     /// Optional. Name of the image.
     name: ?[]const u8,
-
-    /// Pointer to the image data loaded at runtime.
-    data: ?[]u8,
 };
 
 /// An animation is a sequence that modifies node properties over time.

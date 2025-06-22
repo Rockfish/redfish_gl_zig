@@ -1,6 +1,5 @@
 // very simple string thingy
 const std = @import("std");
-const Assimp = @import("assimp.zig").Assimp;
 
 const Allocator = std.mem.Allocator;
 
@@ -26,11 +25,6 @@ pub const String = struct {
             .str = try _allocator.dupe(u8, str),
         };
         return string;
-    }
-
-    pub fn from_aiString(ai_string: Assimp.aiString) !*String {
-        const str = ai_string.data[0..ai_string.length];
-        return try String.new(str);
     }
 
     pub fn clone(self: *Self) !*String {

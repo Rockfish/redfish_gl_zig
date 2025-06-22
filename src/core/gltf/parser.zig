@@ -3,7 +3,7 @@ const json = std.json;
 const gltf_types = @import("gltf.zig");
 const GLTF = gltf_types.GLTF;
 const Allocator = std.mem.Allocator;
-const math = @import("../../math/main.zig");
+const math = @import("math");
 
 const ParseError = error{
     OutOfMemory,
