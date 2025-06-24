@@ -6,7 +6,7 @@ const ArrayList = std.ArrayList;
 const StringHashMap = std.StringHashMap;
 
 const Node = @import("node.zig").Node;
-const Transform = @import("../transform").Transform;
+const Transform = @import("transform").Transform;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;

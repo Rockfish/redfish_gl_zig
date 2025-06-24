@@ -3,9 +3,9 @@ const core = @import("core");
 const zstbi = @import("zstbi");
 const zopengl = @import("zopengl");
 const gl = @import("zopengl").bindings;
-const utils = @import("gltf/gltf_utils.zig");
+const utils = @import("utils/main.zig");
 const gltf_types = @import("gltf/gltf.zig");
-const GltfAsset = @import("gltf/asset.zig").GltfAsset;
+const GltfAsset = @import("asset_loader.zig").GltfAsset;
 
 const Allocator = std.mem.Allocator;
 

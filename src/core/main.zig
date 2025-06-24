@@ -25,6 +25,6 @@ pub const Ray = @import("aabb.zig").Ray;
 // pub const ModelMesh = @import("model_mesh.zig").ModelMesh;
 // pub const ModelBone = @import("model_animation.zig").ModelBone;
 // pub const ModelBuilder = @import("model_builder.zig").ModelBuilder;
-pub const animation = @import("gltf/animator.zig");
+pub const animation = @import("animator.zig");
 // pub const shapes = @import("shapes/main.zig");
 // pub const dumpModelNodes = @import("model.zig").dumpModelNodes;

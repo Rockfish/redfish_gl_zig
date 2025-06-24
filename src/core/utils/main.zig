@@ -45,5 +45,25 @@ pub fn getExistsFilename(allocator: std.mem.Allocator, directory: []const u8, fi
     @panic("getExistsFilename file not found error.");
 }
 
+// Cheap string hash
+pub fn stringHash(str: []const u8, seed: u32) u32 {
+    var hash: u32 = seed;
+    if (str.len == 0) return hash;
+
+    for (str) |char| {
+        hash = ((hash << 5) - hash) + @as(u32, @intCast(char));
+    }
+    return hash;
+}
+
+pub fn strchr(str: []const u8, c: u8) ?usize {
+    for (str, 0..) |char, i| {
+        if (char == c) {
+            return i;
+        }
+    }
+    return null;
+}
+
 
 

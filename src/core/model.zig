@@ -1,12 +1,12 @@
 const std = @import("std");
 const math = @import("math");
-const gltf_types = @import("gltf.zig");
-const GltfAsset = @import("asset.zig").GltfAsset;
-const Shader = @import("../shader.zig").Shader;
+const gltf_types = @import("gltf/gltf.zig");
+const GltfAsset = @import("asset_loader.zig").GltfAsset;
+const Shader = @import("shader.zig").Shader;
 const Mesh = @import("mesh.zig").Mesh;
 const MeshPrimitive = @import("mesh.zig").MeshPrimitive;
 const Animator = @import("animator.zig").Animator;
-const Transform = @import("../transform.zig").Transform;
+const Transform = @import("transform.zig").Transform;
 
 const Mat4 = math.Mat4;
 const mat4 = math.mat4;

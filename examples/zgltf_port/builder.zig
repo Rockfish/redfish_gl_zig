@@ -182,17 +182,17 @@ pub const GltfBuilder = struct {
     }
 };
 
-fn getBufferSlice(comptime T: type, gltf: *Gltf, accessor_id: usize) []T {
-    const accessor = gltf.data.accessors.items[accessor_id];
-    if (@sizeOf(T) != accessor.stride) {
-        std.debug.panic("sizeOf(T) : {d} does not equal accessor.stride: {d}", .{ @sizeOf(T), accessor.stride });
-    }
-    const buffer_view = gltf.data.buffer_views.items[accessor.buffer_view.?];
-    const glb_buf = gltf.buffer_data.items[buffer_view.buffer];
-    const start = accessor.byte_offset + buffer_view.byte_offset;
-    const end = start + buffer_view.byte_length;
-    const slice = glb_buf[start..end];
-    const data = @as([*]T, @ptrCast(@alignCast(@constCast(slice))))[0..accessor.count];
-    return data;
-}
+// fn getBufferSlice(comptime T: type, gltf: *Gltf, accessor_id: usize) []T {
+//     const accessor = gltf.data.accessors.items[accessor_id];
+//     if (@sizeOf(T) != accessor.stride) {
+//         std.debug.panic("sizeOf(T) : {d} does not equal accessor.stride: {d}", .{ @sizeOf(T), accessor.stride });
+//     }
+//     const buffer_view = gltf.data.buffer_views.items[accessor.buffer_view.?];
+//     const glb_buf = gltf.buffer_data.items[buffer_view.buffer];
+//     const start = accessor.byte_offset + buffer_view.byte_offset;
+//     const end = start + buffer_view.byte_length;
+//     const slice = glb_buf[start..end];
+//     const data = @as([*]T, @ptrCast(@alignCast(@constCast(slice))))[0..accessor.count];
+//     return data;
+// }
 
