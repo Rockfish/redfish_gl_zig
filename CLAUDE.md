@@ -4,16 +4,17 @@
 
 **redfish_gl_zig** is a 3D graphics engine written in Zig focused on real-time rendering of animated glTF models with physically-based rendering (PBR). The engine supports character animation, texturing, lighting, and camera controls.
 
-### Current Status (2024-06-24)
+### Current Status (2024-06-25)
 - ✅ Core rendering pipeline with OpenGL 4.0
-- ✅ Third-party glTF implementation (zgltf_port)
+- ✅ Architecture refactoring completed (commit 6725b17)
+- ✅ Format-agnostic rendering components (Model, Mesh, Animator)
 - ✅ Skeletal animation system with clips
 - ✅ PBR material support (diffuse, specular, emissive, normals)
 - ✅ Camera controls (WASD movement + mouse look)
 - ✅ Custom math library integration
-- 🔄 **Major Refactoring**: Transitioning from third-party zgltf to custom glTF parser
-- 🔄 Working on: Custom glTF implementation using core math library
-- 📋 Next: Complete new_gltf demo application
+- 🔄 **Active Plan**: Plan 001 - GLB Support and Demo App
+- 🔄 Working on: GLB binary format parsing and interactive demo
+- 📋 Next: Implement GLB magic header detection
 
 ### Architecture
 
@@ -100,6 +101,9 @@ This applies to scenarios where referencing nested fields directly in function c
 
 ## Project-Specific Guidelines
 
+### Commit Guidelines
+- Do not add a signature at the end of commit messages
+
 ### Math Operations
 - Use the math types and functions under `src/math/` when possible
 - Prefer project-specific math implementations over external libraries
@@ -176,10 +180,23 @@ zig build test-movement
    - Add audio integration for ambient sounds
    - Create scene serialization system
 
+## Current Active Plans
+
+See `plan/active-plans.md` for detailed project roadmap.
+
+**Current Focus**: Plan 001 - GLB Support and Demo App (Phase 1: GLB Implementation)
+
 ## Recent Changes
 
+### 2024-06-25
+- **Project Planning System**: Created comprehensive plan tracking system
+  - Added `plan/` directory with structured project plans
+  - Plan 001: GLB Support and Demo App (active)
+  - Plan 002-004: Future shader, animation, and scene management work
+- **Session Continuity**: Enhanced CLAUDE.md to reference active plans
+
 ### 2024-06-24
-- **Major Architecture Refactoring**: Transitioning from third-party zgltf to custom implementation
+- **Major Architecture Refactoring**: Completed transition from third-party zgltf to custom implementation
 - **Core Module Reorganization**: Moved gltf-specific modules to general core modules
   - `src/core/gltf/animator.zig` → `src/core/animator.zig`
   - `src/core/gltf/mesh.zig` → `src/core/mesh.zig`
