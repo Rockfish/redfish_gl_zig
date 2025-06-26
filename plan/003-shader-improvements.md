@@ -1,4 +1,4 @@
-# Plan 002: Basic PBR Shaders
+# Plan 003: Basic PBR Shaders
 
 **Status**: 📋 Planned  
 **Priority**: Medium  
@@ -7,11 +7,12 @@
 
 ## Overview
 
-Implement basic PBR (Physically Based Rendering) shaders to make models look realistic with proper materials. This focused plan adds essential visual quality without complex lighting systems, building on the GLB support foundation.
+Implement basic PBR (Physically Based Rendering) shaders to make models look realistic with proper materials. This focused plan adds essential visual quality without complex lighting systems, building on the GLB support and demo application foundation.
 
 ## Prerequisites
 
-- [ ] Plan 001 (GLB Support and Demo) completed
+- [x] Plan 001 (GLB Support) completed
+- [ ] Plan 002 (Demo Application) completed
 - [ ] Stable model loading for both GLTF and GLB formats
 - [ ] Demo application working with basic shaders
 

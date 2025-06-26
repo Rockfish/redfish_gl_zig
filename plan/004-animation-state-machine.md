@@ -1,4 +1,4 @@
-# Plan 003: Basic Animation System
+# Plan 004: Basic Animation System
 
 **Status**: 📋 Planned  
 **Priority**: Medium  
@@ -11,8 +11,9 @@ Implement essential animation features including clip playback, simple blending,
 
 ## Prerequisites
 
-- [ ] Plan 001 (GLB Support and Demo) completed
-- [ ] Plan 002 (Basic PBR Shaders) completed or in progress
+- [x] Plan 001 (GLB Support) completed
+- [ ] Plan 002 (Demo Application) completed
+- [ ] Plan 003 (Basic PBR Shaders) completed or in progress
 - [ ] Character models loading and rendering correctly with animations
 
 ## Phase 1: Animation Clip System

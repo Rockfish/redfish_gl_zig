@@ -2,25 +2,31 @@
 
 ## 🔄 Currently Active
 
-- **[001-glb-support-and-demo.md](001-glb-support-and-demo.md)** - GLB format support + interactive demo
-  - Phase 1: 📋 GLB Implementation | Phase 2: 📋 Demo App | Phase 3: 📋 Validation Tests
-  - **Next**: Start with GLB magic header detection and basic parsing
+- **[002-demo-application.md](002-demo-application.md)** - Interactive demo with model cycling and smart camera
+  - 8-step implementation plan for comprehensive demo experience
+  - **Next**: Start with model management system and cycling functionality
 
 ## 📋 Planned (Priority Order) - Foundation Layer
 
-- **[002-basic-pbr-shaders.md](002-shader-improvements.md)** - Basic PBR rendering and materials
-  - Depends on Plan 001 completion
+- **[003-shader-improvements.md](003-shader-improvements.md)** - Basic PBR rendering and materials
+  - Depends on Plans 001-002 completion
   - Target: 1-2 weeks, focused on essential PBR features
 
-- **[003-basic-animation.md](003-animation-state-machine.md)** - Essential animation and state management
-  - Depends on Plans 001-002
+- **[004-animation-state-machine.md](004-animation-state-machine.md)** - Essential animation and state management
+  - Depends on Plans 001-003
   - Target: 1-2 weeks, focused on character movement
 
-- **[004-basic-scene-mgmt.md](004-scene-management.md)** - Multi-model scene support
-  - Depends on Plans 001-003
+- **[005-scene-management.md](005-scene-management.md)** - Multi-model scene support
+  - Depends on Plans 001-004
   - Target: 1-2 weeks, focused on scene composition
 
 ## ✅ Completed
+
+- **[001-glb-support.md](001-glb-support.md)** - GLB format support ✅ COMPLETED 2024-06-26
+  - GLB binary format parsing with chunk extraction
+  - Asset loader integration with format routing
+  - Binary data alignment and validation tests
+  - Integration test passing with Box.glb sample model
 
 - **Architecture Refactoring** - Completed 2024-06-24 (commit 6725b17)
   - Separated glTF parsing from rendering components
@@ -35,28 +41,36 @@
 
 **Layered Feature Development**: Build horizontal layers of functionality across the engine rather than vertical feature silos. Each plan adds a bounded set of features that work together, keeping the engine functional and demonstrable at each iteration.
 
-**Foundation Layer (Plans 001-004)**: Essential features for a working 3D engine
-- GLB support + demo framework
-- Basic PBR rendering  
-- Essential animation
-- Multi-model scenes
+**Foundation Layer (Plans 001-005)**: Essential features for a working 3D engine
+- ✅ GLB format support (Plan 001)
+- 🔄 Interactive demo application (Plan 002)
+- 📋 Basic PBR rendering (Plan 003)
+- 📋 Essential animation (Plan 004)
+- 📋 Multi-model scenes (Plan 005)
 
 **Future Layers**: Advanced features will be selected from backlog after foundation completion.
 
 ## Current Focus Summary
 
-**Active**: Plan 001 - GLB Support and Demo App  
-**Phase**: 1 (GLB Format Support)  
-**Next Task**: Implement GLB magic header detection in asset_loader.zig  
-**Target**: Basic GLB loading by end of week  
+**Active**: Plan 002 - Demo Application  
+**Phase**: Implementation of 8-step plan  
+**Next Task**: Step 1 - Model management system with cycling functionality  
+**Target**: Interactive demo with 15 curated models by 2024-07-08  
 
-**Foundation Layer Target**: 6-8 weeks total for Plans 001-004
+**Foundation Layer Target**: 6-8 weeks total for Plans 001-005
 **Each Plan Target**: 1-2 weeks maximum
 
-**Key Dependencies**: None - can proceed immediately  
+**Key Dependencies**: Plan 001 GLB support (✅ completed)  
 **Blockers**: None identified  
 
 ## Session Notes
+
+**2024-06-26**: 
+- **Plan reorganization**: Separated GLB support from demo application into dedicated plans
+- **Plan 001 completed**: GLB format support with binary parsing, alignment fixes, and integration tests
+- **Plan 002 active**: Comprehensive demo application with model cycling and intelligent camera
+- Updated plan numbering: 002→003, 003→004, 004→005 to accommodate demo plan
+- Ready to begin demo implementation leveraging existing examples/new_gltf/ structure
 
 **2024-06-25**: 
 - Restructured planning system for iterative, layered development

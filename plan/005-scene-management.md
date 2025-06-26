@@ -1,4 +1,4 @@
-# Plan 004: Basic Scene Management
+# Plan 005: Basic Scene Management
 
 **Status**: 📋 Planned  
 **Priority**: Low  
@@ -11,9 +11,10 @@ Implement essential scene management features to support multiple models, basic 
 
 ## Prerequisites
 
-- [ ] Plan 001 (GLB Support and Demo) completed
-- [ ] Plan 002 (Basic PBR Shaders) completed
-- [ ] Plan 003 (Basic Animation System) completed or in progress
+- [x] Plan 001 (GLB Support) completed
+- [ ] Plan 002 (Demo Application) completed
+- [ ] Plan 003 (Basic PBR Shaders) completed
+- [ ] Plan 004 (Basic Animation System) completed or in progress
 - [ ] Multiple models loading reliably
 
 ## Phase 1: Multi-Model Support
