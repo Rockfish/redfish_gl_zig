@@ -1,13 +1,13 @@
-# Plan 002: Advanced Shader System
+# Plan 002: Basic PBR Shaders
 
 **Status**: 📋 Planned  
 **Priority**: Medium  
 **Started**: TBD  
-**Target**: TBD  
+**Target**: 1-2 weeks  
 
 ## Overview
 
-Enhance the rendering pipeline with improved PBR (Physically Based Rendering) shaders, lighting systems, and material support. This builds on the foundation of GLB support to provide more realistic and visually appealing rendering.
+Implement basic PBR (Physically Based Rendering) shaders to make models look realistic with proper materials. This focused plan adds essential visual quality without complex lighting systems, building on the GLB support foundation.
 
 ## Prerequisites
 
@@ -15,106 +15,82 @@ Enhance the rendering pipeline with improved PBR (Physically Based Rendering) sh
 - [ ] Stable model loading for both GLTF and GLB formats
 - [ ] Demo application working with basic shaders
 
-## Phase 1: PBR Shader Foundation
+## Phase 1: Core PBR Implementation
 
-### Shader Architecture
-- [ ] Create modular shader system for different material types
-- [ ] Implement proper PBR BRDF (Bidirectional Reflectance Distribution Function)
-- [ ] Add support for metallic-roughness workflow
-- [ ] Implement specular-glossiness workflow support
+### PBR BRDF Foundation
+- [ ] Implement basic PBR BRDF (Cook-Torrance model)
+- [ ] Add metallic-roughness workflow support
+- [ ] Create proper material property handling
+- [ ] Add basic shader compilation system
 
-### Material Property Support
-- [ ] Enhance albedo/base color handling
-- [ ] Improve normal mapping implementation
-- [ ] Add proper metallic and roughness texture support
-- [ ] Implement occlusion mapping
-- [ ] Add emissive material support
+### Essential Texture Support
+- [ ] Enhance albedo/base color texture handling
+- [ ] Implement normal mapping with proper tangent space
+- [ ] Add metallic and roughness texture support
+- [ ] Support basic emissive materials
 
-### Lighting Model
-- [ ] Implement multiple light source support
-- [ ] Add directional lights (sun/moon)
-- [ ] Add point lights with attenuation
-- [ ] Add spot lights with cone falloff
-- [ ] Implement ambient lighting/IBL basics
+### Basic Lighting Model
+- [ ] Implement single directional light (sun)
+- [ ] Add simple ambient lighting
+- [ ] Create proper gamma correction
+- [ ] Ensure linear color space workflow
 
-## Phase 2: Advanced Features
+## Phase 2: Material Quality
 
-### Shadow System
-- [ ] Implement shadow mapping for directional lights
-- [ ] Add cascade shadow maps for large scenes
-- [ ] Implement point light shadow cubes
-- [ ] Add soft shadow techniques
-- [ ] Optimize shadow map resolution and filtering
-
-### Environment Mapping
-- [ ] Add skybox/environment cube support
-- [ ] Implement image-based lighting (IBL)
-- [ ] Add reflection probe system
-- [ ] Implement environment map filtering
-- [ ] Add HDR environment support
-
-### Post-Processing
-- [ ] Implement tone mapping (ACES, Reinhard, etc.)
-- [ ] Add gamma correction pipeline
-- [ ] Implement basic bloom effect
-- [ ] Add screen-space ambient occlusion (SSAO)
-- [ ] Create exposure control system
-
-## Phase 3: Optimization & Polish
-
-### Performance
-- [ ] Implement shader level-of-detail (LOD)
-- [ ] Add frustum culling for lights
-- [ ] Implement instanced rendering for repeated objects
-- [ ] Add batch rendering optimizations
-- [ ] Profile and optimize GPU performance
-
-### Quality Improvements
-- [ ] Add temporal anti-aliasing (TAA)
-- [ ] Implement multi-sample anti-aliasing (MSAA) option
-- [ ] Add anisotropic filtering support
-- [ ] Improve texture compression handling
-- [ ] Add mipmap generation and optimization
-
-### Material Extensions
-- [ ] Support glTF material extensions (clearcoat, transmission, etc.)
-- [ ] Add support for blend modes
+### Material Features
+- [ ] Support vertex colors
+- [ ] Add proper alpha testing and blending
 - [ ] Implement double-sided material rendering
-- [ ] Add support for vertex colors
-- [ ] Implement texture coordinate transformations
+- [ ] Add basic texture coordinate support
+
+### Visual Polish
+- [ ] Improve material preview in demo
+- [ ] Add material property visualization
+- [ ] Ensure consistent material appearance
+- [ ] Optimize shader performance
 
 ## Success Criteria
 
-- [ ] Models render with realistic PBR materials
-- [ ] Multiple light sources work correctly
-- [ ] Shadows enhance scene depth and realism
-- [ ] Environment mapping provides realistic reflections
-- [ ] Performance remains acceptable on target hardware
-- [ ] Demo app showcases visual improvements effectively
+- [ ] Models render with realistic PBR materials instead of flat shading
+- [ ] Metallic and roughness values produce expected visual results
+- [ ] Normal maps add proper surface detail
+- [ ] Materials look consistent across different models
+- [ ] Demo app shows clear visual improvement over basic shaders
+- [ ] Shader performance is acceptable for real-time rendering
 
-## Testing Models for Shader Features
+## Testing Models for PBR Features
 
-### PBR Material Tests
-- `MetalRoughSpheres/glTF-Binary/MetalRoughSpheres.glb` - Material variety
-- `SpecGlossVsMetalRough/glTF-Binary/SpecGlossVsMetalRough.glb` - Workflow comparison
-- `DamagedHelmet/glTF-Binary/DamagedHelmet.glb` - Complex PBR showcase
-
-### Lighting Tests
-- `LightsPunctualLamp/glTF-Binary/LightsPunctualLamp.glb` - Multiple light types
-- `FlightHelmet/glTF/FlightHelmet.gltf` - Complex lighting scenarios
+### Basic PBR Tests
+- `MetalRoughSpheres/glTF-Binary/MetalRoughSpheres.glb` - Material variety showcase
+- `DamagedHelmet/glTF-Binary/DamagedHelmet.glb` - Complex real-world PBR
+- `FlightHelmet/glTF/FlightHelmet.gltf` - High-quality material reference
 
 ### Material Feature Tests
+- `BoxTextured/glTF-Binary/BoxTextured.glb` - Basic texture mapping
 - `NormalTangentTest/glTF-Binary/NormalTangentTest.glb` - Normal mapping
-- `TextureTransformTest/glTF-Binary/TextureTransformTest.glb` - UV transforms
 - `EmissiveStrengthTest/glTF-Binary/EmissiveStrengthTest.glb` - Emissive materials
+
+### Quality Validation
+- `SpecGlossVsMetalRough/glTF-Binary/SpecGlossVsMetalRough.glb` - Workflow comparison
+- `Avocado/glTF-Binary/Avocado.glb` - Organic material testing
+
+## Scope Limitations
+
+**Not Included in This Plan** (moved to backlog):
+- Multiple light sources
+- Shadow mapping
+- Environment mapping/IBL
+- Post-processing effects
+- Advanced material extensions
+- Performance optimizations beyond basic level
 
 ## Notes & Decisions
 
-**TBD**: This plan will be detailed further once Plan 001 is completed and we have a solid foundation for loading and displaying models.
+**Focus**: This plan focuses on making models look good with proper materials rather than complex lighting. The goal is realistic material appearance with a single light source.
 
 ## Related Files
 
-- `examples/new_gltf/shaders/` - Shader source files
+- `examples/new_gltf/shaders/pbr.vert` - PBR vertex shader
+- `examples/new_gltf/shaders/pbr.frag` - PBR fragment shader
 - `src/core/shader.zig` - Shader management system
 - `src/core/model.zig` - Material rendering integration
-- Future: `src/core/lighting.zig` - Light management system

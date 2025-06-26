@@ -1,161 +1,92 @@
-# Plan 003: Animation State Machine
+# Plan 003: Basic Animation System
 
 **Status**: 📋 Planned  
 **Priority**: Medium  
 **Started**: TBD  
-**Target**: TBD  
+**Target**: 1-2 weeks  
 
 ## Overview
 
-Implement a robust animation state machine system for character controllers and complex animated objects. This system will enable smooth transitions between animation clips, blending, and state-based animation logic.
+Implement essential animation features including clip playback, simple blending, and basic state management. This focused plan enables characters to animate and respond to input with smooth transitions, building on the PBR rendering foundation.
 
 ## Prerequisites
 
 - [ ] Plan 001 (GLB Support and Demo) completed
-- [ ] Plan 002 (Shader Improvements) completed or in progress
-- [ ] Animation clip system working reliably
-- [ ] Character models loading and displaying correctly
+- [ ] Plan 002 (Basic PBR Shaders) completed or in progress
+- [ ] Character models loading and rendering correctly with animations
 
-## Phase 1: State Machine Foundation
+## Phase 1: Animation Clip System
 
-### Core State Machine
-- [ ] Design state machine architecture
-- [ ] Implement animation state class
-- [ ] Add state transition system
-- [ ] Create state machine manager
-- [ ] Add event-driven state changes
+### Core Animation Playback
+- [ ] Enhance animation clip loading from glTF data
+- [ ] Implement proper animation timing and interpolation
+- [ ] Add animation loop modes (once, loop, ping-pong)
+- [ ] Create animation speed control
+- [ ] Add animation pause/resume functionality
 
 ### Animation Blending
-- [ ] Implement linear interpolation between animations
-- [ ] Add cross-fade transition support
-- [ ] Create blend tree system for multiple animations
-- [ ] Add additive animation support
-- [ ] Implement animation layering
+- [ ] Implement linear interpolation between animation clips
+- [ ] Add cross-fade transitions with configurable duration
+- [ ] Create simple blend weight management
+- [ ] Support simultaneous animation playback (upper/lower body)
 
-### State Definition System
-- [ ] Create state configuration format (JSON/YAML)
-- [ ] Add state validation and loading
-- [ ] Implement state inheritance
-- [ ] Add conditional state transitions
-- [ ] Create visual state machine editor concepts
+## Phase 2: Basic State Management
 
-## Phase 2: Character Controller Integration
+### Simple State Machine
+- [ ] Create basic animation state system (idle, walk, run)
+- [ ] Implement state transition logic
+- [ ] Add input-driven state changes
+- [ ] Create smooth transitions between states
+- [ ] Support state-specific animation settings
 
-### Character States
-- [ ] Implement idle animation state
-- [ ] Add locomotion states (walk, run, sprint)
-- [ ] Create directional movement states
-- [ ] Add jump and fall states
-- [ ] Implement combat/action states
-
-### Input Integration
-- [ ] Connect keyboard input to state machine
-- [ ] Add mouse input for look direction
-- [ ] Implement movement vector calculation
-- [ ] Add state transition triggers
-- [ ] Create input buffering system
-
-### Movement Blending
-- [ ] Implement 1D blend spaces (walk to run)
-- [ ] Add 2D blend spaces (directional movement)
-- [ ] Create turn-in-place animations
-- [ ] Add movement prediction for smooth blending
-- [ ] Implement root motion support
-
-## Phase 3: Advanced Features
-
-### Complex State Logic
-- [ ] Add hierarchical state machines
-- [ ] Implement parallel state execution
-- [ ] Add state machine composition
-- [ ] Create reusable state machine components
-- [ ] Add debugging and visualization tools
-
-### Animation Events
-- [ ] Implement animation event markers
-- [ ] Add frame-based event triggers
-- [ ] Create sound effect integration points
-- [ ] Add particle effect trigger system
-- [ ] Implement gameplay event notifications
-
-### Performance Optimization
-- [ ] Add animation LOD system
-- [ ] Implement culling for off-screen characters
-- [ ] Add bone mask optimization
-- [ ] Create animation compression
-- [ ] Optimize blend calculations
+### Character Controller Integration
+- [ ] Connect keyboard input to animation states
+- [ ] Add movement speed affecting animation playback
+- [ ] Implement directional movement awareness
+- [ ] Create responsive state changes
+- [ ] Add basic turn-in-place support
 
 ## Success Criteria
 
-- [ ] Characters can transition smoothly between different animation states
-- [ ] Input responsiveness feels natural and immediate
-- [ ] Animation blending looks smooth and realistic
-- [ ] State machine is data-driven and easily configurable
-- [ ] Performance supports multiple animated characters
-- [ ] System is extensible for different character types
+- [ ] Characters can play multiple animation clips smoothly
+- [ ] Transitions between animations look natural and responsive
+- [ ] Input controls feel immediate and intuitive
+- [ ] Animation system works reliably with different character models
+- [ ] Demo app showcases character movement and animation
+- [ ] System is simple to use and extend for new animations
 
 ## Testing Models for Animation Features
 
 ### Character Animation
 - `Fox/glTF-Binary/Fox.glb` - Complex character with multiple animations
 - `CesiumMan/glTF-Binary/CesiumMan.glb` - Standard rigged character
-- `RiggedFigure/glTF-Binary/RiggedFigure.glb` - Simple rigged test case
+- `BoxAnimated/glTF-Binary/BoxAnimated.glb` - Simple animated test case
 
-### Animation Complexity
+### Animation Basics
 - `AnimatedCube/glTF/AnimatedCube.gltf` - Simple animation testing
-- `InterpolationTest/glTF-Binary/InterpolationTest.glb` - Interpolation methods
-- `MorphStressTest/glTF-Binary/MorphStressTest.glb` - Complex animation features
-
-### Skeletal Systems
-- `RecursiveSkeletons/glTF-Binary/RecursiveSkeletons.glb` - Complex hierarchies
+- `InterpolationTest/glTF-Binary/InterpolationTest.glb` - Interpolation validation
 - `SimpleSkin/glTF/SimpleSkin.gltf` - Basic skinning test
+
+### Skeletal Systems  
 - `RiggedSimple/glTF-Binary/RiggedSimple.glb` - Simple rigging reference
+- `RiggedFigure/glTF-Binary/RiggedFigure.glb` - Basic character rigging
 
-## Example State Machine Configuration
+## Scope Limitations
 
-```json
-{
-  "stateMachine": "PlayerCharacter",
-  "defaultState": "Idle",
-  "states": {
-    "Idle": {
-      "animation": "Player_Idle",
-      "loop": true,
-      "transitions": {
-        "move_input": "Locomotion",
-        "jump_input": "Jump"
-      }
-    },
-    "Locomotion": {
-      "blendSpace": "Movement2D",
-      "animations": {
-        "idle": "Player_Idle",
-        "walk": "Player_Walk",
-        "run": "Player_Run"
-      },
-      "transitions": {
-        "no_input": "Idle",
-        "jump_input": "Jump"
-      }
-    },
-    "Jump": {
-      "animation": "Player_Jump",
-      "exitTime": 0.8,
-      "transitions": {
-        "land": "Idle"
-      }
-    }
-  }
-}
-```
+**Not Included in This Plan** (moved to backlog):
+- Complex state machine hierarchies
+- Animation events and gameplay integration
+- 2D blend spaces and complex blending
+- Animation LOD and performance optimization
+- Root motion support
+- Advanced character controller features
 
 ## Notes & Decisions
 
-**TBD**: This plan will be refined based on lessons learned from animation loading and playback in Plans 001 and 002. The architecture may need adjustment based on the specific needs discovered during basic animation implementation.
+**Focus**: This plan focuses on essential animation functionality that enables basic character movement and state changes. Advanced features like complex blending and state hierarchies are deferred to later iterations.
 
 ## Related Files
 
-- `src/core/animator.zig` - Current animation system (to be enhanced)
-- `src/core/state_machine.zig` - New state machine system (to be created)
+- `src/core/animator.zig` - Enhanced animation system
+- `src/core/animation_state.zig` - Basic state management (to be created)
 - `examples/new_gltf/character_controller.zig` - Demo character controller
-- Future: `assets/animations/` - Animation state machine configurations

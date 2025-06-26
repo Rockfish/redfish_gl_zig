@@ -6,19 +6,19 @@
   - Phase 1: 📋 GLB Implementation | Phase 2: 📋 Demo App | Phase 3: 📋 Validation Tests
   - **Next**: Start with GLB magic header detection and basic parsing
 
-## 📋 Planned (Priority Order)
+## 📋 Planned (Priority Order) - Foundation Layer
 
-- **[002-shader-improvements.md](002-shader-improvements.md)** - Advanced PBR shaders and lighting
+- **[002-basic-pbr-shaders.md](002-shader-improvements.md)** - Basic PBR rendering and materials
   - Depends on Plan 001 completion
-  - Will enhance visual quality significantly
+  - Target: 1-2 weeks, focused on essential PBR features
 
-- **[003-animation-state-machine.md](003-animation-state-machine.md)** - Character animation system
-  - Depends on Plans 001-002 
-  - Enables complex character behaviors
+- **[003-basic-animation.md](003-animation-state-machine.md)** - Essential animation and state management
+  - Depends on Plans 001-002
+  - Target: 1-2 weeks, focused on character movement
 
-- **[004-scene-management.md](004-scene-management.md)** - Multi-model scene system
+- **[004-basic-scene-mgmt.md](004-scene-management.md)** - Multi-model scene support
   - Depends on Plans 001-003
-  - Transforms engine to full scene composition
+  - Target: 1-2 weeks, focused on scene composition
 
 ## ✅ Completed
 
@@ -31,6 +31,18 @@
 
 - None currently
 
+## Development Philosophy
+
+**Layered Feature Development**: Build horizontal layers of functionality across the engine rather than vertical feature silos. Each plan adds a bounded set of features that work together, keeping the engine functional and demonstrable at each iteration.
+
+**Foundation Layer (Plans 001-004)**: Essential features for a working 3D engine
+- GLB support + demo framework
+- Basic PBR rendering  
+- Essential animation
+- Multi-model scenes
+
+**Future Layers**: Advanced features will be selected from backlog after foundation completion.
+
 ## Current Focus Summary
 
 **Active**: Plan 001 - GLB Support and Demo App  
@@ -38,9 +50,17 @@
 **Next Task**: Implement GLB magic header detection in asset_loader.zig  
 **Target**: Basic GLB loading by end of week  
 
+**Foundation Layer Target**: 6-8 weeks total for Plans 001-004
+**Each Plan Target**: 1-2 weeks maximum
+
 **Key Dependencies**: None - can proceed immediately  
 **Blockers**: None identified  
 
 ## Session Notes
 
-**2024-06-25**: Created plan system and populated initial roadmap. Plan 001 is well-defined and ready to begin implementation. Focus should be on Phase 1 tasks first, starting with GLB format detection and parsing.
+**2024-06-25**: 
+- Restructured planning system for iterative, layered development
+- Created backlog.md with advanced features moved from original plans
+- Simplified Plans 002-004 to focus on essential features only
+- Each plan now targets 1-2 weeks with specific, bounded scope
+- Foundation layer approach ensures continuous progress and working demos
