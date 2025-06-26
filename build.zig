@@ -188,6 +188,22 @@ pub fn build(b: *std.Build) void {
     const run_movement_tests = b.addRunArtifact(movement_tests);
     const test_step = b.step("test-movement", "Run movement tests");
     test_step.dependOn(&run_movement_tests.step);
+
+    // Add GLB loading integration test
+    const glb_test = b.addExecutable(.{
+        .name = "glb_loading_test",
+        .root_source_file = b.path("tests/integration/glb_loading_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    glb_test.root_module.addImport("math", math);
+    glb_test.root_module.addImport("core", core);
+    glb_test.addIncludePath(b.path("src/include"));
+
+    const run_glb_test = b.addRunArtifact(glb_test);
+    const glb_test_step = b.step("test-glb", "Run GLB loading integration test");
+    glb_test_step.dependOn(&run_glb_test.step);
 }
 
 pub const Options = struct {

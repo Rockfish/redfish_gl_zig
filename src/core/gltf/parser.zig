@@ -14,8 +14,8 @@ const ParseError = error{
     InvalidIndex,
 };
 
-pub fn parseGltfFile(allocator: Allocator, file_buffer: []const u8) !GLTF {
-    var gltf_parsed = json.parseFromSlice(json.Value, allocator, file_buffer, .{}) catch {
+pub fn parseGltfJson(allocator: Allocator, json_buffer: []const u8) !GLTF {
+    var gltf_parsed = json.parseFromSlice(json.Value, allocator, json_buffer, .{}) catch {
         return ParseError.InvalidJson;
     };
     defer gltf_parsed.deinit();
@@ -264,12 +264,19 @@ fn parseNode(allocator: Allocator, node_json: json.Value) !gltf_types.Node {
     var matrix: ?math.Mat4 = null;
     if (node_json.object.get("matrix")) |matrix_json| {
         if (matrix_json == .array and matrix_json.array.items.len == 16) {
-            var mat_data = [16]f32{0.0} ** 16;
+            var mat_data = [4][4]f32{
+                [_]f32{0.0} ** 4,
+                [_]f32{0.0} ** 4,
+                [_]f32{0.0} ** 4,
+                [_]f32{0.0} ** 4,
+            };
             for (matrix_json.array.items, 0..) |value_json, index| {
+                const col = index / 4;
+                const row = index % 4;
                 if (value_json == .float) {
-                    mat_data[index] = @floatCast(value_json.float);
+                    mat_data[col][row] = @floatCast(value_json.float);
                 } else if (value_json == .integer) {
-                    mat_data[index] = @floatFromInt(value_json.integer);
+                    mat_data[col][row] = @floatFromInt(value_json.integer);
                 }
             }
             matrix = math.Mat4{ .data = mat_data };
@@ -279,7 +286,7 @@ fn parseNode(allocator: Allocator, node_json: json.Value) !gltf_types.Node {
     var translation: ?math.Vec3 = null;
     if (node_json.object.get("translation")) |translation_json| {
         if (translation_json == .array and translation_json.array.items.len == 3) {
-            var vec_data = [3]f32{0.0} ** 3;
+            var vec_data = [_]f32{0.0} ** 3;
             for (translation_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
                     vec_data[index] = @floatCast(value_json.float);
@@ -294,7 +301,7 @@ fn parseNode(allocator: Allocator, node_json: json.Value) !gltf_types.Node {
     var rotation: ?math.Quat = null;
     if (node_json.object.get("rotation")) |rotation_json| {
         if (rotation_json == .array and rotation_json.array.items.len == 4) {
-            var quat_data = [4]f32{0.0} ** 4;
+            var quat_data = [_]f32{0.0} ** 4;
             for (rotation_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
                     quat_data[index] = @floatCast(value_json.float);
@@ -302,14 +309,14 @@ fn parseNode(allocator: Allocator, node_json: json.Value) !gltf_types.Node {
                     quat_data[index] = @floatFromInt(value_json.integer);
                 }
             }
-            rotation = math.Quat{ .x = quat_data[0], .y = quat_data[1], .z = quat_data[2], .w = quat_data[3] };
+            rotation = math.Quat.fromArray(quat_data);
         }
     }
 
     var scale: ?math.Vec3 = null;
     if (node_json.object.get("scale")) |scale_json| {
         if (scale_json == .array and scale_json.array.items.len == 3) {
-            var vec_data = [3]f32{0.0} ** 3;
+            var vec_data = [_]f32{0.0} ** 3;
             for (scale_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
                     vec_data[index] = @floatCast(value_json.float);
@@ -842,7 +849,7 @@ fn parseMaterial(allocator: Allocator, material_json: json.Value) !gltf_types.Ma
     var emissive_factor = math.vec3(0.0, 0.0, 0.0);
     if (material_json.object.get("emissiveFactor")) |emissive_json| {
         if (emissive_json == .array and emissive_json.array.items.len == 3) {
-            var vec_data = [3]f32{0.0} ** 3;
+            var vec_data = [_]f32{0.0} ** 3;
             for (emissive_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
                     vec_data[index] = @floatCast(value_json.float);
@@ -905,7 +912,7 @@ fn parsePBRMetallicRoughness(_: Allocator, pbr_json: json.Value) !gltf_types.PBR
     var base_color_factor = math.vec4(1.0, 1.0, 1.0, 1.0);
     if (pbr_json.object.get("baseColorFactor")) |color_json| {
         if (color_json == .array and color_json.array.items.len == 4) {
-            var vec_data = [4]f32{1.0} ** 4;
+            var vec_data = [_]f32{1.0} ** 4;
             for (color_json.array.items, 0..) |value_json, index| {
                 if (value_json == .float) {
                     vec_data[index] = @floatCast(value_json.float);
@@ -1150,7 +1157,6 @@ fn parseImage(allocator: Allocator, image_json: json.Value) !gltf_types.Image {
         .mime_type = mime_type_str,
         .buffer_view = buffer_view_index,
         .name = name_str,
-        .data = null,
     };
 }
 

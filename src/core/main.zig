@@ -4,6 +4,7 @@ pub const zstbi = @import("zstbi");
 pub const string = @import("string.zig");
 pub const texture = @import("texture.zig");
 pub const utils = @import("utils/main.zig");
+pub const asset_loader = @import("asset_loader.zig");
 
 pub const Camera = @import("camera.zig").Camera;
 pub const ProjectionType = @import("camera.zig").ProjectionType;

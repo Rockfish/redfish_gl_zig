@@ -14,6 +14,33 @@ const Path = std.fs.path;
 
 const GLTF = gltf_types.GLTF;
 
+// GLB Format Constants
+const GLB_MAGIC: u32 = 0x46546C67; // "glTF" in little-endian
+const GLB_VERSION: u32 = 2;
+const GLB_JSON_CHUNK_TYPE: u32 = 0x4E4F534A; // "JSON" 
+const GLB_BIN_CHUNK_TYPE: u32 = 0x004E4942;  // "BIN\0"
+
+// GLB Structures
+const GlbHeader = struct {
+    magic: u32,
+    version: u32,
+    length: u32,
+};
+
+const GlbChunkHeader = struct {
+    length: u32,
+    chunk_type: u32,
+};
+
+// GLB Errors
+const GlbError = error{
+    InvalidMagic,
+    UnsupportedVersion,
+    InvalidChunkType,
+    TruncatedFile,
+    MissingJsonChunk,
+};
+
 pub const GltfAsset = struct {
     arena: *ArenaAllocator,
 
@@ -92,11 +119,25 @@ pub const GltfAsset = struct {
             null,
         ) catch |err| std.debug.panic("error reading file: {any}\n", .{err});
 
-        // Parse GLTF
-        self.gltf = try parser.parseGltfFile(self.arena.allocator(), file_contents);
-
-        // Load buffer data
-        try self.loadBufferData();
+        if (isGlbFile(self.filepath)) {
+            // GLB format: parse binary format and extract JSON + binary chunks
+            const glb_data = try parseGlbFile(self.arena.allocator(), file_contents);
+            self.gltf = try parser.parseGltfJson(self.arena.allocator(), glb_data.json_data);
+            
+            // Pre-populate buffer_data with GLB binary chunk if present
+            if (glb_data.binary_data) |bin_data| {
+                // Create aligned copy of binary data
+                const aligned_data = try self.arena.allocator().alignedAlloc(u8, 4, bin_data.len);
+                @memcpy(aligned_data, bin_data);
+                try self.buffer_data.append(aligned_data);
+            }
+        } else {
+            // GLTF format: parse JSON directly
+            self.gltf = try parser.parseGltfJson(self.arena.allocator(), file_contents);
+            
+            // Load external buffer data from URIs
+            try self.loadBufferData();
+        }
     }
 
     pub fn buildModel(self: *Self) Model {
@@ -149,7 +190,17 @@ pub const GltfAsset = struct {
         const alloc = self.arena.allocator();
 
         if (self.gltf.buffers) |buffers| {
-            for (buffers) |buffer| {
+            for (buffers, 0..) |buffer, buffer_index| {
+                // For GLB files, buffer index 0 is typically the embedded binary chunk
+                if (isGlbFile(self.filepath) and buffer_index == 0 and buffer.uri == null) {
+                    // GLB embedded buffer - should already be loaded in buffer_data
+                    // Verify we have the binary data
+                    if (self.buffer_data.items.len == 0) {
+                        std.debug.panic("GLB file missing binary chunk for buffer {d}\n", .{buffer_index});
+                    }
+                    continue; // Skip loading - already have the data
+                }
+                
                 if (buffer.uri) |uri| {
                     if (std.mem.eql(u8, "data:", uri[0..5])) {
                         // Handle base64 data URIs
@@ -182,8 +233,103 @@ pub const GltfAsset = struct {
                         };
                         try self.buffer_data.append(buffer_file);
                     }
+                } else {
+                    // Buffer with no URI - should only happen for GLB buffer 0
+                    if (!isGlbFile(self.filepath) or buffer_index != 0) {
+                        std.debug.panic("Buffer {d} has no URI and is not GLB embedded buffer\n", .{buffer_index});
+                    }
                 }
             }
         }
     }
 };
+
+// GLB Helper Functions
+
+fn isGlbFile(filepath: []const u8) bool {
+    return std.mem.endsWith(u8, filepath, ".glb");
+}
+
+const GlbData = struct {
+    json_data: []const u8,
+    binary_data: ?[]const u8,
+};
+
+fn parseGlbFile(allocator: Allocator, file_data: []const u8) !GlbData {
+    _ = allocator; // Currently unused, may need for future validation
+    
+    // Validate minimum file size (12 bytes for GLB header)
+    if (file_data.len < @sizeOf(GlbHeader)) {
+        return GlbError.TruncatedFile;
+    }
+    
+    // Read GLB header
+    const header = std.mem.bytesToValue(GlbHeader, file_data[0..@sizeOf(GlbHeader)]);
+    
+    // Validate magic number
+    if (header.magic != GLB_MAGIC) {
+        return GlbError.InvalidMagic;
+    }
+    
+    // Validate version
+    if (header.version != GLB_VERSION) {
+        return GlbError.UnsupportedVersion;
+    }
+    
+    // Validate file length
+    if (header.length != file_data.len) {
+        return GlbError.TruncatedFile;
+    }
+    
+    var offset: usize = @sizeOf(GlbHeader);
+    var json_data: ?[]const u8 = null;
+    var binary_data: ?[]const u8 = null;
+    
+    // Parse chunks
+    while (offset < file_data.len) {
+        // Check if we have enough data for chunk header
+        if (offset + @sizeOf(GlbChunkHeader) > file_data.len) {
+            return GlbError.TruncatedFile;
+        }
+        
+        // Read chunk header
+        const chunk_header = std.mem.bytesToValue(GlbChunkHeader, file_data[offset..offset + @sizeOf(GlbChunkHeader)]);
+        offset += @sizeOf(GlbChunkHeader);
+        
+        // Check if we have enough data for chunk content
+        if (offset + chunk_header.length > file_data.len) {
+            return GlbError.TruncatedFile;
+        }
+        
+        // Extract chunk data
+        const chunk_data = file_data[offset..offset + chunk_header.length];
+        
+        // Process chunk based on type
+        switch (chunk_header.chunk_type) {
+            GLB_JSON_CHUNK_TYPE => {
+                json_data = chunk_data;
+            },
+            GLB_BIN_CHUNK_TYPE => {
+                binary_data = chunk_data;
+            },
+            else => {
+                // Unknown chunk type - skip it (per glTF spec)
+            },
+        }
+        
+        // Move to next chunk (handle 4-byte alignment padding)
+        offset += chunk_header.length;
+        // Align to 4-byte boundary
+        offset = (offset + 3) & ~@as(usize, 3);
+    }
+    
+    // Ensure we found JSON chunk
+    if (json_data == null) {
+        return GlbError.MissingJsonChunk;
+    }
+    
+    return GlbData{
+        .json_data = json_data.?,
+        .binary_data = binary_data,
+    };
+}
