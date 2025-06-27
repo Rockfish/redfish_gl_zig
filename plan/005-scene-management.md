@@ -94,4 +94,4 @@ Implement essential scene management features to support multiple models, basic 
 
 - `src/core/scene.zig` - Basic scene management (to be created)
 - `src/core/transform.zig` - Enhanced transform system
-- `examples/new_gltf/scene_demo.zig` - Scene composition demo
+- `examples/demo_app/scene_demo.zig` - Scene composition demo

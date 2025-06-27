@@ -90,4 +90,4 @@ Implement essential animation features including clip playback, simple blending,
 
 - `src/core/animator.zig` - Enhanced animation system
 - `src/core/animation_state.zig` - Basic state management (to be created)
-- `examples/new_gltf/character_controller.zig` - Demo character controller
+- `examples/demo_app/character_controller.zig` - Demo character controller

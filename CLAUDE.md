@@ -28,7 +28,7 @@ src/
 
 examples/
 └── zgltf_port/    # demo application using third party zgltf
-└── new_gltf/      # new demo application using core/gltf
+└── demo_app/      # new demo application using core/gltf
 
 libs/              # Third-party dependencies
 ├── zglfw/         # GLFW windowing
@@ -157,7 +157,7 @@ zig build test-movement
 - Single model rendering only (no scene graph)
 
 ### Next Steps
-1. **Complete `examples/new_gltf/main.zig` implementation**
+1. **Complete `examples/demo_app/main.zig` implementation**
    - Integrate custom glTF parser with rendering pipeline
    - Port existing functionality from zgltf_port example
    - Ensure shader integration works with new architecture
@@ -202,13 +202,13 @@ See `plan/active-plans.md` for detailed project roadmap.
   - `src/core/gltf/mesh.zig` → `src/core/mesh.zig`
   - `src/core/gltf/model.zig` → `src/core/model.zig`
   - `src/core/gltf/node.zig` → `src/core/node.zig`
-- **New Demo Structure**: Created `examples/new_gltf/` for custom glTF implementation
+- **New Demo Structure**: Created `examples/demo_app/` for custom glTF implementation
 - Updated math types integration with custom math library
 - Added comprehensive Claude coding guidelines and project documentation
 
 ### Development Notes
 - Previous demo executable is was `examples/zgltf_port/main.zig`
-- Main executable being developed is currently `examples/new_gltf/main.zig`
-- Shaders located in `examples/new_gltf/shaders/`
+- Main executable being developed is currently `examples/demo_app/main.zig`
+- Shaders located in `examples/demo_app/shaders/`
 - Custom math library prioritized over external dependencies. 
 - Suggest adding math functions to custom math library as needed.

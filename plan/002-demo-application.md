@@ -17,7 +17,7 @@ Create an interactive demo application that showcases the engine's GLB and glTF 
 
 ## Current Code Analysis
 
-The existing `examples/new_gltf/` structure provides a solid foundation:
+The existing `examples/demo_app/` structure provides a solid foundation:
 - **main.zig**: Basic window setup with hardcoded model loading
 - **state.zig**: Comprehensive input handling and camera system with multiple motion types
 - **run_app.zig**: Main application loop with model loading and rendering
@@ -113,7 +113,7 @@ The existing `examples/new_gltf/` structure provides a solid foundation:
 **Tasks**:
 - [ ] Update `build.zig` with demo app build target
 - [ ] Add `zig build demo` and `zig build demo-run` commands
-- [ ] Ensure examples/new_gltf/ compiles with our changes
+- [ ] Ensure examples/demo_app/ compiles with our changes
 - [ ] Link with our updated core module
 - [ ] Include asset path validation
 - [ ] Graceful fallback for missing models
@@ -133,15 +133,15 @@ The existing `examples/new_gltf/` structure provides a solid foundation:
 ## Key Files to Modify
 
 ### Primary Changes:
-- `examples/new_gltf/main.zig` - Remove hardcoded paths, add demo logic
-- `examples/new_gltf/run_app.zig` - Replace Builder with GltfAsset, add model cycling
-- `examples/new_gltf/state.zig` - Add model navigation keys, enhance UI state
-- `examples/new_gltf/assets_list.zig` - Create curated demo model list
-- `examples/new_gltf/render.zig` - Adapt to our asset loader system
+- `examples/demo_app/main.zig` - Remove hardcoded paths, add demo logic
+- `examples/demo_app/run_app.zig` - Replace Builder with GltfAsset, add model cycling
+- `examples/demo_app/state.zig` - Add model navigation keys, enhance UI state
+- `examples/demo_app/assets_list.zig` - Create curated demo model list
+- `examples/demo_app/render.zig` - Adapt to our asset loader system
 
 ### New Files:
-- `examples/new_gltf/demo_models.zig` - Curated model metadata and management
-- `examples/new_gltf/ui_display.zig` - Status and help display system
+- `examples/demo_app/demo_models.zig` - Curated model metadata and management
+- `examples/demo_app/ui_display.zig` - Status and help display system
 
 ## User Controls
 
@@ -197,7 +197,7 @@ The existing `examples/new_gltf/` structure provides a solid foundation:
 
 ## Notes & Decisions
 
-**2024-06-26**: Demo application plan created as Phase 2 of original GLB support plan. Separated into dedicated plan for better organization and focus. Leverages existing examples/new_gltf/ structure while integrating our new GLB asset loader.
+**2024-06-26**: Demo application plan created as Phase 2 of original GLB support plan. Separated into dedicated plan for better organization and focus. Leverages existing examples/demo_app/ structure while integrating our new GLB asset loader.
 
 **Design Philosophy**: 
 - Progressive complexity showcase (simple → advanced)
@@ -207,7 +207,7 @@ The existing `examples/new_gltf/` structure provides a solid foundation:
 
 ## Related Files
 
-- `examples/new_gltf/` - Demo application source directory
+- `examples/demo_app/` - Demo application source directory
 - `src/core/asset_loader.zig` - GLB/glTF loading backend
 - `plan/001-glb-support.md` - Prerequisite GLB implementation
 - `tests/integration/glb_loading_test.zig` - GLB validation tests

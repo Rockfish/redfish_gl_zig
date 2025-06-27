@@ -70,7 +70,7 @@
 - **Plan 001 completed**: GLB format support with binary parsing, alignment fixes, and integration tests
 - **Plan 002 active**: Comprehensive demo application with model cycling and intelligent camera
 - Updated plan numbering: 002→003, 003→004, 004→005 to accommodate demo plan
-- Ready to begin demo implementation leveraging existing examples/new_gltf/ structure
+- Ready to begin demo implementation leveraging existing examples/demo_app/ structure
 
 **2024-06-25**: 
 - Restructured planning system for iterative, layered development

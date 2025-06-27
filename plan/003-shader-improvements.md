@@ -91,7 +91,7 @@ Implement basic PBR (Physically Based Rendering) shaders to make models look rea
 
 ## Related Files
 
-- `examples/new_gltf/shaders/pbr.vert` - PBR vertex shader
-- `examples/new_gltf/shaders/pbr.frag` - PBR fragment shader
+- `examples/demo_app/shaders/pbr.vert` - PBR vertex shader
+- `examples/demo_app/shaders/pbr.frag` - PBR fragment shader
 - `src/core/shader.zig` - Shader management system
 - `src/core/model.zig` - Material rendering integration
