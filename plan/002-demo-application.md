@@ -27,17 +27,17 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 
 ## Implementation Plan
 
-### Step 1: Model Management System
+### Step 1: Model Management System ✅ COMPLETED
 **Goal**: Create curated demo model list with cycling functionality
 
 **Tasks**:
-- [ ] Update `assets_list.zig` with combined demo model list
-- [ ] Create model metadata structure `{path, name, format, category, description}`
-- [ ] Prioritize model order: simple → complex → animated
-- [ ] Add `current_model_index: usize` to State struct
-- [ ] Implement 'n' (next) and 'b' (back) key handlers in `state.zig`
-- [ ] Add model loading state tracking
-- [ ] Handle wrap-around at list boundaries
+- [x] Update `assets_list.zig` with combined demo model list
+- [x] Create model metadata structure `{path, name, format, category, description}`
+- [x] Prioritize model order: simple → complex → animated
+- [x] Add `current_model_index: usize` to State struct
+- [x] Implement 'n' (next) and 'b' (back) key handlers in `state.zig`
+- [x] Add model loading state tracking
+- [x] Handle wrap-around at list boundaries
 
 **Curated Model Selection**:
 - **Simple**: Box.glb, BoxTextured.glb, Triangle.gltf (3 models)
@@ -47,28 +47,28 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 - **Edge cases**: Unicode❤♻Test.glb, BoxInterleaved.glb (2 models)
 - **Total**: ~15 carefully selected models
 
-### Step 2: Asset Loader Integration
+### Step 2: Asset Loader Integration ✅ COMPLETED
 **Goal**: Replace hardcoded builder with our new GLB-compatible asset loader
 
 **Tasks**:
-- [ ] Update `run_app.zig` to remove external Builder dependency
-- [ ] Replace with `core.asset_loader.GltfAsset`
-- [ ] Update model loading to use our GLB implementation
-- [ ] Create model builder bridge to adapt GltfAsset to existing Model/rendering system
-- [ ] Ensure GLB and glTF files load identically
-- [ ] Add loading progress/error display
-- [ ] Maintain texture loading compatibility
+- [x] Update `run_app.zig` to remove external Builder dependency
+- [x] Replace with `core.asset_loader.GltfAsset`
+- [x] Update model loading to use our GLB implementation
+- [x] Create model builder bridge to adapt GltfAsset to existing Model/rendering system
+- [x] Ensure GLB and glTF files load identically
+- [x] Add loading progress/error display
+- [x] Maintain texture loading compatibility
 
-### Step 3: Camera Auto-Positioning
+### Step 3: Camera Auto-Positioning ✅ COMPLETED
 **Goal**: Implement intelligent camera positioning based on model bounds
 
 **Tasks**:
-- [ ] Add bounding box calculation from glTF data
-- [ ] Calculate appropriate camera distance and position
-- [ ] Implement frame-to-fit functionality with 'f' key
-- [ ] Add auto-positioning algorithm for new models
-- [ ] Preserve manual camera controls (WASD, mouse, scroll)
-- [ ] Enhance existing camera system with better defaults
+- [x] Add bounding box calculation from glTF data
+- [x] Calculate appropriate camera distance and position
+- [x] Implement frame-to-fit functionality with 'f' key
+- [x] Add auto-positioning algorithm for new models
+- [x] Preserve manual camera controls (WASD, mouse, scroll)
+- [x] Enhance existing camera system with better defaults
 
 ### Step 4: User Interface Enhancements
 **Goal**: Add informative display and model information
@@ -95,28 +95,29 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 - [ ] Texture memory management
 - [ ] Frame rate monitoring and display
 
-### Step 6: Rendering System Updates
+### Step 6: Rendering System Updates ✅ COMPLETED (Core Features)
 **Goal**: Leverage existing shader system with glTF material support
 
 **Tasks**:
-- [ ] Update `render.zig` for our asset loader system
-- [ ] Adapt shader uniform setup for our asset loader
-- [ ] Support PBR material properties from glTF
-- [ ] Maintain compatibility with basic and PBR shaders
+- [x] Update `render.zig` for our asset loader system
+- [x] Adapt shader uniform setup for our asset loader
+- [x] Support PBR material properties from glTF
+- [x] Maintain compatibility with basic and PBR shaders
+- [x] Fixed fragment shader lighting for proper texture rendering
 - [ ] Animation system integration from angry_gl_zig concepts
 - [ ] Support glTF animation playback
 - [ ] Add animation controls ('=' next, '-' prev, '0' reset)
 
-### Step 7: Build System Integration
+### Step 7: Build System Integration ✅ COMPLETED
 **Goal**: Ensure demo builds and runs properly
 
 **Tasks**:
-- [ ] Update `build.zig` with demo app build target
-- [ ] Add `zig build demo` and `zig build demo-run` commands
-- [ ] Ensure examples/demo_app/ compiles with our changes
-- [ ] Link with our updated core module
-- [ ] Include asset path validation
-- [ ] Graceful fallback for missing models
+- [x] Update `build.zig` with demo app build target
+- [x] Add `zig build demo_app` and `zig build demo_app-run` commands
+- [x] Ensure examples/demo_app/ compiles with our changes
+- [x] Link with our updated core module
+- [x] Include asset path validation
+- [x] Graceful fallback for missing models
 
 ### Step 8: Demo Polish & Testing
 **Goal**: Final testing and user experience improvements
@@ -169,15 +170,15 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 
 ## Success Criteria
 
-- [ ] Demo cycles through 15 curated models smoothly with 'n'/'b' keys
-- [ ] Both GLB and glTF files load and render identically
-- [ ] Camera auto-positions appropriately for each model size
+- [x] Demo cycles through 15 curated models smoothly with 'n'/'b' keys
+- [x] Both GLB and glTF files load and render identically
+- [x] Camera auto-positions appropriately for each model size
 - [ ] UI displays current model info: "5/15: Duck (GLB) - Waterfowl model"
 - [ ] Loading status shows progress for large models
 - [ ] Animation controls work for animated models (Fox, CesiumMan)
-- [ ] Error handling gracefully manages missing/corrupted files
-- [ ] Performance is acceptable for all curated models
-- [ ] Format comparison models demonstrate GLB/glTF parity
+- [x] Error handling gracefully manages missing/corrupted files
+- [x] Performance is acceptable for all curated models
+- [x] Format comparison models demonstrate GLB/glTF parity
 - [ ] Help system guides users through available controls
 
 ## Testing Strategy

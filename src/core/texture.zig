@@ -7,6 +7,7 @@ const utils = @import("utils/main.zig");
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 
+const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 
 pub const Texture = struct {
@@ -14,23 +15,21 @@ pub const Texture = struct {
     gl_texture_id: u32,
     width: u32,
     height: u32,
-    allocator: std.mem.Allocator,
 
     const Self = @This();
 
-    pub fn deinit(self: *const Texture) void {
-        // delete texture from gpu
+    pub fn deleteGlTexture(self: *const Texture) void {
         gl.deleteTextures(1, &self.gl_texture_id);
-        // self.allocator.free(self.texture_path);
-        self.allocator.destroy(self);
     }
 
     pub fn init(
-        allocator: std.mem.Allocator,
+        arena: *ArenaAllocator,
         gltf_asset: *GltfAsset,
         directory: []const u8,
         texture_index: usize,
     ) !*Texture {
+        const allocator = arena.allocator();
+
         const gltf_texture = gltf_asset.gltf.textures.?[texture_index];
         const source_id = gltf_texture.source orelse std.debug.panic("texture.source null not supported.", .{});
         const gltf_image = gltf_asset.gltf.images.?[source_id];
@@ -62,8 +61,8 @@ pub const Texture = struct {
             .gl_texture_id = @intCast(gl_texture_id),
             .width = image.width,
             .height = image.height,
-            .allocator = allocator,
         };
+        // std.debug.print("Texture loaded: {any}, image components: {d}\n", .{ texture, image.num_components });
         return texture;
     }
 
@@ -100,6 +99,7 @@ pub fn loadImage(allocator: Allocator, gltf_asset: *GltfAsset, gltf_image: gltf_
                     std.debug.print("Texture loadFromMemory error: {any}  using uri: {any}\n", .{ err, uri[0..5] });
                     @panic(@errorName(err));
                 };
+                std.debug.print("Image loaded from uri: {s}\n",  .{uri});
                 return image;
             }
             std.debug.panic("Texture uri malformed. uri: {any}", .{uri});
@@ -108,8 +108,9 @@ pub fn loadImage(allocator: Allocator, gltf_asset: *GltfAsset, gltf_image: gltf_
                 std.debug.panic("Texture allocator error: {any}\n", .{err});
             };
             defer allocator.free(c_path);
-            std.debug.print("Loading texture: {s}\n", .{c_path});
-            const image = zstbi.Image.loadFromFile(c_path, 0) catch |err| {
+            std.debug.print("Loading texture from file: {s}\n", .{c_path});
+            // Try forcing RGBA (4 channels) to handle sRGB images properly
+            const image = zstbi.Image.loadFromFile(c_path, 4) catch |err| {
                 std.debug.print("Texture loadFromFile error: {any}  filepath: {s}\n", .{ err, c_path });
                 @panic(@errorName(err));
             };

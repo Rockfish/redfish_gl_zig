@@ -212,3 +212,8 @@ See `plan/active-plans.md` for detailed project roadmap.
 - Shaders located in `examples/demo_app/shaders/`
 - Custom math library prioritized over external dependencies. 
 - Suggest adding math functions to custom math library as needed.
+
+## Coding Memories
+- When adding a large list of items within {} put a comma after that last item so that the zig formatter will fold the line nicely
+- When writing an if else statement always include {}
+- When using a pattern like self.arena.allocator(), I prefer calling it once to set a local variable at the top of the function then using the local variable instead of making multiple function calls. It reduces the clutter and makes the code easier to read.

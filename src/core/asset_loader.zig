@@ -17,8 +17,8 @@ const GLTF = gltf_types.GLTF;
 // GLB Format Constants
 const GLB_MAGIC: u32 = 0x46546C67; // "glTF" in little-endian
 const GLB_VERSION: u32 = 2;
-const GLB_JSON_CHUNK_TYPE: u32 = 0x4E4F534A; // "JSON" 
-const GLB_BIN_CHUNK_TYPE: u32 = 0x004E4942;  // "BIN\0"
+const GLB_JSON_CHUNK_TYPE: u32 = 0x4E4F534A; // "JSON"
+const GLB_BIN_CHUNK_TYPE: u32 = 0x004E4942; // "BIN\0"
 
 // GLB Structures
 const GlbHeader = struct {
@@ -67,7 +67,7 @@ pub const GltfAsset = struct {
         arena.* = ArenaAllocator.init(allocator);
 
         const alloc = arena.allocator();
-        const asset = try allocator.create(Self);
+        const asset = try alloc.create(Self);
 
         asset.* = GltfAsset{
             .arena = arena,
@@ -86,18 +86,12 @@ pub const GltfAsset = struct {
         return asset;
     }
 
-    pub fn deinit(self: *Self) void {
+    pub fn cleanUp(self: *Self) void {
         // Free loaded textures
         var texture_iterator = self.loaded_textures.valueIterator();
         while (texture_iterator.next()) |tex| {
-            tex.*.deinit();
+            tex.*.deleteGlTexture();
         }
-
-        // Clean up arena and main allocator
-        const parent_allocator = self.arena.child_allocator;
-        self.arena.deinit();
-        parent_allocator.destroy(self.arena);
-        parent_allocator.destroy(self);
     }
 
     pub fn flipv(self: *Self) *Self {
@@ -113,17 +107,17 @@ pub const GltfAsset = struct {
         const file_contents = std.fs.cwd().readFileAllocOptions(
             self.arena.allocator(),
             self.filepath,
-            4_512_000,
+            10_512_000,
             null,
             4,
             null,
-        ) catch |err| std.debug.panic("error reading file: {any}\n", .{err});
+        ) catch |err| std.debug.panic("Error reading file. error: '{any}'  file: '{s}'\n", .{err, self.filepath});
 
         if (isGlbFile(self.filepath)) {
             // GLB format: parse binary format and extract JSON + binary chunks
             const glb_data = try parseGlbFile(self.arena.allocator(), file_contents);
             self.gltf = try parser.parseGltfJson(self.arena.allocator(), glb_data.json_data);
-            
+
             // Pre-populate buffer_data with GLB binary chunk if present
             if (glb_data.binary_data) |bin_data| {
                 // Create aligned copy of binary data
@@ -134,31 +128,32 @@ pub const GltfAsset = struct {
         } else {
             // GLTF format: parse JSON directly
             self.gltf = try parser.parseGltfJson(self.arena.allocator(), file_contents);
-            
+
             // Load external buffer data from URIs
             try self.loadBufferData();
         }
     }
 
-    pub fn buildModel(self: *Self) Model {
+    pub fn buildModel(self: *Self) !*Model {
+        const allocator = self.arena.allocator();
 
         // Create meshes
-        const meshes = try self.arena.allocator().create(ArrayList(*Mesh));
-        meshes.* = ArrayList(*Mesh).init(self.arena.allocator());
+        const meshes = try allocator.create(ArrayList(*Mesh));
+        meshes.* = ArrayList(*Mesh).init(allocator);
 
         if (self.gltf.meshes) |gltf_meshes| {
             for (gltf_meshes) |gltf_mesh| {
-                const mesh = try Mesh.init(self.arena.allocator(), self, gltf_mesh);
+                const mesh = try Mesh.init(self.arena, self, gltf_mesh);
                 try meshes.append(mesh);
             }
         }
 
         // Create animator
-        const animator = try Animator.init(self.arena.allocator());
+        const animator = try Animator.init(allocator);
 
         // Create model
         const model = try Model.init(
-            self.arena.allocator(),
+            self.arena, // model now owns arena
             self.name,
             meshes,
             animator,
@@ -175,7 +170,7 @@ pub const GltfAsset = struct {
 
         // Load texture on demand
         const tex = try texture.Texture.init(
-            self.arena.allocator(),
+            self.arena,
             self,
             self.directory,
             texture_index,
@@ -200,7 +195,7 @@ pub const GltfAsset = struct {
                     }
                     continue; // Skip loading - already have the data
                 }
-                
+
                 if (buffer.uri) |uri| {
                     if (std.mem.eql(u8, "data:", uri[0..5])) {
                         // Handle base64 data URIs
@@ -257,53 +252,53 @@ const GlbData = struct {
 
 fn parseGlbFile(allocator: Allocator, file_data: []const u8) !GlbData {
     _ = allocator; // Currently unused, may need for future validation
-    
+
     // Validate minimum file size (12 bytes for GLB header)
     if (file_data.len < @sizeOf(GlbHeader)) {
         return GlbError.TruncatedFile;
     }
-    
+
     // Read GLB header
     const header = std.mem.bytesToValue(GlbHeader, file_data[0..@sizeOf(GlbHeader)]);
-    
+
     // Validate magic number
     if (header.magic != GLB_MAGIC) {
         return GlbError.InvalidMagic;
     }
-    
+
     // Validate version
     if (header.version != GLB_VERSION) {
         return GlbError.UnsupportedVersion;
     }
-    
+
     // Validate file length
     if (header.length != file_data.len) {
         return GlbError.TruncatedFile;
     }
-    
+
     var offset: usize = @sizeOf(GlbHeader);
     var json_data: ?[]const u8 = null;
     var binary_data: ?[]const u8 = null;
-    
+
     // Parse chunks
     while (offset < file_data.len) {
         // Check if we have enough data for chunk header
         if (offset + @sizeOf(GlbChunkHeader) > file_data.len) {
             return GlbError.TruncatedFile;
         }
-        
+
         // Read chunk header
-        const chunk_header = std.mem.bytesToValue(GlbChunkHeader, file_data[offset..offset + @sizeOf(GlbChunkHeader)]);
+        const chunk_header = std.mem.bytesToValue(GlbChunkHeader, file_data[offset .. offset + @sizeOf(GlbChunkHeader)]);
         offset += @sizeOf(GlbChunkHeader);
-        
+
         // Check if we have enough data for chunk content
         if (offset + chunk_header.length > file_data.len) {
             return GlbError.TruncatedFile;
         }
-        
+
         // Extract chunk data
-        const chunk_data = file_data[offset..offset + chunk_header.length];
-        
+        const chunk_data = file_data[offset .. offset + chunk_header.length];
+
         // Process chunk based on type
         switch (chunk_header.chunk_type) {
             GLB_JSON_CHUNK_TYPE => {
@@ -316,18 +311,18 @@ fn parseGlbFile(allocator: Allocator, file_data: []const u8) !GlbData {
                 // Unknown chunk type - skip it (per glTF spec)
             },
         }
-        
+
         // Move to next chunk (handle 4-byte alignment padding)
         offset += chunk_header.length;
         // Align to 4-byte boundary
         offset = (offset + 3) & ~@as(usize, 3);
     }
-    
+
     // Ensure we found JSON chunk
     if (json_data == null) {
         return GlbError.MissingJsonChunk;
     }
-    
+
     return GlbData{
         .json_data = json_data.?,
         .binary_data = binary_data,

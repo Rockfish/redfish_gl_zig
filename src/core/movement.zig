@@ -80,26 +80,26 @@ pub const Movement = struct {
         if (self.target.sub(&self.position).lengthSquared() < 0.0001) {
             return; // Skip if position == target
         }
-        std.debug.print("\northonormalize Up current state\n", .{});
-        self.printState();
+        // std.debug.print("\northonormalize Up current state\n", .{});
+        // self.printState();
         self.up.normalize();
         self.forward = self.target.sub(&self.position).normalizeTo();
         self.right = self.forward.crossNormalized(&self.up);
-        std.debug.print("\northonormalize Up new state\n", .{});
-        self.printState();
+        // std.debug.print("\northonormalize Up new state\n", .{});
+        // self.printState();
     }
 
     pub fn orthonormalizeRight(self: *Self) void {
         if (self.target.sub(&self.position).lengthSquared() < 0.0001) {
             return; // Skip if position == target
         }
-        std.debug.print("\northonormalize Right current state\n", .{});
-        self.printState();
+        // std.debug.print("\northonormalize Right current state\n", .{});
+        // self.printState();
         self.right.normalize();
         self.forward = self.target.sub(&self.position).normalizeTo();
         self.up = self.right.crossNormalized(&self.forward);
-        std.debug.print("\northonormalize Right new state\n", .{});
-        self.printState();
+        // std.debug.print("\northonormalize Right new state\n", .{});
+        // self.printState();
     }
 
     pub fn orthonormalizeUpPeriodic(self: *Self) void {
@@ -120,9 +120,9 @@ pub const Movement = struct {
         delta_time: f32,
     ) void {
         self.frame_count += 1;
-        if (self.direction != direction) {
-            std.debug.print("direction: {any}\n", .{direction});
-        }
+        // if (self.direction != direction) {
+        //     std.debug.print("direction: {any}\n", .{direction});
+        // }
         self.direction = direction;
         const translation_velocity = self.translate_speed * delta_time;
         const rot_angle = math.degreesToRadians(self.rotation_speed * delta_time);

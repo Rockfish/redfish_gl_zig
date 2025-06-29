@@ -515,10 +515,10 @@ pub const TextureInfo = struct {
 /// A sampler defines how a texture is sampled.
 pub const Sampler = struct {
     /// Optional. Magnification filter mode.
-    mag_filter: ?MagFilter,
+    mag_filter: ?MagFilter = null,
 
     /// Optional. Minification filter mode.
-    min_filter: ?MinFilter,
+    min_filter: ?MinFilter = null,
 
     /// S (U) wrapping mode.
     wrap_s: WrapMode = WrapMode.repeat,
@@ -527,7 +527,7 @@ pub const Sampler = struct {
     wrap_t: WrapMode = WrapMode.repeat,
 
     /// Optional. Name of the sampler.
-    name: ?[]const u8,
+    name: ?[]const u8 = null,
 };
 
 /// A texture references an image and optionally a sampler.
