@@ -12,9 +12,10 @@
 - ✅ PBR material support (diffuse, specular, emissive, normals)
 - ✅ Camera controls (WASD movement + mouse look)
 - ✅ Custom math library integration
-- 🔄 **Active Plan**: Plan 001 - GLB Support and Demo App
-- 🔄 Working on: GLB binary format parsing and interactive demo
-- 📋 Next: Implement GLB magic header detection
+- ✅ **Completed**: Plan 001 - GLB Support (completed 2024-06-26)
+- 🔄 **Active Plan**: Plan 002 - Interactive Demo Application
+- 🔄 Working on: UI enhancements and demo polish (Step 4-5 of Plan 002)
+- 📋 Next: Complete UI display system and error handling
 
 ### Architecture
 
@@ -35,7 +36,7 @@ libs/              # Third-party dependencies
 ├── zopengl/       # OpenGL bindings
 ├── zgui/          # Dear ImGui
 ├── zstbi/         # Image loading
-├── cglm/          # C math library
+├── cglm/          # C math library - for reference
 └── miniaudio/     # Audio support
 ```
 
@@ -53,9 +54,10 @@ libs/              # Third-party dependencies
 - **Bones**: Skeletal animation support for character models
 
 #### Math Library (`src/math/`)
-- Custom Zig implementations with CGLM integration
+- Custom Zig implementations which used to have CGLM integration
 - Types: `Vec2`, `Vec3`, `Vec4`, `Mat4`, `Quat`
 - Functions: Transformations, projections, ray casting
+- If there is missing needed functionality, propose adding it
 
 ## Coding Style Guidelines
 
@@ -110,7 +112,7 @@ This applies to scenarios where referencing nested fields directly in function c
 - This helps maintain consistency and reduces dependencies
 
 ### Model Loading
-- glTF models should be loaded through `ModelBuilder` in `src/core/gltf/`
+- glTF models should be loaded through `GltfAsset` in `src/core/asset_loader.zig`
 - Textures are cached and managed centrally
 - Use descriptive material names for texture associations
 
@@ -129,10 +131,10 @@ This applies to scenarios where referencing nested fields directly in function c
 ### Building
 ```bash
 # Build main example
-zig build zgltf_port
+zig build demo_app
 
 # Run main example  
-zig build zgltf_port-run
+zig build demo_app-run
 
 # Check compilation
 zig build check
@@ -146,7 +148,7 @@ zig build test-movement
 - **zopengl**: OpenGL function loading
 - **zgui**: Immediate mode GUI
 - **zstbi**: Image loading
-- **cglm**: C math library for performance-critical operations
+- **cglm**: C math library (present but unused - prefer local math library)
 - **miniaudio**: Audio playback support
 
 ## Known Issues & TODOs
@@ -184,7 +186,7 @@ zig build test-movement
 
 See `plan/active-plans.md` for detailed project roadmap.
 
-**Current Focus**: Plan 001 - GLB Support and Demo App (Phase 1: GLB Implementation)
+**Current Focus**: Plan 002 - Interactive Demo Application (UI enhancements and demo polish)
 
 ## Recent Changes
 
@@ -207,11 +209,11 @@ See `plan/active-plans.md` for detailed project roadmap.
 - Added comprehensive Claude coding guidelines and project documentation
 
 ### Development Notes
-- Previous demo executable is was `examples/zgltf_port/main.zig`
-- Main executable being developed is currently `examples/demo_app/main.zig`
-- Shaders located in `examples/demo_app/shaders/`
-- Custom math library prioritized over external dependencies. 
-- Suggest adding math functions to custom math library as needed.
+- **Active demo**: `examples/demo_app/main.zig` (build target: `demo_app`)
+- **Legacy demo**: `examples/zgltf_port/main.zig` (commented out in build.zig)
+- **Shaders**: Located in `examples/demo_app/shaders/`
+- **Math Library**: Pure Zig implementation in `src/math/` - add missing functions here
+- **Asset Loading**: Use `GltfAsset` from `src/core/asset_loader.zig` for all model loading
 
 ## Coding Memories
 - When adding a large list of items within {} put a comma after that last item so that the zig formatter will fold the line nicely

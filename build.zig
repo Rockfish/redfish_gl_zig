@@ -21,14 +21,15 @@ pub fn build(b: *std.Build) void {
     miniaudiolib.addIncludePath(miniaudio.path("include"));
     b.installArtifact(miniaudiolib);
 
-    const cglm = b.dependency("cglm", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const cglmlib = cglm.artifact("cglm");
-    cglmlib.addIncludePath(cglm.path("include"));
-    b.installArtifact(cglmlib);
+    // CGLM - C math library (unused - prefer local src/math/ implementation)
+    // const cglm = b.dependency("cglm", .{
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+    //
+    // const cglmlib = cglm.artifact("cglm");
+    // cglmlib.addIncludePath(cglm.path("include"));
+    // b.installArtifact(cglmlib);
 
     const zglfw = b.dependency("zglfw", .{
         .target = target,
@@ -63,6 +64,7 @@ pub fn build(b: *std.Build) void {
     core.addImport("zgui", zgui.module("root"));
     core.addImport("zstbi", zstbi.module("root"));
     core.addImport("miniaudio", miniaudio.module("root"));
+    // core.addImport("cglm", cglm.module("root")); // UNUSED
 
     core.linkLibrary(zstbi.artifact("zstbi"));
 
@@ -101,7 +103,7 @@ pub fn build(b: *std.Build) void {
 
         exe.root_module.addImport("math", math);
         exe.root_module.addImport("core", core);
-        exe.root_module.addImport("cglm", cglm.module("root"));
+        // exe.root_module.addImport("cglm", cglm.module("root"));
         exe.root_module.addImport("miniaudio", miniaudio.module("root"));
         exe.root_module.addImport("zglfw", zglfw.module("root"));
         exe.root_module.addImport("zopengl", zopengl.module("root"));
@@ -114,7 +116,7 @@ pub fn build(b: *std.Build) void {
 
         exe.linkLibrary(zgui.artifact("imgui"));
         exe.linkLibrary(zglfw.artifact("glfw"));
-        exe.linkLibrary(cglm.artifact("cglm"));
+        // exe.linkLibrary(cglm.artifact("cglm"));
         exe.linkLibrary(miniaudio.artifact("miniaudio"));
 
         const install_exe = b.addInstallArtifact(exe, .{});
@@ -155,7 +157,7 @@ pub fn build(b: *std.Build) void {
 
     exe_check.root_module.addImport("math", math);
     exe_check.root_module.addImport("core", core);
-    exe_check.root_module.addImport("cglm", cglm.module("root"));
+    // exe_check.root_module.addImport("cglm", cglm.module("root")); // UNUSED
     exe_check.root_module.addImport("miniaudio", miniaudio.module("root"));
     exe_check.root_module.addImport("zglfw", zglfw.module("root"));
     exe_check.root_module.addImport("zopengl", zopengl.module("root"));
@@ -166,7 +168,7 @@ pub fn build(b: *std.Build) void {
     exe_check.linkLibrary(zstbi.artifact("zstbi"));
     exe_check.linkLibrary(miniaudio.artifact("miniaudio"));
     exe_check.linkLibrary(zglfw.artifact("glfw"));
-    exe_check.linkLibrary(cglm.artifact("cglm"));
+    // exe_check.linkLibrary(cglm.artifact("cglm")); // UNUSED
     exe_check.addIncludePath(b.path("src/include"));
     exe_check.addIncludePath(miniaudio.path("include"));
 
@@ -182,9 +184,9 @@ pub fn build(b: *std.Build) void {
 
     // Add required dependencies
     movement_tests.root_module.addImport("math", math);
-    movement_tests.root_module.addImport("cglm", cglm.module("root"));
+    // movement_tests.root_module.addImport("cglm", cglm.module("root")); // UNUSED
     movement_tests.addIncludePath(b.path("src/include"));
-    movement_tests.linkLibrary(cglm.artifact("cglm"));
+    // movement_tests.linkLibrary(cglm.artifact("cglm")); // UNUSED
 
     const run_movement_tests = b.addRunArtifact(movement_tests);
     const test_step = b.step("test-movement", "Run movement tests");
