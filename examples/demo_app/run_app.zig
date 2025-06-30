@@ -5,6 +5,7 @@ const zstbi = @import("zstbi");
 const core = @import("core");
 const math = @import("math");
 const assets_list = @import("assets_list.zig");
+const ui_display = @import("ui_display.zig");
 
 const Camera = core.Camera;
 const asset_loader = core.asset_loader;
@@ -170,6 +171,10 @@ pub fn run(window: *glfw.Window) !void {
     const state = &state_.state;
     state_.initWindowHandlers(window);
 
+    // Initialize UI system
+    var ui_state = try ui_display.UIState.init(allocator, window);
+    defer ui_state.deinit();
+
     const shader = try Shader.init(
         allocator,
         "examples/demo_app/shaders/player_shader.vert",
@@ -248,6 +253,9 @@ pub fn run(window: *glfw.Window) !void {
         state.total_time = current_time;
 
         state_.processKeys();
+        
+        // Update UI system
+        ui_state.update(window);
 
         // Check if model reload is requested
         if (state.model_reload_requested) {
@@ -315,6 +323,9 @@ pub fn run(window: *glfw.Window) !void {
 
         // model.render(shader);
         current_model.render(shader);
+
+        // Render UI overlay
+        ui_state.render();
 
         //try core.dumpModelNodes(model);
         window.swapBuffers();

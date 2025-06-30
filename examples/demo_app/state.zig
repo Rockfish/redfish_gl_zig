@@ -69,6 +69,7 @@ pub const State = struct {
     model_reload_requested: bool = false,
     camera_reposition_requested: bool = false,
     output_position_requested: bool = false,
+    ui_help_visible: bool = false,
 
     const Self = @This();
 };
@@ -332,6 +333,12 @@ pub fn processKeys() void {
             .p => {
                 if (!state.input.key_processed.contains(.p)) {
                     state.output_position_requested = true;
+                }
+            },
+            .h => {
+                if (!state.input.key_processed.contains(.h)) {
+                    state.ui_help_visible = !state.ui_help_visible;
+                    std.debug.print("Help display: {}\n", .{state.ui_help_visible});
                 }
             },
             else => {},
