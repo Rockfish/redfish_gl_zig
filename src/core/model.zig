@@ -114,6 +114,10 @@ pub const Model = struct {
         }
     }
 
+    pub fn debugPrintNodeStructure(self: *Self) void {
+        debugPrintModelNodeStructure(self);
+    }
+
     fn renderNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, parent_transform: Mat4) void {
         const transform = Transform{
             .translation = node.translation orelse vec3(0.0, 0.0, 0.0),
@@ -122,6 +126,14 @@ pub const Model = struct {
         };
         const local_matrix = transform.getMatrix();
         const global_matrix = parent_transform.mulMat4(&local_matrix);
+
+        // Debug output for node transforms (only print once per model load)
+        const debug_nodes = false; // Disabled for now
+        if (debug_nodes and node.mesh != null) {
+            // Extract translation from global matrix
+            const global_translation = vec3(global_matrix.data[0][3], global_matrix.data[1][3], global_matrix.data[2][3]);
+            std.debug.print("Node with mesh {}: local_trans=({d:.2}, {d:.2}, {d:.2}) -> global_trans=({d:.2}, {d:.2}, {d:.2})\n", .{ node.mesh.?, transform.translation.x, transform.translation.y, transform.translation.z, global_translation.x, global_translation.y, global_translation.z });
+        }
 
         shader.setMat4("nodeTransform", &global_matrix);
 
@@ -225,6 +237,123 @@ pub const Model = struct {
         }
     }
 };
+
+// Debug functions for model analysis
+pub fn debugPrintModelNodeStructure(model: *Model) void {
+    std.debug.print("\n--- Model Node Structure for: {s} ---\n", .{model.name});
+    const scene = model.gltf_asset.gltf.scenes.?[model.scene];
+    if (scene.nodes) |nodes| {
+        for (nodes) |node_index| {
+            const node = model.gltf_asset.gltf.nodes.?[node_index];
+            debugPrintNode(model.gltf_asset, node, node_index, 0);
+        }
+    }
+
+    // Matrix multiplication is now fixed - debug disabled
+
+    std.debug.print("--- End Node Structure ---\n\n", .{});
+}
+
+pub fn debugMatrixMultiplication() void {
+    std.debug.print("\n=== MATRIX MULTIPLICATION DEBUG ===\n", .{});
+
+    // Create parent transform (180° Y rotation)
+    const parent_transform = Transform{
+        .translation = vec3(0.0, 0.0, 0.0),
+        .rotation = math.quat(0.0, 1.0, 0.0, 0.0), // 180° Y rotation
+        .scale = vec3(1.0, 1.0, 1.0),
+    };
+    const parent_matrix = parent_transform.getMatrix();
+
+    // Create child transform (translation only)
+    const child_transform = Transform{
+        .translation = vec3(-3.82, 13.02, 0.0),
+        .rotation = math.quat(0.0, 0.0, 0.0, 1.0), // Identity
+        .scale = vec3(1.0, 1.0, 1.0),
+    };
+    const child_matrix = child_transform.getMatrix();
+
+    // Test multiplication
+    const result_matrix = parent_matrix.mulMat4(&child_matrix);
+
+    // Extract translation from result
+    const result_translation = vec3(result_matrix.data[3][0], result_matrix.data[3][1], result_matrix.data[3][2]);
+
+    // Debug the matrices themselves
+    std.debug.print(
+        "Parent matrix [3] (translation): ({d:.2}, {d:.2}, {d:.2}, {d:.2})\n",
+        .{ parent_matrix.data[3][0], parent_matrix.data[3][1], parent_matrix.data[3][2], parent_matrix.data[3][3] },
+    );
+    std.debug.print(
+        "Parent matrix [0]: ({d:.2}, {d:.2}, {d:.2}, {d:.2})\n",
+        .{ parent_matrix.data[0][0], parent_matrix.data[0][1], parent_matrix.data[0][2], parent_matrix.data[0][3] },
+    );
+    std.debug.print(
+        "Parent matrix [1]: ({d:.2}, {d:.2}, {d:.2}, {d:.2})\n",
+        .{ parent_matrix.data[1][0], parent_matrix.data[1][1], parent_matrix.data[1][2], parent_matrix.data[1][3] },
+    );
+    std.debug.print(
+        "Parent matrix [2]: ({d:.2}, {d:.2}, {d:.2}, {d:.2})\n",
+        .{ parent_matrix.data[2][0], parent_matrix.data[2][1], parent_matrix.data[2][2], parent_matrix.data[2][3] },
+    );
+
+    std.debug.print(
+        "Child matrix [3] (translation): ({d:.2}, {d:.2}, {d:.2}, {d:.2})\n",
+        .{ child_matrix.data[3][0], child_matrix.data[3][1], child_matrix.data[3][2], child_matrix.data[3][3] },
+    );
+
+    std.debug.print(
+        "Parent quaternion: ({d:.2}, {d:.2}, {d:.2}, {d:.2})\n",
+        .{ parent_transform.rotation.data[0], parent_transform.rotation.data[1], parent_transform.rotation.data[2], parent_transform.rotation.data[3] },
+    );
+    std.debug.print(
+        "Child translation: ({d:.2}, {d:.2}, {d:.2})\n",
+        .{ child_transform.translation.x, child_transform.translation.y, child_transform.translation.z },
+    );
+    std.debug.print(
+        "Result matrix [3] (translation): ({d:.2}, {d:.2}, {d:.2}, {d:.2})\n",
+        .{ result_matrix.data[3][0], result_matrix.data[3][1], result_matrix.data[3][2], result_matrix.data[3][3] },
+    );
+    std.debug.print(
+        "Result matrix [0]: ({d:.2}, {d:.2}, {d:.2}, {d:.2})\n",
+        .{ result_matrix.data[0][0], result_matrix.data[0][1], result_matrix.data[0][2], result_matrix.data[0][3] },
+    );
+    std.debug.print(
+        "Result translation: ({d:.2}, {d:.2}, {d:.2})\n",
+        .{ result_translation.x, result_translation.y, result_translation.z },
+    );
+    std.debug.print(
+        "Expected (manual): ({d:.2}, {d:.2}, {d:.2})\n",
+        .{ 3.82, 13.02, 0.0 },
+    ); // 180° Y rotation should flip X sign
+    std.debug.print("=== END MATRIX DEBUG ===\n\n", .{});
+}
+
+fn debugPrintNode(gltf_asset: *GltfAsset, node: gltf_types.Node, node_index: usize, depth: usize) void {
+    var indent_buf: [20]u8 = undefined;
+    for (0..depth * 2) |i| {
+        if (i < indent_buf.len) indent_buf[i] = ' ';
+    }
+    const indent = indent_buf[0..@min(depth * 2, indent_buf.len)];
+
+    const transform = Transform{
+        .translation = node.translation orelse vec3(0.0, 0.0, 0.0),
+        .rotation = node.rotation orelse math.quat(0.0, 0.0, 0.0, 1.0),
+        .scale = node.scale orelse vec3(1.0, 1.0, 1.0),
+    };
+
+    std.debug.print(
+        "{s}Node[{}]: mesh={?} translation=({d:.2}, {d:.2}, {d:.2}) rotation=({d:.2}, {d:.2}, {d:.2}, {d:.2}) scale=({d:.2}, {d:.2}, {d:.2})\n",
+        .{ indent, node_index, node.mesh, transform.translation.x, transform.translation.y, transform.translation.z, transform.rotation.data[0], transform.rotation.data[1], transform.rotation.data[2], transform.rotation.data[3], transform.scale.x, transform.scale.y, transform.scale.z },
+    );
+
+    if (node.children) |children| {
+        for (children) |child_index| {
+            const child_node = gltf_asset.gltf.nodes.?[child_index];
+            debugPrintNode(gltf_asset, child_node, child_index, depth + 1);
+        }
+    }
+}
 
 pub fn dumpModelNodes(model: *Model) !void {
     std.debug.print("\n--- Dumping nodes ---\n", .{});

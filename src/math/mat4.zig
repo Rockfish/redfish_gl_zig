@@ -181,7 +181,7 @@ pub const Mat4 = extern struct {
     }
 
     pub fn fromRotationX(angle: f32) Mat4 {
-        // Optimized X-axis rotation matrix
+        // X-axis rotation matrix - matches cglm glm_rotate_x implementation
         const cos_a = std.math.cos(angle);
         const sin_a = std.math.sin(angle);
 
@@ -194,7 +194,7 @@ pub const Mat4 = extern struct {
     }
 
     pub fn fromRotationY(angle: f32) Mat4 {
-        // Optimized Y-axis rotation matrix
+        // Y-axis rotation matrix - matches cglm glm_rotate_y implementation
         const cos_a = std.math.cos(angle);
         const sin_a = std.math.sin(angle);
 
@@ -207,7 +207,7 @@ pub const Mat4 = extern struct {
     }
 
     pub fn fromRotationZ(angle: f32) Mat4 {
-        // Optimized Z-axis rotation matrix
+        // Z-axis rotation matrix - matches cglm glm_rotate_z implementation
         const cos_a = std.math.cos(angle);
         const sin_a = std.math.sin(angle);
 
@@ -252,32 +252,36 @@ pub const Mat4 = extern struct {
     pub fn mulMat4(self: *const Self, other: *const Mat4) Self {
         var result: [4][4]f32 = undefined;
 
-        // Unrolled matrix multiplication for optimal performance
-        // result[row][col] = Σ(self[row][k] * other[k][col])
+        // Column-major matrix multiplication following cglm convention
+        // Matches glm_mat4_mul implementation in cglm/mat4.h
+        // dest[col][row] = Σ(m1[col][k] * m2[k][row])
 
-        // Row 0
-        result[0][0] = self.data[0][0] * other.data[0][0] + self.data[0][1] * other.data[1][0] + self.data[0][2] * other.data[2][0] + self.data[0][3] * other.data[3][0];
-        result[0][1] = self.data[0][0] * other.data[0][1] + self.data[0][1] * other.data[1][1] + self.data[0][2] * other.data[2][1] + self.data[0][3] * other.data[3][1];
-        result[0][2] = self.data[0][0] * other.data[0][2] + self.data[0][1] * other.data[1][2] + self.data[0][2] * other.data[2][2] + self.data[0][3] * other.data[3][2];
-        result[0][3] = self.data[0][0] * other.data[0][3] + self.data[0][1] * other.data[1][3] + self.data[0][2] * other.data[2][3] + self.data[0][3] * other.data[3][3];
+        const m1 = &self.data;
+        const m2 = &other.data;
 
-        // Row 1
-        result[1][0] = self.data[1][0] * other.data[0][0] + self.data[1][1] * other.data[1][0] + self.data[1][2] * other.data[2][0] + self.data[1][3] * other.data[3][0];
-        result[1][1] = self.data[1][0] * other.data[0][1] + self.data[1][1] * other.data[1][1] + self.data[1][2] * other.data[2][1] + self.data[1][3] * other.data[3][1];
-        result[1][2] = self.data[1][0] * other.data[0][2] + self.data[1][1] * other.data[1][2] + self.data[1][2] * other.data[2][2] + self.data[1][3] * other.data[3][2];
-        result[1][3] = self.data[1][0] * other.data[0][3] + self.data[1][1] * other.data[1][3] + self.data[1][2] * other.data[2][3] + self.data[1][3] * other.data[3][3];
+        // Column 0 of result
+        result[0][0] = m1[0][0] * m2[0][0] + m1[1][0] * m2[0][1] + m1[2][0] * m2[0][2] + m1[3][0] * m2[0][3];
+        result[0][1] = m1[0][1] * m2[0][0] + m1[1][1] * m2[0][1] + m1[2][1] * m2[0][2] + m1[3][1] * m2[0][3];
+        result[0][2] = m1[0][2] * m2[0][0] + m1[1][2] * m2[0][1] + m1[2][2] * m2[0][2] + m1[3][2] * m2[0][3];
+        result[0][3] = m1[0][3] * m2[0][0] + m1[1][3] * m2[0][1] + m1[2][3] * m2[0][2] + m1[3][3] * m2[0][3];
 
-        // Row 2
-        result[2][0] = self.data[2][0] * other.data[0][0] + self.data[2][1] * other.data[1][0] + self.data[2][2] * other.data[2][0] + self.data[2][3] * other.data[3][0];
-        result[2][1] = self.data[2][0] * other.data[0][1] + self.data[2][1] * other.data[1][1] + self.data[2][2] * other.data[2][1] + self.data[2][3] * other.data[3][1];
-        result[2][2] = self.data[2][0] * other.data[0][2] + self.data[2][1] * other.data[1][2] + self.data[2][2] * other.data[2][2] + self.data[2][3] * other.data[3][2];
-        result[2][3] = self.data[2][0] * other.data[0][3] + self.data[2][1] * other.data[1][3] + self.data[2][2] * other.data[2][3] + self.data[2][3] * other.data[3][3];
+        // Column 1 of result
+        result[1][0] = m1[0][0] * m2[1][0] + m1[1][0] * m2[1][1] + m1[2][0] * m2[1][2] + m1[3][0] * m2[1][3];
+        result[1][1] = m1[0][1] * m2[1][0] + m1[1][1] * m2[1][1] + m1[2][1] * m2[1][2] + m1[3][1] * m2[1][3];
+        result[1][2] = m1[0][2] * m2[1][0] + m1[1][2] * m2[1][1] + m1[2][2] * m2[1][2] + m1[3][2] * m2[1][3];
+        result[1][3] = m1[0][3] * m2[1][0] + m1[1][3] * m2[1][1] + m1[2][3] * m2[1][2] + m1[3][3] * m2[1][3];
 
-        // Row 3
-        result[3][0] = self.data[3][0] * other.data[0][0] + self.data[3][1] * other.data[1][0] + self.data[3][2] * other.data[2][0] + self.data[3][3] * other.data[3][0];
-        result[3][1] = self.data[3][0] * other.data[0][1] + self.data[3][1] * other.data[1][1] + self.data[3][2] * other.data[2][1] + self.data[3][3] * other.data[3][1];
-        result[3][2] = self.data[3][0] * other.data[0][2] + self.data[3][1] * other.data[1][2] + self.data[3][2] * other.data[2][2] + self.data[3][3] * other.data[3][2];
-        result[3][3] = self.data[3][0] * other.data[0][3] + self.data[3][1] * other.data[1][3] + self.data[3][2] * other.data[2][3] + self.data[3][3] * other.data[3][3];
+        // Column 2 of result
+        result[2][0] = m1[0][0] * m2[2][0] + m1[1][0] * m2[2][1] + m1[2][0] * m2[2][2] + m1[3][0] * m2[2][3];
+        result[2][1] = m1[0][1] * m2[2][0] + m1[1][1] * m2[2][1] + m1[2][1] * m2[2][2] + m1[3][1] * m2[2][3];
+        result[2][2] = m1[0][2] * m2[2][0] + m1[1][2] * m2[2][1] + m1[2][2] * m2[2][2] + m1[3][2] * m2[2][3];
+        result[2][3] = m1[0][3] * m2[2][0] + m1[1][3] * m2[2][1] + m1[2][3] * m2[2][2] + m1[3][3] * m2[2][3];
+
+        // Column 3 of result
+        result[3][0] = m1[0][0] * m2[3][0] + m1[1][0] * m2[3][1] + m1[2][0] * m2[3][2] + m1[3][0] * m2[3][3];
+        result[3][1] = m1[0][1] * m2[3][0] + m1[1][1] * m2[3][1] + m1[2][1] * m2[3][2] + m1[3][1] * m2[3][3];
+        result[3][2] = m1[0][2] * m2[3][0] + m1[1][2] * m2[3][1] + m1[2][2] * m2[3][2] + m1[3][2] * m2[3][3];
+        result[3][3] = m1[0][3] * m2[3][0] + m1[1][3] * m2[3][1] + m1[2][3] * m2[3][2] + m1[3][3] * m2[3][3];
 
         return Mat4{ .data = result };
     }
@@ -288,13 +292,14 @@ pub const Mat4 = extern struct {
     }
 
     pub fn mulVec4(self: *const Self, vec: *const Vec4) Vec4 {
-        // Unrolled matrix-vector multiplication for optimal performance
-        // result[i] = Σ(matrix[i][j] * vec[j])
+        // Column-major matrix-vector multiplication following cglm convention
+        // Matches glm_mat4_mulv implementation in cglm/mat4.h
+        // result[i] = Σ(matrix[j][i] * vec[j]) - sum across columns
         return Vec4{
-            .x = self.data[0][0] * vec.x + self.data[0][1] * vec.y + self.data[0][2] * vec.z + self.data[0][3] * vec.w,
-            .y = self.data[1][0] * vec.x + self.data[1][1] * vec.y + self.data[1][2] * vec.z + self.data[1][3] * vec.w,
-            .z = self.data[2][0] * vec.x + self.data[2][1] * vec.y + self.data[2][2] * vec.z + self.data[2][3] * vec.w,
-            .w = self.data[3][0] * vec.x + self.data[3][1] * vec.y + self.data[3][2] * vec.z + self.data[3][3] * vec.w,
+            .x = self.data[0][0] * vec.x + self.data[1][0] * vec.y + self.data[2][0] * vec.z + self.data[3][0] * vec.w,
+            .y = self.data[0][1] * vec.x + self.data[1][1] * vec.y + self.data[2][1] * vec.z + self.data[3][1] * vec.w,
+            .z = self.data[0][2] * vec.x + self.data[1][2] * vec.y + self.data[2][2] * vec.z + self.data[3][2] * vec.w,
+            .w = self.data[0][3] * vec.x + self.data[1][3] * vec.y + self.data[2][3] * vec.z + self.data[3][3] * vec.w,
         };
     }
 

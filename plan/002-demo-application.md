@@ -129,7 +129,7 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 - [ ] Texture memory management
 - [ ] Frame rate monitoring and display
 
-### Step 6: Rendering System Updates ✅ COMPLETED (Core Features)
+### Step 6: Rendering System Updates ✅ COMPLETED
 **Goal**: Leverage existing shader system with glTF material support
 
 **Tasks**:
@@ -138,11 +138,48 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 - [x] Support PBR material properties from glTF
 - [x] Maintain compatibility with basic and PBR shaders
 - [x] Fixed fragment shader lighting for proper texture rendering
-- [ ] Animation system integration from angry_gl_zig concepts
-- [ ] Support glTF animation playback
-- [ ] Add animation controls ('=' next, '-' prev, '0' reset)
 
-### Step 7: Build System Integration ✅ COMPLETED
+### Step 7: Animation System & Transform Fixes ✅ COMPLETED (2024-07-01)
+**Goal**: Implement glTF animation support and fix core transform hierarchy issues
+
+**Phase 7A: Critical Matrix Math Fixes** ✅
+- [x] **Matrix multiplication bug fix**: Fixed `Mat4.mulMat4()` to use column-major multiplication matching cglm
+- [x] **Matrix-vector multiplication fix**: Fixed `Mat4.mulVec4()` to use column-major matrix-vector multiplication
+- [x] **Transform hierarchy debugging**: Added debug functions to analyze node transform issues
+- [x] **Lantern model fix**: Resolved positioning issues with multi-node models (180° Y rotation + child translations)
+- [x] **Column-major compliance audit**: Verified all Mat4 and Mat3 functions follow cglm conventions
+- [x] **Debug function refactoring**: Moved debug functions outside Model struct for cleaner architecture
+
+**Phase 7B: Animation System (Future)** 
+- [ ] Animation system integration from angry_gl_zig concepts
+- [ ] Support glTF animation playback for skeletal animations
+- [ ] Add animation controls ('=' next, '-' prev, '0' reset)
+- [ ] Implement animation state tracking and UI display
+- [ ] Test with animated models (Fox.glb, CesiumMan.glb, BoxAnimated.glb)
+- [ ] Add animation info to UI overlay (current clip, playback state)
+- [ ] Handle models with multiple animations
+- [ ] Implement animation blending transitions (future enhancement)
+
+**Critical Bug Fixes Completed**:
+1. **Transform Hierarchy Issue**: Fixed critical matrix multiplication bug where parent rotations weren't being applied to child translations
+2. **Root Cause**: `Mat4.mulMat4()` was using row-major multiplication instead of column-major, causing global transforms to become (0,0,0)
+3. **Solution**: Rewrote matrix multiplication to match cglm's `glm_mat4_mul` implementation exactly
+4. **Validation**: Lantern model now renders correctly with proper 180° Y rotation + child positioning
+
+**Architecture Improvements**:
+- Debug functions moved to standalone functions outside Model struct
+- `debugPrintModelNodeStructure(model: *Model)` - Model node analysis
+- `debugMatrixMultiplication()` - Matrix multiplication testing
+- `debugPrintNode()` - Recursive node printing helper
+- All matrix functions verified against cglm reference implementation
+
+**Implementation Notes**:
+- Matrix math now fully compatible with cglm column-major conventions
+- Transform accumulation working correctly for complex multi-node models
+- Debug infrastructure in place for future animation development
+- Ready for skeletal animation implementation once core transforms are stable
+
+### Step 8: Build System Integration ✅ COMPLETED
 **Goal**: Ensure demo builds and runs properly
 
 **Tasks**:
@@ -153,7 +190,7 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 - [x] Include asset path validation
 - [x] Graceful fallback for missing models
 
-### Step 8: Demo Polish & Testing
+### Step 9: Demo Polish & Testing
 **Goal**: Final testing and user experience improvements
 
 **Tasks**:
@@ -240,9 +277,8 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 - [x] **Portable fonts**: Uses content_dir for consistent font loading
 - [x] **Dynamic positioning**: UI windows position correctly regardless of window size
 
-### Future Enhancements (Step 5+):
+### Future Enhancements (Step 9+):
 - [ ] Loading progress indication for large models
-- [ ] Animation controls for animated models (Fox, CesiumMan)
 - [ ] Model statistics (vertices, textures, animations)
 - [ ] Audio integration
 - [ ] Scene serialization
