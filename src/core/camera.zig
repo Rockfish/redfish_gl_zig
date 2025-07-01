@@ -35,6 +35,7 @@ pub const Camera = struct {
     aspect: f32 = 1.0,
     ortho_scale: f32 = 40.0,
     view_type: ViewType = ViewType.LookAt,
+    projection_type: ProjectionType = ProjectionType.Perspective,
     translation_speed: f32 = 100.0,
     rotation_speed: f32 = 100.0,
     orbit_speed: f32 = 200.0,
@@ -73,7 +74,13 @@ pub const Camera = struct {
         return camera;
     }
 
-    pub fn getProjectionMatrix(self: *Camera, projection_type: ProjectionType) Mat4 {
+    // Get projection matrix using camera's current projection_type
+    pub fn getProjectionMatrix(self: *Camera) Mat4 {
+        return self.getProjectionMatrixWithType(self.projection_type);
+    }
+    
+    // Get projection matrix with explicit type (for backward compatibility)
+    pub fn getProjectionMatrixWithType(self: *Camera, projection_type: ProjectionType) Mat4 {
         switch (projection_type) {
             .Perspective => {
                 return Mat4.perspectiveRhGl(
@@ -121,6 +128,14 @@ pub const Camera = struct {
 
     pub fn setLookTo(self: *Self) void {
         self.view_type = .LookTo;
+    }
+
+    pub fn setPerspective(self: *Self) void {
+        self.projection_type = .Perspective;
+    }
+
+    pub fn setOrthographic(self: *Self) void {
+        self.projection_type = .Orthographic;
     }
 
     pub fn setAspect(self: *Self, aspect_ratio: f32) void {

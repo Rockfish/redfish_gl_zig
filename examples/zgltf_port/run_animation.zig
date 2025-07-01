@@ -14,7 +14,7 @@ const Model = core.Model;
 const ModelBuilder = core.ModelBuilder;
 // const animation = core.animation;
 const String = core.string.String;
-const FrameCount = core.FrameCount;
+const FrameCounter = core.FrameCounter;
 
 const Shader =core.Shader;
 
@@ -128,7 +128,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, model_path: []con
 
     // --- event loop
     state.total_time = @floatCast(glfw.getTime());
-    // var frame_counter = FrameCount.new();
+    // var frame_counter = FrameCounter.new();
 
     gl.enable(gl.DEPTH_TEST);
 

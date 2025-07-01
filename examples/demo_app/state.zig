@@ -54,9 +54,7 @@ pub const State = struct {
     input: Input,
     camera: *Camera,
     projection: Mat4 = undefined,
-    projection_type: core.ProjectionType,
     view: Mat4 = undefined,
-    view_type: core.ViewType,
     light_postion: Vec3,
     spin: bool = false,
     world_point: ?Vec3,
@@ -70,6 +68,7 @@ pub const State = struct {
     camera_reposition_requested: bool = false,
     output_position_requested: bool = false,
     ui_help_visible: bool = false,
+    ui_camera_info_visible: bool = true,
 
     const Self = @This();
 };
@@ -108,14 +107,8 @@ pub fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: gl
     }
 }
 
-var last_time: f32 = 0;
-const delay_time: f32 = 0.2;
 
 pub fn processKeys() void {
-    const toggle = struct {
-        var spin_is_set: bool = false;
-    };
-
     var iterator = state.input.key_presses.iterator();
     while (iterator.next()) |k| {
         switch (k) {
@@ -253,46 +246,51 @@ pub fn processKeys() void {
                 }
             },
             .r => {
-                state.camera.reset(state.camera_initial_position, state.camera_initial_target);
+                if (!state.input.key_processed.contains(.r)) {
+                    state.camera.reset(state.camera_initial_position, state.camera_initial_target);
+                }
             },
             .one => {
-                state.camera.setLookTo();
-                std.debug.print("Look To\n", .{});
+                if (!state.input.key_processed.contains(.one)) {
+                    state.camera.setLookTo();
+                    std.debug.print("Look To\n", .{});
+                }
             },
             .two => {
-                state.camera.setLookAt();
-                std.debug.print("Look At\n", .{});
+                if (!state.input.key_processed.contains(.two)) {
+                    state.camera.setLookAt();
+                    std.debug.print("Look At\n", .{});
+                }
             },
             .three => {
-                if (!toggle.spin_is_set) {
+                if (!state.input.key_processed.contains(.three)) {
                     state.spin = !state.spin;
                 }
             },
             .four => {
-                state.projection_type = .Perspective;
-                state.projection = state.camera.getProjectionMatrix(.Perspective);
+                if (!state.input.key_processed.contains(.four)) {
+                    state.camera.setPerspective();
+                    state.projection = state.camera.getProjectionMatrix();
+                }
             },
             .five => {
-                state.projection_type = .Orthographic;
-                state.projection = state.camera.getProjectionMatrix(.Orthographic);
+                if (!state.input.key_processed.contains(.five)) {
+                    state.camera.setOrthographic();
+                    state.projection = state.camera.getProjectionMatrix();
+                }
             },
             .zero => {
-                if (last_time + delay_time < state.total_time) {
-                    last_time = state.total_time;
-                    // state.single_mesh_id = -1;
+                if (!state.input.key_processed.contains(.zero)) {
                     state.animation_id = 0;
                 }
             },
             .equal => {
-                if (last_time + delay_time < state.total_time) {
-                    last_time = state.total_time;
-                    //state.single_mesh_id += 1;
+                if (!state.input.key_processed.contains(.equal)) {
                     state.animation_id += 1;
                 }
             },
             .minus => {
-                if (last_time + delay_time < state.total_time) {
-                    last_time = state.total_time;
+                if (!state.input.key_processed.contains(.minus)) {
                     state.animation_id -= 1;
                     if (state.animation_id < 0) {
                         state.animation_id = 0;
@@ -300,20 +298,28 @@ pub fn processKeys() void {
                 }
             },
             .six => {
-                state.motion_type = .Translate;
-                std.debug.print("Motion Type: Translate\n", .{});
+                if (!state.input.key_processed.contains(.six)) {
+                    state.motion_type = .Translate;
+                    std.debug.print("Motion Type: Translate\n", .{});
+                }
             },
             .seven => {
-                state.motion_type = .Orbit;
-                std.debug.print("Motion Type: Orbit\n", .{});
+                if (!state.input.key_processed.contains(.seven)) {
+                    state.motion_type = .Orbit;
+                    std.debug.print("Motion Type: Orbit\n", .{});
+                }
             },
             .eight => {
-                state.motion_type = .Circle;
-                std.debug.print("Motion Type: Circle\n", .{});
+                if (!state.input.key_processed.contains(.eight)) {
+                    state.motion_type = .Circle;
+                    std.debug.print("Motion Type: Circle\n", .{});
+                }
             },
             .nine => {
-                state.motion_type = .Rotate;
-                std.debug.print("Motion Type: Rotate\n", .{});
+                if (!state.input.key_processed.contains(.nine)) {
+                    state.motion_type = .Rotate;
+                    std.debug.print("Motion Type: Rotate\n", .{});
+                }
             },
             .n => {
                 if (!state.input.key_processed.contains(.n)) {
@@ -341,13 +347,18 @@ pub fn processKeys() void {
                     std.debug.print("Help display: {}\n", .{state.ui_help_visible});
                 }
             },
+            .c => {
+                if (!state.input.key_processed.contains(.c)) {
+                    state.ui_camera_info_visible = !state.ui_camera_info_visible;
+                    std.debug.print("Camera info display: {}\n", .{state.ui_camera_info_visible});
+                }
+            },
             else => {},
         }
         
         // Mark this key as processed for this frame
         state.input.key_processed.insert(k);
     }
-    toggle.spin_is_set = state.input.key_presses.contains(.three);
 }
 
 pub fn nextModel() void {
@@ -397,13 +408,13 @@ pub fn setViewPort(w: i32, h: i32) void {
     const aspect_ratio = (state.scaled_width / state.scaled_height);
     state.camera.setAspect(aspect_ratio);
 
-    switch (state.projection_type) {
+    switch (state.camera.projection_type) {
         .Perspective => {
-            state.projection = state.camera.getProjectionMatrix(state.projection_type);
+            state.projection = state.camera.getProjectionMatrix();
         },
         .Orthographic => {
             state.camera.setScreenDimensions(state.scaled_width, state.scaled_height);
-            state.projection = state.camera.getProjectionMatrix(state.projection_type);
+            state.projection = state.camera.getProjectionMatrix();
         },
     }
 }

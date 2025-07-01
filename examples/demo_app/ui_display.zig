@@ -2,6 +2,7 @@ const std = @import("std");
 const math = std.math;
 const glfw = @import("zglfw");
 const zgui = @import("zgui");
+const core = @import("core");
 
 const state = @import("state.zig");
 const assets_list = @import("assets_list.zig");
@@ -21,7 +22,7 @@ pub const UIState = struct {
     current_height: f32 = 0.0,
     
     // Performance tracking
-    frame_counter: FrameCounter = undefined,
+    frame_counter: core.FrameCounter = undefined,
     last_load_time: f32 = 0.0,
     
     const Self = @This();
@@ -53,7 +54,7 @@ pub const UIState = struct {
         ui_state.setupStyle();
         
         // Initialize frame counter
-        ui_state.frame_counter = FrameCounter.init();
+        ui_state.frame_counter = core.FrameCounter.init();
         
         return ui_state;
     }
@@ -120,6 +121,10 @@ pub const UIState = struct {
         
         if (self.show_performance) {
             self.renderPerformance();
+        }
+        
+        if (state.state.ui_camera_info_visible) {
+            self.renderCameraInfo();
         }
         
         if (state.state.ui_help_visible) {
@@ -205,6 +210,65 @@ pub const UIState = struct {
         zgui.end();
     }
     
+    fn renderCameraInfo(self: *Self) void {
+        // Position on the right side, below performance metrics
+        zgui.setNextWindowPos(.{ .x = self.current_width - 280.0, .y = 100.0, .cond = .always });
+        
+        const window_flags = zgui.WindowFlags{
+            .no_resize = true,
+            .no_move = true,
+            .no_collapse = true,
+            .no_title_bar = true,
+            .always_auto_resize = true,
+        };
+        
+        if (zgui.begin("Camera Info", .{ .flags = window_flags })) {
+            if (self.font_mono) |font| {
+                zgui.pushFont(font);
+            }
+            
+            // Camera position
+            const cam_pos = state.state.camera.movement.position;
+            zgui.textColored(.{ 0.7, 0.9, 1.0, 1.0 }, "Camera:", .{});
+            zgui.text("  Pos: {d:.1}, {d:.1}, {d:.1}", .{ cam_pos.x, cam_pos.y, cam_pos.z });
+            
+            // Camera target
+            const cam_target = state.state.camera.movement.target;
+            zgui.text("  Target: {d:.1}, {d:.1}, {d:.1}", .{ cam_target.x, cam_target.y, cam_target.z });
+            
+            zgui.separator();
+            
+            // Movement type
+            const motion_type_str = switch (state.state.motion_type) {
+                .Translate => "Translate",
+                .Orbit => "Orbit",
+                .Circle => "Circle",
+                .Rotate => "Rotate",
+            };
+            zgui.textColored(.{ 0.9, 0.7, 0.3, 1.0 }, "Motion:", .{});
+            zgui.text("  {s}", .{motion_type_str});
+            
+            // View type
+            const view_type_str = switch (state.state.camera.view_type) {
+                .LookTo => "LookTo",
+                .LookAt => "LookAt",
+            };
+            zgui.text("  View: {s}", .{view_type_str});
+            
+            // Projection type
+            const proj_type_str = switch (state.state.camera.projection_type) {
+                .Perspective => "Perspective",
+                .Orthographic => "Orthographic",
+            };
+            zgui.text("  Proj: {s}", .{proj_type_str});
+            
+            if (self.font_mono) |_| {
+                zgui.popFont();
+            }
+        }
+        zgui.end();
+    }
+    
     fn renderHelp(self: *Self) void {
         // Position at bottom-left (manual calculation since zgui doesn't have pivot)
         zgui.setNextWindowPos(.{ .x = 10.0, .y = self.current_height - 280.0, .cond = .always });
@@ -238,7 +302,13 @@ pub const UIState = struct {
             
             zgui.separator();
             
-            zgui.textColored(.{ 0.7, 0.7, 0.7, 1.0 }, "Press H to toggle this help", .{});
+            zgui.textColored(.{ 1.0, 0.8, 0.4, 1.0 }, "Display Toggles:", .{});
+            zgui.text("  H       Toggle help", .{});
+            zgui.text("  C       Toggle camera info", .{});
+            
+            zgui.separator();
+            
+            zgui.textColored(.{ 0.7, 0.7, 0.7, 1.0 }, "Press H to hide this help", .{});
         }
         zgui.end();
     }
@@ -248,37 +318,3 @@ pub const UIState = struct {
     }
 };
 
-const FrameCounter = struct {
-    last_time: i64,
-    frame_count: f32,
-    fps: f32,
-    frame_time: f32,
-    
-    const Self = @This();
-    
-    pub fn init() Self {
-        return .{
-            .last_time = std.time.milliTimestamp(),
-            .frame_count = 0.0,
-            .frame_time = 0.0,
-            .fps = 0.0,
-        };
-    }
-    
-    pub fn update(self: *Self) void {
-        self.frame_count += 1.0;
-        
-        const current_time = std.time.milliTimestamp();
-        const diff: f32 = @floatFromInt(current_time - self.last_time);
-        const elapsed_secs = diff / 1000.0;
-        
-        if (elapsed_secs > 1.0) {
-            const elapsed_ms = elapsed_secs * 1000.0;
-            self.frame_time = elapsed_ms / self.frame_count;
-            self.fps = self.frame_count / elapsed_secs;
-            
-            self.last_time = current_time;
-            self.frame_count = 0.0;
-        }
-    }
-};

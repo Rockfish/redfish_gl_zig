@@ -70,29 +70,52 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 - [x] Preserve manual camera controls (WASD, mouse, scroll)
 - [x] Enhance existing camera system with better defaults
 
-### Step 4: User Interface Enhancements ✅ COMPLETED
+### Step 4: User Interface Enhancements ✅ COMPLETED (2024-07-01)
 **Goal**: Add informative display and model information
 
-**Tasks**:
-- [x] Create `ui_display.zig` for status system
-- [x] Current model info: "3/15: Box (GLB) - Simple geometry test"
+**Core Features Implemented**:
+- [x] Create `ui_display.zig` with comprehensive overlay system
+- [x] Current model info display: "3/15: Box (GLB) - Simple geometry test"
 - [x] Help system with key binding display ('H' key toggle)
 - [x] Model category information (Simple/Animated/Complex)
 - [x] Performance metrics (FPS, frame time, load time)
 - [x] Format color coding (GLB/glTF visual distinction)
-- [x] Custom font integration (FiraCode, Roboto)
-- [x] Proper window positioning and scaling
-- [ ] Loading status with progress indication (future enhancement)
-- [ ] Camera position and target display (future enhancement)
-- [ ] Model statistics (meshes, vertices, textures, animations) (future enhancement)
+- [x] Custom font integration (FiraCode, Roboto via content_dir)
+- [x] Proper window positioning using actual framebuffer size
+- [x] **Camera information display** (position, target, motion/view/projection types)
+- [x] **Real-time state updates** for all camera settings
+- [x] **Input system improvements** - fire-once behavior for discrete actions
+- [x] **Architecture cleanup** - Camera owns all camera-related state
 
-**Implementation Details**:
-- **Three overlay windows**: Model info (top-left), performance (top-right), help (bottom-left)
-- **Dynamic positioning**: Uses actual framebuffer size for accurate placement from startup
-- **State management**: Integrated with existing input system using `ui_help_visible` flag
-- **Visual design**: Dark theme with transparency, rounded corners, color-coded format indicators
-- **Key controls**: 'H' key toggles help with auto-hide after 10 seconds
-- **Performance tracking**: Real-time FPS and frame time monitoring with FrameCounter
+**UI Layout (4 overlay windows)**:
+- **Model Info** (top-left): Current model, format, category, description
+- **Performance** (top-right): FPS, frame time, load time
+- **Camera Info** (top-right, below performance): Position, target, motion/view/projection types
+- **Help** (bottom-left): Complete control reference, toggle with 'H'
+
+**Key Controls**:
+- **Model Navigation**: N/B (next/previous), F (frame-to-fit), R (reset camera)
+- **Camera Modes**: 1/2 (LookTo/LookAt), 4/5 (Perspective/Orthographic), 6-9 (Motion types)
+- **Animation**: 0 (reset), +/- (next/previous animation)
+- **Display Toggles**: H (help), C (camera info)
+- **Debug**: P (output position), T (time debug)
+
+**Technical Improvements**:
+- **FrameCounter modernization**: Unified `src/core/frame_counter.zig` with external access to FPS/frame_time
+- **Input processing**: All discrete actions use `key_processed` check for proper fire-once behavior
+- **State management**: Removed duplicate fields (`view_type`, `projection_type`) from State
+- **Camera ownership**: Camera now owns `projection_type` with `setPerspective()`/`setOrthographic()` methods
+- **Font loading**: Uses `content_dir` from build_options for portable font paths
+- **Dynamic positioning**: UI windows positioned using real window dimensions, not hardcoded values
+
+**Files Modified/Created**:
+- **NEW**: `examples/demo_app/ui_display.zig` - Complete UI overlay system
+- **UPDATED**: `examples/demo_app/state.zig` - Fire-once input, removed duplicate state
+- **UPDATED**: `examples/demo_app/run_app.zig` - UI integration
+- **UPDATED**: `src/core/frame_counter.zig` - Improved API with external access
+- **UPDATED**: `src/core/camera.zig` - Added projection_type ownership and methods
+- **UPDATED**: `src/core/main.zig` - Exports FrameCounter
+- **UPDATED**: `.gitignore` - Added imgui.ini exclusion
 
 ### Step 5: Error Handling & Polish
 **Goal**: Robust error handling and user experience
@@ -151,49 +174,78 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 - `examples/demo_app/assets_list.zig` - Create curated demo model list
 - `examples/demo_app/render.zig` - Adapt to our asset loader system
 
-### New Files:
-- `examples/demo_app/demo_models.zig` - Curated model metadata and management
-- `examples/demo_app/ui_display.zig` - Status and help display system
-
-## User Controls
+## Current User Controls (2024-07-01)
 
 ### Model Navigation:
-- **'n'** - Next model
-- **'b'** - Back/previous model
-- **'r'** - Reset camera position
-- **'f'** - Frame-to-fit current model
+- **N** - Next model (fire-once)
+- **B** - Previous model (fire-once)
+- **F** - Frame-to-fit current model (fire-once)
+- **R** - Reset camera position (fire-once)
 
-### Camera Controls (existing):
-- **WASD** - Camera movement (multiple motion types)
-- **Arrow keys** - Alternative movement
-- **Mouse scroll** - Zoom in/out
-- **1-2** - Camera mode (LookTo/LookAt)
-- **6-9** - Motion type (Translate/Orbit/Circle/Rotate)
+### Camera Movement:
+- **WASD** - Camera movement (continuous, respects motion type)
+- **Arrow keys** - Alternative movement (continuous)
+- **Mouse scroll** - Zoom in/out (continuous)
+
+### Camera Modes:
+- **1** - LookTo view mode (fire-once)
+- **2** - LookAt view mode (fire-once)
+- **4** - Perspective projection (fire-once)
+- **5** - Orthographic projection (fire-once)
+
+### Motion Types:
+- **6** - Translate motion type (fire-once)
+- **7** - Orbit motion type (fire-once)
+- **8** - Circle motion type (fire-once)
+- **9** - Rotate motion type (fire-once)
 
 ### Animation Controls:
-- **'0'** - Reset animation
-- **'+'** / **'='** - Next animation
-- **'-'** - Previous animation
+- **0** - Reset animation (fire-once)
+- **=** / **+** - Next animation (fire-once)
+- **-** - Previous animation (fire-once)
 
-### Display Controls:
-- **'t'** - Toggle performance display
-- **'h'** - Toggle help display
+### Display Toggles:
+- **H** - Toggle help display (fire-once)
+- **C** - Toggle camera info display (fire-once)
 
-## Success Criteria
+### Debug:
+- **T** - Print timing debug (continuous)
+- **P** - Output camera position (fire-once)
 
-- [x] Demo cycles through 15 curated models smoothly with 'n'/'b' keys
+## Success Criteria ✅ ALL CORE FEATURES COMPLETED
+
+### Core Functionality:
+- [x] Demo cycles through 15 curated models smoothly with N/B keys
 - [x] Both GLB and glTF files load and render identically
 - [x] Camera auto-positions appropriately for each model size
-- [x] UI displays current model info: "5/15: Duck (GLB) - Waterfowl model"
-- [x] Performance metrics display (FPS, frame time)
-- [x] Help system guides users through available controls ('H' key)
-- [x] Format color coding distinguishes GLB from glTF files
 - [x] Error handling gracefully manages missing/corrupted files
 - [x] Performance is acceptable for all curated models
 - [x] Format comparison models demonstrate GLB/glTF parity
-- [x] Professional UI overlay system with proper positioning
-- [ ] Loading status shows progress for large models (future enhancement)
-- [ ] Animation controls work for animated models (Fox, CesiumMan) (Step 6)
+
+### User Interface:
+- [x] **Model Info Display**: "5/15: Duck (GLB) - Waterfowl model" with format color coding
+- [x] **Performance Metrics**: Real-time FPS, frame time, load time display
+- [x] **Camera Information**: Position, target, motion/view/projection types with real-time updates
+- [x] **Help System**: Complete control reference with H key toggle
+- [x] **Professional UI**: 4 overlay windows with proper positioning and dark theme
+
+### Input System:
+- [x] **Fire-once behavior**: All discrete actions (model nav, camera modes, toggles) work correctly
+- [x] **Continuous movement**: WASD, arrows, mouse scroll work smoothly
+- [x] **Real-time feedback**: All UI elements update immediately when settings change
+
+### Architecture:
+- [x] **Clean state management**: Camera owns all camera-related state (no duplication)
+- [x] **Unified FrameCounter**: Core module provides FPS/frame_time access for UI
+- [x] **Portable fonts**: Uses content_dir for consistent font loading
+- [x] **Dynamic positioning**: UI windows position correctly regardless of window size
+
+### Future Enhancements (Step 5+):
+- [ ] Loading progress indication for large models
+- [ ] Animation controls for animated models (Fox, CesiumMan)
+- [ ] Model statistics (vertices, textures, animations)
+- [ ] Audio integration
+- [ ] Scene serialization
 
 ## Testing Strategy
 

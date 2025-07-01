@@ -16,7 +16,7 @@ const Model = core.Model;
 const ModelBuilder = core.ModelBuilder;
 // const animation = core.animation;
 const String = core.string.String;
-const FrameCount = core.FrameCount;
+const FrameCounter = core.FrameCounter;
 
 const Shader = core.Shader;
 
@@ -149,9 +149,7 @@ pub fn run(window: *glfw.Window) !void {
         .scaled_height = scaled_height,
         .window_scale = window_scale,
         .camera = camera,
-        .projection = camera.getProjectionMatrix(.Perspective),
-        .projection_type = .Perspective,
-        .view_type = .LookAt,
+        .projection = camera.getProjectionMatrix(),
         .light_postion = vec3(10.0, 10.0, -30.0),
         .delta_time = 0.0,
         .total_time = 0.0,
@@ -200,7 +198,7 @@ pub fn run(window: *glfw.Window) !void {
 
     // --- event loop
     state.total_time = @floatCast(glfw.getTime());
-    // var frame_counter = FrameCount.new();
+    // var frame_counter = FrameCounter.new();
 
     gl.enable(gl.DEPTH_TEST);
 
