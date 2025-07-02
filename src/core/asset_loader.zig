@@ -148,8 +148,16 @@ pub const GltfAsset = struct {
             }
         }
 
+        // Find the first skin for animation (if any)
+        var skin_index: ?u32 = null;
+        if (self.gltf.skins) |skins| {
+            if (skins.len > 0) {
+                skin_index = 0; // Use the first skin
+            }
+        }
+
         // Create animator
-        const animator = try Animator.init(allocator);
+        const animator = try Animator.init(allocator, self, skin_index);
 
         // Create model
         const model = try Model.init(

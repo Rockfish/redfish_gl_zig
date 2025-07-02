@@ -9,6 +9,7 @@ pub fn build(b: *std.Build) void {
     // Help ZLS understand our project structure
     const build_options = b.addOptions();
     build_options.addOption(bool, "enable_tracy", false);
+    build_options.addOption([]const u8, "content_dir", content_dir);
     
     // b.verbose = true;
 
@@ -84,7 +85,7 @@ pub fn build(b: *std.Build) void {
         // .{ .name = "ray_selection", .exe_name = "ray_selection_example", .source = "examples/ray_selection/main.zig" },
         // .{ .name = "scene_tree", .exe_name = "scene_tree_example", .source = "examples/scene_tree/main.zig" },
         // .{ .name = "game_level_001", .exe_name = "game_level_001", .source = "game_level_001/main.zig" },
-        //.{ .name = "zgltf_port", .exe_name = "zgltf_port", .source = "examples/zgltf_port/main.zig" },
+        .{ .name = "zgltf_port", .exe_name = "zgltf_port", .source = "examples/zgltf_port/main.zig" },
         .{ .name = "demo_app", .exe_name = "demo_app", .source = "examples/demo_app/main.zig" },
         // .{ .name = "chat_gltf", .exe_name = "chat_gltf", .source = "examples/chat_gltf/main.zig" },
     }) |app| {

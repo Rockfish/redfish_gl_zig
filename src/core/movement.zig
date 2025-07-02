@@ -2,6 +2,7 @@ const std = @import("std");
 const math = @import("math");
 
 pub const Vec3 = math.Vec3;
+pub const vec3 = math.vec3;
 pub const Quat = math.Quat;
 
 pub const MovementDirection = enum {
@@ -25,9 +26,13 @@ pub const MovementDirection = enum {
     OrbitRight,
     CircleRight,
     CircleLeft,
+    CircleUp,  // always cross the pole
+    CircleDown,
 };
 
 const world_up = Vec3.init(0.0, 1.0, 0.0);
+const half_pi = math.pi / 2.0;
+
 var buf: [1024]u8 = undefined;
 var buf2: [1024]u8 = undefined;
 var buf3: [1024]u8 = undefined;
@@ -257,6 +262,30 @@ pub const Movement = struct {
             },
             .CircleLeft => {
                 const rot = Quat.fromAxisAngle(&self.world_up, orbit_angle);
+                const translated_position = self.position.sub(&self.target);
+                const rotated_position = rot.rotateVec(&translated_position);
+                self.position = self.target.add(&rotated_position);
+                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.up = rot.rotateVec(&self.up);
+                self.right = self.forward.crossNormalized(&self.up);
+            },
+            .CircleUp => {
+                const rot_90 = Quat.fromAxisAngle(&self.world_up, -half_pi);
+                const forward_zx = vec3(self.forward.x, 0.0, self.forward.z);
+                const target_right = rot_90.rotateVec(&forward_zx);
+                const rot = Quat.fromAxisAngle(&target_right, orbit_angle);
+                const translated_position = self.position.sub(&self.target);
+                const rotated_position = rot.rotateVec(&translated_position);
+                self.position = self.target.add(&rotated_position);
+                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.up = rot.rotateVec(&self.up);
+                self.right = self.forward.crossNormalized(&self.up);
+            },
+            .CircleDown => {
+                const rot_90 = Quat.fromAxisAngle(&self.world_up, -half_pi);
+                const forward_zx = vec3(self.forward.x, 0.0, self.forward.z);
+                const target_right = rot_90.rotateVec(&forward_zx);
+                const rot = Quat.fromAxisAngle(&target_right, orbit_angle);
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
