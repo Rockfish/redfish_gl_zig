@@ -71,7 +71,7 @@ pub const Transform = struct {
         return _point;
     }
 
-    pub fn getMatrix(self: *const Self) Mat4 {
+    pub fn toMatrix(self: *const Self) Mat4 {
         return  Mat4.fromTranslationRotationScale(&self.translation, &self.rotation, &self.scale);
     }
 

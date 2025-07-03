@@ -14,9 +14,11 @@ const gl = zopengl.bindings;
 
 const Model = core.Model;
 const ModelBuilder = core.ModelBuilder;
-// const animation = core.animation;
 const String = core.string.String;
 const FrameCounter = core.FrameCounter;
+const Animator = core.Animator;
+const AnimationClip = core.AnimationClip;
+const AnimationRepeatMode = core.AnimationRepeatMode;
 
 const Shader = core.Shader;
 
@@ -27,10 +29,6 @@ const vec2 = math.vec2;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
-
-// const Animator = animation.Animator;
-// const AnimationClip = animation.AnimationClip;
-// const AnimationRepeat = animation.AnimationRepeatMode;
 
 const Window = glfw.Window;
 
@@ -54,20 +52,32 @@ var buf1: [1024]u8 = undefined;
 var buf2: [1024]u8 = undefined;
 
 // Model loading helper function
-fn loadModel(allocator: std.mem.Allocator, model_info: assets_list.DemoModel) !*Model {
+fn loadModel(allocator: std.mem.Allocator, model_info: assets_list.DemoModel, state: *state_.State) !*Model {
     const path = try std.fs.path.join(allocator, &[_][]const u8{ assets_list.root, model_info.path });
     defer allocator.free(path);
 
     std.debug.print("\nLoading model: {s} ({s}) - {s}\n", .{ model_info.name, model_info.format, model_info.description });
     std.debug.print("Path: {s}\n", .{path});
 
-    // const temp_path = "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/Cube/glTF/Cube.gltf";
-    // std.debug.print("Temp Path: {s}\n", .{temp_path});
-
     var gltf_asset = try asset_loader.GltfAsset.init(allocator, model_info.name, path);
 
     try gltf_asset.load();
-    const model = gltf_asset.buildModel();
+    const model = try gltf_asset.buildModel();
+
+    // Check if model has animations and start the first one
+    if (gltf_asset.gltf.animations) |animations| {
+        if (animations.len > 0) {
+            std.debug.print("Model has {d} animations, playing first animation\n", .{animations.len});
+            try model.animator.playAnimationById(0);
+            state.animation_id = 0;
+        } else {
+            std.debug.print("Model has no animations\n", .{});
+            state.animation_id = -1;
+        }
+    } else {
+        std.debug.print("Model has no animations\n", .{});
+        state.animation_id = -1;
+    }
 
     return model;
 }
@@ -189,7 +199,7 @@ pub fn run(window: *glfw.Window) !void {
     std.debug.print("\n--- Build gltf model ----------------------\n\n", .{});
 
     // Load initial model from demo list
-    var current_model = try loadModel(allocator, state_.getCurrentModel());
+    var current_model = try loadModel(allocator, state_.getCurrentModel(), state);
 
     // Position camera for initial model
     positionCameraForModel(current_model, camera);
@@ -259,7 +269,7 @@ pub fn run(window: *glfw.Window) !void {
         if (state.model_reload_requested) {
             std.debug.print("Reloading model...\n", .{});
             current_model.deinit();
-            current_model = loadModel(allocator, state_.getCurrentModel()) catch |err| {
+            current_model = loadModel(allocator, state_.getCurrentModel(), state) catch |err| {
                 std.debug.panic("Failed to load model: {}\n", .{err});
                 // Keep the old model if loading fails
                 // current_model = try loadModel(allocator, assets_list.demo_models[0]);
@@ -278,6 +288,43 @@ pub fn run(window: *glfw.Window) !void {
             outputPositions(current_model, state.camera);
             state.output_position_requested = false;
         }
+
+        // Handle animation control requests
+        if (state.animation_reset_requested) {
+            if (state.animation_id >= 0) {
+                try current_model.animator.playAnimationById(@intCast(state.animation_id));
+                std.debug.print("Reset animation to {d}\n", .{state.animation_id});
+            }
+            state.animation_reset_requested = false;
+        }
+
+        if (state.animation_next_requested) {
+            if (current_model.gltf_asset.gltf.animations) |animations| {
+                if (animations.len > 0) {
+                    state.animation_id = @mod(state.animation_id + 1, @as(i32, @intCast(animations.len)));
+                    try current_model.animator.playAnimationById(@intCast(state.animation_id));
+                    std.debug.print("Next animation: {d}/{d}\n", .{ state.animation_id + 1, animations.len });
+                }
+            }
+            state.animation_next_requested = false;
+        }
+
+        if (state.animation_prev_requested) {
+            if (current_model.gltf_asset.gltf.animations) |animations| {
+                if (animations.len > 0) {
+                    state.animation_id -= 1;
+                    if (state.animation_id < 0) {
+                        state.animation_id = @as(i32, @intCast(animations.len)) - 1;
+                    }
+                    try current_model.animator.playAnimationById(@intCast(state.animation_id));
+                    std.debug.print("Previous animation: {d}/{d}\n", .{ state.animation_id + 1, animations.len });
+                }
+            }
+            state.animation_prev_requested = false;
+        }
+
+        // Update animation
+        try current_model.animator.updateAnimation(state.delta_time);
 
         // frame_counter.update();
 

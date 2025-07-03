@@ -32,6 +32,13 @@ pub const demo_models = [_]DemoModel{
         .category = "Simple",
         .description = "Cube with texture",
     },
+     .{
+        .path = "Lantern/glTF/Lantern.gltf",
+        .name = "Lantern",
+        .format = "glTF",
+        .category = "Moderate",
+        .description = "Lamp post with lantern",
+    },
 
     // Animated models - character movement testing
     .{

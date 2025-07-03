@@ -64,6 +64,7 @@ pub const MeshPrimitive = struct {
     indices_count: u32,
     vertex_count: u32 = 0,
     index_type: gltf_types.ComponentType = .unsigned_short,
+    has_skin: bool = false,
     vao: c_uint = 0,
     vbo_positions: c_uint = 0,
     vbo_normals: c_uint = 0,
@@ -151,13 +152,18 @@ pub const MeshPrimitive = struct {
 
         if (primitive.attributes.joints_0) |accessor_id| {
             mesh_primitive.vbo_joints = createGlArrayBuffer(gltf_asset, 5, accessor_id);
-            // std.debug.print("has_joints\n", .{});
+            const accessor = gltf_asset.gltf.accessors.?[accessor_id];
+            std.debug.print("has_joints: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
         }
 
         if (primitive.attributes.weights_0) |accessor_id| {
             mesh_primitive.vbo_weights = createGlArrayBuffer(gltf_asset, 6, accessor_id);
-            // std.debug.print("has_weights\n", .{});
+            const accessor = gltf_asset.gltf.accessors.?[accessor_id];
+            std.debug.print("has_weights: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
         }
+
+        // Set has_skin flag if both joints and weights are present
+        mesh_primitive.has_skin = primitive.attributes.joints_0 != null and primitive.attributes.weights_0 != null;
 
         if (primitive.indices) |accessor_id| {
             mesh_primitive.ebo_indices = createGlElementBuffer(gltf_asset, accessor_id);
@@ -239,6 +245,9 @@ pub const MeshPrimitive = struct {
                 // std.debug.print("Using base color: {any}\n", .{color});
             }
         }
+
+        // Set skin detection uniform for shader
+        shader.setBool("hasSkin", self.has_skin);
 
         gl.bindVertexArray(self.vao);
 
@@ -400,14 +409,35 @@ pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: u
         gl.STATIC_DRAW,
     );
     gl.enableVertexAttribArray(gl_index);
-    gl.vertexAttribPointer(
-        gl_index,
-        @intCast(getTypeSize(accessor.type_)),
-        gl.FLOAT,
-        gl.FALSE,
-        @intCast(byte_stride),
-        @ptrFromInt(0),
-    );
+    // Determine the correct OpenGL type based on accessor component type
+    const gl_type: c_uint = switch (accessor.component_type) {
+        .byte => gl.BYTE,
+        .unsigned_byte => gl.UNSIGNED_BYTE,
+        .short => gl.SHORT,
+        .unsigned_short => gl.UNSIGNED_SHORT,
+        .unsigned_int => gl.UNSIGNED_INT,
+        .float => gl.FLOAT,
+    };
+
+    // Use integer attribute pointer for joint indices
+    if (gl_index == 5) { // joints_0 attribute
+        gl.vertexAttribIPointer(
+            gl_index,
+            @intCast(getTypeSize(accessor.type_)),
+            gl_type,
+            @intCast(byte_stride),
+            @ptrFromInt(0),
+        );
+    } else {
+        gl.vertexAttribPointer(
+            gl_index,
+            @intCast(getTypeSize(accessor.type_)),
+            gl_type,
+            gl.FALSE,
+            @intCast(byte_stride),
+            @ptrFromInt(0),
+        );
+    }
     return vbo;
 }
 

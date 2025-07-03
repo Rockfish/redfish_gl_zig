@@ -69,6 +69,9 @@ pub const State = struct {
     output_position_requested: bool = false,
     ui_help_visible: bool = false,
     ui_camera_info_visible: bool = true,
+    animation_reset_requested: bool = false,
+    animation_next_requested: bool = false,
+    animation_prev_requested: bool = false,
 
     const Self = @This();
 };
@@ -189,7 +192,7 @@ pub fn processKeys() void {
                     },
                     .Circle => {
                         // No circle movement for Up key
-                        state.camera.processMovement(.OrbitUp, state.delta_time);
+                        state.camera.processMovement(.CircleUp, state.delta_time);
                     },
                     .Rotate => {
                         state.camera.processMovement(.RotateUp, state.delta_time);
@@ -206,7 +209,7 @@ pub fn processKeys() void {
                     },
                     .Circle => {
                         // No circle movement for Down key
-                        state.camera.processMovement(.OrbitDown, state.delta_time);
+                        state.camera.processMovement(.CircleDown, state.delta_time);
                     },
                     .Rotate => {
                         state.camera.processMovement(.RotateDown, state.delta_time);
@@ -281,20 +284,17 @@ pub fn processKeys() void {
             },
             .zero => {
                 if (!state.input.key_processed.contains(.zero)) {
-                    state.animation_id = 0;
+                    state.animation_reset_requested = true;
                 }
             },
             .equal => {
                 if (!state.input.key_processed.contains(.equal)) {
-                    state.animation_id += 1;
+                    state.animation_next_requested = true;
                 }
             },
             .minus => {
                 if (!state.input.key_processed.contains(.minus)) {
-                    state.animation_id -= 1;
-                    if (state.animation_id < 0) {
-                        state.animation_id = 0;
-                    }
+                    state.animation_prev_requested = true;
                 }
             },
             .six => {

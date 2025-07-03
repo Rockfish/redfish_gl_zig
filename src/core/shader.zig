@@ -167,7 +167,8 @@ pub const Shader = struct {
         const val = gl.getUniformLocation(self.id, uniform);
         self.locations.put(key, val) catch unreachable;
 
-        std.debug.print("Shader saving uniform: {s} location: {d}  value: {any}\n", .{ key, val, value });
+        _ = value;
+        // std.debug.print("Shader saving uniform: {s} location: {d}  value: {any}\n", .{ key, val, value });
         return val;
     }
 

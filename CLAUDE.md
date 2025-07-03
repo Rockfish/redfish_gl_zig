@@ -4,18 +4,19 @@
 
 **redfish_gl_zig** is a 3D graphics engine written in Zig focused on real-time rendering of animated glTF models with physically-based rendering (PBR). The engine supports character animation, texturing, lighting, and camera controls.
 
-### Current Status (2024-07-02)
+### Current Status (2025-07-03)
 - ✅ Core rendering pipeline with OpenGL 4.0
 - ✅ Architecture refactoring completed (commit 6725b17)
 - ✅ Format-agnostic rendering components (Model, Mesh, Animator)
 - ✅ **Native glTF Animation System** - Complete ASSIMP replacement with glTF-native implementation
+- ✅ **Skeletal Animation System** - Fully functional with Fox, Cesium Man, and mixed model support
 - ✅ PBR material support (diffuse, specular, emissive, normals)
 - ✅ Camera controls (WASD movement + mouse look)
 - ✅ Custom math library integration with column-major matrix fixes
 - ✅ **Completed**: Plan 001 - GLB Support (completed 2024-06-26)
-- ✅ **Completed**: Plan 002 - Interactive Demo Application (core features completed 2024-07-02)
-- ✅ **Major Milestone**: glTF Animation System (replaced ASSIMP, maintained API compatibility)
-- 📋 Next: Animation testing with real models and mini-game integration
+- ✅ **Completed**: Plan 002 - Demo Application (fully completed 2025-07-02)
+- ✅ **Major Milestone**: Complete Skeletal Animation Implementation
+- 📋 Next: Mini-game integration and performance optimization
 
 ### Architecture
 
@@ -123,7 +124,7 @@ This applies to scenarios where referencing nested fields directly in function c
 - **Time-based**: Uses seconds instead of ticks for precise timing control
 - **API Preserved**: All existing methods work unchanged (`playClip()`, `playTick()`, `updateAnimation()`)
 - **Keyframe Support**: Linear interpolation for Vec3, spherical interpolation (slerp) for quaternions
-- **Shader Integration**: Maintains `finalBonesMatrices[100]` array format for vertex shaders
+- **Shader Integration**: Uses proper glTF terminology with `jointMatrices[100]` array for vertex shaders
 
 ### Error Handling
 - Use Zig's error unions for fallible operations
@@ -161,18 +162,17 @@ zig build test-movement
 - Memory management needs review in texture cache cleanup
 - Animation blending not yet implemented (future enhancement)
 - Single model rendering only (no scene graph)
-- Inverse bind matrix extraction from glTF accessors (currently using identity matrices)
 
 ### Next Steps
-1. **Complete Animation System Testing**
-   - Test glTF animation system with real animated models (Fox.glb, CesiumMan.glb)
-   - Implement proper inverse bind matrix extraction from glTF accessors
-   - Validate animation playback accuracy and performance
-
-2. **Mini-Game Integration**
+1. **Mini-Game Integration** 
    - Port existing mini-game code to use new glTF animation system
    - Test API compatibility and performance with game-specific animation patterns
    - Verify skeletal animation works correctly with character controllers
+
+2. **Animation System Enhancements**
+   - Implement animation blending and transitions between clips
+   - Add support for morph target animations (weights)
+   - Optimize keyframe lookup with binary search for large animations
 
 3. **Performance Optimization**
    - Optimize keyframe lookup with binary search for large animations
@@ -193,6 +193,51 @@ See `plan/active-plans.md` for detailed project roadmap.
 **Current Focus**: Plan 002 - Demo Application (completed core features, animation system implementation)
 
 ## Recent Changes
+
+### 2025-07-03 - glTF Terminology Standardization ✨
+- **ASSIMP to glTF Naming Transition**: Completed comprehensive naming changes throughout the codebase to use proper glTF terminology
+- **Core System Updates**:
+  - `MAX_BONES` → `MAX_JOINTS` (100 joint limit maintained)
+  - `final_bone_matrices` → `joint_matrices` in Animator
+  - `has_bones` → `has_skin` in MeshPrimitive
+- **Shader Variable Updates**:
+  - `inBoneIds` → `inJointIds` (vertex attribute for joint indices)
+  - `finalBonesMatrices` → `jointMatrices` (uniform array for joint transforms)
+  - `hasBones` → `hasSkin` (uniform flag for skinning detection)
+  - `MAX_BONE_INFLUENCE` → `MAX_JOINT_INFLUENCE` (4 joints per vertex)
+- **Semantic Improvements**:
+  - Animation system now uses semantically correct glTF joint terminology
+  - Eliminates legacy ASSIMP "bone" references for better code clarity
+  - Maintains API compatibility while improving code readability
+- **Files Updated**:
+  - `src/core/animator.zig` - Core joint matrix system with proper terminology
+  - `src/core/model.zig` - Joint matrix upload and shader integration
+  - `src/core/mesh.zig` - Skin detection and vertex attribute setup
+  - `examples/demo_app/shaders/player_shader.vert` - glTF-compliant shader variables
+  - `examples/zgltf_port/shaders/player_shader.vert` - Consistency update
+- **Production Ready**: All naming now aligns with glTF specification for professional development
+
+### 2025-07-02 - Complete Skeletal Animation System ✨
+- **Skeletal Animation Fully Functional**: Successfully completed and tested the glTF skeletal animation system
+- **Model Compatibility**: Fox, Cesium Man, and Lantern models all working correctly
+- **Technical Fixes Applied**:
+  - Fixed bone ID vertex attributes from FLOAT to INT types (`gl.vertexAttribIPointer`)
+  - Corrected MAX_BONES from 4 to 100 to support all joint matrices
+  - Enhanced vertex shader logic for mixed skinned/non-skinned model support
+  - Added proper bounds checking and safety for joint matrix calculations
+  - Implemented real inverse bind matrix loading from glTF accessor data
+- **Animation Features Working**:
+  - Automatic first animation playback on model load
+  - Animation switching with keyboard controls (=, -, 0 keys)
+  - Real-time skeletal animation with proper bone transformations
+  - Mixed model support (skinned + non-skinned in same application)
+  - Proper node hierarchy handling for all model types
+- **Files Updated**: 
+  - `src/core/mesh.zig` - Fixed vertex attribute types and added debug output
+  - `src/core/model.zig` - Fixed MAX_BONES constant and matrix upload
+  - `src/core/animator.zig` - Enhanced joint matrix calculation with bounds checking
+  - `examples/demo_app/shaders/player_shader.vert` - Smart bone detection and fallback logic
+- **Ready for Production**: Animation system fully validated and ready for mini-game integration
 
 ### 2024-07-02 - Major Animation System Milestone ✨
 - **Complete glTF Animation Implementation**: Successfully replaced ASSIMP-based animation system with native glTF implementation
@@ -232,6 +277,7 @@ See `plan/active-plans.md` for detailed project roadmap.
 - **Asset Loading**: Use `GltfAsset` from `src/core/asset_loader.zig` for all model loading
 
 ## Coding Memories
+- **Do not add signatures to commit messages**
 - When adding a large list of items within {} put a comma after that last item so that the zig formatter will fold the line nicely
 - When writing an if else statement always include {}
 - When using a pattern like self.arena.allocator(), I prefer calling it once to set a local variable at the top of the function then using the local variable instead of making multiple function calls. It reduces the clutter and makes the code easier to read.

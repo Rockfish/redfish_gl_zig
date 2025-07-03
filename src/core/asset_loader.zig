@@ -107,7 +107,7 @@ pub const GltfAsset = struct {
         const file_contents = std.fs.cwd().readFileAllocOptions(
             self.arena.allocator(),
             self.filepath,
-            10_512_000,
+            500_000_000,
             null,
             4,
             null,
@@ -153,11 +153,14 @@ pub const GltfAsset = struct {
         if (self.gltf.skins) |skins| {
             if (skins.len > 0) {
                 skin_index = 0; // Use the first skin
+                std.debug.print("Found {d} skins, using skin 0 with {d} joints\n", .{ skins.len, skins[0].joints.len });
             }
+        } else {
+            std.debug.print("No skins found in model\n", .{});
         }
 
         // Create animator
-        const animator = try Animator.init(allocator, self, skin_index);
+        const animator = try Animator.init(self.arena, self, skin_index);
 
         // Create model
         const model = try Model.init(

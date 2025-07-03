@@ -26,8 +26,7 @@ const ArrayList = std.ArrayList;
 // const Animator = animation.Animator;
 // const WeightedAnimation = animation.WeightedAnimation;
 
-const MAX_BONES = 4;
-const MAX_NODES = 200;
+const MAX_JOINTS = 100;
 
 pub const Model = struct {
     arena: *ArenaAllocator,
@@ -73,6 +72,9 @@ pub const Model = struct {
             tex.*.deleteGlTexture();
         }
 
+        // Cleanup animator
+        self.animator.deinit();
+
         // Then free all memory at once
         const parent_allocator = self.arena.child_allocator;
         const arena = self.arena;
@@ -97,12 +99,13 @@ pub const Model = struct {
     // }
 
     pub fn render(self: *Self, shader: *const Shader) void {
-        // var buf: [256:0]u8 = undefined;
-        // for (0..MAX_BONES) |i| {
-        //     const bone_transform = self.animator.final_bone_matrices[i];
-        //     const uniform = std.fmt.bufPrintZ(&buf, "finalBonesMatrices[{d}]", .{i}) catch unreachable;
-        //     shader.set_mat4(uniform, &bone_transform);
-        // }
+        shader.useShader();
+        var buf: [256:0]u8 = undefined;
+        for (0..MAX_JOINTS) |i| {
+            const joint_transform = self.animator.joint_matrices[i];
+            const uniform = std.fmt.bufPrintZ(&buf, "jointMatrices[{d}]", .{i}) catch unreachable;
+            shader.setMat4(uniform, &joint_transform);
+        }
 
         const scene = self.gltf_asset.gltf.scenes.?[self.scene];
 
@@ -124,7 +127,7 @@ pub const Model = struct {
             .rotation = node.rotation orelse math.quat(0.0, 0.0, 0.0, 1.0),
             .scale = node.scale orelse vec3(1.0, 1.0, 1.0),
         };
-        const local_matrix = transform.getMatrix();
+        const local_matrix = transform.toMatrix();
         const global_matrix = parent_transform.mulMat4(&local_matrix);
 
         // Debug output for node transforms (only print once per model load)
@@ -153,12 +156,17 @@ pub const Model = struct {
     pub fn set_shader_bones_for_mesh(self: *Self, shader: *const Shader, mesh: *MeshPrimitive) !void {
         var buf: [256:0]u8 = undefined;
 
-        for (0..MAX_BONES) |i| {
-            const bone_transform = self.animator.final_bone_matrices[i];
-            const uniform = try std.fmt.bufPrintZ(&buf, "finalBonesMatrices[{d}]", .{i});
-            shader.set_mat4(uniform, &bone_transform);
+        for (0..MAX_JOINTS) |i| {
+            const joint_transform = self.animator.joint_matrices[i];
+            const uniform = try std.fmt.bufPrintZ(&buf, "jointMatrices[{d}]", .{i});
+            shader.set_mat4(uniform, &joint_transform);
         }
-        shader.setMat4("nodeTransform", &self.animator.final_node_matrices[@intCast(mesh.id)]);
+        // Use node matrix directly with bounds checking
+        const node_matrix = if (mesh.id < self.animator.node_matrices.len)
+            &self.animator.node_matrices[mesh.id]
+        else
+            &Mat4.identity();
+        shader.setMat4("nodeTransform", node_matrix);
     }
 
     pub fn update_animation(self: *Self, delta_time: f32) !void {
@@ -186,7 +194,7 @@ pub const Model = struct {
             .rotation = node.rotation orelse math.quat(0.0, 0.0, 0.0, 1.0),
             .scale = node.scale orelse vec3(1.0, 1.0, 1.0),
         };
-        const local_matrix = transform.getMatrix();
+        const local_matrix = transform.toMatrix();
         const global_matrix = parent_transform.mulMat4(&local_matrix);
 
         // If this node has a mesh, calculate its bounds
@@ -263,7 +271,7 @@ pub fn debugMatrixMultiplication() void {
         .rotation = math.quat(0.0, 1.0, 0.0, 0.0), // 180° Y rotation
         .scale = vec3(1.0, 1.0, 1.0),
     };
-    const parent_matrix = parent_transform.getMatrix();
+    const parent_matrix = parent_transform.toMatrix();
 
     // Create child transform (translation only)
     const child_transform = Transform{
@@ -271,7 +279,7 @@ pub fn debugMatrixMultiplication() void {
         .rotation = math.quat(0.0, 0.0, 0.0, 1.0), // Identity
         .scale = vec3(1.0, 1.0, 1.0),
     };
-    const child_matrix = child_transform.getMatrix();
+    const child_matrix = child_transform.toMatrix();
 
     // Test multiplication
     const result_matrix = parent_matrix.mulMat4(&child_matrix);
