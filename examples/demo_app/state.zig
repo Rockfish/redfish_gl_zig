@@ -72,6 +72,8 @@ pub const State = struct {
     animation_reset_requested: bool = false,
     animation_next_requested: bool = false,
     animation_prev_requested: bool = false,
+    shader_debug_enabled: bool = false,
+    shader_debug_dump_requested: bool = false,
 
     const Self = @This();
 };
@@ -351,6 +353,17 @@ pub fn processKeys() void {
                 if (!state.input.key_processed.contains(.c)) {
                     state.ui_camera_info_visible = !state.ui_camera_info_visible;
                     std.debug.print("Camera info display: {}\n", .{state.ui_camera_info_visible});
+                }
+            },
+            .g => {
+                if (!state.input.key_processed.contains(.g)) {
+                    state.shader_debug_enabled = !state.shader_debug_enabled;
+                    std.debug.print("Shader debug: {}\n", .{state.shader_debug_enabled});
+                }
+            },
+            .u => {
+                if (!state.input.key_processed.contains(.u)) {
+                    state.shader_debug_dump_requested = true;
                 }
             },
             else => {},

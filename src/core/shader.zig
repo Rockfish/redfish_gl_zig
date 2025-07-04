@@ -27,6 +27,11 @@ pub const Shader = struct {
     geom_file: ?[]const u8,
     locations: *StringHashMap(c_int),
     allocator: Allocator,
+    
+    // Debug uniform collection
+    debug_enabled: bool,
+    debug_arena: std.heap.ArenaAllocator,
+    debug_uniforms: StringHashMap([]const u8),
 
     const Self = @This();
     var current_shader: ?*const Shader = null;
@@ -44,6 +49,11 @@ pub const Shader = struct {
         }
         self.locations.deinit();
         self.allocator.destroy(self.locations);
+        
+        // Clean up debug resources
+        self.debug_uniforms.deinit();
+        self.debug_arena.deinit();
+        
         self.allocator.destroy(self);
     }
 
@@ -138,6 +148,9 @@ pub const Shader = struct {
             .geom_file = geom_file,
             .locations = locations,
             .allocator = allocator,
+            .debug_enabled = false,
+            .debug_arena = std.heap.ArenaAllocator.init(allocator),
+            .debug_uniforms = StringHashMap([]const u8).init(allocator),
         };
 
         return shader;
@@ -159,17 +172,21 @@ pub const Shader = struct {
     pub fn getUniformLocation(self: *const Shader, uniform: [:0]const u8, value: anytype) c_int {
         const result = self.locations.get(uniform);
 
+        // Capture debug value if enabled
+        if (self.debug_enabled) {
+            self.captureDebugUniform(uniform, value);
+        }
+
         if (result != null) {
+            // Capture debug value if enabled
             return result.?;
         }
 
         const key = self.allocator.dupe(u8, uniform) catch unreachable;
-        const val = gl.getUniformLocation(self.id, uniform);
-        self.locations.put(key, val) catch unreachable;
+        const loc = gl.getUniformLocation(self.id, uniform);
+        self.locations.put(key, loc) catch unreachable;
 
-        _ = value;
-        // std.debug.print("Shader saving uniform: {s} location: {d}  value: {any}\n", .{ key, val, value });
-        return val;
+        return loc;
     }
 
     pub fn setBool(self: *const Shader, uniform: [:0]const u8, value: bool) void {
@@ -310,6 +327,82 @@ pub const Shader = struct {
         gl.activeTexture(gl.TEXTURE0 + @as(c_uint, @intCast(texture_unit)));
         gl.bindTexture(gl.TEXTURE_2D, gl_texture_id);
         self.setInt(uniform_name, texture_unit);
+    }
+
+    // Debug uniform collection functions
+    pub fn enableDebug(self: *Self) void {
+        self.debug_enabled = true;
+    }
+
+    pub fn disableDebug(self: *Self) void {
+        self.debug_enabled = false;
+        // Clear arena memory while retaining capacity
+        _ = self.debug_arena.reset(.retain_capacity);
+        self.debug_uniforms.clearAndFree();
+    }
+
+    pub fn clearDebugUniforms(self: *Self) void {
+        if (self.debug_enabled) {
+            _ = self.debug_arena.reset(.retain_capacity);
+            self.debug_uniforms.clearAndFree();
+        }
+    }
+
+    pub fn addDebugValue(self: *Self, key: []const u8, value: []const u8) void {
+        if (self.debug_enabled) {
+            const allocator = self.debug_arena.allocator();
+            const owned_key = allocator.dupe(u8, key) catch return;
+            const owned_value = allocator.dupe(u8, value) catch return;
+            self.debug_uniforms.put(owned_key, owned_value) catch return;
+        }
+    }
+
+    pub fn dumpDebugUniforms(self: *Self, buffer: []u8) ![]u8 {
+        if (!self.debug_enabled) {
+            return std.fmt.bufPrint(buffer, "Debug not enabled\n", .{});
+        }
+
+        var stream = std.io.fixedBufferStream(buffer);
+        var writer = stream.writer();
+        
+        try writer.print("=== Shader Debug Uniforms ===\n", .{});
+        try writer.print("Shader: {s} | {s}\n", .{ self.vert_file, self.frag_file });
+        try writer.print("Total uniforms: {d}\n\n", .{self.debug_uniforms.count()});
+        
+        var iterator = self.debug_uniforms.iterator();
+        while (iterator.next()) |entry| {
+            try writer.print("{s}: {s}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
+        }
+        
+        return stream.getWritten();
+    }
+
+    fn captureDebugUniform(self: *const Shader, uniform: [:0]const u8, value: anytype) void {
+        if (!self.debug_enabled) return;
+        
+        // We need to cast away const to modify the arena and hashmap for debug purposes
+        const mutable_self = @as(*Shader, @ptrFromInt(@intFromPtr(self)));
+        const allocator = mutable_self.debug_arena.allocator();
+        var buf: [256]u8 = undefined;
+        
+        const value_str = switch (@TypeOf(value)) {
+            bool => std.fmt.bufPrint(&buf, "{}", .{value}) catch return,
+            i32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
+            u32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
+            f32 => std.fmt.bufPrint(&buf, "{d:.3}", .{value}) catch return,
+            *const Vec2 => std.fmt.bufPrint(&buf, "Vec2({d:.3}, {d:.3})", .{ value.x, value.y }) catch return,
+            *const Vec3 => std.fmt.bufPrint(&buf, "Vec3({d:.3}, {d:.3}, {d:.3})", .{ value.x, value.y, value.z }) catch return,
+            *const Vec4 => std.fmt.bufPrint(&buf, "Vec4({d:.3}, {d:.3}, {d:.3}, {d:.3})", .{ value.x, value.y, value.z, value.w }) catch return,
+            *const Mat4 => std.fmt.bufPrint(&buf, "Mat4([{d:.2}, {d:.2}, {d:.2}, {d:.2}]...)", .{ value.data[0][0], value.data[0][1], value.data[0][2], value.data[0][3] }) catch return,
+            *const [2]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}]", .{ value[0], value[1] }) catch return,
+            *const [3]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}, {d:.3}]", .{ value[0], value[1], value[2] }) catch return,
+            *const [4]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}, {d:.3}, {d:.3}]", .{ value[0], value[1], value[2], value[3] }) catch return,
+            else => std.fmt.bufPrint(&buf, "{any}", .{value}) catch return,
+        };
+        
+        const owned_key = allocator.dupe(u8, uniform) catch return;
+        const owned_value = allocator.dupe(u8, value_str) catch return;
+        mutable_self.debug_uniforms.put(owned_key, owned_value) catch return;
     }
 };
 

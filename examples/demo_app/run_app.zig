@@ -51,6 +51,9 @@ const AABB = core.AABB;
 var buf1: [1024]u8 = undefined;
 var buf2: [1024]u8 = undefined;
 
+// Shader debug buffers
+var debug_dump_buffer: [4096]u8 = undefined;
+
 // Model loading helper function
 fn loadModel(allocator: std.mem.Allocator, model_info: assets_list.DemoModel, state: *state_.State) !*Model {
     const path = try std.fs.path.join(allocator, &[_][]const u8{ assets_list.root, model_info.path });
@@ -262,6 +265,15 @@ pub fn run(window: *glfw.Window) !void {
 
         state_.processKeys();
         
+        // Handle shader debug state changes
+        if (state.shader_debug_enabled) {
+            shader.enableDebug();
+            // Clear debug uniforms each frame when enabled
+            shader.clearDebugUniforms();
+        } else {
+            shader.disableDebug();
+        }
+        
         // Update UI system
         ui_state.update(window);
 
@@ -361,6 +373,22 @@ pub fn run(window: *glfw.Window) !void {
         shader.setFloat("lightIntensity", 1500.0);
 
         shader.setVec3("viewPosition", &state.camera.movement.position);
+
+        // Add custom debug values when debug is enabled
+        if (state.shader_debug_enabled) {
+            var buf_temp: [64]u8 = undefined;
+            shader.addDebugValue("camera_position", std.fmt.bufPrint(&buf_temp, "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.position.x, state.camera.movement.position.y, state.camera.movement.position.z }) catch "error");
+            shader.addDebugValue("camera_target", std.fmt.bufPrint(buf1[0..64], "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.target.x, state.camera.movement.target.y, state.camera.movement.target.z }) catch "error");
+            shader.addDebugValue("light_position", std.fmt.bufPrint(buf2[0..64], "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.light_postion.x, state.light_postion.y, state.light_postion.z }) catch "error");
+            shader.addDebugValue("frame_time", std.fmt.bufPrint(&buf_temp, "{d:.6}s", .{state.delta_time}) catch "error");
+        }
+
+        // Handle debug dump request
+        if (state.shader_debug_dump_requested) {
+            const dump_result = shader.dumpDebugUniforms(&debug_dump_buffer) catch "Failed to dump uniforms";
+            std.debug.print("\n{s}\n", .{dump_result});
+            state.shader_debug_dump_requested = false;
+        }
 
         // shader.set_mat4("aimRot", &identity);
         // lightSpaceMatrix is a view * ortho projection matrix for shadows

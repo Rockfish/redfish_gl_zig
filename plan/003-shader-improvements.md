@@ -16,7 +16,20 @@ Implement basic PBR (Physically Based Rendering) shaders to make models look rea
 - [x] Stable model loading for both GLTF and GLB formats
 - [x] Demo application working with basic shaders
 
-## Phase 1: Core PBR Implementation
+## Phase 1: Shader Debugging Infrastructure
+
+### Uniform Value Debugging System
+- [ ] Create shader uniform hashmap for capturing values during frame
+- [ ] Add enable/disable functions for uniform value collection
+- [ ] Implement clear function to reset collected values
+- [ ] Add custom key-value insertion function for additional debug info (camera pos, light pos, etc.)
+- [ ] Add dump/asString function for formatted output (console or file)
+- [ ] Integrate collection system into render loop with commands
+- [ ] Add framebuffer rendering for scene snapshots
+- [ ] Create timestamped bitmap and text file output system
+- [ ] Test debugging system with current shaders
+
+## Phase 2: Core PBR Implementation
 
 ### PBR BRDF Foundation
 - [ ] Implement basic PBR BRDF (Cook-Torrance model)
@@ -36,7 +49,7 @@ Implement basic PBR (Physically Based Rendering) shaders to make models look rea
 - [ ] Create proper gamma correction
 - [ ] Ensure linear color space workflow
 
-## Phase 2: Material Quality
+## Phase 3: Material Quality
 
 ### Material Features
 - [ ] Support vertex colors
