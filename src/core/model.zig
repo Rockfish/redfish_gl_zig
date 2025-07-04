@@ -244,6 +244,35 @@ pub const Model = struct {
             }
         }
     }
+
+    pub fn getVertexCount(self: *Self) u32 {
+        var total_vertices: u32 = 0;
+        for (self.meshes.items) |mesh| {
+            for (mesh.primitives.items) |primitive| {
+                total_vertices += primitive.vertex_count;
+            }
+        }
+        return total_vertices;
+    }
+
+    pub fn getTextureCount(self: *Self) u32 {
+        return @intCast(self.gltf_asset.loaded_textures.count());
+    }
+
+    pub fn getAnimationCount(self: *Self) u32 {
+        if (self.gltf_asset.gltf.animations) |animations| {
+            return @intCast(animations.len);
+        }
+        return 0;
+    }
+
+    pub fn getMeshPrimitiveCount(self: *Self) u32 {
+        var total_primitives: u32 = 0;
+        for (self.meshes.items) |mesh| {
+            total_primitives += @intCast(mesh.primitives.items.len);
+        }
+        return total_primitives;
+    }
 };
 
 // Debug functions for model analysis

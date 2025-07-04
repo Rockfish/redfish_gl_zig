@@ -370,7 +370,7 @@ pub fn run(window: *glfw.Window) !void {
         current_model.render(shader);
 
         // Render UI overlay
-        ui_state.render();
+        ui_state.render(current_model);
 
         //try core.dumpModelNodes(model);
         window.swapBuffers();

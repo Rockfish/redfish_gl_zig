@@ -1,8 +1,8 @@
 # Plan 003: Basic PBR Shaders
 
-**Status**: 📋 Planned  
-**Priority**: Medium  
-**Started**: TBD  
+**Status**: 🔄 Active  
+**Priority**: High  
+**Started**: 2025-07-04  
 **Target**: 1-2 weeks  
 
 ## Overview
@@ -12,9 +12,9 @@ Implement basic PBR (Physically Based Rendering) shaders to make models look rea
 ## Prerequisites
 
 - [x] Plan 001 (GLB Support) completed
-- [ ] Plan 002 (Demo Application) completed
-- [ ] Stable model loading for both GLTF and GLB formats
-- [ ] Demo application working with basic shaders
+- [x] Plan 002 (Demo Application) completed
+- [x] Stable model loading for both GLTF and GLB formats
+- [x] Demo application working with basic shaders
 
 ## Phase 1: Core PBR Implementation
 

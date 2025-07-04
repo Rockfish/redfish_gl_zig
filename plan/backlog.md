@@ -1,4 +1,4 @@
-# Development Backlog
+ter# Development Backlog
 
 This file tracks future features organized by development layers. Features are grouped into logical clusters that build upon the foundational layer (Plans 001-004).
 
@@ -91,6 +91,11 @@ This file tracks future features organized by development layers. Features are g
   - Audio streaming
   - Music and sound effect management
   - Audio event integration with animations
+
+- [ ] **Loading Progress System**
+  - Progress indication for large models
+  - Loading state management
+  - User feedback during load operations
 
 - [ ] **Physics Integration**
   - Physics engine integration (Bullet, etc.)

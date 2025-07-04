@@ -114,9 +114,9 @@ pub const UIState = struct {
         );
     }
 
-    pub fn render(self: *Self) void {
+    pub fn render(self: *Self, current_model: ?*core.Model) void {
         if (self.show_model_info) {
-            self.renderModelInfo();
+            self.renderModelInfo(current_model);
         }
 
         if (self.show_performance) {
@@ -135,7 +135,7 @@ pub const UIState = struct {
         zgui.backend.draw();
     }
 
-    fn renderModelInfo(self: *Self) void {
+    fn renderModelInfo(self: *Self, model: ?*core.Model) void {
         const current_model = state.getCurrentModel();
         const total_models = assets_list.demo_models.len;
         const current_index = state.state.current_model_index;
@@ -172,8 +172,24 @@ pub const UIState = struct {
             zgui.textColored(.{ 0.8, 0.8, 0.8, 1.0 }, " - {s}", .{current_model.category});
 
             // Description
-            //zgui.textWrapped("{s}", .{current_model.description});
             zgui.text("{s}", .{current_model.description});
+
+            // Model statistics
+            if (model) |runtime_model| {
+                zgui.separator();
+                
+                // Get statistics from the runtime model
+                const vertex_count = runtime_model.getVertexCount();
+                const texture_count = runtime_model.getTextureCount();
+                const animation_count = runtime_model.getAnimationCount();
+                const primitive_count = runtime_model.getMeshPrimitiveCount();
+                
+                zgui.textColored(.{ 0.9, 0.7, 0.3, 1.0 }, "Statistics:", .{});
+                zgui.text("  Vertices: {d}", .{vertex_count});
+                zgui.text("  Primitives: {d}", .{primitive_count});
+                zgui.text("  Textures: {d}", .{texture_count});
+                zgui.text("  Animations: {d}", .{animation_count});
+            }
 
             if (self.font_mono) |_| {
                 zgui.popFont();
