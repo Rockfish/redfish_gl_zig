@@ -380,20 +380,21 @@ pub const Shader = struct {
     fn captureDebugUniform(self: *const Shader, uniform: [:0]const u8, value: anytype) void {
         if (!self.debug_enabled) return;
         
-        // We need to cast away const to modify the arena and hashmap for debug purposes
-        const mutable_self = @as(*Shader, @ptrFromInt(@intFromPtr(self)));
+        // Use @constCast to modify the arena and hashmap for debug purposes
+        const mutable_self = @constCast(self);
         const allocator = mutable_self.debug_arena.allocator();
-        var buf: [256]u8 = undefined;
+        var buf: [512]u8 = undefined;
         
         const value_str = switch (@TypeOf(value)) {
             bool => std.fmt.bufPrint(&buf, "{}", .{value}) catch return,
             i32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
             u32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
             f32 => std.fmt.bufPrint(&buf, "{d:.3}", .{value}) catch return,
-            *const Vec2 => std.fmt.bufPrint(&buf, "Vec2({d:.3}, {d:.3})", .{ value.x, value.y }) catch return,
-            *const Vec3 => std.fmt.bufPrint(&buf, "Vec3({d:.3}, {d:.3}, {d:.3})", .{ value.x, value.y, value.z }) catch return,
-            *const Vec4 => std.fmt.bufPrint(&buf, "Vec4({d:.3}, {d:.3}, {d:.3}, {d:.3})", .{ value.x, value.y, value.z, value.w }) catch return,
-            *const Mat4 => std.fmt.bufPrint(&buf, "Mat4([{d:.2}, {d:.2}, {d:.2}, {d:.2}]...)", .{ value.data[0][0], value.data[0][1], value.data[0][2], value.data[0][3] }) catch return,
+            *const Vec2 => value.asString(&buf),
+            *const Vec3 => value.asString(&buf),
+            *const Vec4 => value.asString(&buf),
+            *const Mat3 => value.asString(&buf),
+            *const Mat4 => value.asString(&buf),
             *const [2]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}]", .{ value[0], value[1] }) catch return,
             *const [3]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}, {d:.3}]", .{ value[0], value[1], value[2] }) catch return,
             *const [4]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}, {d:.3}, {d:.3}]", .{ value[0], value[1], value[2], value[3] }) catch return,

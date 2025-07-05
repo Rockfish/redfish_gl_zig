@@ -10,6 +10,16 @@ pub fn mat4(x_axis: Vec4, y_axis: Vec4, z_axis: Vec4, w_axis: Vec4) Mat4 {
     return Mat4.fromColumns(x_axis, y_axis, z_axis, w_axis);
 }
 
+/// 4x4 matrix with column-major storage and operations.
+///
+/// The data is stored as data[column][row], where:
+/// - data[0] = first column (x-axis for transforms)
+/// - data[1] = second column (y-axis for transforms)
+/// - data[2] = third column (z-axis for transforms)
+/// - data[3] = fourth column (translation for transforms)
+///
+/// This follows OpenGL and CGLM conventions for matrix storage and multiplication.
+/// Matrix-vector multiplication assumes column vectors: result = matrix * vector.
 pub const Mat4 = extern struct {
     data: [4][4]f32,
 
@@ -409,40 +419,6 @@ pub const Mat4 = extern struct {
         } };
     }
 
-    pub const TrnRotScl = struct {
-        translation: Vec3,
-        rotation: Quat,
-        scale: Vec3,
-    };
-
-    pub fn getTranslationRotationScale(self: *const Self) TrnRotScl {
-        // Extract translation (last column)
-        const translation = Vec3.init(self.data[3][0], self.data[3][1], self.data[3][2]);
-
-        // Extract scale (length of first three columns)
-        const scale_x = std.math.sqrt(self.data[0][0] * self.data[0][0] + self.data[1][0] * self.data[1][0] + self.data[2][0] * self.data[2][0]);
-        const scale_y = std.math.sqrt(self.data[0][1] * self.data[0][1] + self.data[1][1] * self.data[1][1] + self.data[2][1] * self.data[2][1]);
-        const scale_z = std.math.sqrt(self.data[0][2] * self.data[0][2] + self.data[1][2] * self.data[1][2] + self.data[2][2] * self.data[2][2]);
-        const extracted_scale = Vec3.init(scale_x, scale_y, scale_z);
-
-        // Remove scale to get pure rotation matrix
-        const rotation_matrix = Mat4{ .data = .{
-            .{ self.data[0][0] / scale_x, self.data[0][1] / scale_y, self.data[0][2] / scale_z, 0.0 },
-            .{ self.data[1][0] / scale_x, self.data[1][1] / scale_y, self.data[1][2] / scale_z, 0.0 },
-            .{ self.data[2][0] / scale_x, self.data[2][1] / scale_y, self.data[2][2] / scale_z, 0.0 },
-            .{ 0.0, 0.0, 0.0, 1.0 },
-        } };
-
-        // Convert rotation matrix to quaternion
-        const rotation = rotation_matrix.toQuat();
-
-        return TrnRotScl{
-            .translation = translation,
-            .rotation = rotation,
-            .scale = extracted_scale,
-        };
-    }
-
     pub fn fromTranslationRotationScale(tran: *const Vec3, rota: *const Quat, scal: *const Vec3) Mat4 {
         const axis = Quat.toAxes(rota);
 
@@ -457,40 +433,16 @@ pub const Mat4 = extern struct {
         return mat;
     }
 
-    // pub fn to_scale_rotation_translation(&self) (Vec3, Quat, Vec3) {
-    //         const det = self.determinant();
-    //         glam_assert!(det != 0.0);
-    //
-    //         const scale = Vec3.new(
-    //             self.x_axis.length() * math.signum(det),
-    //             self.y_axis.length(),
-    //             self.z_axis.length(),
-    //         );
-    //
-    //         glam_assert!(scale.cmpne(Vec3.ZERO).all());
-    //
-    //         const inv_scale = scale.recip();
-    //
-    //         const rotation = Quat.from_rotation_axes(
-    //             self.x_axis.mul(inv_scale.x).xyz(),
-    //             self.y_axis.mul(inv_scale.y).xyz(),
-    //             self.z_axis.mul(inv_scale.z).xyz(),
-    //         );
-    //
-    //         const translation = self.w_axis.xyz();
-    //
-    //         (scale, rotation, translation)
-    //     }
-
-    // pub fn lookToRh(eyepos: Vec4, eyedir: Vec4, updir: Vec4) Mat4 {
-    //     return lookToLh(eyepos, -eyedir, updir);
-    // }
-    //
-    // pub fn lookAtLh(eyepos: Vec4, focuspos: Vec4, updir: Vec4) Mat4 {
-    //     return lookToLh(eyepos, focuspos - eyepos, updir);
-    // }
-    //
-    // pub fn lookAtRh(eyepos: Vec4, focuspos: Vec4, updir: Vec4) Mat4 {
-    //     return lookToLh(eyepos, eyepos - focuspos, updir);
-    // }
+    pub fn asString(self: *const Self, buf: []u8) []u8 {
+        return std.fmt.bufPrint(
+            buf,
+            "Mat4{{\n  [{d:.3}, {d:.3}, {d:.3}, {d:.3}]\n  [{d:.3}, {d:.3}, {d:.3}, {d:.3}]\n  [{d:.3}, {d:.3}, {d:.3}, {d:.3}]\n  [{d:.3}, {d:.3}, {d:.3}, {d:.3}]\n}}",
+            .{
+                self.data[0][0], self.data[0][1], self.data[0][2], self.data[0][3],
+                self.data[1][0], self.data[1][1], self.data[1][2], self.data[1][3],
+                self.data[2][0], self.data[2][1], self.data[2][2], self.data[2][3],
+                self.data[3][0], self.data[3][1], self.data[3][2], self.data[3][3],
+            },
+        ) catch |err| std.debug.panic("{any}", .{err});
+    }
 };
