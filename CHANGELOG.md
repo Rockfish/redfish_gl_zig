@@ -2,6 +2,41 @@
 
 ## Recent Changes
 
+### 2025-07-05 - Code Organization and glTF Development Tools ✨
+- **Transform Refactoring**: Moved `toTranslationRotationScale` function from Mat4 to Transform module
+  - Eliminated unnecessary `TrnRotScl` temporary struct
+  - Added `Transform.extractTransformFromMatrix()` as private function
+  - Updated `Transform.fromMatrix()` to use new internal implementation
+  - Cleaned up Mat4 by removing domain-specific logic
+- **Matrix Documentation Enhancement**: Added comprehensive column-major documentation to Mat4 struct
+  - Documented data storage as `data[column][row]` with clear indexing
+  - Explained column meanings for transform matrices
+  - Added OpenGL/CGLM compatibility notes
+- **Git Commit Template Improvement**: Enhanced `.claude/commands/git-commit.md` with clear structure guidelines
+  - Added format specifications (72 character limit, imperative mood)
+  - Included concrete examples and best practices
+  - Structured format with concise description followed by bullet points
+- **glTF Development Tools**: Created comprehensive glTF inspection and reporting system
+  - **New Module**: `src/core/gltf/report.zig` - Modern glTF inspection tool
+  - **Three Output Methods**: Console printing, string generation, file writing
+  - **Comprehensive Analysis**: Scenes, meshes, accessors, animations, materials, textures
+  - **Core Integration**: Available as `@import("core").gltf_report`
+  - **Test Program**: `examples/demo_app/test_report.zig` demonstrates usage
+  - **Documentation**: `src/core/gltf/README.md` with usage examples
+- **Legacy Code Cleanup**: Removed `examples/zgltf_port` directory after preserving functionality
+  - Modernized legacy `gltf_report.zig` to use native glTF implementation
+  - Replaced zgltf dependency with core glTF system
+  - Maintained all inspection capabilities while improving architecture
+- **Files Modified**:
+  - `src/core/transform.zig` - Added matrix decomposition function
+  - `src/math/mat4.zig` - Removed temp struct, added documentation
+  - `src/core/gltf/report.zig` - NEW comprehensive glTF analysis tool
+  - `src/core/main.zig` - Added gltf_report export
+  - `examples/demo_app/test_report.zig` - NEW test program
+  - `.claude/commands/git-commit.md` - Enhanced template
+  - **REMOVED**: `examples/zgltf_port/` directory (functionality preserved)
+- **Code Quality**: All changes formatted with `zig fmt` and verified for compilation
+
 ### 2025-07-04 - Enhanced Model Statistics Display ✅
 - **Model Statistics UI Enhancement**: Extended the demo application's model info display with comprehensive runtime statistics
 - **New Statistics Added**:

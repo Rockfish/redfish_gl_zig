@@ -4,7 +4,7 @@
 
 **redfish_gl_zig** is a 3D graphics engine written in Zig focused on real-time rendering of animated glTF models with physically-based rendering (PBR). The engine supports character animation, texturing, lighting, and camera controls.
 
-### Current Status (2025-07-04)
+### Current Status (2025-07-05)
 - ✅ Core rendering pipeline with OpenGL 4.0
 - ✅ Architecture refactoring completed (commit 6725b17)
 - ✅ Format-agnostic rendering components (Model, Mesh, Animator)
@@ -17,6 +17,7 @@
 - ✅ **Completed**: Plan 002 - Demo Application (fully completed 2025-07-04)
 - ✅ **Major Milestone**: Complete Skeletal Animation Implementation
 - ✅ **Enhanced UI**: Model statistics display with comprehensive runtime metrics
+- ✅ **glTF Development Tools**: Comprehensive glTF inspection and reporting system
 - 📋 Next: Mini-game integration and performance optimization
 
 ### Architecture
@@ -30,8 +31,7 @@ src/
 └── math/          # Custom math library (Vec2/3/4, Mat4, etc.)
 
 examples/
-└── zgltf_port/    # demo application using third party zgltf
-└── demo_app/      # new demo application using core/gltf
+└── demo_app/      # main demo application using core/gltf
 
 libs/              # Third-party dependencies
 ├── zglfw/         # GLFW windowing
@@ -58,10 +58,18 @@ libs/              # Third-party dependencies
 - **API Compatibility**: Maintains all existing interfaces for seamless mini-game integration
 
 #### Math Library (`src/math/`)
-- Custom Zig implementations which used to have CGLM integration
+- Custom Zig implementations with column-major matrix conventions
 - Types: `Vec2`, `Vec3`, `Vec4`, `Mat4`, `Quat`
 - Functions: Transformations, projections, ray casting
+- **Column-major storage**: Compatible with OpenGL and CGLM conventions
+- **Matrix documentation**: Clear data layout and indexing conventions
 - If there is missing needed functionality, propose adding it
+
+#### glTF Development Tools (`src/core/gltf/`)
+- **Report System**: Comprehensive glTF inspection and analysis
+- **Usage**: Console output, string generation, file export
+- **Analysis**: Scenes, meshes, accessors, animations, materials, textures
+- **Integration**: Available as `@import("core").gltf_report`
 
 ## Coding Style Guidelines
 
@@ -199,10 +207,10 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 
 ### Development Notes
 - **Active demo**: `examples/demo_app/main.zig` (build target: `demo_app`)
-- **Legacy demo**: `examples/zgltf_port/main.zig` (commented out in build.zig)
 - **Shaders**: Located in `examples/demo_app/shaders/`
 - **Math Library**: Pure Zig implementation in `src/math/` - add missing functions here
 - **Asset Loading**: Use `GltfAsset` from `src/core/asset_loader.zig` for all model loading
+- **glTF Analysis**: Use `core.gltf_report.GltfReport` for model inspection and debugging
 
 ## Coding Memories
 - **Do not add signatures to commit messages**
@@ -212,3 +220,5 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 - **Animation System Architecture**: When replacing complex legacy systems (like ASSIMP), maintain API compatibility by keeping the same public interfaces while completely rewriting the internal implementation. This allows existing code to work unchanged while modernizing the underlying technology.
 - **Type Import Patterns**: Always import types at the top of files rather than using inline `@import()` in function parameters. This improves readability and makes dependencies explicit.
 - **Wrapper Struct Avoidance**: Avoid unnecessary wrapper structs that just hold references to other data. Direct references are cleaner and reduce cognitive overhead (e.g., `gltf_asset: *const GltfAsset` vs `gltf_asset_ref: GltfAssetRef`).
+- **Code Organization**: When refactoring, prefer moving functionality to appropriate modules over creating new structures. Extract functions cleanly from domain-specific modules to general-purpose ones.
+- **Documentation Standards**: Add comprehensive struct documentation when dealing with complex conventions (e.g., matrix storage formats, coordinate systems).
