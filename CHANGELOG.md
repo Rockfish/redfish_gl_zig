@@ -2,6 +2,46 @@
 
 ## Recent Changes
 
+### 2025-07-06 - Professional Development Workflow Tools 🚀
+- **Just Recipe System**: Created comprehensive `justfile` with 25+ development commands
+  - `just dev` - Auto-rebuild and run with file watching
+  - `just pbr-dev` - Specialized shader development workflow for Plan 003
+  - `just test` - Run all test suites
+  - `just stats` - Project statistics with tokei integration
+  - `just bench-build` - Build performance benchmarking with hyperfine
+  - `just validate-shaders` - GLSL shader validation pipeline
+  - `just doctor` - Development environment verification
+- **Watchexec Integration**: Created specialized file watchers for different development modes
+  - `scripts/watch-dev.sh` - General development with auto-rebuild/run
+  - `scripts/watch-shaders.sh` - Shader development with GLSL validation
+  - `scripts/watch-build.sh` - Build-only watcher for fast compilation feedback
+- **Development Documentation**: Created comprehensive `DEVELOPMENT.md` workflow guide
+  - Quick start commands and common workflows
+  - Plan 003 shader development patterns
+  - Performance analysis and debugging tools
+  - Complete demo app controls reference
+- **Tool Recommendations**: Identified and documented essential development tools
+  - `glslang` for shader validation (critical for Plan 003)
+  - `hyperfine` for performance benchmarking
+  - `tokei` for code statistics
+  - `watchexec` for file watching
+  - `just` for command recipes
+- **Build System Integration**: Enhanced development infrastructure
+  - Updated `.gitignore` for tool artifacts
+  - Integrated workflow documentation into project structure
+  - Added environment validation and setup verification
+- **Files Added**:
+  - `justfile` - Comprehensive command recipe system
+  - `DEVELOPMENT.md` - Complete workflow documentation
+  - `scripts/watch-dev.sh` - General development watcher
+  - `scripts/watch-shaders.sh` - Shader development watcher
+  - `scripts/watch-build.sh` - Build-only watcher
+- **Development Experience**: Transformed from manual commands to professional automated workflow
+  - Fast iteration cycles for shader development (Plan 003 ready)
+  - Immediate feedback on compilation errors
+  - Automated testing and quality assurance
+  - Performance monitoring and analysis tools
+
 ### 2025-07-05 - Code Organization and glTF Development Tools ✨
 - **Transform Refactoring**: Moved `toTranslationRotationScale` function from Mat4 to Transform module
   - Eliminated unnecessary `TrnRotScl` temporary struct

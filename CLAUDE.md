@@ -4,7 +4,7 @@
 
 **redfish_gl_zig** is a 3D graphics engine written in Zig focused on real-time rendering of animated glTF models with physically-based rendering (PBR). The engine supports character animation, texturing, lighting, and camera controls.
 
-### Current Status (2025-07-05)
+### Current Status (2025-07-06)
 - ✅ Core rendering pipeline with OpenGL 4.0
 - ✅ Architecture refactoring completed (commit 6725b17)
 - ✅ Format-agnostic rendering components (Model, Mesh, Animator)
@@ -18,7 +18,8 @@
 - ✅ **Major Milestone**: Complete Skeletal Animation Implementation
 - ✅ **Enhanced UI**: Model statistics display with comprehensive runtime metrics
 - ✅ **glTF Development Tools**: Comprehensive glTF inspection and reporting system
-- 📋 Next: Mini-game integration and performance optimization
+- ✅ **Professional Development Workflow**: Automated build, test, and shader validation tools
+- 📋 Next: Plan 003 - Basic PBR Shaders with enhanced development tools
 
 ### Architecture
 
@@ -116,7 +117,7 @@ This applies to scenarios where referencing nested fields directly in function c
 ## Project-Specific Guidelines
 
 ### Commit Guidelines
-- Do not add a signature at the end of commit messages
+- NEVER add a signature at the end of commit messages
 
 ### Math Operations
 - Use the math types and functions under `src/math/` when possible
@@ -143,6 +144,26 @@ This applies to scenarios where referencing nested fields directly in function c
 ## Build & Development
 
 ### Building
+
+#### Recommended Workflow (using just)
+```bash
+# Development with auto-rebuild
+just dev
+
+# Shader development (Plan 003)
+just pbr-dev
+
+# Quick build and run
+just run
+
+# Run all tests
+just test
+
+# Check compilation
+just check
+```
+
+#### Direct Zig Commands
 ```bash
 # Build main example
 zig build demo_app
@@ -155,6 +176,21 @@ zig build check
 
 # Run tests
 zig build test-movement
+```
+
+#### Development Tools
+```bash
+# Project statistics
+just stats
+
+# Performance benchmarks
+just bench-build
+
+# Validate shaders
+just validate-shaders
+
+# Environment check
+just doctor
 ```
 
 ### Dependencies
@@ -199,7 +235,7 @@ zig build test-movement
 
 See `plan/active-plans.md` for detailed project roadmap.
 
-**Current Focus**: Plan 002 - Demo Application (completed core features, animation system implementation)
+**Current Focus**: Plan 003 - Shader Improvements (Basic PBR rendering and materials)
 
 ## Recent Changes
 
@@ -211,9 +247,12 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 - **Math Library**: Pure Zig implementation in `src/math/` - add missing functions here
 - **Asset Loading**: Use `GltfAsset` from `src/core/asset_loader.zig` for all model loading
 - **glTF Analysis**: Use `core.gltf_report.GltfReport` for model inspection and debugging
+- **Development Workflow**: Use `just dev` for auto-rebuild, `just pbr-dev` for shader work
+- **Complete Guide**: See `DEVELOPMENT.md` for comprehensive workflow documentation
+- **Watch Scripts**: Use `./scripts/watch-*.sh` for specialized development modes
 
 ## Coding Memories
-- **Do not add signatures to commit messages**
+- **NEVER add signatures to commit messages**
 - When adding a large list of items within {} put a comma after that last item so that the zig formatter will fold the line nicely
 - When writing an if else statement always include {}
 - When using a pattern like self.arena.allocator(), I prefer calling it once to set a local variable at the top of the function then using the local variable instead of making multiple function calls. It reduces the clutter and makes the code easier to read.

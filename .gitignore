@@ -14,8 +14,17 @@ zig-out
 *.tmp
 backup
 error_log.txt
-temp
+temp/
 
 # ImGui state files
 imgui.ini
+
+# Development tools output
+gltf_report.txt
+callgrind.out.*
+perf.data*
+flamegraph.svg
+
+# Hyperfine benchmark results
+benchmark_results.json
 

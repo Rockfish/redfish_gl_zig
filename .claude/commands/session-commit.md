@@ -5,7 +5,7 @@ Commit staged files with a clear, structured commit message following this forma
 - Follow with bullet points listing specific changes
 - Use imperative mood throughout (e.g., "Add feature" not "Added feature")
 - Focus on what and why, not how
-- No signature or author attribution (Git handles this automatically)
+- NEVER add a signature or author attribution (Git handles this automatically)
 
 **Example format:**
 ```
