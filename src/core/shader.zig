@@ -27,7 +27,7 @@ pub const Shader = struct {
     geom_file: ?[]const u8,
     locations: *StringHashMap(c_int),
     allocator: Allocator,
-    
+
     // Debug uniform collection
     debug_enabled: bool,
     debug_arena: std.heap.ArenaAllocator,
@@ -49,11 +49,11 @@ pub const Shader = struct {
         }
         self.locations.deinit();
         self.allocator.destroy(self.locations);
-        
+
         // Clean up debug resources
         self.debug_uniforms.deinit();
         self.debug_arena.deinit();
-        
+
         self.allocator.destroy(self);
     }
 
@@ -61,7 +61,12 @@ pub const Shader = struct {
         return initWithGeom(allocator, vert_file_path, frag_file_path, null);
     }
 
-    pub fn initWithGeom(allocator: Allocator, vert_file_path: []const u8, frag_file_path: []const u8, optional_geom_file: ?[]const u8,) !*Shader {
+    pub fn initWithGeom(
+        allocator: Allocator,
+        vert_file_path: []const u8,
+        frag_file_path: []const u8,
+        optional_geom_file: ?[]const u8,
+    ) !*Shader {
         const vert_file = std.fs.cwd().openFile(vert_file_path, .{}) catch |err| {
             std.debug.panic("Shader error: {any} file: {s}", .{ err, vert_file_path });
         };
@@ -364,27 +369,87 @@ pub const Shader = struct {
 
         var stream = std.io.fixedBufferStream(buffer);
         var writer = stream.writer();
-        
+
         try writer.print("=== Shader Debug Uniforms ===\n", .{});
         try writer.print("Shader: {s} | {s}\n", .{ self.vert_file, self.frag_file });
         try writer.print("Total uniforms: {d}\n\n", .{self.debug_uniforms.count()});
-        
+
         var iterator = self.debug_uniforms.iterator();
         while (iterator.next()) |entry| {
             try writer.print("{s}: {s}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
         }
-        
+
         return stream.getWritten();
+    }
+
+    pub fn dumpDebugUniformsJSON(self: *Self, buffer: []u8) ![]u8 {
+        if (!self.debug_enabled) {
+            return std.fmt.bufPrint(buffer, "{{\"error\": \"Debug not enabled\"}}\n", .{});
+        }
+
+        var stream = std.io.fixedBufferStream(buffer);
+        var writer = stream.writer();
+
+        // Get current timestamp
+        const timestamp = std.time.timestamp();
+
+        try writer.print("{{\n", .{});
+        try writer.print("  \"timestamp\": {},\n", .{timestamp});
+        try writer.print("  \"shader\": {{\n", .{});
+        try writer.print("    \"vertex\": \"{s}\",\n", .{self.vert_file});
+        try writer.print("    \"fragment\": \"{s}\"\n", .{self.frag_file});
+        try writer.print("  }},\n", .{});
+        try writer.print("  \"uniform_count\": {},\n", .{self.debug_uniforms.count()});
+        try writer.print("  \"uniforms\": {{\n", .{});
+
+        var iterator = self.debug_uniforms.iterator();
+        var first = true;
+        while (iterator.next()) |entry| {
+            if (!first) try writer.print(",\n", .{});
+            try writer.print("    \"{s}\": \"{s}\"", .{ entry.key_ptr.*, entry.value_ptr.* });
+            first = false;
+        }
+
+        try writer.print("\n  }}\n", .{});
+        try writer.print("}}\n", .{});
+
+        return stream.getWritten();
+    }
+
+    pub fn saveDebugUniforms(self: *Self, filepath: []const u8) !void {
+        if (!self.debug_enabled) {
+            return error.DebugNotEnabled;
+        }
+
+        // Ensure directory exists
+        if (std.fs.path.dirname(filepath)) |dir| {
+            std.fs.cwd().makePath(dir) catch |err| switch (err) {
+                error.PathAlreadyExists => {},
+                else => return err,
+            };
+        }
+
+        // Generate JSON content
+        var buffer: [8192]u8 = undefined;
+        const json_content = try self.dumpDebugUniformsJSON(&buffer);
+
+        // Write to file
+        const file = try std.fs.cwd().createFile(filepath, .{});
+        defer file.close();
+
+        try file.writeAll(json_content);
+
+        std.debug.print("Shader uniforms saved: {s}\n", .{filepath});
     }
 
     fn captureDebugUniform(self: *const Shader, uniform: [:0]const u8, value: anytype) void {
         if (!self.debug_enabled) return;
-        
+
         // Use @constCast to modify the arena and hashmap for debug purposes
         const mutable_self = @constCast(self);
         const allocator = mutable_self.debug_arena.allocator();
         var buf: [512]u8 = undefined;
-        
+
         const value_str = switch (@TypeOf(value)) {
             bool => std.fmt.bufPrint(&buf, "{}", .{value}) catch return,
             i32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
@@ -400,7 +465,7 @@ pub const Shader = struct {
             *const [4]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}, {d:.3}, {d:.3}]", .{ value[0], value[1], value[2], value[3] }) catch return,
             else => std.fmt.bufPrint(&buf, "{any}", .{value}) catch return,
         };
-        
+
         const owned_key = allocator.dupe(u8, uniform) catch return;
         const owned_value = allocator.dupe(u8, value_str) catch return;
         mutable_self.debug_uniforms.put(owned_key, owned_value) catch return;

@@ -19,6 +19,7 @@
 - ✅ **Enhanced UI**: Model statistics display with comprehensive runtime metrics
 - ✅ **glTF Development Tools**: Comprehensive glTF inspection and reporting system
 - ✅ **Professional Development Workflow**: Automated build, test, and shader validation tools
+- ✅ **Screenshot & Debug System**: F12 framebuffer screenshots with synchronized shader uniform dumps (2025-07-06)
 - 📋 Next: Plan 003 - Basic PBR Shaders with enhanced development tools
 
 ### Architecture
@@ -71,6 +72,13 @@ libs/              # Third-party dependencies
 - **Usage**: Console output, string generation, file export
 - **Analysis**: Scenes, meshes, accessors, animations, materials, textures
 - **Integration**: Available as `@import("core").gltf_report`
+
+#### Screenshot & Debug System (`examples/demo_app/screenshot*.zig` & `src/core/shader.zig`)
+- **F12 Screenshot Capture**: Framebuffer-based PNG screenshots with automatic directory creation
+- **Synchronized Shader Debug**: JSON-formatted uniform dumps with timestamp correlation
+- **Enhanced Shader API**: `dumpDebugUniformsJSON()`, `saveDebugUniforms()` methods in core shader system
+- **Output Location**: `/tmp/redfish_screenshots/` with format `YYYY-MM-DD_HH.MM.SS.mmm_pbr_{screenshot|uniforms}.{png|json}`
+- **Usage**: Press F12 during demo_app runtime for coordinated capture of visuals and shader state
 
 ## Coding Style Guidelines
 

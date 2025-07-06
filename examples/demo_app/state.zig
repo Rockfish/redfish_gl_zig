@@ -74,6 +74,7 @@ pub const State = struct {
     animation_prev_requested: bool = false,
     shader_debug_enabled: bool = false,
     shader_debug_dump_requested: bool = false,
+    screenshot_requested: bool = false,
 
     const Self = @This();
 };
@@ -111,7 +112,6 @@ pub fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: gl
         window.setShouldClose(true);
     }
 }
-
 
 pub fn processKeys() void {
     var iterator = state.input.key_presses.iterator();
@@ -366,9 +366,15 @@ pub fn processKeys() void {
                     state.shader_debug_dump_requested = true;
                 }
             },
+            .F12 => {
+                if (!state.input.key_processed.contains(.F12)) {
+                    state.screenshot_requested = true;
+                    std.debug.print("Screenshot requested (F12)\n", .{});
+                }
+            },
             else => {},
         }
-        
+
         // Mark this key as processed for this frame
         state.input.key_processed.insert(k);
     }

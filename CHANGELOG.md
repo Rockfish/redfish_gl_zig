@@ -2,6 +2,32 @@
 
 ## Recent Changes
 
+### 2025-07-06 - Screenshot & Debug System Implementation 📸
+- **Framebuffer Screenshot System**: Implemented complete screenshot capture functionality
+  - `examples/demo_app/screenshot.zig` - OpenGL framebuffer creation and management
+  - `examples/demo_app/screenshot_manager.zig` - High-level screenshot coordination
+  - Automatic PNG saving via zstbi library integration
+  - Image vertical flipping for correct OpenGL-to-file orientation
+  - Framebuffer auto-resizing to match viewport dimensions
+- **Enhanced Shader Debug System**: Significantly expanded shader uniform debugging capabilities
+  - `src/core/shader.zig` - Added `dumpDebugUniformsJSON()` for structured JSON output
+  - `src/core/shader.zig` - Added `saveDebugUniforms()` for direct file export
+  - Automatic timestamp inclusion in debug output
+  - Comprehensive uniform type support (Mat4, Vec3, floats, etc.)
+- **F12 Screenshot Trigger**: Integrated screenshot system into demo application
+  - `examples/demo_app/state.zig` - Added F12 key handling
+  - `examples/demo_app/run_app.zig` - Complete integration with render loop
+  - Synchronized capture of both visuals and shader state
+  - Temporary debug enable/disable for consistent uniform capture
+- **Coordinated Output System**: Synchronized file generation with shared timestamps
+  - Output directory: `/tmp/redfish_screenshots/`
+  - Filename format: `YYYY-MM-DD_HH.MM.SS.mmm_pbr_{screenshot|uniforms}.{png|json}`
+  - Automatic directory creation and error handling
+- **Development Workflow Enhancement**: Added powerful debugging tools for shader development
+  - Visual debugging via F12 screenshots during runtime
+  - Complete shader state inspection with JSON export
+  - Essential tooling for Plan 003 PBR shader development
+
 ### 2025-07-06 - Professional Development Workflow Tools 🚀
 - **Just Recipe System**: Created comprehensive `justfile` with 25+ development commands
   - `just dev` - Auto-rebuild and run with file watching

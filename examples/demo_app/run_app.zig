@@ -6,6 +6,7 @@ const core = @import("core");
 const math = @import("math");
 const assets_list = @import("assets_list.zig");
 const ui_display = @import("ui_display.zig");
+const screenshot_manager = @import("screenshot_manager.zig");
 
 const Camera = core.Camera;
 const asset_loader = core.asset_loader;
@@ -186,6 +187,10 @@ pub fn run(window: *glfw.Window) !void {
     var ui_state = try ui_display.UIState.init(allocator, window);
     defer ui_state.deinit();
 
+    // Initialize screenshot system
+    var screenshot_mgr = screenshot_manager.ScreenshotManager.init(allocator);
+    defer screenshot_mgr.deinit();
+
     const shader = try Shader.init(
         allocator,
         "examples/demo_app/shaders/player_shader.vert",
@@ -264,7 +269,10 @@ pub fn run(window: *glfw.Window) !void {
         state.total_time = current_time;
 
         state_.processKeys();
-        
+
+        // Ensure screenshot framebuffer matches current viewport
+        try screenshot_mgr.ensureFramebuffer(@intFromFloat(state.viewport_width), @intFromFloat(state.viewport_height));
+
         // Handle shader debug state changes
         if (state.shader_debug_enabled) {
             shader.enableDebug();
@@ -273,7 +281,7 @@ pub fn run(window: *glfw.Window) !void {
         } else {
             shader.disableDebug();
         }
-        
+
         // Update UI system
         ui_state.update(window);
 
@@ -388,6 +396,62 @@ pub fn run(window: *glfw.Window) !void {
             const dump_result = shader.dumpDebugUniforms(&debug_dump_buffer) catch "Failed to dump uniforms";
             std.debug.print("\n{s}\n", .{dump_result});
             state.shader_debug_dump_requested = false;
+        }
+
+        // Handle screenshot request
+        if (state.screenshot_requested) {
+            std.debug.print("Taking screenshot...\n", .{});
+
+            // Enable shader debug temporarily for screenshot
+            const was_debug_enabled = shader.debug_enabled;
+            shader.enableDebug();
+            shader.clearDebugUniforms();
+
+            // Bind screenshot framebuffer
+            screenshot_mgr.capture.bindForCapture();
+
+            // Clear and render to framebuffer
+            gl.clearColor(0.5, 0.5, 0.5, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            // Re-set uniforms and render to capture them
+            shader.setMat4("matProjection", &state.projection);
+            shader.setMat4("matView", &state.camera.getViewMatrix());
+            shader.setMat4("matModel", &model_transform);
+            shader.setBool("useLight", true);
+            shader.setVec3("ambient", &ambientColor);
+            shader.setVec3("ambient_light", &vec3(1.0, 0.8, 0.8));
+            shader.setVec3("light_color", &vec3(0.1, 0.1, 0.1));
+            shader.setVec3("light_dir", &vec3(10.0, 10.0, 2.0));
+            shader.setVec3("lightPosition", &vec3(0.0, 20.0, 5.0));
+            shader.setVec3("lightColor", &vec3(1.0, 1.0, 1.0));
+            shader.setFloat("lightIntensity", 1500.0);
+            shader.setVec3("viewPosition", &state.camera.movement.position);
+
+            // Add debug values
+            var buf_temp: [64]u8 = undefined;
+            shader.addDebugValue("camera_position", std.fmt.bufPrint(&buf_temp, "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.position.x, state.camera.movement.position.y, state.camera.movement.position.z }) catch "error");
+            shader.addDebugValue("camera_target", std.fmt.bufPrint(buf1[0..64], "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.target.x, state.camera.movement.target.y, state.camera.movement.target.z }) catch "error");
+            shader.addDebugValue("frame_time", std.fmt.bufPrint(&buf_temp, "{d:.6}s", .{state.delta_time}) catch "error");
+
+            // Render model to capture uniforms and pixels
+            current_model.render(shader);
+
+            // Restore default framebuffer
+            screenshot_mgr.capture.restoreDefault();
+            gl.viewport(0, 0, @intFromFloat(state.viewport_width), @intFromFloat(state.viewport_height));
+
+            // Save screenshot and uniforms
+            screenshot_mgr.takeScreenshot(shader) catch |err| {
+                std.debug.print("Screenshot failed: {any}\n", .{err});
+            };
+
+            // Restore debug state
+            if (!was_debug_enabled) {
+                shader.disableDebug();
+            }
+
+            state.screenshot_requested = false;
         }
 
         // shader.set_mat4("aimRot", &identity);

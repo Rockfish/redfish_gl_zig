@@ -69,7 +69,16 @@
 ## Session Notes
 
 **2025-07-06**: 
-- **Professional Development Workflow**: Created comprehensive automated development infrastructure
+- **Screenshot & Debug System**: Implemented comprehensive F12 screenshot and shader debugging system
+- **Framebuffer Capture**: OpenGL framebuffer rendering to PNG files with zstbi integration
+- **Shader Debug Enhancement**: Extended core shader system with JSON uniform dumps and file export
+- **Synchronized Output**: Screenshots and shader uniforms saved with matching timestamps
+- **Development Debugging**: Essential tooling for visual shader debugging during Plan 003 PBR work
+- **F12 Integration**: Complete demo_app integration with automatic directory creation
+- **JSON Uniform Export**: Structured shader state inspection for detailed debugging analysis
+- **Plan 003 Tools**: Critical debugging infrastructure ready for PBR shader development
+
+- **Professional Development Workflow**: Created comprehensive automated development infrastructure  
 - **Just Recipe System**: 25+ commands for build, test, analysis, and shader development
 - **Specialized Watchers**: File watching scripts for different development modes (general, shaders, build-only)
 - **Plan 003 Preparation**: Shader development workflow with GLSL validation and auto-rebuild
