@@ -97,6 +97,7 @@ pub const ScreenshotCapture = struct {
         defer self.allocator.free(filename_z);
 
         zstbi.init(self.allocator);
+        defer zstbi.deinit();
 
         // Create Image struct for zstbi
         const image = zstbi.Image{
@@ -193,29 +194,4 @@ fn createScreenshotFramebuffer(width: i32, height: i32) !FrameBuffer {
         .width = width,
         .height = height,
     };
-}
-
-pub fn generateTimestamp() [23]u8 {
-    const timestamp = std.time.timestamp();
-    const epoch_seconds = @as(u64, @intCast(timestamp));
-    const millis = @as(u64, @intCast(std.time.milliTimestamp())) % 1000;
-
-    // Convert to local time structure
-    const epoch_day = epoch_seconds / (24 * 60 * 60);
-    const day_seconds = epoch_seconds % (24 * 60 * 60);
-
-    const hour = day_seconds / 3600;
-    const minute = (day_seconds % 3600) / 60;
-    const second = day_seconds % 60;
-
-    // Simple date calculation (approximate)
-    const days_since_epoch = epoch_day;
-    const year = 1970 + days_since_epoch / 365;
-    const month = ((days_since_epoch % 365) / 30) + 1;
-    const day = ((days_since_epoch % 365) % 30) + 1;
-
-    var result: [23]u8 = undefined;
-    _ = std.fmt.bufPrint(&result, "{d:0>4}-{d:0>2}-{d:0>2}_{d:0>2}.{d:0>2}.{d:0>2}.{d:0>3}", .{ year, month, day, hour, minute, second, millis }) catch unreachable;
-
-    return result;
 }

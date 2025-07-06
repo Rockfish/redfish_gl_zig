@@ -273,12 +273,21 @@ pub fn run(window: *glfw.Window) !void {
         // Ensure screenshot framebuffer matches current viewport
         try screenshot_mgr.ensureFramebuffer(@intFromFloat(state.viewport_width), @intFromFloat(state.viewport_height));
 
-        // Handle shader debug state changes
-        if (state.shader_debug_enabled) {
+        // One-shot screenshot capture: enable debug mode only when screenshot is requested
+        var capture_screenshot = false;
+        if (state.screenshot_requested) {
+            capture_screenshot = true;
             shader.enableDebug();
-            // Clear debug uniforms each frame when enabled
             shader.clearDebugUniforms();
-        } else {
+            // Bind screenshot framebuffer for capture
+            screenshot_mgr.capture.bindForCapture();
+        }
+
+        // Handle regular shader debug state (separate from screenshot)
+        if (state.shader_debug_enabled and !capture_screenshot) {
+            shader.enableDebug();
+            shader.clearDebugUniforms();
+        } else if (!capture_screenshot) {
             shader.disableDebug();
         }
 
@@ -382,8 +391,8 @@ pub fn run(window: *glfw.Window) !void {
 
         shader.setVec3("viewPosition", &state.camera.movement.position);
 
-        // Add custom debug values when debug is enabled
-        if (state.shader_debug_enabled) {
+        // Add custom debug values when debug is enabled (for both regular debug and screenshot)
+        if (state.shader_debug_enabled or capture_screenshot) {
             var buf_temp: [64]u8 = undefined;
             shader.addDebugValue("camera_position", std.fmt.bufPrint(&buf_temp, "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.position.x, state.camera.movement.position.y, state.camera.movement.position.z }) catch "error");
             shader.addDebugValue("camera_target", std.fmt.bufPrint(buf1[0..64], "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.target.x, state.camera.movement.target.y, state.camera.movement.target.z }) catch "error");
@@ -398,61 +407,7 @@ pub fn run(window: *glfw.Window) !void {
             state.shader_debug_dump_requested = false;
         }
 
-        // Handle screenshot request
-        if (state.screenshot_requested) {
-            std.debug.print("Taking screenshot...\n", .{});
-
-            // Enable shader debug temporarily for screenshot
-            const was_debug_enabled = shader.debug_enabled;
-            shader.enableDebug();
-            shader.clearDebugUniforms();
-
-            // Bind screenshot framebuffer
-            screenshot_mgr.capture.bindForCapture();
-
-            // Clear and render to framebuffer
-            gl.clearColor(0.5, 0.5, 0.5, 1.0);
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-            // Re-set uniforms and render to capture them
-            shader.setMat4("matProjection", &state.projection);
-            shader.setMat4("matView", &state.camera.getViewMatrix());
-            shader.setMat4("matModel", &model_transform);
-            shader.setBool("useLight", true);
-            shader.setVec3("ambient", &ambientColor);
-            shader.setVec3("ambient_light", &vec3(1.0, 0.8, 0.8));
-            shader.setVec3("light_color", &vec3(0.1, 0.1, 0.1));
-            shader.setVec3("light_dir", &vec3(10.0, 10.0, 2.0));
-            shader.setVec3("lightPosition", &vec3(0.0, 20.0, 5.0));
-            shader.setVec3("lightColor", &vec3(1.0, 1.0, 1.0));
-            shader.setFloat("lightIntensity", 1500.0);
-            shader.setVec3("viewPosition", &state.camera.movement.position);
-
-            // Add debug values
-            var buf_temp: [64]u8 = undefined;
-            shader.addDebugValue("camera_position", std.fmt.bufPrint(&buf_temp, "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.position.x, state.camera.movement.position.y, state.camera.movement.position.z }) catch "error");
-            shader.addDebugValue("camera_target", std.fmt.bufPrint(buf1[0..64], "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.target.x, state.camera.movement.target.y, state.camera.movement.target.z }) catch "error");
-            shader.addDebugValue("frame_time", std.fmt.bufPrint(&buf_temp, "{d:.6}s", .{state.delta_time}) catch "error");
-
-            // Render model to capture uniforms and pixels
-            current_model.render(shader);
-
-            // Restore default framebuffer
-            screenshot_mgr.capture.restoreDefault();
-            gl.viewport(0, 0, @intFromFloat(state.viewport_width), @intFromFloat(state.viewport_height));
-
-            // Save screenshot and uniforms
-            screenshot_mgr.takeScreenshot(shader) catch |err| {
-                std.debug.print("Screenshot failed: {any}\n", .{err});
-            };
-
-            // Restore debug state
-            if (!was_debug_enabled) {
-                shader.disableDebug();
-            }
-
-            state.screenshot_requested = false;
-        }
+        // Screenshot handling is now integrated into the main render loop
 
         // shader.set_mat4("aimRot", &identity);
         // lightSpaceMatrix is a view * ortho projection matrix for shadows
@@ -460,6 +415,24 @@ pub fn run(window: *glfw.Window) !void {
 
         // model.render(shader);
         current_model.render(shader);
+
+        // One-shot screenshot completion: dump data and clear flag
+        if (capture_screenshot) {
+            // Restore default framebuffer
+            screenshot_mgr.capture.restoreDefault();
+            gl.viewport(0, 0, @intFromFloat(state.viewport_width), @intFromFloat(state.viewport_height));
+
+            // Save screenshot and uniforms using the simplified manager
+            // (debug values were already added earlier in the loop)
+            screenshot_mgr.takeScreenshot(shader) catch |err| {
+                std.debug.print("Screenshot failed: {any}\n", .{err});
+            };
+
+            // Clean up: disable debug and clear flag
+            shader.disableDebug();
+            state.screenshot_requested = false;
+            std.debug.print("Screenshot completed!\n", .{});
+        }
 
         // Render UI overlay
         ui_state.render(current_model);

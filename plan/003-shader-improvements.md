@@ -38,8 +38,8 @@ Implement basic PBR (Physically Based Rendering) shaders to make models look rea
 - **Custom Values**: Real-time camera position, target, light position, and frame timing
 
 ### Remaining Phase 1 Items
-- [ ] Add framebuffer rendering for scene snapshots
-- [ ] Create timestamped bitmap and text file output system
+- [x] Add framebuffer rendering for scene snapshots
+- [x] Create timestamped bitmap and text file output system
 
 ## Phase 2: Core PBR Implementation 🔄 CURRENT PHASE
 

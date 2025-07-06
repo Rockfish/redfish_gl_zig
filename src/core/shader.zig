@@ -1,6 +1,7 @@
 const std = @import("std");
 const gl = @import("zopengl").bindings;
 const math = @import("math");
+const core = @import("main.zig");
 const Texture = @import("texture.zig").Texture;
 
 const Vec2 = math.Vec2;
@@ -30,8 +31,7 @@ pub const Shader = struct {
 
     // Debug uniform collection
     debug_enabled: bool,
-    debug_arena: std.heap.ArenaAllocator,
-    debug_uniforms: StringHashMap([]const u8),
+    debug_uniforms: *StringHashMap([]const u8),
 
     const Self = @This();
     var current_shader: ?*const Shader = null;
@@ -51,8 +51,13 @@ pub const Shader = struct {
         self.allocator.destroy(self.locations);
 
         // Clean up debug resources
+        var iterator2 = self.debug_uniforms.iterator();
+        while (iterator2.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+            self.allocator.free(entry.value_ptr.*);
+        }
         self.debug_uniforms.deinit();
-        self.debug_arena.deinit();
+        self.allocator.destroy(self.debug_uniforms);
 
         self.allocator.destroy(self);
     }
@@ -146,16 +151,18 @@ pub const Shader = struct {
         const locations = try allocator.create(StringHashMap(c_int));
         locations.* = StringHashMap(c_int).init(allocator);
 
+        const debug_uniforms = try allocator.create(StringHashMap([]const u8));
+        debug_uniforms.* = StringHashMap([]const u8).init(allocator);
+
         shader.* = Shader{
+            .allocator = allocator,
             .id = shader_id,
             .vert_file = try allocator.dupe(u8, vert_file_path),
             .frag_file = try allocator.dupe(u8, frag_file_path),
             .geom_file = geom_file,
             .locations = locations,
-            .allocator = allocator,
             .debug_enabled = false,
-            .debug_arena = std.heap.ArenaAllocator.init(allocator),
-            .debug_uniforms = StringHashMap([]const u8).init(allocator),
+            .debug_uniforms = debug_uniforms,
         };
 
         return shader;
@@ -340,24 +347,30 @@ pub const Shader = struct {
     }
 
     pub fn disableDebug(self: *Self) void {
+        // Clean up any allocated debug uniforms before disabling
+        self.clearDebugUniforms();
         self.debug_enabled = false;
-        // Clear arena memory while retaining capacity
-        _ = self.debug_arena.reset(.retain_capacity);
-        self.debug_uniforms.clearAndFree();
     }
 
     pub fn clearDebugUniforms(self: *Self) void {
         if (self.debug_enabled) {
-            _ = self.debug_arena.reset(.retain_capacity);
-            self.debug_uniforms.clearAndFree();
+            // Free all allocated keys and values first
+            var iterator2 = self.debug_uniforms.iterator();
+            while (iterator2.next()) |entry| {
+                self.allocator.free(entry.key_ptr.*);
+                self.allocator.free(entry.value_ptr.*);
+            }
+
+            // Clear the map while retaining capacity to avoid reallocation
+            self.debug_uniforms.clearRetainingCapacity();
         }
     }
 
     pub fn addDebugValue(self: *Self, key: []const u8, value: []const u8) void {
         if (self.debug_enabled) {
-            const allocator = self.debug_arena.allocator();
-            const owned_key = allocator.dupe(u8, key) catch return;
-            const owned_value = allocator.dupe(u8, value) catch return;
+            // const allocator = self.debug_arena.allocator();
+            const owned_key = self.allocator.dupe(u8, key) catch return;
+            const owned_value = self.allocator.dupe(u8, value) catch return;
             self.debug_uniforms.put(owned_key, owned_value) catch return;
         }
     }
@@ -392,9 +405,11 @@ pub const Shader = struct {
 
         // Get current timestamp
         const timestamp = std.time.timestamp();
+        const timestamp_str = core.utils.generateTimestamp();
 
         try writer.print("{{\n", .{});
         try writer.print("  \"timestamp\": {},\n", .{timestamp});
+        try writer.print("  \"timestamp_str\": \"{s}\",\n", .{timestamp_str});
         try writer.print("  \"shader\": {{\n", .{});
         try writer.print("    \"vertex\": \"{s}\",\n", .{self.vert_file});
         try writer.print("    \"fragment\": \"{s}\"\n", .{self.frag_file});
@@ -402,11 +417,28 @@ pub const Shader = struct {
         try writer.print("  \"uniform_count\": {},\n", .{self.debug_uniforms.count()});
         try writer.print("  \"uniforms\": {{\n", .{});
 
+        // Collect and sort uniform keys for better readability
+        const allocator = self.debug_uniforms.allocator;
+        var keys = std.ArrayList([]const u8).init(allocator);
+        defer keys.deinit();
+
         var iterator = self.debug_uniforms.iterator();
-        var first = true;
         while (iterator.next()) |entry| {
+            try keys.append(entry.key_ptr.*);
+        }
+
+        std.mem.sort([]const u8, keys.items, {}, struct {
+            fn lessThan(context: void, a: []const u8, b: []const u8) bool {
+                _ = context;
+                return std.mem.lessThan(u8, a, b);
+            }
+        }.lessThan);
+
+        var first = true;
+        for (keys.items) |key| {
             if (!first) try writer.print(",\n", .{});
-            try writer.print("    \"{s}\": \"{s}\"", .{ entry.key_ptr.*, entry.value_ptr.* });
+            const value = self.debug_uniforms.get(key).?;
+            try writer.print("    \"{s}\": \"{s}\"", .{ key, value });
             first = false;
         }
 
@@ -429,8 +461,8 @@ pub const Shader = struct {
             };
         }
 
-        // Generate JSON content
-        var buffer: [8192]u8 = undefined;
+        // Generate JSON content (increased buffer size for one-shot screenshot capture)
+        var buffer: [100000]u8 = undefined;
         const json_content = try self.dumpDebugUniformsJSON(&buffer);
 
         // Write to file
@@ -447,7 +479,6 @@ pub const Shader = struct {
 
         // Use @constCast to modify the arena and hashmap for debug purposes
         const mutable_self = @constCast(self);
-        const allocator = mutable_self.debug_arena.allocator();
         var buf: [512]u8 = undefined;
 
         const value_str = switch (@TypeOf(value)) {
@@ -466,9 +497,21 @@ pub const Shader = struct {
             else => std.fmt.bufPrint(&buf, "{any}", .{value}) catch return,
         };
 
-        const owned_key = allocator.dupe(u8, uniform) catch return;
-        const owned_value = allocator.dupe(u8, value_str) catch return;
-        mutable_self.debug_uniforms.put(owned_key, owned_value) catch return;
+        // Check if this uniform already exists to avoid memory leak
+        const entry = mutable_self.debug_uniforms.getOrPut(uniform) catch return;
+
+        if (entry.found_existing) {
+            // Free the old value, but keep the key
+            self.allocator.free(entry.value_ptr.*);
+        } else {
+            // Allocate new key for new entry
+            const owned_key = self.allocator.dupe(u8, uniform) catch return;
+            entry.key_ptr.* = owned_key;
+        }
+
+        // Always allocate new value
+        const owned_value = self.allocator.dupe(u8, value_str) catch return;
+        entry.value_ptr.* = owned_value;
     }
 };
 

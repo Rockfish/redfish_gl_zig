@@ -4,7 +4,6 @@ const screenshot = @import("screenshot.zig");
 const Shader = core.Shader;
 
 const ScreenshotCapture = screenshot.ScreenshotCapture;
-const generateTimestamp = screenshot.generateTimestamp;
 
 pub const ScreenshotManager = struct {
     capture: ScreenshotCapture,
@@ -31,47 +30,30 @@ pub const ScreenshotManager = struct {
 
     pub fn takeScreenshot(self: *Self, shader: *Shader) !void {
         // Generate timestamp for synchronized filenames
-        const timestamp_str = generateTimestamp();
+        const timestamp_str = core.utils.generateTimestamp();
 
         std.debug.print("Taking screenshot with timestamp: {s}\n", .{timestamp_str});
-
-        // Enable shader debug to capture uniforms
-        const was_debug_enabled = shader.debug_enabled;
-        if (!was_debug_enabled) {
-            shader.enableDebug();
-        }
-
-        // Clear previous debug data
-        shader.clearDebugUniforms();
-
-        // Render one frame to capture uniforms (this will be done by the calling code)
-        // The shader debug system will automatically capture all uniform calls
 
         // Generate filenames with timestamp
         var uniform_filename_buf: [256]u8 = undefined;
         const uniform_filename = try std.fmt.bufPrint(&uniform_filename_buf, "{s}/{s}_pbr_uniforms.json", .{ self.temp_dir, timestamp_str });
 
-        // Save uniform data
+        // Save uniform data (debug mode should already be enabled by caller)
         shader.saveDebugUniforms(uniform_filename) catch |err| {
             std.debug.print("Failed to save uniforms: {any}\n", .{err});
         };
 
-        // Save screenshot
+        // Save screenshot (framebuffer should already be configured by caller)
         self.capture.saveScreenshot(&timestamp_str) catch |err| {
             std.debug.print("Failed to save screenshot: {any}\n", .{err});
         };
-
-        // Restore debug state
-        if (!was_debug_enabled) {
-            shader.disableDebug();
-        }
 
         std.debug.print("Screenshot and uniform dump complete!\n", .{});
     }
 
     pub fn takeScreenshotWithRender(self: *Self, shader: *Shader, render_fn: fn () void) !void {
         // Generate timestamp for synchronized filenames
-        const timestamp = generateTimestamp();
+        const timestamp = core.utils.generateTimestamp();
         const timestamp_str = std.mem.sliceTo(&timestamp, 0);
 
         std.debug.print("Taking screenshot with render callback, timestamp: {s}\n", .{timestamp_str});

@@ -37,7 +37,7 @@ pub const Mat3 = extern struct {
     pub fn asString(self: *const Self, buf: []u8) []u8 {
         return std.fmt.bufPrint(
             buf,
-            "Mat3{{\n  [{d:.3}, {d:.3}, {d:.3}]\n  [{d:.3}, {d:.3}, {d:.3}]\n  [{d:.3}, {d:.3}, {d:.3}]\n}}",
+            "Mat3{{[{d:.3}, {d:.3}, {d:.3}], [{d:.3}, {d:.3}, {d:.3}], [{d:.3}, {d:.3}, {d:.3}]}}",
             .{
                 self.data[0][0], self.data[0][1], self.data[0][2],
                 self.data[1][0], self.data[1][1], self.data[1][2],
