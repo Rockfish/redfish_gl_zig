@@ -1,7 +1,9 @@
 const std = @import("std");
+const core = @import("core");
 const zopengl = @import("zopengl");
 const gl = zopengl.bindings;
 const zstbi = @import("zstbi");
+const Shader = core.Shader;
 
 pub const FrameBuffer = struct {
     framebuffer_id: u32,
@@ -9,6 +11,119 @@ pub const FrameBuffer = struct {
     depth_buffer_id: u32,
     width: i32,
     height: i32,
+};
+
+pub const ScreenshotManager = struct {
+    capture: ScreenshotCapture,
+    allocator: std.mem.Allocator,
+    temp_dir: []const u8,
+
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return Self{
+            .capture = ScreenshotCapture.init(allocator),
+            .allocator = allocator,
+            .temp_dir = "temp",
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.capture.deinit();
+    }
+
+    pub fn ensureFramebuffer(self: *Self, width: i32, height: i32) !void {
+        try self.capture.ensureFramebuffer(width, height);
+    }
+
+    pub fn takeScreenshot(self: *Self, shader: *Shader) !void {
+        // Generate timestamp for synchronized filenames
+        const timestamp_str = core.utils.generateTimestamp();
+
+        std.debug.print("Taking screenshot with timestamp: {s}\n", .{timestamp_str});
+
+        // Ensure temp directory exists
+        std.fs.cwd().makeDir(self.temp_dir) catch |err| switch (err) {
+            error.PathAlreadyExists => {},
+            else => return err,
+        };
+
+        // Generate filenames with timestamp
+        var uniform_filename_buf: [256]u8 = undefined;
+        const uniform_filename = try std.fmt.bufPrint(&uniform_filename_buf, "{s}/{s}_pbr_uniforms.json", .{ self.temp_dir, timestamp_str });
+
+        // Save uniform data (debug mode should already be enabled by caller)
+        shader.saveDebugUniforms(uniform_filename, &timestamp_str) catch |err| {
+            std.debug.print("Failed to save uniforms: {any}\n", .{err});
+        };
+
+        // Generate screenshot filename
+        var screenshot_filename_buf: [256]u8 = undefined;
+        const screenshot_filename = try std.fmt.bufPrint(&screenshot_filename_buf, "{s}/{s}_screenshot.png", .{ self.temp_dir, timestamp_str });
+
+        // Save screenshot (framebuffer should already be configured by caller)
+        self.capture.saveScreenshot(screenshot_filename) catch |err| {
+            std.debug.print("Failed to save screenshot: {any}\n", .{err});
+        };
+
+        std.debug.print("Screenshot and uniform dump complete!\n", .{});
+    }
+
+    pub fn takeScreenshotWithRender(self: *Self, shader: *Shader, render_fn: fn () void) !void {
+        // Generate timestamp for synchronized filenames
+        const timestamp_str = core.utils.generateTimestamp();
+
+        std.debug.print("Taking screenshot with render callback, timestamp: {s}\n", .{timestamp_str});
+
+        // Ensure temp directory exists
+        std.fs.cwd().makeDir(self.temp_dir) catch |err| switch (err) {
+            error.PathAlreadyExists => {},
+            else => return err,
+        };
+
+        // Enable shader debug to capture uniforms
+        const was_debug_enabled = shader.debug_enabled;
+        if (!was_debug_enabled) {
+            shader.enableDebug();
+        }
+
+        // Clear previous debug data
+        shader.clearDebugUniforms();
+
+        // Bind framebuffer for capture
+        self.capture.bindForCapture();
+
+        // Render to framebuffer (this will capture uniforms)
+        render_fn();
+
+        // Restore default framebuffer
+        self.capture.restoreDefault();
+
+        // Generate filenames with timestamp
+        var uniform_filename_buf: [256]u8 = undefined;
+        const uniform_filename = try std.fmt.bufPrint(&uniform_filename_buf, "{s}/{s}_pbr_uniforms.json", .{ self.temp_dir, timestamp_str });
+
+        // Save uniform data
+        shader.saveDebugUniforms(uniform_filename, &timestamp_str) catch |err| {
+            std.debug.print("Failed to save uniforms: {any}\n", .{err});
+        };
+
+        // Generate screenshot filename
+        var screenshot_filename_buf: [256]u8 = undefined;
+        const screenshot_filename = try std.fmt.bufPrint(&screenshot_filename_buf, "{s}/{s}_screenshot.png", .{ self.temp_dir, timestamp_str });
+
+        // Save screenshot
+        self.capture.saveScreenshot(screenshot_filename) catch |err| {
+            std.debug.print("Failed to save screenshot: {any}\n", .{err});
+        };
+
+        // Restore debug state
+        if (!was_debug_enabled) {
+            shader.disableDebug();
+        }
+
+        std.debug.print("Screenshot and uniform dump complete!\n", .{});
+    }
 };
 
 pub const ScreenshotCapture = struct {
@@ -22,7 +137,7 @@ pub const ScreenshotCapture = struct {
         return Self{
             .framebuffer = null,
             .allocator = allocator,
-            .temp_dir = "/tmp/redfish_screenshots",
+            .temp_dir = "temp",
         };
     }
 
@@ -52,45 +167,12 @@ pub const ScreenshotCapture = struct {
         }
     }
 
-    pub fn captureFrame(self: *Self) ![]u8 {
+    pub fn saveScreenshot(self: *Self, filename: []const u8) !void {
         const fb = self.framebuffer orelse return error.FramebufferNotInitialized;
-
-        // Bind framebuffer for reading
-        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb.framebuffer_id);
-
-        // Allocate buffer for RGB data
-        const pixel_count = @as(usize, @intCast(fb.width * fb.height));
-        const rgb_data = try self.allocator.alloc(u8, pixel_count * 3);
-
-        // Read pixels (RGB format)
-        gl.readPixels(0, 0, fb.width, fb.height, gl.RGB, gl.UNSIGNED_BYTE, rgb_data.ptr);
-
-        // Restore default framebuffer
-        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, 0);
-
-        return rgb_data;
-    }
-
-    pub fn saveScreenshot(self: *Self, timestamp: []const u8) !void {
-        const fb = self.framebuffer orelse return error.FramebufferNotInitialized;
-
-        // Ensure temp directory exists
-        std.fs.cwd().makeDir(self.temp_dir) catch |err| switch (err) {
-            error.PathAlreadyExists => {},
-            else => return err,
-        };
-
-        // Generate filename
-        var filename_buf: [256]u8 = undefined;
-        const filename = try std.fmt.bufPrint(&filename_buf, "{s}/{s}_screenshot.png", .{ self.temp_dir, timestamp });
 
         // Capture frame data
         const rgb_data = try self.captureFrame();
         defer self.allocator.free(rgb_data);
-
-        // Flip image vertically (OpenGL uses bottom-left origin)
-        const flipped_data = try self.flipImageVertically(rgb_data, fb.width, fb.height);
-        defer self.allocator.free(flipped_data);
 
         // Create null-terminated filename for zstbi
         const filename_z = try self.allocator.dupeZ(u8, filename);
@@ -99,9 +181,11 @@ pub const ScreenshotCapture = struct {
         zstbi.init(self.allocator);
         defer zstbi.deinit();
 
+        zstbi.setFlipVerticallyOnWrite(true);
+
         // Create Image struct for zstbi
         const image = zstbi.Image{
-            .data = flipped_data,
+            .data = rgb_data,
             .width = @intCast(fb.width),
             .height = @intCast(fb.height),
             .num_components = 3, // RGB
@@ -128,17 +212,23 @@ pub const ScreenshotCapture = struct {
         gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
     }
 
-    fn flipImageVertically(self: *Self, data: []u8, width: i32, height: i32) ![]u8 {
-        const flipped = try self.allocator.alloc(u8, data.len);
-        const row_size = @as(usize, @intCast(width * 3)); // 3 bytes per pixel (RGB)
+    pub fn captureFrame(self: *Self) ![]u8 {
+        const fb = self.framebuffer orelse return error.FramebufferNotInitialized;
 
-        for (0..@intCast(height)) |y| {
-            const src_row = y * row_size;
-            const dst_row = (@as(usize, @intCast(height)) - 1 - y) * row_size;
-            @memcpy(flipped[dst_row .. dst_row + row_size], data[src_row .. src_row + row_size]);
-        }
+        // Bind framebuffer for reading
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb.framebuffer_id);
 
-        return flipped;
+        // Allocate buffer for RGB data
+        const pixel_count = @as(usize, @intCast(fb.width * fb.height));
+        const rgb_data = try self.allocator.alloc(u8, pixel_count * 3);
+
+        // Read pixels (RGB format)
+        gl.readPixels(0, 0, fb.width, fb.height, gl.RGB, gl.UNSIGNED_BYTE, rgb_data.ptr);
+
+        // Restore default framebuffer
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, 0);
+
+        return rgb_data;
     }
 };
 

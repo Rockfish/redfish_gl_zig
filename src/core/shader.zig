@@ -375,6 +375,64 @@ pub const Shader = struct {
         }
     }
 
+    fn captureDebugUniform(self: *const Shader, uniform: [:0]const u8, value: anytype) void {
+        if (!self.debug_enabled) return;
+
+        // Use @constCast to modify the arena and hashmap for debug purposes
+        const mutable_self = @constCast(self);
+        var buf: [512]u8 = undefined;
+
+        const value_str = switch (@TypeOf(value)) {
+            bool => std.fmt.bufPrint(&buf, "{}", .{value}) catch return,
+            i32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
+            u32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
+            f32 => std.fmt.bufPrint(&buf, "{d:.3}", .{value}) catch return,
+            *const Vec2 => value.asString(&buf),
+            *const Vec3 => value.asString(&buf),
+            *const Vec4 => value.asString(&buf),
+            *const Mat3 => value.asString(&buf),
+            *const Mat4 => value.asString(&buf),
+            *const [2]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}]", .{ value[0], value[1] }) catch return,
+            *const [3]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}, {d:.3}]", .{ value[0], value[1], value[2] }) catch return,
+            *const [4]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}, {d:.3}, {d:.3}]", .{ value[0], value[1], value[2], value[3] }) catch return,
+            else => std.fmt.bufPrint(&buf, "{any}", .{value}) catch return,
+        };
+
+        // Check if this uniform already exists to avoid memory leak
+        const entry = mutable_self.debug_uniforms.getOrPut(uniform) catch return;
+
+        if (entry.found_existing) {
+            // Free the old value, but keep the key
+            self.allocator.free(entry.value_ptr.*);
+        } else {
+            // Allocate new key for new entry
+            const owned_key = self.allocator.dupe(u8, uniform) catch return;
+            entry.key_ptr.* = owned_key;
+        }
+
+        // Always allocate new value
+        const owned_value = self.allocator.dupe(u8, value_str) catch return;
+        entry.value_ptr.* = owned_value;
+    }
+
+    pub fn saveDebugUniforms(self: *Self, filepath: []const u8, timestamp_str: []const u8) !void {
+        if (!self.debug_enabled) {
+            return error.DebugNotEnabled;
+        }
+
+        // Generate JSON content (increased buffer size for one-shot screenshot capture)
+        var buffer: [100000]u8 = undefined;
+        const json_content = try self.dumpDebugUniformsJSON(&buffer, timestamp_str);
+
+        // Write to file
+        const file = try std.fs.cwd().createFile(filepath, .{});
+        defer file.close();
+
+        try file.writeAll(json_content);
+
+        std.debug.print("Shader uniforms saved: {s}\n", .{filepath});
+    }
+
     pub fn dumpDebugUniforms(self: *Self, buffer: []u8) ![]u8 {
         if (!self.debug_enabled) {
             return std.fmt.bufPrint(buffer, "Debug not enabled\n", .{});
@@ -395,7 +453,7 @@ pub const Shader = struct {
         return stream.getWritten();
     }
 
-    pub fn dumpDebugUniformsJSON(self: *Self, buffer: []u8) ![]u8 {
+    pub fn dumpDebugUniformsJSON(self: *Self, buffer: []u8, timestamp_str: []const u8) ![]u8 {
         if (!self.debug_enabled) {
             return std.fmt.bufPrint(buffer, "{{\"error\": \"Debug not enabled\"}}\n", .{});
         }
@@ -403,9 +461,8 @@ pub const Shader = struct {
         var stream = std.io.fixedBufferStream(buffer);
         var writer = stream.writer();
 
-        // Get current timestamp
+        // Use provided timestamp
         const timestamp = std.time.timestamp();
-        const timestamp_str = core.utils.generateTimestamp();
 
         try writer.print("{{\n", .{});
         try writer.print("  \"timestamp\": {},\n", .{timestamp});
@@ -446,72 +503,6 @@ pub const Shader = struct {
         try writer.print("}}\n", .{});
 
         return stream.getWritten();
-    }
-
-    pub fn saveDebugUniforms(self: *Self, filepath: []const u8) !void {
-        if (!self.debug_enabled) {
-            return error.DebugNotEnabled;
-        }
-
-        // Ensure directory exists
-        if (std.fs.path.dirname(filepath)) |dir| {
-            std.fs.cwd().makePath(dir) catch |err| switch (err) {
-                error.PathAlreadyExists => {},
-                else => return err,
-            };
-        }
-
-        // Generate JSON content (increased buffer size for one-shot screenshot capture)
-        var buffer: [100000]u8 = undefined;
-        const json_content = try self.dumpDebugUniformsJSON(&buffer);
-
-        // Write to file
-        const file = try std.fs.cwd().createFile(filepath, .{});
-        defer file.close();
-
-        try file.writeAll(json_content);
-
-        std.debug.print("Shader uniforms saved: {s}\n", .{filepath});
-    }
-
-    fn captureDebugUniform(self: *const Shader, uniform: [:0]const u8, value: anytype) void {
-        if (!self.debug_enabled) return;
-
-        // Use @constCast to modify the arena and hashmap for debug purposes
-        const mutable_self = @constCast(self);
-        var buf: [512]u8 = undefined;
-
-        const value_str = switch (@TypeOf(value)) {
-            bool => std.fmt.bufPrint(&buf, "{}", .{value}) catch return,
-            i32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
-            u32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
-            f32 => std.fmt.bufPrint(&buf, "{d:.3}", .{value}) catch return,
-            *const Vec2 => value.asString(&buf),
-            *const Vec3 => value.asString(&buf),
-            *const Vec4 => value.asString(&buf),
-            *const Mat3 => value.asString(&buf),
-            *const Mat4 => value.asString(&buf),
-            *const [2]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}]", .{ value[0], value[1] }) catch return,
-            *const [3]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}, {d:.3}]", .{ value[0], value[1], value[2] }) catch return,
-            *const [4]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}, {d:.3}, {d:.3}]", .{ value[0], value[1], value[2], value[3] }) catch return,
-            else => std.fmt.bufPrint(&buf, "{any}", .{value}) catch return,
-        };
-
-        // Check if this uniform already exists to avoid memory leak
-        const entry = mutable_self.debug_uniforms.getOrPut(uniform) catch return;
-
-        if (entry.found_existing) {
-            // Free the old value, but keep the key
-            self.allocator.free(entry.value_ptr.*);
-        } else {
-            // Allocate new key for new entry
-            const owned_key = self.allocator.dupe(u8, uniform) catch return;
-            entry.key_ptr.* = owned_key;
-        }
-
-        // Always allocate new value
-        const owned_value = self.allocator.dupe(u8, value_str) catch return;
-        entry.value_ptr.* = owned_value;
     }
 };
 

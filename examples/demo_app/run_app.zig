@@ -6,7 +6,7 @@ const core = @import("core");
 const math = @import("math");
 const assets_list = @import("assets_list.zig");
 const ui_display = @import("ui_display.zig");
-const screenshot_manager = @import("screenshot_manager.zig");
+const screenshot = @import("screenshot.zig");
 
 const Camera = core.Camera;
 const asset_loader = core.asset_loader;
@@ -188,7 +188,7 @@ pub fn run(window: *glfw.Window) !void {
     defer ui_state.deinit();
 
     // Initialize screenshot system
-    var screenshot_mgr = screenshot_manager.ScreenshotManager.init(allocator);
+    var screenshot_mgr = screenshot.ScreenshotManager.init(allocator);
     defer screenshot_mgr.deinit();
 
     const shader = try Shader.init(
