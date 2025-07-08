@@ -33,9 +33,6 @@ const Quat = math.Quat;
 
 const Window = glfw.Window;
 
-const SCR_WIDTH: f32 = 800.0;
-const SCR_HEIGHT: f32 = 800.0;
-
 // Lighting
 const LIGHT_FACTOR: f32 = 1.0;
 const NON_BLUE: f32 = 0.9;
@@ -140,9 +137,10 @@ pub fn run(window: *glfw.Window) !void {
     const allocator = gpa.allocator();
     core.string.init(allocator);
 
+    const window_size = window.getSize();
     const window_scale = window.getContentScale();
-    const viewport_width = SCR_WIDTH * window_scale[0];
-    const viewport_height = SCR_HEIGHT * window_scale[1];
+    const viewport_width = @as(f32, @floatFromInt(window_size[0])) * window_scale[0];
+    const viewport_height = @as(f32, @floatFromInt(window_size[1])) * window_scale[1];
     const scaled_width = viewport_width / window_scale[0];
     const scaled_height = viewport_height / window_scale[1];
 
@@ -220,45 +218,9 @@ pub fn run(window: *glfw.Window) !void {
 
     gl.enable(gl.DEPTH_TEST);
 
-    // state.single_mesh_id = 2;
-    // var last_animation: i32 = 0;
-
     shader.useShader();
-    // shader.set_bool("hasColor", false);
-    // shader.set_vec3("diffuseColor", &vec3(0.0, 0.0, 0.0));
-    // shader.set_vec3("ambient_color", &vec3(0.0, 0.0, 0.0));
-    // shader.set_vec3("specular_color", &vec3(0.0, 0.0, 0.0));
-    // shader.set_vec3("emissive_color", &vec3(0.0, 0.0, 0.0));
-    // shader.set_vec3("hit_color", &vec3(0.0, 0.0, 0.0));
-
-    // GLTL to openGL
-    // const conversion_matrix = Mat4{ .data = .{
-    //         .{ 1.0, 0.0, 0.0, 0.0 },
-    //         .{ 0.0, 1.0, 0.0, 0.0 },
-    //         .{ 0.0, 0.0, -1.0, 0.0 },
-    //         .{ 0.0, 0.0, 0.0, 1.0 },
-    //     } };
-    // gl.frontFace(gl.CW); // Adjust front-face culling
-    // Rotation matrix to convert glTF coordinate system to OpenGL
-    const gltf_to_openGL_coordinates = Mat4{ .data = .{
-        .{ 1.0, 0.0, 0.0, 0.0 },
-        .{ 0.0, math.cos(-math.pi / 2), -math.sin(-math.pi / 2), 0.0 },
-        .{
-            0.0,
-            math.sin(-math.pi / 2),
-            math.cos(-math.pi / 2),
-            0.0,
-        },
-        .{ 0.0, 0.0, 0.0, 1.0 },
-    } };
-    _ = gltf_to_openGL_coordinates;
 
     gl.enable(gl.CULL_FACE);
-
-    // camera.position = vec3(0.0, 8.0, 10.0);
-    // camera.target = vec3(0.0, 8.0, 0.0);
-    // camera.forward = vec3(-4.0, 2.0, 0.0);
-    // camera.target_pans = true;
 
     var buf: [1024]u8 = undefined;
     std.debug.print("{s}\n", .{camera.asString(&buf)});
@@ -364,17 +326,7 @@ pub fn run(window: *glfw.Window) !void {
         shader.setMat4("matProjection", &state.projection);
         shader.setMat4("matView", &state.camera.getViewMatrix());
 
-        // _ = conversion_matrix;
         var model_transform = Mat4.identity();
-        // model_transform.rotateByDegrees(&vec3(0.0, 1.0, 0.0), 180.0);
-        // var model_transform = gltf_to_openGL_coordinates;
-        // var model_transform = conversion_matrix;
-        // model_transform.translate(&vec3(0.0, -10.4, -400.0));
-        //model_transform.scale(&vec3(1.0, 1.0, 1.0));
-        ////model_transform.translation(&vec3(0.0, 0.0, 0.0));
-        // model_transform.rotateByDegrees(&vec3(0.0, 1.0, 0.0), 180.0);
-        // model_transform.scale(&vec3(3.0, 3.0, 3.0));
-        // model_transform.scale(&vec3(0.02, 0.02, 0.02));
         shader.setMat4("matModel", &model_transform);
 
         // Basic shader
@@ -407,12 +359,6 @@ pub fn run(window: *glfw.Window) !void {
             state.shader_debug_dump_requested = false;
         }
 
-        // Screenshot handling is now integrated into the main render loop
-
-        // shader.set_mat4("aimRot", &identity);
-        // lightSpaceMatrix is a view * ortho projection matrix for shadows
-        // shader.set_mat4("lightSpaceMatrix", &identity);
-
         // model.render(shader);
         current_model.render(shader);
 
@@ -443,18 +389,9 @@ pub fn run(window: *glfw.Window) !void {
         //break;
     }
 
-    // try core.dumpModelNodes(model);
-    // model.meshes.items[2].printMeshVertices();
-
     std.debug.print("\nRun completed.\n\n", .{});
 
     shader.deinit();
     camera.deinit();
-    // model.deinit();
     current_model.deinit();
-
-    // for (texture_cache.items) |_texture| {
-    //     _texture.deinit();
-    // }
-    // texture_cache.deinit();
 }

@@ -30,7 +30,7 @@ pub fn main() !void {
     const window = try glfw.Window.create(
         SCR_WIDTH,
         SCR_HEIGHT,
-        "Skybox",
+        "Demo App",
         null,
     );
     defer window.destroy();
