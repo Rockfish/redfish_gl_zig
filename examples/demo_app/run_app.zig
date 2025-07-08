@@ -224,8 +224,8 @@ pub fn run(window: *glfw.Window) !void {
     // var last_animation: i32 = 0;
 
     shader.useShader();
-    // shader.set_bool("has_color", false);
-    // shader.set_vec3("diffuse_color", &vec3(0.0, 0.0, 0.0));
+    // shader.set_bool("hasColor", false);
+    // shader.set_vec3("diffuseColor", &vec3(0.0, 0.0, 0.0));
     // shader.set_vec3("ambient_color", &vec3(0.0, 0.0, 0.0));
     // shader.set_vec3("specular_color", &vec3(0.0, 0.0, 0.0));
     // shader.set_vec3("emissive_color", &vec3(0.0, 0.0, 0.0));

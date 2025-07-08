@@ -30,11 +30,11 @@ uniform sampler2D occlusionTexture;
 uniform sampler2D emissiveTexture;
 
 // Flags indicating texture availability
-uniform bool has_baseColorTexture;
-uniform bool has_metallicRoughnessTexture;
-uniform bool has_normalTexture;
-uniform bool has_occlusionTexture;
-uniform bool has_emissiveTexture;
+uniform bool hasBaseColorTexture;
+uniform bool hasMetallicRoughnessTexture;
+uniform bool hasNormalTexture;
+uniform bool hasOcclusionTexture;
+uniform bool hasEmissiveTexture;
 
 // Output fragment color
 out vec4 finalColor;
@@ -44,13 +44,13 @@ const float PI = 3.14159265359;
 void main() {
     // Base Color
     vec4 baseColor = material.baseColorFactor;
-    if (has_baseColorTexture) {
+    if (hasBaseColorTexture) {
         baseColor *= texture(baseColorTexture, fragTexCoord);
     }
 
     // Metallic-Roughness
     vec4 metallicRoughness = vec4(1.0);
-    if (has_metallicRoughnessTexture) {
+    if (hasMetallicRoughnessTexture) {
         metallicRoughness = texture(metallicRoughnessTexture, fragTexCoord);
     }
     // glTF: metallic is in the blue channel and roughness is in the green channel
@@ -59,7 +59,7 @@ void main() {
  
     // Normal Mapping
     vec3 normal = fragNormal;
-    if (has_normalTexture) {
+    if (hasNormalTexture) {
         vec3 normalMap = texture(normalTexture, fragTexCoord).xyz * 2.0 - 1.0;
         normal = normalize(fragTBN * normalMap);
     }
@@ -104,14 +104,14 @@ void main() {
     vec3 color = (diffuse + specular) * NdotL * radiance;
 
     // Occlusion
-    if (has_occlusionTexture) {
+    if (hasOcclusionTexture) {
         float occlusion = texture(occlusionTexture, fragTexCoord).r;
         color *= occlusion;
     }
 
     // Emissive
     vec3 emissive = vec3(0.0);
-    if (has_emissiveTexture) {
+    if (hasEmissiveTexture) {
         emissive = material.emissiveFactor * texture(emissiveTexture, fragTexCoord).rgb;
     }
 

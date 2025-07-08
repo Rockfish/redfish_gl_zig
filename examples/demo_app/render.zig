@@ -28,47 +28,47 @@ pub fn setShaderUniforms(
 
     // Base Color
     if (material.baseColorFactor) |baseColorFactor| {
-        shader.set_vec4("material.baseColorFactor", &baseColorFactor);
+        shader.setVec4("material.baseColorFactor", &baseColorFactor);
     } else {
-        shader.set_4float("material.baseColorFactor", &[4]f32{ 1.0, 1.0, 1.0, 1.0 });
+        shader.set4Float("material.baseColorFactor", &[4]f32{ 1.0, 1.0, 1.0, 1.0 });
     }
 
-    shader.set_float("material.metallicFactor", material.metallicFactor orelse 1.0);
-    shader.set_float("material.roughnessFactor", material.roughnessFactor orelse 1.0);
+    shader.setFloat("material.metallicFactor", material.metallicFactor orelse 1.0);
+    shader.setFloat("material.roughnessFactor", material.roughnessFactor orelse 1.0);
 
     if (material.emissive_factor) |emissiveFactor| {
-        shader.set_vec3("material.emissiveFactor", &emissiveFactor);
+        shader.setVec3("material.emissiveFactor", &emissiveFactor);
     } else {
-        shader.set_3float("material.emissiveFactor", &[3]f32{ 0.0, 0.0, 0.0 });
+        shader.set3Float("material.emissiveFactor", &[3]f32{ 0.0, 0.0, 0.0 });
     }
 
     if (material.pbr_metallic_roughness.base_color_texture) |baseColorTexture| {
         const texUnit = 0;
         const texture = gltf.loaded_textures.get(baseColorTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-        shader.bind_texture(texUnit, "baseColorTexture", texture);
+        shader.bindTexture(texUnit, "baseColorTexture", texture);
     }
 
     if (material.pbr_metallic_roughness.metallic_roughness_texture) |metallicRoughnessTexture| {
         const texUnit = 1;
         const texture = gltf.loaded_textures.get(metallicRoughnessTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-        shader.bind_texture(texUnit, "metallicRoughnessTexture", texture);
+        shader.bindTexture(texUnit, "metallicRoughnessTexture", texture);
     }
 
     if (material.normal_texture) |normalTexture| {
         const texUnit = 2;
         const texture = gltf.loaded_textures.get(normalTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-        shader.bind_texture(texUnit, "normalTexture", texture);
+        shader.bindTexture(texUnit, "normalTexture", texture);
     }
 
     if (material.emissive_texture) |emissiveTexture| {
         const texUnit = 3;
         const texture = gltf.loaded_textures.get(emissiveTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-        shader.bind_texture(texUnit, "emissiveTexture", texture);
+        shader.bindTexture(texUnit, "emissiveTexture", texture);
     }
 
     if (material.occlusion_texture) |occlusionTexture| {
         const texUnit = 4;
         const texture = gltf.loaded_textures.get(occlusionTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-        shader.bind_texture(texUnit, "occlusionTexture", texture);
+        shader.bindTexture(texUnit, "occlusionTexture", texture);
     }
 }

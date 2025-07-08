@@ -11,15 +11,15 @@ uniform vec3 light_color;
 uniform vec3 light_dir;
 uniform vec4 hit_color;
 
-uniform int has_color;
-uniform int has_texture;
+uniform int hasColor;
+uniform int hasTexture;
 
-uniform vec4 diffuse_color;
-uniform vec4 ambient_color;
-uniform vec4 specular_color;
-uniform vec4 emissive_color;
+uniform vec4 diffuseColor;
+uniform vec4 ambientColor;
+uniform vec4 specularColor;
+uniform vec4 emissiveColor;
 
-uniform sampler2D texture_diffuse;
+uniform sampler2D textureDiffuse;
 
 
 // Output fragment color
@@ -29,11 +29,11 @@ void main()
 {
     vec4 color = vec4(1.0, 0.0, 0.0, 1.0);
 
-    if (has_texture == 1) {
-        color = texture(texture_diffuse, fragTexCoord);
+    if (hasTexture == 1) {
+        color = texture(textureDiffuse, fragTexCoord);
     }  else {
-        if (has_color == 1) {
-           color = diffuse_color;
+        if (hasColor == 1) {
+           color = diffuseColor;
         } else {
            color = fragColor;
         }
@@ -49,8 +49,8 @@ void main()
     finalColor = color;
     // finalColor = color * vec4((ambient), 1.0f);
     // finalColor = color * vec4((ambient + diffuse), 1.0f);
-    // finalColor = texture(texture_diffuse, fragTexCoord);
-    // finalColor = color + texture(texture_diffuse, fragTexCoord) + hit_color;
+    // finalColor = texture(textureDiffuse, fragTexCoord);
+    // finalColor = color + texture(textureDiffuse, fragTexCoord) + hit_color;
     // finalColor = vec4(0.8, 0.2, 0.2, 1.0);
     // finalColor = fragColor;
 }

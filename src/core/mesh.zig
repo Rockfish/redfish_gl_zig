@@ -20,6 +20,11 @@ const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
 const Vec4 = math.Vec4;
 
+pub const RenderMode = enum {
+    basic,
+    pbr,
+};
+
 pub const Mesh = struct {
     name: ?[]const u8,
     primitives: ArrayList(*MeshPrimitive),
@@ -61,6 +66,7 @@ pub const MeshPrimitive = struct {
     id: usize,
     name: ?[]const u8 = null,
     material: gltf_types.Material = undefined,
+    render_mode: RenderMode = .basic,
     indices_count: u32,
     vertex_count: u32 = 0,
     index_type: gltf_types.ComponentType = .unsigned_short,
@@ -212,7 +218,7 @@ pub const MeshPrimitive = struct {
 
     // Gltf Material to Assimp Mapping
     //
-    // material.metallic_roughness.base_color_factor  : diffuse_color
+    // material.metallic_roughness.base_color_factor  : diffuseColor
     // material.metallic_roughness.base_color_factor  : base_color
     // material.pbrMetallicRoughness.baseColorTexture : aiTextureType_DIFFUSE
     // material.pbrMetallicRoughness.baseColorTexture :  aiTextureType_BASE_COLOR
@@ -220,30 +226,33 @@ pub const MeshPrimitive = struct {
     // mat.pbrMetallicRoughness.metallicRoughnessTexture : aiTextureType_METALNESS
     // mat.pbrMetallicRoughness.metallicRoughnessTexture : aiTextureType_DIFFUSE_ROUGHNESS
 
-    pub fn render(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
+    fn setupBasicMaterial(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
         if (self.material.pbr_metallic_roughness) |pbr| {
             if (pbr.base_color_texture) |baseColorTexture| {
                 const texUnit: u32 = 0;
                 const texture = gltf_asset.loaded_textures.get(baseColorTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-                //std.debug.print("Binding texture: GL ID {d}, texUnit {d}\n", .{ texture.gl_texture_id, texUnit });
                 gl.activeTexture(gl.TEXTURE0 + @as(c_uint, @intCast(texUnit)));
                 gl.bindTexture(gl.TEXTURE_2D, texture.gl_texture_id);
 
-                // Check for OpenGL errors after binding
                 const error_code = gl.getError();
                 if (error_code != gl.NO_ERROR) {
                     std.debug.print("OpenGL error after texture bind: {d}\n", .{error_code});
                 }
 
-                shader.setInt("texture_diffuse", texUnit);
-                shader.setBool("has_texture", true);
-                // std.debug.print("Set has_texture to true, texture_diffuse to {d}\n", .{texUnit});
+                shader.setInt("textureDiffuse", texUnit);
+                shader.setBool("hasTexture", true);
             } else {
                 const color = pbr.base_color_factor;
-                shader.set4Float("diffuse_color", @ptrCast(&color));
-                shader.setBool("has_color", true);
-                // std.debug.print("Using base color: {any}\n", .{color});
+                shader.set4Float("diffuseColor", @ptrCast(&color));
+                shader.setBool("hasColor", true);
             }
+        }
+    }
+
+    pub fn render(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
+        switch (self.render_mode) {
+            .basic => self.setupBasicMaterial(gltf_asset, shader),
+            .pbr => self.setupPBRMaterial(gltf_asset, shader),
         }
 
         // Set skin detection uniform for shader
@@ -276,11 +285,14 @@ pub const MeshPrimitive = struct {
         }
         gl.bindVertexArray(0);
 
-        shader.setBool("has_texture", false);
-        shader.setBool("has_color", false);
+        // Reset basic shader flags if in basic mode
+        if (self.render_mode == .basic) {
+            shader.setBool("hasTexture", false);
+            shader.setBool("hasColor", false);
+        }
     }
 
-    pub fn renderPBR(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
+    fn setupPBRMaterial(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
         if (self.material.pbr_metallic_roughness) |pbr| {
             // Base Color
             shader.set4Float("material.baseColorFactor", @ptrCast(&pbr.base_color_factor));
@@ -292,56 +304,47 @@ pub const MeshPrimitive = struct {
         if (self.material.pbr_metallic_roughness) |pbr| {
             if (pbr.base_color_texture) |baseColorTexture| {
                 const texture = gltf_asset.loaded_textures.get(baseColorTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-                shader.bindTexture(0, "baseColorTexture", texture);
-                shader.setBool("has_baseColorTexture", true);
+                shader.bindTexture(0, "baseColorTexture", texture.gl_texture_id);
+                shader.setBool("hasBaseColorTexture", true);
             } else {
-                shader.setBool("has_baseColorTexture", false);
+                shader.setBool("hasBaseColorTexture", false);
             }
 
             if (pbr.metallic_roughness_texture) |metallicRoughnessTexture| {
                 const texture = gltf_asset.loaded_textures.get(metallicRoughnessTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-                shader.bindTexture(1, "metallicRoughnessTexture", texture);
-                shader.setBool("has_metallicRoughnessTexture", true);
+                shader.bindTexture(1, "metallicRoughnessTexture", texture.gl_texture_id);
+                shader.setBool("hasMetallicRoughnessTexture", true);
             } else {
-                shader.setBool("has_metallicRoughnessTexture", false);
+                shader.setBool("hasMetallicRoughnessTexture", false);
             }
         } else {
-            shader.setBool("has_baseColorTexture", false);
-            shader.setBool("has_metallicRoughnessTexture", false);
+            shader.setBool("hasBaseColorTexture", false);
+            shader.setBool("hasMetallicRoughnessTexture", false);
         }
 
         if (self.material.normal_texture) |normalTexture| {
             const texture = gltf_asset.loaded_textures.get(normalTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-            shader.bindTexture(2, "normalTexture", texture);
-            shader.setBool("has_normalTexture", true);
+            shader.bindTexture(2, "normalTexture", texture.gl_texture_id);
+            shader.setBool("hasNormalTexture", true);
         } else {
-            shader.setBool("has_normalTexture", false);
+            shader.setBool("hasNormalTexture", false);
         }
 
         if (self.material.emissive_texture) |emissiveTexture| {
             const texture = gltf_asset.loaded_textures.get(emissiveTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-            shader.bindTexture(3, "emissiveTexture", texture);
-            shader.setBool("has_emissiveTexture", true);
+            shader.bindTexture(3, "emissiveTexture", texture.gl_texture_id);
+            shader.setBool("hasEmissiveTexture", true);
         } else {
-            shader.setBool("has_emissiveTexture", false);
+            shader.setBool("hasEmissiveTexture", false);
         }
 
         if (self.material.occlusion_texture) |occlusionTexture| {
             const texture = gltf_asset.loaded_textures.get(occlusionTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-            shader.setBool("has_occlusionTexture", true);
-            shader.bindTexture(4, "occlusionTexture", texture);
+            shader.setBool("hasOcclusionTexture", true);
+            shader.bindTexture(4, "occlusionTexture", texture.gl_texture_id);
         } else {
-            shader.setBool("has_occlusionTexture", false);
+            shader.setBool("hasOcclusionTexture", false);
         }
-
-        gl.bindVertexArray(self.vao);
-        gl.drawElements(
-            gl.TRIANGLES,
-            @intCast(self.indices_count),
-            gl.UNSIGNED_SHORT,
-            null,
-        );
-        gl.bindVertexArray(0);
     }
 };
 

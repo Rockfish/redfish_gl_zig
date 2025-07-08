@@ -39,7 +39,7 @@ Implement basic PBR (Physically Based Rendering) shaders to make models look rea
 
 ### Remaining Phase 1 Items
 - [x] Add framebuffer rendering for scene snapshots
-- [x] Create timestamped bitmap and text file output system
+- [x] Create timestamped ping and text file output system
 
 ## Phase 2: Core PBR Implementation 🔄 CURRENT PHASE
 
