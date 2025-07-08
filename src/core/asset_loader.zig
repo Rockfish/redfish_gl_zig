@@ -1,4 +1,6 @@
 const std = @import("std");
+const math = @import("math");
+const gl = @import("zopengl").bindings;
 const gltf_types = @import("gltf/gltf.zig");
 const parser = @import("gltf/parser.zig");
 const texture = @import("texture.zig");
@@ -6,6 +8,15 @@ const utils = @import("utils/main.zig");
 const Model = @import("model.zig").Model;
 const Mesh = @import("mesh.zig").Mesh;
 const Animator = @import("animator.zig").Animator;
+
+const Vec3 = math.Vec3;
+
+// Normal generation options for asset loading
+pub const NormalGenerationMode = enum {
+    skip, // Don't generate normals, use shader fallback
+    simple, // Generate simple upward-facing normals
+    accurate, // Calculate normals from triangle geometry
+};
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -50,6 +61,7 @@ pub const GltfAsset = struct {
     // Runtime support data
     buffer_data: ArrayList([]align(4) const u8),
     loaded_textures: std.AutoHashMap(u32, *texture.Texture),
+    generated_normals: std.AutoHashMap(u64, []Vec3), // Key: mesh_index << 32 | primitive_index
     directory: []const u8,
     name: []const u8,
     filepath: [:0]const u8,
@@ -59,6 +71,7 @@ pub const GltfAsset = struct {
     flip_v: bool,
     flip_h: bool,
     load_textures: bool,
+    normal_generation_mode: NormalGenerationMode,
 
     const Self = @This();
 
@@ -74,6 +87,7 @@ pub const GltfAsset = struct {
             .gltf = undefined, // Will be set during load
             .buffer_data = ArrayList([]align(4) const u8).init(alloc),
             .loaded_textures = std.AutoHashMap(u32, *texture.Texture).init(alloc),
+            .generated_normals = std.AutoHashMap(u64, []Vec3).init(alloc),
             .directory = try alloc.dupe(u8, Path.dirname(path) orelse ""),
             .name = try alloc.dupe(u8, name),
             .filepath = try alloc.dupeZ(u8, path),
@@ -81,6 +95,7 @@ pub const GltfAsset = struct {
             .flip_v = false,
             .flip_h = false,
             .load_textures = true,
+            .normal_generation_mode = .skip, // Default to skip generation
         };
 
         return asset;
@@ -103,6 +118,57 @@ pub const GltfAsset = struct {
         self.load_textures = false;
     }
 
+    pub fn setNormalGenerationMode(self: *Self, mode: NormalGenerationMode) void {
+        self.normal_generation_mode = mode;
+    }
+
+    // Get pre-generated normals for a specific mesh primitive
+    pub fn getGeneratedNormals(self: *Self, mesh_index: u32, primitive_index: u32) ?[]Vec3 {
+        const key = (@as(u64, mesh_index) << 32) | primitive_index;
+        return self.generated_normals.get(key);
+    }
+
+    // Generate missing normals for all mesh primitives based on configuration
+    fn generateMissingNormals(self: *Self) !void {
+        // Skip generation if mode is set to skip
+        if (self.normal_generation_mode == .skip) {
+            return;
+        }
+
+        if (self.gltf.meshes) |gltf_meshes| {
+            for (gltf_meshes, 0..) |gltf_mesh, mesh_index| {
+                for (gltf_mesh.primitives, 0..) |primitive, primitive_index| {
+                    // Skip if this primitive already has normals
+                    if (primitive.attributes.normal != null) {
+                        continue;
+                    }
+
+                    // Get vertex count from position accessor
+                    const position_accessor_id = primitive.attributes.position orelse {
+                        std.debug.print("Primitive {d}.{d} has no position data, skipping normal generation\n", .{ mesh_index, primitive_index });
+                        continue;
+                    };
+
+                    const position_accessor = self.gltf.accessors.?[position_accessor_id];
+                    const vertex_count = @as(u32, @intCast(position_accessor.count));
+
+                    // Generate normals based on mode
+                    const normals = switch (self.normal_generation_mode) {
+                        .skip => unreachable, // Already handled above
+                        .simple => generateSimpleNormals(self, vertex_count),
+                        .accurate => generateAccurateNormals(self, primitive, vertex_count),
+                    };
+
+                    // Store generated normals in the map
+                    const key = (@as(u64, @intCast(mesh_index)) << 32) | @as(u64, @intCast(primitive_index));
+                    try self.generated_normals.put(key, normals);
+
+                    std.debug.print("Generated {s} normals for mesh {d} primitive {d} ({d} vertices)\n", .{ @tagName(self.normal_generation_mode), mesh_index, primitive_index, vertex_count });
+                }
+            }
+        }
+    }
+
     pub fn load(self: *Self) !void {
         const file_contents = std.fs.cwd().readFileAllocOptions(
             self.arena.allocator(),
@@ -111,7 +177,7 @@ pub const GltfAsset = struct {
             null,
             4,
             null,
-        ) catch |err| std.debug.panic("Error reading file. error: '{any}'  file: '{s}'\n", .{err, self.filepath});
+        ) catch |err| std.debug.panic("Error reading file. error: '{any}'  file: '{s}'\n", .{ err, self.filepath });
 
         if (isGlbFile(self.filepath)) {
             // GLB format: parse binary format and extract JSON + binary chunks
@@ -137,13 +203,16 @@ pub const GltfAsset = struct {
     pub fn buildModel(self: *Self) !*Model {
         const allocator = self.arena.allocator();
 
+        // Generate normals for missing ones based on configuration
+        try self.generateMissingNormals();
+
         // Create meshes
         const meshes = try allocator.create(ArrayList(*Mesh));
         meshes.* = ArrayList(*Mesh).init(allocator);
 
         if (self.gltf.meshes) |gltf_meshes| {
-            for (gltf_meshes) |gltf_mesh| {
-                const mesh = try Mesh.init(self.arena, self, gltf_mesh);
+            for (gltf_meshes, 0..) |gltf_mesh, mesh_index| {
+                const mesh = try Mesh.init(self.arena, self, gltf_mesh, mesh_index);
                 try meshes.append(mesh);
             }
         }
@@ -338,4 +407,171 @@ fn parseGlbFile(allocator: Allocator, file_data: []const u8) !GlbData {
         .json_data = json_data.?,
         .binary_data = binary_data,
     };
+}
+
+// Helper functions for accessor component and type sizes
+fn getComponentSize(component_type: gltf_types.ComponentType) usize {
+    return switch (component_type) {
+        .byte, .unsigned_byte => 1,
+        .short, .unsigned_short => 2,
+        .unsigned_int, .float => 4,
+    };
+}
+
+fn getTypeSize(accessor_type: gltf_types.AccessorType) usize {
+    return switch (accessor_type) {
+        .scalar => 1,
+        .vec2 => 2,
+        .vec3 => 3,
+        .vec4 => 4,
+        .mat2 => 4,
+        .mat3 => 9,
+        .mat4 => 16,
+    };
+}
+
+// Generate simple upward-facing normals for models that don't have them
+pub fn generateSimpleNormals(gltf_asset: *GltfAsset, vertex_count: u32) []Vec3 {
+    const allocator = gltf_asset.arena.allocator();
+
+    const normals = allocator.alloc(Vec3, vertex_count) catch |err| {
+        std.debug.panic("Failed to allocate normals: {any}", .{err});
+    };
+
+    // Generate simple upward normals (0, 1, 0) for all vertices
+    for (normals) |*normal| {
+        normal.* = Vec3{ .x = 0.0, .y = 1.0, .z = 0.0 };
+    }
+
+    return normals;
+}
+
+// Generate accurate normals calculated from triangle geometry
+pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.MeshPrimitive, vertex_count: u32) []Vec3 {
+    const allocator = gltf_asset.arena.allocator();
+
+    // Get position data
+    const position_accessor_id = primitive.attributes.position orelse {
+        std.debug.panic("Cannot generate normals without positions", .{});
+    };
+
+    const position_accessor = gltf_asset.gltf.accessors.?[position_accessor_id];
+    const position_buffer_view = gltf_asset.gltf.buffer_views.?[position_accessor.buffer_view.?];
+    const position_buffer_data = gltf_asset.buffer_data.items[position_buffer_view.buffer];
+
+    const position_start = position_accessor.byte_offset + position_buffer_view.byte_offset;
+    const position_data_size = getComponentSize(position_accessor.component_type) * getTypeSize(position_accessor.type_) * position_accessor.count;
+    const position_data = position_buffer_data[position_start .. position_start + position_data_size];
+    const positions = @as([*]Vec3, @ptrCast(@alignCast(@constCast(position_data))))[0..vertex_count];
+
+    // Initialize normals to zero
+    const normals = allocator.alloc(Vec3, vertex_count) catch |err| {
+        std.debug.panic("Failed to allocate normals: {any}", .{err});
+    };
+    for (normals) |*normal| {
+        normal.* = Vec3{ .x = 0.0, .y = 0.0, .z = 0.0 };
+    }
+
+    // Calculate normals from triangle faces
+    if (primitive.indices) |indices_accessor_id| {
+        // Indexed geometry - calculate normals from triangles
+        const indices_accessor = gltf_asset.gltf.accessors.?[indices_accessor_id];
+        const indices_buffer_view = gltf_asset.gltf.buffer_views.?[indices_accessor.buffer_view.?];
+        const indices_buffer_data = gltf_asset.buffer_data.items[indices_buffer_view.buffer];
+
+        const indices_start = indices_accessor.byte_offset + indices_buffer_view.byte_offset;
+        const indices_data_size = getComponentSize(indices_accessor.component_type) * getTypeSize(indices_accessor.type_) * indices_accessor.count;
+        const indices_data = indices_buffer_data[indices_start .. indices_start + indices_data_size];
+
+        // Handle different index types
+        switch (indices_accessor.component_type) {
+            .unsigned_short => {
+                const indices = @as([*]u16, @ptrCast(@alignCast(@constCast(indices_data))))[0..indices_accessor.count];
+                var i: usize = 0;
+                while (i + 2 < indices.len) : (i += 3) {
+                    const idx0 = indices[i];
+                    const idx1 = indices[i + 1];
+                    const idx2 = indices[i + 2];
+
+                    if (idx0 < vertex_count and idx1 < vertex_count and idx2 < vertex_count) {
+                        const v0 = positions[idx0];
+                        const v1 = positions[idx1];
+                        const v2 = positions[idx2];
+
+                        // Calculate face normal using cross product
+                        const edge1 = v1.sub(&v0);
+                        const edge2 = v2.sub(&v0);
+                        const face_normal = edge1.crossNormalized(&edge2);
+
+                        // Add to vertex normals
+                        normals[idx0] = normals[idx0].add(&face_normal);
+                        normals[idx1] = normals[idx1].add(&face_normal);
+                        normals[idx2] = normals[idx2].add(&face_normal);
+                    }
+                }
+            },
+            .unsigned_int => {
+                const indices = @as([*]u32, @ptrCast(@alignCast(@constCast(indices_data))))[0..indices_accessor.count];
+                var i: usize = 0;
+                while (i + 2 < indices.len) : (i += 3) {
+                    const idx0 = indices[i];
+                    const idx1 = indices[i + 1];
+                    const idx2 = indices[i + 2];
+
+                    if (idx0 < vertex_count and idx1 < vertex_count and idx2 < vertex_count) {
+                        const v0 = positions[idx0];
+                        const v1 = positions[idx1];
+                        const v2 = positions[idx2];
+
+                        // Calculate face normal using cross product
+                        const edge1 = v1.sub(&v0);
+                        const edge2 = v2.sub(&v0);
+                        const face_normal = edge1.crossNormalized(&edge2);
+
+                        // Add to vertex normals
+                        normals[idx0] = normals[idx0].add(&face_normal);
+                        normals[idx1] = normals[idx1].add(&face_normal);
+                        normals[idx2] = normals[idx2].add(&face_normal);
+                    }
+                }
+            },
+            else => {
+                std.debug.print("Unsupported index type for normal generation: {s}\n", .{@tagName(indices_accessor.component_type)});
+                // Fallback to upward normals
+                for (normals) |*normal| {
+                    normal.* = Vec3{ .x = 0.0, .y = 1.0, .z = 0.0 };
+                }
+            },
+        }
+    } else {
+        // Non-indexed geometry - assume triangles in order
+        var i: usize = 0;
+        while (i + 2 < vertex_count) : (i += 3) {
+            const v0 = positions[i];
+            const v1 = positions[i + 1];
+            const v2 = positions[i + 2];
+
+            // Calculate face normal using cross product
+            const edge1 = v1.sub(&v0);
+            const edge2 = v2.sub(&v0);
+            const face_normal = edge1.crossNormalized(&edge2);
+
+            // Set vertex normals to face normal
+            normals[i] = face_normal;
+            normals[i + 1] = face_normal;
+            normals[i + 2] = face_normal;
+        }
+    }
+
+    // Normalize all accumulated normals
+    for (normals) |*normal| {
+        if (normal.length() > 0.0) {
+            normal.* = normal.normalizeTo();
+        } else {
+            // Fallback to upward normal if no accumulated normal
+            normal.* = Vec3{ .x = 0.0, .y = 1.0, .z = 0.0 };
+        }
+    }
+
+    return normals;
 }

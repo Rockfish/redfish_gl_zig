@@ -37,7 +37,7 @@ pub const Mesh = struct {
         }
     }
 
-    pub fn init(arena: *ArenaAllocator, gltf_asset: *GltfAsset, gltf_mesh: gltf_types.Mesh) !*Mesh {
+    pub fn init(arena: *ArenaAllocator, gltf_asset: *GltfAsset, gltf_mesh: gltf_types.Mesh, mesh_index: usize) !*Mesh {
         const allocator = arena.allocator();
         const mesh = try allocator.create(Mesh);
 
@@ -46,8 +46,8 @@ pub const Mesh = struct {
             .primitives = ArrayList(*MeshPrimitive).init(allocator),
         };
 
-        for (gltf_mesh.primitives, 0..) |primitive, id| {
-            const mesh_primitive = try MeshPrimitive.init(arena, gltf_asset, primitive, id);
+        for (gltf_mesh.primitives, 0..) |primitive, primitive_index| {
+            const mesh_primitive = try MeshPrimitive.init(arena, gltf_asset, primitive, mesh_index, primitive_index);
             try mesh.primitives.append(mesh_primitive);
         }
 
@@ -71,6 +71,7 @@ pub const MeshPrimitive = struct {
     vertex_count: u32 = 0,
     index_type: gltf_types.ComponentType = .unsigned_short,
     has_skin: bool = false,
+    has_normals: bool = false,
     vao: c_uint = 0,
     vbo_positions: c_uint = 0,
     vbo_normals: c_uint = 0,
@@ -113,12 +114,12 @@ pub const MeshPrimitive = struct {
         }
     }
 
-    pub fn init(arena: *ArenaAllocator, gltf_asset: *GltfAsset, primitive: gltf_types.MeshPrimitive, id: usize) !*MeshPrimitive {
+    pub fn init(arena: *ArenaAllocator, gltf_asset: *GltfAsset, primitive: gltf_types.MeshPrimitive, mesh_index: usize, primitive_index: usize) !*MeshPrimitive {
         const allocator = arena.allocator();
         const mesh_primitive = try allocator.create(MeshPrimitive);
         mesh_primitive.* = MeshPrimitive{
             // .allocator = allocator,
-            .id = id,
+            .id = primitive_index,
             .indices_count = 0,
         };
 
@@ -137,7 +138,17 @@ pub const MeshPrimitive = struct {
 
         if (primitive.attributes.normal) |accessor_id| {
             mesh_primitive.vbo_normals = createGlArrayBuffer(gltf_asset, 1, accessor_id);
+            mesh_primitive.has_normals = true;
             // std.debug.print("has_normals\n", .{});
+        } else {
+            // Check for pre-generated normals from asset loader
+            if (gltf_asset.getGeneratedNormals(@intCast(mesh_index), @intCast(primitive_index))) |normals| {
+                mesh_primitive.vbo_normals = createGlBufferFromNormals(normals);
+                mesh_primitive.has_normals = true;
+            } else {
+                // No normals generated - use shader fallback
+                mesh_primitive.has_normals = false;
+            }
         }
 
         if (primitive.attributes.tex_coord_0) |accessor_id| {
@@ -183,6 +194,11 @@ pub const MeshPrimitive = struct {
             const material = gltf_asset.gltf.materials.?[material_id];
             mesh_primitive.material = material;
             // std.debug.print("has_material: {any}\n", .{material});
+
+            // Set render mode to PBR if material has PBR properties
+            if (material.pbr_metallic_roughness != null) {
+                mesh_primitive.render_mode = .pbr;
+            }
 
             if (material.pbr_metallic_roughness) |pbr| {
                 if (pbr.base_color_texture) |base_color_texture| {
@@ -257,6 +273,7 @@ pub const MeshPrimitive = struct {
 
         // Set skin detection uniform for shader
         shader.setBool("hasSkin", self.has_skin);
+        shader.setBool("hasNormals", self.has_normals);
 
         gl.bindVertexArray(self.vao);
 
@@ -494,4 +511,23 @@ fn getTypeSize(accessor_type: gltf_types.AccessorType) usize {
         .mat3 => 9,
         .mat4 => 16,
     };
+}
+
+// Create OpenGL buffer from pre-generated normals
+fn createGlBufferFromNormals(normals: []Vec3) c_uint {
+    var vbo: c_uint = 0;
+    gl.genBuffers(1, &vbo);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        @intCast(normals.len * @sizeOf(Vec3)),
+        normals.ptr,
+        gl.STATIC_DRAW,
+    );
+
+    // Set up vertex attribute (location 1 for normals)
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, gl.FALSE, @sizeOf(Vec3), null);
+
+    return vbo;
 }

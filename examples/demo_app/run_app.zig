@@ -62,6 +62,9 @@ fn loadModel(allocator: std.mem.Allocator, model_info: assets_list.DemoModel, st
 
     var gltf_asset = try asset_loader.GltfAsset.init(allocator, model_info.name, path);
 
+    // Set normal generation mode for models that need it
+    gltf_asset.setNormalGenerationMode(.accurate);
+
     try gltf_asset.load();
     const model = try gltf_asset.buildModel();
 
@@ -191,10 +194,10 @@ pub fn run(window: *glfw.Window) !void {
 
     const shader = try Shader.init(
         allocator,
-        "examples/demo_app/shaders/player_shader.vert",
-        "examples/demo_app/shaders/basic_model.frag",
-        // "examples/demo_app/shaders/pbr.vert",
-        // "examples/demo_app/shaders/pbr.frag",
+        // "examples/demo_app/shaders/player_shader.vert",
+        // "examples/demo_app/shaders/basic_model.frag",
+        "examples/demo_app/shaders/pbr.vert",
+        "examples/demo_app/shaders/pbr.frag",
     );
 
     std.debug.print("Shader id: {d}\n", .{shader.id});
@@ -220,7 +223,7 @@ pub fn run(window: *glfw.Window) !void {
 
     shader.useShader();
 
-    gl.enable(gl.CULL_FACE);
+    // gl.enable(gl.CULL_FACE); // Temporarily disabled to fix Fox lighting issue
 
     var buf: [1024]u8 = undefined;
     std.debug.print("{s}\n", .{camera.asString(&buf)});
@@ -337,9 +340,9 @@ pub fn run(window: *glfw.Window) !void {
         shader.setVec3("light_dir", &vec3(10.0, 10.0, 2.0));
 
         // PBR shader
-        shader.setVec3("lightPosition", &vec3(0.0, 20.0, 5.0));
+        shader.setVec3("lightPosition", &vec3(state.camera.movement.position.x + 50.0, state.camera.movement.position.y + 50.0, state.camera.movement.position.z + 50.0));
         shader.setVec3("lightColor", &vec3(1.0, 1.0, 1.0));
-        shader.setFloat("lightIntensity", 1500.0);
+        shader.setFloat("lightIntensity", 100.0);
 
         shader.setVec3("viewPosition", &state.camera.movement.position);
 

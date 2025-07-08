@@ -2,6 +2,34 @@
 
 ## Recent Changes
 
+### 2025-07-08 - ASSIMP-Style Asset Loading Options 🔧
+- **Asset Loading Architecture Refactoring**: Implemented ASSIMP-style configuration options for glTF asset loading
+- **Normal Generation System**: Created comprehensive normal generation system with three modes:
+  - **Skip Mode**: Uses shader fallback lighting for models without normals
+  - **Simple Mode**: Generates uniform upward-facing normals (0, 1, 0) for all vertices
+  - **Accurate Mode**: Calculates proper normals from triangle geometry using cross products
+- **Configuration API**: Added `setNormalGenerationMode()` method following ASSIMP patterns
+  - Usage: `gltf_asset.setNormalGenerationMode(.accurate)` before calling `buildModel()`
+  - Centralized preprocessing at asset level, not during mesh creation
+  - Automatic detection - only generates normals for mesh primitives that lack them
+- **Technical Implementation**:
+  - Moved `NormalGenerationMode` enum from `mesh.zig` to `asset_loader.zig`
+  - Added `generated_normals` HashMap to `GltfAsset` with composite keys `(mesh_index << 32 | primitive_index)`
+  - Implemented `generateMissingNormals()` called during `buildModel()` preprocessing
+  - Updated mesh initialization to use pre-generated normals via `getGeneratedNormals()`
+  - Moved normal generation functions to asset loader for centralized processing
+- **Fox Model Lighting Fix**: Resolved Fox model's black appearance from certain angles
+  - Fox model lacks normal vectors in glTF data, causing lighting failures
+  - Accurate normal generation now automatically creates proper normals from triangle geometry
+  - Test output: "Generated accurate normals for mesh 0 primitive 0 (1728 vertices)"
+- **Extensible Pattern**: Established foundation for additional asset loading options (future texture settings, optimization flags, etc.)
+- **Files Modified**:
+  - `src/core/asset_loader.zig` - Added normal generation system and ASSIMP-style configuration
+  - `src/core/mesh.zig` - Removed duplicate normal generation, updated to use pre-generated normals
+  - `examples/demo_app/run_app.zig` - Configured accurate normal generation for all models
+- **Memory Management**: Pre-generated normals stored efficiently in HashMap, cleaned up with asset lifecycle
+- **Development Impact**: Provides robust foundation for handling models with missing or incomplete geometry data
+
 ### 2025-07-06 - Screenshot & Debug System Implementation 📸
 - **Framebuffer Screenshot System**: Implemented complete screenshot capture functionality
   - `examples/demo_app/screenshot.zig` - OpenGL framebuffer creation and management

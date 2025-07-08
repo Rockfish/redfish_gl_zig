@@ -68,6 +68,17 @@
 
 ## Session Notes
 
+**2025-07-08**:
+- **ASSIMP-Style Asset Loading Options**: Implemented comprehensive asset loading configuration system
+- **Normal Generation System**: Created three-mode normal generation (skip/simple/accurate) for models with missing geometry data
+- **Fox Model Lighting Fix**: Resolved Fox model's black appearance by automatically generating accurate normals from triangle geometry
+- **Architecture Improvement**: Moved normal generation from mesh level to asset loader level for better separation of concerns
+- **Configuration API**: Added `setNormalGenerationMode()` following ASSIMP patterns - set options before calling `buildModel()`
+- **Memory Management**: Efficient HashMap storage with composite keys for pre-generated normals
+- **Extensible Foundation**: Established pattern for additional asset loading options (texture settings, optimization flags, etc.)
+- **Development Impact**: Robust foundation for handling glTF models with incomplete or missing geometry data
+- **Test Validation**: Successfully tested with Fox model showing "Generated accurate normals for mesh 0 primitive 0 (1728 vertices)"
+
 **2025-07-06**: 
 - **Screenshot & Debug System**: Implemented comprehensive F12 screenshot and shader debugging system
 - **Framebuffer Capture**: OpenGL framebuffer rendering to PNG files with zstbi integration

@@ -4,7 +4,7 @@
 
 **redfish_gl_zig** is a 3D graphics engine written in Zig focused on real-time rendering of animated glTF models with physically-based rendering (PBR). The engine supports character animation, texturing, lighting, and camera controls.
 
-### Current Status (2025-07-06)
+### Current Status (2025-07-08)
 - ✅ Core rendering pipeline with OpenGL 4.0
 - ✅ Architecture refactoring completed (commit 6725b17)
 - ✅ Format-agnostic rendering components (Model, Mesh, Animator)
@@ -20,6 +20,7 @@
 - ✅ **glTF Development Tools**: Comprehensive glTF inspection and reporting system
 - ✅ **Professional Development Workflow**: Automated build, test, and shader validation tools
 - ✅ **Screenshot & Debug System**: F12 framebuffer screenshots with synchronized shader uniform dumps (2025-07-06)
+- ✅ **ASSIMP-Style Asset Loading Options** - Configurable normal generation with skip/simple/accurate modes (2025-07-08)
 - 📋 Next: Plan 003 - Basic PBR Shaders with enhanced development tools
 
 ### Architecture
@@ -79,6 +80,14 @@ libs/              # Third-party dependencies
 - **Enhanced Shader API**: `dumpDebugUniformsJSON()`, `saveDebugUniforms()` methods in core shader system
 - **Output Location**: `/tmp/redfish_screenshots/` with format `YYYY-MM-DD_HH.MM.SS.mmm_pbr_{screenshot|uniforms}.{png|json}`
 - **Usage**: Press F12 during demo_app runtime for coordinated capture of visuals and shader state
+
+#### Asset Loading System (`src/core/asset_loader.zig`)
+- **ASSIMP-Style Configuration**: Set loading options before calling `buildModel()`
+- **Normal Generation Modes**: `skip` (shader fallback), `simple` (upward normals), `accurate` (calculated from geometry)
+- **Centralized Preprocessing**: Normal generation happens at asset level, not during mesh creation
+- **Usage Pattern**: `gltf_asset.setNormalGenerationMode(.accurate)` before `buildModel()`
+- **Automatic Detection**: Only generates normals for mesh primitives that lack them
+- **Memory Management**: Pre-generated normals stored in HashMap with composite keys
 
 ## Coding Style Guidelines
 
