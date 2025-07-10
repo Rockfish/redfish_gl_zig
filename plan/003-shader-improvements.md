@@ -66,17 +66,17 @@ Implement basic PBR (Physically Based Rendering) shaders to make models look rea
 - [x] Proper glTF texture channel mapping (`pbr.frag:59-61`)
 
 ### Additional Features Implemented
-- [x] Skeletal animation support (`pbr.vert:36-58`)
+- [x] Skeletal animation shader support (`pbr.vert:36-58`)
 - [x] Fallback lighting for models without normals (`pbr.frag:114-125`)
 - [x] Energy conservation and physically accurate BRDF
 
 ## Phase 3: Material Quality
 
 ### Material Features
-- [ ] Support vertex colors
+- [x] Support vertex colors (`pbr.vert:8`, `pbr.frag:6`)
 - [ ] Add proper alpha testing and blending
 - [ ] Implement double-sided material rendering
-- [ ] Add basic texture coordinate support
+- [x] Basic texture coordinate support (`pbr.vert:6`, used throughout fragment shader)
 
 ### Visual Polish
 - [ ] Improve material preview in demo
@@ -174,7 +174,7 @@ Implement basic PBR (Physically Based Rendering) shaders to make models look rea
 
 ### 🔄 Phase 3 Current Focus
 **Material Quality** - Polish and optimize the PBR pipeline for production use:
-- **Current Task**: Implement vertex color support and alpha testing
+- **Current Task**: Implement alpha testing and double-sided material rendering
 - **Priority**: Material feature completeness and visual polish
 - **Tools Ready**: Full PBR pipeline with debugging capabilities for validation
 
