@@ -1,4 +1,4 @@
-Commit staged files with a clear, structured commit message following this format:
+Commit files with a clear, structured commit message following this format:
 
 **Structure:**
 - Start with a concise description (under 72 characters, imperative mood)

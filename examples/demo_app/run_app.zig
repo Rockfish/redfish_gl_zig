@@ -165,7 +165,7 @@ pub fn run(window: *glfw.Window) !void {
         .window_scale = window_scale,
         .camera = camera,
         .projection = camera.getProjectionMatrix(),
-        .light_postion = vec3(10.0, 10.0, -30.0),
+        .light_position = vec3(10.0, 10.0, -30.0),
         .delta_time = 0.0,
         .total_time = 0.0,
         .world_point = null,
@@ -351,7 +351,7 @@ pub fn run(window: *glfw.Window) !void {
             var buf_temp: [64]u8 = undefined;
             shader.addDebugValue("camera_position", std.fmt.bufPrint(&buf_temp, "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.position.x, state.camera.movement.position.y, state.camera.movement.position.z }) catch "error");
             shader.addDebugValue("camera_target", std.fmt.bufPrint(buf1[0..64], "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.target.x, state.camera.movement.target.y, state.camera.movement.target.z }) catch "error");
-            shader.addDebugValue("light_position", std.fmt.bufPrint(buf2[0..64], "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.light_postion.x, state.light_postion.y, state.light_postion.z }) catch "error");
+            shader.addDebugValue("light_position", std.fmt.bufPrint(buf2[0..64], "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.light_position.x, state.light_position.y, state.light_position.z }) catch "error");
             shader.addDebugValue("frame_time", std.fmt.bufPrint(&buf_temp, "{d:.6}s", .{state.delta_time}) catch "error");
         }
 

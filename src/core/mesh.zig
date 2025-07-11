@@ -131,15 +131,11 @@ pub const MeshPrimitive = struct {
             mesh_primitive.vbo_positions = createGlArrayBuffer(gltf_asset, 0, accessor_id);
             const accessor = gltf_asset.gltf.accessors.?[accessor_id];
             mesh_primitive.vertex_count = @intCast(accessor.count);
-            // std.debug.print("has_positions count: {d}\n", .{accessor.count});
-            // const aabb = getAABB(gltf_asset, accessor_id);
-            // std.debug.print("aabb: {any}\n", .{aabb});
         }
 
         if (primitive.attributes.normal) |accessor_id| {
             mesh_primitive.vbo_normals = createGlArrayBuffer(gltf_asset, 1, accessor_id);
             mesh_primitive.has_normals = true;
-            // std.debug.print("has_normals\n", .{});
         } else {
             // Check for pre-generated normals from asset loader
             if (gltf_asset.getGeneratedNormals(@intCast(mesh_index), @intCast(primitive_index))) |normals| {
@@ -153,7 +149,6 @@ pub const MeshPrimitive = struct {
 
         if (primitive.attributes.tex_coord_0) |accessor_id| {
             mesh_primitive.vbo_texcoords = createGlArrayBuffer(gltf_asset, 2, accessor_id);
-            // const accessor = gltf_asset.gltf.accessors.?[accessor_id];
             // std.debug.print("has_texcoords: accessor {d}, count {d}, component_type {d}\n", .{ accessor_id, accessor.count, @intFromEnum(accessor.component_type) });
         }
 
@@ -169,14 +164,14 @@ pub const MeshPrimitive = struct {
 
         if (primitive.attributes.joints_0) |accessor_id| {
             mesh_primitive.vbo_joints = createGlArrayBuffer(gltf_asset, 5, accessor_id);
-            const accessor = gltf_asset.gltf.accessors.?[accessor_id];
-            std.debug.print("has_joints: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
+            // const accessor = gltf_asset.gltf.accessors.?[accessor_id];
+            // std.debug.print("has_joints: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
         }
 
         if (primitive.attributes.weights_0) |accessor_id| {
             mesh_primitive.vbo_weights = createGlArrayBuffer(gltf_asset, 6, accessor_id);
-            const accessor = gltf_asset.gltf.accessors.?[accessor_id];
-            std.debug.print("has_weights: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
+            // const accessor = gltf_asset.gltf.accessors.?[accessor_id];
+            // std.debug.print("has_weights: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
         }
 
         // Set has_skin flag if both joints and weights are present
@@ -232,43 +227,10 @@ pub const MeshPrimitive = struct {
         return mesh_primitive;
     }
 
-    // Gltf Material to Assimp Mapping
-    //
-    // material.metallic_roughness.base_color_factor  : diffuseColor
-    // material.metallic_roughness.base_color_factor  : base_color
-    // material.pbrMetallicRoughness.baseColorTexture : aiTextureType_DIFFUSE
-    // material.pbrMetallicRoughness.baseColorTexture :  aiTextureType_BASE_COLOR
-    // mat.pbrMetallicRoughness.metallicRoughnessTexture : AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE
-    // mat.pbrMetallicRoughness.metallicRoughnessTexture : aiTextureType_METALNESS
-    // mat.pbrMetallicRoughness.metallicRoughnessTexture : aiTextureType_DIFFUSE_ROUGHNESS
-
-    fn setupBasicMaterial(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
-        if (self.material.pbr_metallic_roughness) |pbr| {
-            if (pbr.base_color_texture) |baseColorTexture| {
-                const texUnit: u32 = 0;
-                const texture = gltf_asset.loaded_textures.get(baseColorTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-                gl.activeTexture(gl.TEXTURE0 + @as(c_uint, @intCast(texUnit)));
-                gl.bindTexture(gl.TEXTURE_2D, texture.gl_texture_id);
-
-                const error_code = gl.getError();
-                if (error_code != gl.NO_ERROR) {
-                    std.debug.print("OpenGL error after texture bind: {d}\n", .{error_code});
-                }
-
-                shader.setInt("textureDiffuse", texUnit);
-                shader.setBool("hasTexture", true);
-            } else {
-                const color = pbr.base_color_factor;
-                shader.set4Float("diffuseColor", @ptrCast(&color));
-                shader.setBool("hasColor", true);
-            }
-        }
-    }
-
     pub fn render(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
         switch (self.render_mode) {
-            .basic => self.setupBasicMaterial(gltf_asset, shader),
-            .pbr => self.setupPBRMaterial(gltf_asset, shader),
+            .basic => self.setBasicMaterial(gltf_asset, shader),
+            .pbr => self.setPBRMaterial(gltf_asset, shader),
         }
 
         // Set skin detection uniform for shader
@@ -309,7 +271,40 @@ pub const MeshPrimitive = struct {
         }
     }
 
-    fn setupPBRMaterial(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
+    // Gltf Material to Assimp Mapping
+    //
+    // material.metallic_roughness.base_color_factor  : diffuseColor
+    // material.metallic_roughness.base_color_factor  : base_color
+    // material.pbrMetallicRoughness.baseColorTexture : aiTextureType_DIFFUSE
+    // material.pbrMetallicRoughness.baseColorTexture :  aiTextureType_BASE_COLOR
+    // mat.pbrMetallicRoughness.metallicRoughnessTexture : AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE
+    // mat.pbrMetallicRoughness.metallicRoughnessTexture : aiTextureType_METALNESS
+    // mat.pbrMetallicRoughness.metallicRoughnessTexture : aiTextureType_DIFFUSE_ROUGHNESS
+
+    fn setBasicMaterial(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
+        if (self.material.pbr_metallic_roughness) |pbr| {
+            if (pbr.base_color_texture) |baseColorTexture| {
+                const texUnit: u32 = 0;
+                const texture = gltf_asset.loaded_textures.get(baseColorTexture.index) orelse std.debug.panic("texture not loaded.", .{});
+                gl.activeTexture(gl.TEXTURE0 + @as(c_uint, @intCast(texUnit)));
+                gl.bindTexture(gl.TEXTURE_2D, texture.gl_texture_id);
+
+                const error_code = gl.getError();
+                if (error_code != gl.NO_ERROR) {
+                    std.debug.print("OpenGL error after texture bind: {d}\n", .{error_code});
+                }
+
+                shader.setInt("textureDiffuse", texUnit);
+                shader.setBool("hasTexture", true);
+            } else {
+                const color = pbr.base_color_factor;
+                shader.set4Float("diffuseColor", @ptrCast(&color));
+                shader.setBool("hasColor", true);
+            }
+        }
+    }
+
+    fn setPBRMaterial(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
         if (self.material.pbr_metallic_roughness) |pbr| {
             // Base Color
             shader.set4Float("material.baseColorFactor", @ptrCast(&pbr.base_color_factor));
@@ -364,8 +359,6 @@ pub const MeshPrimitive = struct {
         }
     }
 };
-
-// loadMaterialTexture is now handled by GltfAsset.getTexture()
 
 pub fn getAABB(gltf_asset: *GltfAsset, accessor_id: usize) AABB {
     const accessor = gltf_asset.gltf.accessors.?[accessor_id];
