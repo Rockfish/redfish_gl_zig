@@ -10,6 +10,9 @@ const Vec3 = math.Vec3;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
 
+const MIN_FOV: f32 = 10.0;
+const MAX_FOV: f32 = 120.0;
+
 pub const x_direction = math.vec3(-1.0, 0.0, 0.0);
 pub const y_direction = math.vec3(0.0, 1.0, 0.0);
 pub const z_direction = math.vec3(0.0, 0.0, -1.0);
@@ -27,9 +30,7 @@ pub const ViewType = enum {
 pub const Camera = struct {
     allocator: Allocator,
     movement: Movement,
-    // are fovy and zoom the same thing?
-    fovy: f32 = 45.0,
-    zoom: f32 = 45.0,
+    fov: f32 = 75.0,
     near: f32 = 0.01,
     far: f32 = 2000.0,
     aspect: f32 = 1.0,
@@ -47,8 +48,6 @@ pub const Camera = struct {
         position: Vec3,
         /// target for LookAt and orbiting
         target: Vec3,
-        /// Rotation in degrees
-        /// LookAt faces target, LookTo faces in direction of rotation
         view_type: ViewType = ViewType.LookAt,
         scr_width: f32,
         scr_height: f32,
@@ -63,12 +62,11 @@ pub const Camera = struct {
         camera.* = Camera{
             .allocator = allocator,
             .movement = Movement.init(config.position, config.target),
-            .fovy = 45.0,
+            .fov = 75.0,
             .aspect = config.scr_width / config.scr_height,
             .near = 0.01,
             .far = 2000.0,
             .ortho_scale = 40.0,
-            //.projection_type = ProjectionType.Perspective,
             .view_type = ViewType.LookAt,
         };
         return camera;
@@ -78,13 +76,13 @@ pub const Camera = struct {
     pub fn getProjectionMatrix(self: *Camera) Mat4 {
         return self.getProjectionMatrixWithType(self.projection_type);
     }
-    
+
     // Get projection matrix with explicit type (for backward compatibility)
     pub fn getProjectionMatrixWithType(self: *Camera, projection_type: ProjectionType) Mat4 {
         switch (projection_type) {
             .Perspective => {
                 return Mat4.perspectiveRhGl(
-                    math.degreesToRadians(self.fovy),
+                    math.degreesToRadians(self.fov),
                     self.aspect,
                     self.near,
                     self.far,
@@ -122,6 +120,14 @@ pub const Camera = struct {
         return Mat4.lookAtRhGl(&self.movement.position, &self.movement.target, &self.movement.up);
     }
 
+    pub fn getFov(self: *const Self) f32 {
+        return self.fov;
+    }
+
+    pub fn getAspect(self: *const Self) f32 {
+        return self.aspect;
+    }
+
     pub fn setLookAt(self: *Self) void {
         self.view_type = .LookAt;
     }
@@ -146,34 +152,18 @@ pub const Camera = struct {
         self.aspect = width / height;
     }
 
-    /// Pass through the movement command to the Movement component.
-    pub fn processMovement(self: *Camera, direction: MovementDirection, delta_time: f32) void {
-        // Use the same speed values or make these configurable.
-        self.movement.processMovement(
-            direction,
-            delta_time,
-        );
-    }
-
-    // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
-    pub fn processMouseScroll(self: *Self, yoffset: f32) void {
-        self.zoom -= yoffset;
-        if (self.zoom < 1.0) {
-            self.zoom = 1.0;
+    pub fn adjustFov(self: *Self, zoom_amount: f32) void {
+        self.fov -= zoom_amount;
+        if (self.fov < MIN_FOV) {
+            self.fov = MIN_FOV;
         }
-        if (self.zoom > 45.0) {
-            self.zoom = 45.0;
+        if (self.fov > MAX_FOV) {
+            self.fov = MAX_FOV;
         }
     }
 
     pub fn reset(self: *Self, position: Vec3, target: Vec3) void {
-        self.movement.position = position;
-        self.movement.target = target;
-        var forward = target.sub(&position);
-        forward.y = 0.0;
-        forward = forward.normalizeTo();
-        self.movement.forward = forward;
-        // self.movement.
+        self.movement.reset(position, target);
     }
 
     pub fn asString(self: *const Camera, buf: []u8) []u8 {

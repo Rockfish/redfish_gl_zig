@@ -26,17 +26,13 @@ pub const MovementDirection = enum {
     OrbitRight,
     CircleRight,
     CircleLeft,
-    CircleUp,  // always cross the pole
+    CircleUp, // always cross the pole
     CircleDown,
 };
 
 const world_up = Vec3.init(0.0, 1.0, 0.0);
 const half_pi = math.pi / 2.0;
-
-var buf: [1024]u8 = undefined;
-var buf2: [1024]u8 = undefined;
-var buf3: [1024]u8 = undefined;
-var buf4: [1024]u8 = undefined;
+const POSITION_EPSILON: f32 = 0.0001;
 
 pub const Movement = struct {
     position: Vec3,
@@ -55,25 +51,24 @@ pub const Movement = struct {
     const Self = @This();
 
     pub fn init(position: Vec3, target: Vec3) Movement {
-        const orientation = Quat.lookAtOrientation(position, target, world_up);
-        const axes = orientation.toAxes();
+        const forward = target.sub(&position).normalizeTo();
+        const right = forward.crossNormalized(&world_up);
+        const up = right.crossNormalized(&forward);
         return Movement{
             .position = position,
             .target = target,
-            .right = axes[0].xyz(),
-            .up = axes[1].xyz(),
-            .forward = axes[2].xyz(),
+            .right = right,
+            .up = up,
+            .forward = forward,
         };
     }
 
     pub fn reset(self: *Self, position: Vec3, target: Vec3) void {
         self.position = position;
         self.target = target;
-        const orientation = Quat.lookAtOrientation(position, target, self.world_up);
-        const axes = orientation.toAxes();
-        self.right = axes[0].xyz();
-        self.up = axes[1].xyz();
-        self.forward = axes[2].xyz();
+        self.forward = target.sub(&position).normalizeTo();
+        self.right = self.forward.crossNormalized(&self.world_up);
+        self.up = self.right.crossNormalized(&self.forward);
         self.frame_count = 0;
     }
 
@@ -81,27 +76,39 @@ pub const Movement = struct {
         self.position = self.position.add(&offset);
     }
 
+    pub fn updateForward(self: *Self) void {
+        self.forward = self.target.sub(&self.position).normalizeTo();
+    }
+
+    pub fn getPosition(self: *const Self) Vec3 {
+        return self.position;
+    }
+
+    pub fn getTarget(self: *const Self) Vec3 {
+        return self.target;
+    }
+
     pub fn orthonormalizeUp(self: *Self) void {
-        if (self.target.sub(&self.position).lengthSquared() < 0.0001) {
+        if (self.target.sub(&self.position).lengthSquared() < POSITION_EPSILON) {
             return; // Skip if position == target
         }
         // std.debug.print("\northonormalize Up current state\n", .{});
         // self.printState();
         self.up.normalize();
-        self.forward = self.target.sub(&self.position).normalizeTo();
+        self.updateForward();
         self.right = self.forward.crossNormalized(&self.up);
         // std.debug.print("\northonormalize Up new state\n", .{});
         // self.printState();
     }
 
     pub fn orthonormalizeRight(self: *Self) void {
-        if (self.target.sub(&self.position).lengthSquared() < 0.0001) {
+        if (self.target.sub(&self.position).lengthSquared() < POSITION_EPSILON) {
             return; // Skip if position == target
         }
         // std.debug.print("\northonormalize Right current state\n", .{});
         // self.printState();
         self.right.normalize();
-        self.forward = self.target.sub(&self.position).normalizeTo();
+        self.updateForward();
         self.up = self.right.crossNormalized(&self.forward);
         // std.debug.print("\northonormalize Right new state\n", .{});
         // self.printState();
@@ -136,26 +143,26 @@ pub const Movement = struct {
         switch (direction) {
             .Forward => {
                 self.position = self.position.add(&self.forward.mulScalar(translation_velocity));
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .Backward => {
                 self.position = self.position.sub(&self.forward.mulScalar(translation_velocity));
             },
             .Left => {
                 self.position = self.position.sub(&self.right.mulScalar(translation_velocity));
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .Right => {
                 self.position = self.position.add(&self.right.mulScalar(translation_velocity));
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .Up => {
                 self.position = self.position.add(&self.up.mulScalar(translation_velocity));
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .Down => {
                 self.position = self.position.sub(&self.up.mulScalar(translation_velocity));
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .RotateRight => {
                 const rot = Quat.fromAxisAngle(&self.up, -rot_angle);
@@ -163,7 +170,7 @@ pub const Movement = struct {
                 const rotated_target = rot.rotateVec(&translated_target);
                 self.target = self.position.add(&rotated_target);
                 self.right = rot.rotateVec(&self.right);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .RotateLeft => {
                 const rot = Quat.fromAxisAngle(&self.up, rot_angle);
@@ -171,7 +178,7 @@ pub const Movement = struct {
                 const rotated_target = rot.rotateVec(&translated_target);
                 self.target = self.position.add(&rotated_target);
                 self.right = rot.rotateVec(&self.right);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .RotateUp => {
                 const rot = Quat.fromAxisAngle(&self.right, rot_angle);
@@ -179,7 +186,7 @@ pub const Movement = struct {
                 const rotated_target = rot.rotateVec(&translated_target);
                 self.target = self.position.add(&rotated_target);
                 self.up = rot.rotateVec(&self.up);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .RotateDown => {
                 const rot = Quat.fromAxisAngle(&self.right, -rot_angle);
@@ -187,7 +194,7 @@ pub const Movement = struct {
                 const rotated_target = rot.rotateVec(&translated_target);
                 self.target = self.position.add(&rotated_target);
                 self.up = rot.rotateVec(&self.up);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .RollRight => {
                 const rot = Quat.fromAxisAngle(&self.forward, rot_angle);
@@ -208,19 +215,19 @@ pub const Movement = struct {
             .RadiusIn => {
                 const dir = self.target.sub(&self.position).normalizeTo();
                 self.position = self.position.add(&dir.mulScalar(translation_velocity));
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .RadiusOut => {
                 const dir = self.target.sub(&self.position).normalizeTo();
                 self.position = self.position.sub(&dir.mulScalar(translation_velocity));
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
             },
             .OrbitRight => {
                 const rot = Quat.fromAxisAngle(&self.up, -orbit_angle);
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
                 self.right = rot.rotateVec(&self.right);
                 self.orthonormalizeUpPeriodic();
             },
@@ -229,7 +236,7 @@ pub const Movement = struct {
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
                 self.right = rot.rotateVec(&self.right);
                 self.orthonormalizeUpPeriodic();
             },
@@ -238,7 +245,7 @@ pub const Movement = struct {
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
                 self.up = rot.rotateVec(&self.up);
                 self.orthonormalizeRightPeriodic();
             },
@@ -247,7 +254,7 @@ pub const Movement = struct {
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
                 self.up = rot.rotateVec(&self.up);
                 self.orthonormalizeRightPeriodic();
             },
@@ -256,7 +263,7 @@ pub const Movement = struct {
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
                 self.up = rot.rotateVec(&self.up);
                 self.right = self.forward.crossNormalized(&self.up);
             },
@@ -265,7 +272,7 @@ pub const Movement = struct {
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
                 self.up = rot.rotateVec(&self.up);
                 self.right = self.forward.crossNormalized(&self.up);
             },
@@ -277,7 +284,7 @@ pub const Movement = struct {
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
                 self.up = rot.rotateVec(&self.up);
                 self.right = self.forward.crossNormalized(&self.up);
             },
@@ -289,28 +296,28 @@ pub const Movement = struct {
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
                 self.position = self.target.add(&rotated_position);
-                self.forward = self.target.sub(&self.position).normalizeTo();
+                self.updateForward();
                 self.up = rot.rotateVec(&self.up);
                 self.right = self.forward.crossNormalized(&self.up);
             },
         }
     }
 
-    pub fn processMouseMovement(self: *Self, xoffset_in: f32, yoffset_in: f32, constrain_pitch: bool) void {
-        _ = self;
-        _ = xoffset_in;
-        _ = yoffset_in;
-        _ = constrain_pitch;
-    }
-
     pub fn printState(self: *Self) void {
-        std.debug.print("Position: {s}\n", .{self.position.asString(&buf)});
-        std.debug.print("Target: {s}\n", .{self.target.asString(&buf)});
-        std.debug.print("Forward: {s}\n", .{self.forward.asString(&buf4)});
-        std.debug.print("Up: {s}\n", .{self.up.asString(&buf2)});
-        std.debug.print("Right: {s}\n", .{self.right.asString(&buf3)});
+        var position_buf: [100]u8 = undefined;
+        var target_buf: [100]u8 = undefined;
+        var forward_buf: [100]u8 = undefined;
+        var up_buf: [100]u8 = undefined;
+        var right_buf: [100]u8 = undefined;
+        std.debug.print("Position: {s}\n", .{self.position.asString(&position_buf)});
+        std.debug.print("Target: {s}\n", .{self.target.asString(&target_buf)});
+        std.debug.print("Forward: {s}\n", .{self.forward.asString(&forward_buf)});
+        std.debug.print("Up: {s}\n", .{self.up.asString(&up_buf)});
+        std.debug.print("Right: {s}\n", .{self.right.asString(&right_buf)});
     }
 
+    /// Test helper function: converts angle to delta_time for movement testing
+    /// Only used by test code - prefer processMovement() with real delta_time for production
     pub fn update(self: *Self, angle: f32, direction: MovementDirection) void {
         const angle_degrees = math.radiansToDegrees(angle);
         const delta_time = angle_degrees / self.orbit_speed;
