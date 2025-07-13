@@ -22,6 +22,7 @@ pub const Texture = struct {
         gl.deleteTextures(1, &self.gl_texture_id);
     }
 
+    // Initialize from glTF texture reference
     pub fn init(
         arena: *ArenaAllocator,
         gltf_asset: *GltfAsset,
@@ -66,6 +67,59 @@ pub const Texture = struct {
         return texture;
     }
 
+    // Initialize from custom file path with configuration (for manual texture assignment)
+    pub fn initFromFile(
+        arena: *ArenaAllocator,
+        file_path: []const u8,
+        config: @import("asset_loader.zig").TextureConfig,
+    ) !*Texture {
+        const allocator = arena.allocator();
+
+        zstbi.init(allocator);
+        defer zstbi.deinit();
+
+        zstbi.setFlipVerticallyOnLoad(config.flip_v);
+
+        var image = zstbi.Image.loadFromFile(try allocator.dupeZ(u8, file_path), 0) catch |err| {
+            std.debug.print("Custom texture loadFromFile error: {any}  filepath: {s}\n", .{ err, file_path });
+            return err;
+        };
+        defer image.deinit();
+
+        // Create custom sampler from config
+        const sampler = gltf_types.Sampler{
+            .wrap_s = switch (config.wrap) {
+                .Clamp => .clamp_to_edge,
+                .Repeat => .repeat,
+            },
+            .wrap_t = switch (config.wrap) {
+                .Clamp => .clamp_to_edge,
+                .Repeat => .repeat,
+            },
+            .mag_filter = switch (config.filter) {
+                .Linear => .linear,
+                .Nearest => .nearest,
+            },
+            .min_filter = switch (config.filter) {
+                .Linear => .linear_mipmap_linear,
+                .Nearest => .nearest,
+            },
+        };
+
+        const gl_texture_id = createGlTexture(image, sampler);
+
+        const texture = try allocator.create(Texture);
+        texture.* = Texture{
+            .gltf_texture_id = 0, // Not from glTF
+            .gl_texture_id = @intCast(gl_texture_id),
+            .width = image.width,
+            .height = image.height,
+        };
+
+        std.debug.print("Custom texture loaded: {s}, dimensions: {d}x{d}\n", .{ file_path, texture.width, texture.height });
+        return texture;
+    }
+
     pub fn clone(self: *const Self) !*Texture {
         const texture = try self.allocator.create(Texture);
         texture.* = Texture{
@@ -99,7 +153,7 @@ pub fn loadImage(allocator: Allocator, gltf_asset: *GltfAsset, gltf_image: gltf_
                     std.debug.print("Texture loadFromMemory error: {any}  using uri: {any}\n", .{ err, uri[0..5] });
                     @panic(@errorName(err));
                 };
-                std.debug.print("Image loaded from uri: {s}\n",  .{uri});
+                std.debug.print("Image loaded from uri: {s}\n", .{uri});
                 return image;
             }
             std.debug.panic("Texture uri malformed. uri: {any}", .{uri});

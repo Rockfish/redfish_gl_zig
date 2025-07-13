@@ -23,6 +23,25 @@ pub const GltfReport = struct {
         return buffer.toOwnedSlice();
     }
 
+    /// Generate detailed glTF report with animation keyframes and skin data
+    pub fn generateDetailedReport(allocator: Allocator, gltf_asset: *const GltfAsset, animation_limit: ?u32, skin_limit: ?u32) ![]u8 {
+        var buffer = std.ArrayList(u8).init(allocator);
+        defer buffer.deinit();
+
+        const writer = buffer.writer();
+
+        try writeReportHeader(writer, gltf_asset);
+        try writeSceneInfo(writer, gltf_asset, 0);
+        try writeMeshInfo(writer, gltf_asset, 0);
+        try writeAccessorInfo(writer, gltf_asset, 0);
+        try writeDetailedAnimationInfo(writer, allocator, gltf_asset, 0, animation_limit);
+        try writeDetailedSkinInfo(writer, allocator, gltf_asset, 0, skin_limit);
+        try writeMaterialInfo(writer, gltf_asset, 0);
+        try writeTextureInfo(writer, gltf_asset, 0);
+
+        return buffer.toOwnedSlice();
+    }
+
     /// Print glTF report directly to console
     pub fn printReport(gltf_asset: *const GltfAsset) void {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -48,25 +67,33 @@ pub const GltfReport = struct {
 
         try file.writeAll(report);
     }
+
+    /// Write detailed glTF report to a file with animation keyframes and skin data
+    pub fn writeDetailedReportToFile(allocator: Allocator, gltf_asset: *const GltfAsset, path: []const u8, animation_limit: ?u32, skin_limit: ?u32) !void {
+        const report = try generateDetailedReport(allocator, gltf_asset, animation_limit, skin_limit);
+        defer allocator.free(report);
+
+        const file = try std.fs.cwd().createFile(path, .{});
+        defer file.close();
+
+        try file.writeAll(report);
+    }
 };
 
 fn writeReportHeader(writer: anytype, gltf_asset: *const GltfAsset) !void {
-    try writer.print("=== glTF Report ===\n");
+    try writer.print("=== glTF Report ===\n", .{});
     try writer.print("File: {s}\n", .{gltf_asset.name});
 
-    if (gltf_asset.gltf.asset) |asset| {
-        if (asset.version) |version| {
-            try writer.print("glTF Version: {s}\n", .{version});
-        }
-        if (asset.generator) |generator| {
-            try writer.print("Generator: {s}\n", .{generator});
-        }
+    const asset = gltf_asset.gltf.asset;
+    try writer.print("glTF Version: {s}\n", .{asset.version});
+    if (asset.generator) |generator| {
+        try writer.print("Generator: {s}\n", .{generator});
     }
-    try writer.print("\n");
+    try writer.print("\n", .{});
 }
 
 fn writeSceneInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32) !void {
-    try writer.print("=== Scenes ===\n");
+    try writer.print("=== Scenes ===\n", .{});
 
     if (gltf_asset.gltf.scenes) |scenes| {
         for (scenes, 0..) |scene, i| {
@@ -86,9 +113,9 @@ fn writeSceneInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32) !v
             }
         }
     } else {
-        try writer.print("No scenes found\n");
+        try writer.print("No scenes found\n", .{});
     }
-    try writer.print("\n");
+    try writer.print("\n", .{});
 }
 
 fn writeNodeHierarchy(writer: anytype, gltf_asset: *const GltfAsset, node_idx: u32, indent: u32) !void {
@@ -112,7 +139,7 @@ fn writeNodeHierarchy(writer: anytype, gltf_asset: *const GltfAsset, node_idx: u
 }
 
 fn writeMeshInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32) !void {
-    try writer.print("=== Meshes ===\n");
+    try writer.print("=== Meshes ===\n", .{});
 
     if (gltf_asset.gltf.meshes) |meshes| {
         for (meshes, 0..) |mesh, i| {
@@ -147,7 +174,7 @@ fn writeMeshInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32) !vo
                     try writeIndent(writer, indent + 6);
                     try writer.print("NORMAL: accessor {d}\n", .{norm});
                 }
-                if (primitive.attributes.texcoord_0) |tex| {
+                if (primitive.attributes.tex_coord_0) |tex| {
                     try writeIndent(writer, indent + 6);
                     try writer.print("TEXCOORD_0: accessor {d}\n", .{tex});
                 }
@@ -166,13 +193,13 @@ fn writeMeshInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32) !vo
             }
         }
     } else {
-        try writer.print("No meshes found\n");
+        try writer.print("No meshes found\n", .{});
     }
-    try writer.print("\n");
+    try writer.print("\n", .{});
 }
 
 fn writeAccessorInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32) !void {
-    try writer.print("=== Accessors ===\n");
+    try writer.print("=== Accessors ===\n", .{});
 
     if (gltf_asset.gltf.accessors) |accessors| {
         for (accessors, 0..) |accessor, i| {
@@ -180,7 +207,7 @@ fn writeAccessorInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32)
             try writer.print("Accessor {d}:\n", .{i});
 
             try writeIndent(writer, indent + 2);
-            try writer.print("Type: {any}\n", .{accessor.type});
+            try writer.print("Type: {any}\n", .{accessor.type_});
 
             try writeIndent(writer, indent + 2);
             try writer.print("Component Type: {any}\n", .{accessor.component_type});
@@ -204,13 +231,13 @@ fn writeAccessorInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32)
             }
         }
     } else {
-        try writer.print("No accessors found\n");
+        try writer.print("No accessors found\n", .{});
     }
-    try writer.print("\n");
+    try writer.print("\n", .{});
 }
 
 fn writeAnimationInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32) !void {
-    try writer.print("=== Animations ===\n");
+    try writer.print("=== Animations ===\n", .{});
 
     if (gltf_asset.gltf.animations) |animations| {
         for (animations, 0..) |animation, i| {
@@ -230,13 +257,13 @@ fn writeAnimationInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32
             }
         }
     } else {
-        try writer.print("No animations found\n");
+        try writer.print("No animations found\n", .{});
     }
-    try writer.print("\n");
+    try writer.print("\n", .{});
 }
 
 fn writeMaterialInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32) !void {
-    try writer.print("=== Materials ===\n");
+    try writer.print("=== Materials ===\n", .{});
 
     if (gltf_asset.gltf.materials) |materials| {
         for (materials, 0..) |material, i| {
@@ -276,13 +303,13 @@ fn writeMaterialInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32)
             }
         }
     } else {
-        try writer.print("No materials found\n");
+        try writer.print("No materials found\n", .{});
     }
-    try writer.print("\n");
+    try writer.print("\n", .{});
 }
 
 fn writeTextureInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32) !void {
-    try writer.print("=== Textures ===\n");
+    try writer.print("=== Textures ===\n", .{});
 
     if (gltf_asset.gltf.textures) |textures| {
         for (textures, 0..) |texture, i| {
@@ -300,9 +327,268 @@ fn writeTextureInfo(writer: anytype, gltf_asset: *const GltfAsset, indent: u32) 
             }
         }
     } else {
-        try writer.print("No textures found\n");
+        try writer.print("No textures found\n", .{});
     }
-    try writer.print("\n");
+    try writer.print("\n", .{});
+}
+
+fn writeDetailedAnimationInfo(writer: anytype, allocator: Allocator, gltf_asset: *const GltfAsset, indent: u32, limit: ?u32) !void {
+    try writer.print("=== Detailed Animation Data ===\n", .{});
+
+    if (gltf_asset.gltf.animations) |animations| {
+        for (animations, 0..) |animation, i| {
+            try writeIndent(writer, indent);
+            const name = animation.name orelse "unnamed";
+            try writer.print("## Animation {d}: '{s}'\n", .{ i, name });
+
+            try writeIndent(writer, indent + 2);
+            try writer.print("Channels: {d} | Samplers: {d}\n\n", .{ animation.channels.len, animation.samplers.len });
+
+            for (animation.channels, 0..) |channel, j| {
+                try writeIndent(writer, indent + 2);
+                const target_node = channel.target.node orelse 999;
+                const target_node_name = if (gltf_asset.gltf.nodes != null and channel.target.node != null and channel.target.node.? < gltf_asset.gltf.nodes.?.len)
+                    gltf_asset.gltf.nodes.?[channel.target.node.?].name orelse "unnamed"
+                else
+                    "unknown";
+
+                try writer.print("### Channel {d}: {s} -> Node {d} ('{s}')\n", .{ j, @tagName(channel.target.path), target_node, target_node_name });
+
+                if (channel.sampler < animation.samplers.len) {
+                    const sampler = animation.samplers[channel.sampler];
+                    try writeIndent(writer, indent + 4);
+                    try writer.print("Interpolation: {s}\n", .{@tagName(sampler.interpolation)});
+
+                    try writeAnimationKeyframes(writer, allocator, gltf_asset, sampler, channel.target.path, indent + 4, limit);
+                }
+                try writer.print("\n", .{});
+            }
+        }
+    } else {
+        try writer.print("No animations found\n", .{});
+    }
+    try writer.print("\n", .{});
+}
+
+fn writeAnimationKeyframes(writer: anytype, allocator: Allocator, gltf_asset: *const GltfAsset, sampler: gltf_types.AnimationSampler, target_path: gltf_types.TargetProperty, indent: u32, limit: ?u32) !void {
+    if (gltf_asset.gltf.accessors == null) return;
+
+    const accessors = gltf_asset.gltf.accessors.?;
+    if (sampler.input >= accessors.len or sampler.output >= accessors.len) return;
+
+    const input_accessor = accessors[sampler.input];
+    const output_accessor = accessors[sampler.output];
+
+    try writeIndent(writer, indent);
+    try writer.print("Input (time): {d} keyframes | Output: {d} values\n", .{ input_accessor.count, output_accessor.count });
+
+    const max_frames = if (limit) |l| @min(l, input_accessor.count) else input_accessor.count;
+    const show_truncated = limit != null and input_accessor.count > limit.?;
+
+    const input_data = try getAccessorData(allocator, gltf_asset, sampler.input, f32);
+    defer if (input_data) |data| allocator.free(data);
+
+    if (input_data == null) {
+        try writeIndent(writer, indent);
+        try writer.print("Unable to read keyframe input data\n", .{});
+        return;
+    }
+
+    try writeIndent(writer, indent);
+    try writer.print("Keyframes (showing first {d}):\n", .{max_frames});
+
+    switch (target_path) {
+        .translation, .scale => {
+            const output_data = try getAccessorData(allocator, gltf_asset, sampler.output, [3]f32);
+            defer if (output_data) |data| allocator.free(data);
+
+            if (output_data == null) {
+                try writeIndent(writer, indent);
+                try writer.print("Unable to read keyframe output data\n", .{});
+                return;
+            }
+
+            for (0..max_frames) |frame_idx| {
+                if (frame_idx >= input_data.?.len) break;
+
+                const time = input_data.?[frame_idx];
+                try writeIndent(writer, indent + 2);
+                try writer.print("[{d:>2}] t={d:.3}s: ", .{ frame_idx, time });
+
+                if (frame_idx < output_data.?.len) {
+                    const vec3_data = output_data.?[frame_idx];
+                    try writer.print("({d:.3}, {d:.3}, {d:.3})\n", .{ vec3_data[0], vec3_data[1], vec3_data[2] });
+                }
+            }
+        },
+        .rotation => {
+            const output_data = try getAccessorData(allocator, gltf_asset, sampler.output, [4]f32);
+            defer if (output_data) |data| allocator.free(data);
+
+            if (output_data == null) {
+                try writeIndent(writer, indent);
+                try writer.print("Unable to read keyframe output data\n", .{});
+                return;
+            }
+
+            for (0..max_frames) |frame_idx| {
+                if (frame_idx >= input_data.?.len) break;
+
+                const time = input_data.?[frame_idx];
+                try writeIndent(writer, indent + 2);
+                try writer.print("[{d:>2}] t={d:.3}s: ", .{ frame_idx, time });
+
+                if (frame_idx < output_data.?.len) {
+                    const quat_data = output_data.?[frame_idx];
+                    try writer.print("quat({d:.3}, {d:.3}, {d:.3}, {d:.3})\n", .{ quat_data[0], quat_data[1], quat_data[2], quat_data[3] });
+                }
+            }
+        },
+        .weights => {
+            const output_data = try getAccessorData(allocator, gltf_asset, sampler.output, f32);
+            defer if (output_data) |data| allocator.free(data);
+
+            if (output_data == null) {
+                try writeIndent(writer, indent);
+                try writer.print("Unable to read keyframe output data\n", .{});
+                return;
+            }
+
+            for (0..max_frames) |frame_idx| {
+                if (frame_idx >= input_data.?.len) break;
+
+                const time = input_data.?[frame_idx];
+                try writeIndent(writer, indent + 2);
+                try writer.print("[{d:>2}] t={d:.3}s: ", .{ frame_idx, time });
+
+                if (frame_idx < output_data.?.len) {
+                    const weight_data = output_data.?[frame_idx];
+                    try writer.print("{d:.3}\n", .{weight_data});
+                }
+            }
+        },
+    }
+
+    if (show_truncated) {
+        try writeIndent(writer, indent);
+        try writer.print("... ({d} more keyframes truncated)\n", .{input_data.?.len - max_frames});
+    }
+}
+
+fn writeDetailedSkinInfo(writer: anytype, allocator: Allocator, gltf_asset: *const GltfAsset, indent: u32, limit: ?u32) !void {
+    try writer.print("=== Detailed Skin Data ===\n", .{});
+
+    if (gltf_asset.gltf.skins) |skins| {
+        for (skins, 0..) |skin, i| {
+            try writeIndent(writer, indent);
+            const name = skin.name orelse "unnamed";
+            try writer.print("## Skin {d}: '{s}'\n", .{ i, name });
+
+            try writeIndent(writer, indent + 2);
+            try writer.print("Joints: {d}", .{skin.joints.len});
+            if (skin.skeleton) |skeleton| {
+                const skeleton_name = if (gltf_asset.gltf.nodes != null and skeleton < gltf_asset.gltf.nodes.?.len)
+                    gltf_asset.gltf.nodes.?[skeleton].name orelse "unnamed"
+                else
+                    "unknown";
+                try writer.print(" | Skeleton Root: Node {d} ('{s}')", .{ skeleton, skeleton_name });
+            }
+            try writer.print("\n\n", .{});
+
+            const max_joints = if (limit) |l| @min(l, skin.joints.len) else skin.joints.len;
+            const show_truncated = limit != null and skin.joints.len > limit.?;
+
+            try writeIndent(writer, indent + 2);
+            try writer.print("### Joint Hierarchy (showing first {d}):\n", .{max_joints});
+
+            for (0..max_joints) |joint_idx| {
+                const joint_node_idx = skin.joints[joint_idx];
+                const joint_name = if (gltf_asset.gltf.nodes != null and joint_node_idx < gltf_asset.gltf.nodes.?.len)
+                    gltf_asset.gltf.nodes.?[joint_node_idx].name orelse "unnamed"
+                else
+                    "unknown";
+
+                try writeIndent(writer, indent + 4);
+                try writer.print("[{d:>2}] Joint {d}: Node {d} ('{s}')\n", .{ joint_idx, joint_idx, joint_node_idx, joint_name });
+            }
+
+            if (show_truncated) {
+                try writeIndent(writer, indent + 4);
+                try writer.print("... ({d} more joints truncated)\n", .{skin.joints.len - max_joints});
+            }
+
+            if (skin.inverse_bind_matrices) |ibm_accessor_idx| {
+                try writeIndent(writer, indent + 2);
+                try writer.print("### Inverse Bind Matrices:\n", .{});
+                try writeIndent(writer, indent + 4);
+                try writer.print("Accessor {d} contains {d} 4x4 matrices\n", .{ ibm_accessor_idx, max_joints });
+
+                if (gltf_asset.gltf.accessors != null and ibm_accessor_idx < gltf_asset.gltf.accessors.?.len) {
+                    const ibm_data = getAccessorData(allocator, gltf_asset, ibm_accessor_idx, [16]f32) catch null;
+                    defer if (ibm_data) |data| allocator.free(data);
+
+                    if (ibm_data) |matrices| {
+                        const max_matrices = @min(max_joints, matrices.len);
+                        for (0..max_matrices) |mat_idx| {
+                            try writeIndent(writer, indent + 4);
+                            try writer.print("Matrix[{d}]: [{d:.3}, {d:.3}, {d:.3}, {d:.3}] (first row)\n", .{ mat_idx, matrices[mat_idx][0], matrices[mat_idx][1], matrices[mat_idx][2], matrices[mat_idx][3] });
+                        }
+                    } else {
+                        try writeIndent(writer, indent + 4);
+                        try writer.print("Unable to read inverse bind matrix data\n", .{});
+                    }
+                }
+            }
+            try writer.print("\n", .{});
+        }
+    } else {
+        try writer.print("No skins found\n", .{});
+    }
+    try writer.print("\n", .{});
+}
+
+fn getAccessorData(allocator: Allocator, gltf_asset: *const GltfAsset, accessor_idx: u32, comptime T: type) !?[]T {
+    if (gltf_asset.gltf.accessors == null or accessor_idx >= gltf_asset.gltf.accessors.?.len) {
+        return null;
+    }
+
+    const accessor = gltf_asset.gltf.accessors.?[accessor_idx];
+    if (gltf_asset.gltf.buffer_views == null or gltf_asset.gltf.buffers == null) {
+        return null;
+    }
+
+    if (accessor.buffer_view == null or accessor.buffer_view.? >= gltf_asset.gltf.buffer_views.?.len) {
+        return null;
+    }
+
+    const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
+    if (buffer_view.buffer >= gltf_asset.gltf.buffers.?.len) {
+        return null;
+    }
+
+    // Use the correct buffer data access pattern - buffer_data.items instead of buffer.data
+    if (buffer_view.buffer >= gltf_asset.buffer_data.items.len) {
+        return null;
+    }
+
+    const buffer_data = gltf_asset.buffer_data.items[buffer_view.buffer];
+    if (buffer_data.len == 0) {
+        return null;
+    }
+
+    const element_size = @sizeOf(T);
+    const total_size = accessor.count * element_size;
+    const required_bytes = buffer_view.byte_offset + accessor.byte_offset + total_size;
+
+    if (required_bytes > buffer_data.len) {
+        return null;
+    }
+
+    const data_start = buffer_data.ptr + buffer_view.byte_offset + accessor.byte_offset;
+    const result = try allocator.alloc(T, accessor.count);
+
+    @memcpy(result, @as([*]const T, @ptrCast(@alignCast(data_start)))[0..accessor.count]);
+    return result;
 }
 
 fn writeIndent(writer: anytype, count: u32) !void {

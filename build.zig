@@ -75,7 +75,7 @@ pub fn build(b: *std.Build) void {
         source: []const u8,
     }{
         // .{ .name = "main", .exe_name = "core_main", .source = "src/main.zig" },
-        // .{ .name = "animation", .exe_name = "animation_example", .source = "examples/sample_animation/sample_animation.zig" },
+        .{ .name = "animation", .exe_name = "animation_example", .source = "examples/animation_example/main.zig" },
         // .{ .name = "assimp_report", .exe_name = "assimp_report", .source = "examples/assimp_report/assimp_report.zig" },
         // .{ .name = "bullets", .exe_name = "bullets_example", .source = "examples/bullets/main.zig" },
         // .{ .name = "audio", .exe_name = "audio_example", .source = "examples/audio/main.zig" },
@@ -85,8 +85,8 @@ pub fn build(b: *std.Build) void {
         // .{ .name = "ray_selection", .exe_name = "ray_selection_example", .source = "examples/ray_selection/main.zig" },
         // .{ .name = "scene_tree", .exe_name = "scene_tree_example", .source = "examples/scene_tree/main.zig" },
         // .{ .name = "game_level_001", .exe_name = "game_level_001", .source = "game_level_001/main.zig" },
-        .{ .name = "zgltf_port", .exe_name = "zgltf_port", .source = "examples/zgltf_port/main.zig" },
         .{ .name = "demo_app", .exe_name = "demo_app", .source = "examples/demo_app/main.zig" },
+        .{ .name = "game_angrybot", .exe_name = "angry_monsters", .source = "game_angrybot/main.zig" },
         // .{ .name = "chat_gltf", .exe_name = "chat_gltf", .source = "examples/chat_gltf/main.zig" },
     }) |app| {
         const exe = b.addExecutable(.{

@@ -28,6 +28,7 @@ pub const Mesh = @import("mesh.zig").Mesh;
 pub const Animator = @import("animator.zig").Animator;
 pub const AnimationClip = @import("animator.zig").AnimationClip;
 pub const AnimationRepeatMode = @import("animator.zig").AnimationRepeatMode;
+pub const WeightedAnimation = @import("animator.zig").WeightedAnimation;
 // pub const ModelBone = @import("model_animation.zig").ModelBone;
 // pub const ModelBuilder = @import("model_builder.zig").ModelBuilder;
 pub const animation = @import("animator.zig");

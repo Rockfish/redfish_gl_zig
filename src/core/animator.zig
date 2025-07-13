@@ -88,6 +88,26 @@ pub const GltfAnimationState = struct {
     }
 };
 
+/// Weighted animation for blending multiple animations simultaneously
+/// Compatible with ASSIMP-based game_angrybot system
+pub const WeightedAnimation = struct {
+    weight: f32,
+    start_time: f32,    // Animation start time in seconds
+    end_time: f32,      // Animation end time in seconds  
+    offset: f32,        // Time offset for animation synchronization
+    start_real_time: f32, // Real-world start time for non-looped animations
+
+    pub fn init(weight: f32, start_time: f32, end_time: f32, offset: f32, start_real_time: f32) WeightedAnimation {
+        return .{
+            .weight = weight,
+            .start_time = start_time,
+            .end_time = end_time,
+            .offset = offset,
+            .start_real_time = start_real_time,
+        };
+    }
+};
+
 /// Joint information from glTF skin
 pub const Joint = struct {
     node_index: u32,
@@ -523,6 +543,198 @@ pub const Animator = struct {
         // Fill remaining slots with identity matrices
         for (self.joints.len..MAX_JOINTS) |i| {
             self.joint_matrices[i] = Mat4.identity();
+        }
+    }
+
+    /// Play multiple animations with different weights - for animation blending
+    /// Compatible with ASSIMP-based game_angrybot animation blending system
+    pub fn playWeightAnimations(self: *Self, weighted_animations: []const WeightedAnimation, frame_time: f32) !void {
+        if (self.gltf_asset.gltf.animations == null) return;
+        
+        const animations = self.gltf_asset.gltf.animations.?;
+        const debug_blending = false;
+        
+        if (debug_blending) {
+            std.debug.print("playWeightAnimations: frame_time={d:.3}, {d} animations\n", .{ frame_time, weighted_animations.len });
+        }
+
+        // Clear node transforms to default state
+        if (self.gltf_asset.gltf.nodes) |nodes| {
+            for (0..nodes.len) |i| {
+                const node = nodes[i];
+                self.node_transforms[i] = Transform{
+                    .translation = node.translation orelse vec3(0.0, 0.0, 0.0),
+                    .rotation = node.rotation orelse quat(0.0, 0.0, 0.0, 1.0),
+                    .scale = node.scale orelse vec3(1.0, 1.0, 1.0),
+                };
+            }
+        }
+
+        // Temporary storage for blended transforms
+        const allocator = self.arena.allocator();
+        var blended_transforms = try allocator.alloc(Transform, self.node_transforms.len);
+        var total_weights = try allocator.alloc(f32, self.node_transforms.len);
+        defer allocator.free(blended_transforms);
+        defer allocator.free(total_weights);
+
+        // Initialize blended transforms and weights
+        for (0..self.node_transforms.len) |i| {
+            blended_transforms[i] = Transform.init();
+            total_weights[i] = 0.0;
+        }
+
+        // Process each weighted animation
+        for (weighted_animations) |weighted| {
+            if (weighted.weight <= 0.0) {
+                continue;
+            }
+
+            if (debug_blending) {
+                std.debug.print("  Processing animation weight={d:.3}, start_time={d:.2}, end_time={d:.2}\n", .{ weighted.weight, weighted.start_time, weighted.end_time });
+            }
+
+            // Calculate animation time based on ASSIMP logic
+            const time_range = weighted.end_time - weighted.start_time;
+            var target_anim_time: f32 = 0.0;
+
+            if (weighted.start_real_time > 0.0) {
+                // Non-looped animation (like "dead" animation)
+                const elapsed_time = frame_time - weighted.start_real_time;
+                target_anim_time = @min(elapsed_time + weighted.offset, time_range);
+            } else {
+                // Looped animation (like idle, forward, back, etc.)
+                target_anim_time = @mod((frame_time + weighted.offset), time_range);
+            }
+
+            target_anim_time += weighted.start_time;
+
+            // Clamp to valid range
+            target_anim_time = @max(weighted.start_time, @min(weighted.end_time, target_anim_time));
+
+            if (debug_blending) {
+                std.debug.print("    Calculated time: {d:.3}\n", .{target_anim_time});
+            }
+
+            // Since we only have one animation in glTF models, use animation index 0
+            // The time-based subdivision is handled by the weighted animation parameters
+            const animation_index: u32 = 0;
+            if (animation_index >= animations.len) continue;
+
+            // Apply this animation with the given weight
+            try self.blendAnimationAtTime(animation_index, target_anim_time, weighted.weight, blended_transforms, total_weights);
+        }
+
+        // Normalize and apply blended transforms
+        for (0..self.node_transforms.len) |i| {
+            if (total_weights[i] > 0.0) {
+                // Normalize by total weight
+                const inv_weight = 1.0 / total_weights[i];
+                blended_transforms[i].translation = blended_transforms[i].translation.mulScalar(inv_weight);
+                blended_transforms[i].scale = blended_transforms[i].scale.mulScalar(inv_weight);
+                
+                // Quaternions need renormalization after weighted blending
+                blended_transforms[i].rotation.normalize();
+                
+                self.node_transforms[i] = blended_transforms[i];
+            }
+        }
+
+        // Calculate final matrices
+        try self.calculateNodeMatrices();
+        try self.updateShaderMatrices();
+    }
+
+    /// Blend a single animation at a specific time with a given weight
+    fn blendAnimationAtTime(self: *Self, animation_index: u32, current_time: f32, weight: f32, blended_transforms: []Transform, total_weights: []f32) !void {
+        const animation = self.gltf_asset.gltf.animations.?[animation_index];
+
+        // Apply animation channels with blending
+        for (animation.channels) |channel| {
+            if (channel.target.node) |node_index| {
+                if (node_index >= self.node_transforms.len) continue;
+
+                const sampler = animation.samplers[channel.sampler];
+                
+                // Get time values from the input accessor
+                const times = self.readAccessorAsF32Slice(sampler.input) catch continue;
+                if (times.len == 0) continue;
+
+                // Find the keyframe indices and interpolation factor
+                const keyframe_info = AnimationInterpolation.findKeyframeIndices(times, current_time);
+                const index0 = keyframe_info[0];
+                const index1 = keyframe_info[1];
+                const factor = keyframe_info[2];
+
+                // Apply the animation based on the target property with blending
+                switch (channel.target.path) {
+                    .translation => {
+                        const values = self.readAccessorAsVec3Slice(sampler.output) catch continue;
+                        if (values.len > index0) {
+                            const start_value = values[index0];
+                            const end_value = if (index1 < values.len) values[index1] else start_value;
+
+                            const interpolated_value = switch (sampler.interpolation) {
+                                .linear => AnimationInterpolation.lerpVec3(start_value, end_value, factor),
+                                .step => start_value,
+                                .cubic_spline => start_value, // TODO: implement cubic spline
+                            };
+
+                            // Blend with existing translation
+                            blended_transforms[node_index].translation = blended_transforms[node_index].translation.add(&interpolated_value.mulScalar(weight));
+                        }
+                    },
+                    .rotation => {
+                        const values = self.readAccessorAsQuatSlice(sampler.output) catch continue;
+                        if (values.len > index0) {
+                            const start_value = values[index0];
+                            const end_value = if (index1 < values.len) values[index1] else start_value;
+
+                            const interpolated_value = switch (sampler.interpolation) {
+                                .linear => AnimationInterpolation.slerpQuat(start_value, end_value, factor),
+                                .step => start_value,
+                                .cubic_spline => start_value, // TODO: implement cubic spline
+                            };
+
+                            // Blend quaternions - weighted sum (will be normalized later)
+                            const weighted_quat = Quat{
+                                .data = [4]f32{
+                                    interpolated_value.data[0] * weight,
+                                    interpolated_value.data[1] * weight,
+                                    interpolated_value.data[2] * weight,
+                                    interpolated_value.data[3] * weight,
+                                }
+                            };
+
+                            blended_transforms[node_index].rotation.data[0] += weighted_quat.data[0];
+                            blended_transforms[node_index].rotation.data[1] += weighted_quat.data[1];
+                            blended_transforms[node_index].rotation.data[2] += weighted_quat.data[2];
+                            blended_transforms[node_index].rotation.data[3] += weighted_quat.data[3];
+                        }
+                    },
+                    .scale => {
+                        const values = self.readAccessorAsVec3Slice(sampler.output) catch continue;
+                        if (values.len > index0) {
+                            const start_value = values[index0];
+                            const end_value = if (index1 < values.len) values[index1] else start_value;
+
+                            const interpolated_value = switch (sampler.interpolation) {
+                                .linear => AnimationInterpolation.lerpVec3(start_value, end_value, factor),
+                                .step => start_value,
+                                .cubic_spline => start_value, // TODO: implement cubic spline
+                            };
+
+                            // Blend with existing scale
+                            blended_transforms[node_index].scale = blended_transforms[node_index].scale.add(&interpolated_value.mulScalar(weight));
+                        }
+                    },
+                    .weights => {
+                        // TODO: implement morph target weights
+                    },
+                }
+
+                // Update total weight for this node
+                total_weights[node_index] += weight;
+            }
         }
     }
 };

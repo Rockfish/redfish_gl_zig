@@ -2,6 +2,96 @@
 
 ## Recent Changes
 
+### 2025-07-13 - Enhanced glTF Development Tools 🔧
+- **Complete glTF Report System Enhancement**: Added detailed animation keyframes and skin data reporting for advanced debugging
+  - **Animation Keyframe Details**: Human-readable animation data with actual time/value pairs instead of index references
+  - **Skin Data Analysis**: Comprehensive skeletal joint hierarchies with inverse bind matrix data
+  - **Human-Readable Format**: Markdown-formatted reports with proper indentation and structure
+  - **Parameterized Output**: Configurable limits (default: 5 keyframes, 5 joints) with truncation notifications
+- **Critical Buffer Access Fix**: Resolved fundamental architectural issue in glTF data access
+  - **Root Cause**: Report system was incorrectly accessing `buffer.data` (always null) instead of `gltf_asset.buffer_data.items[]`
+  - **Architecture Understanding**: glTF uses dual-storage where `buffer.data` is legacy and actual data is in `buffer_data.items[]`
+  - **Complete Fix**: Updated `getAccessorData()` function to use correct buffer access pattern
+- **Enhanced Debugging Capabilities**: 
+  - **Real Animation Data**: Shows actual translation vectors, rotation quaternions, and scale values
+  - **Matrix Visualization**: Displays inverse bind matrices with actual numerical values
+  - **Development Integration**: Flag-based control in `animation_example` with `DUMP_REPORT` and `REPORT_PATH`
+  - **Output Quality**: Professional markdown reports suitable for documentation and debugging
+- **Technical Implementation**:
+  - Enhanced `src/core/gltf/report.zig` with `writeDetailedAnimationInfo()` and `writeDetailedSkinInfo()` functions
+  - Fixed buffer data access from `buffer.data` → `gltf_asset.buffer_data.items[]` 
+  - Added parameterized truncation for large datasets with proper "... (N more truncated)" notifications
+  - Implemented proper allocator handling and memory management for data reading
+  - Added comprehensive error handling for missing or invalid accessor data
+
+### 2025-07-12 - Animation Blending System & game_angrybot Player Port 🎮
+- **Complete Animation Blending Implementation**: Successfully implemented sophisticated animation blending system for character movement
+  - **WeightedAnimation Struct**: Added weight-based animation mixing with frame-to-time conversion support
+  - **Complex Character Animation**: 6-way directional movement blending (idle, forward, back, left, right, dead)
+  - **Weight Normalization**: Proper weight distribution and transition smoothing for realistic character movement
+  - **Frame-to-Time Conversion**: Convert ASSIMP frame-based timing (24 FPS) to glTF time-based system
+- **game_angrybot Player Port Success**: Complete modernization of player.zig from ASSIMP to glTF system
+  - **Modern Architecture**: Changed `ModelBuilder.init()` → `GltfAsset.init()` with full texture assignment
+  - **Texture System Integration**: Updated to use string uniform names instead of enum types
+  - **Animation Timing Modernization**: Converted frame-based animations to time-based with proper FPS conversion
+  - **Memory Management**: Added proper cleanup with `gltf_asset.cleanUp()` and arena deallocation
+- **API Compatibility Preservation**: Maintained complex animation blending logic while modernizing underlying implementation
+  - **6-Direction Movement**: Preserved sophisticated directional animation calculations with theta-based blending
+  - **Weight Transitions**: Maintained smooth animation transitions with `ANIM_TRANSITION_TIME` support  
+  - **Death Animation**: Preserved special handling for death state with time-based triggering
+- **Technical Implementation**:
+  - **playWeightAnimations**: Added to both Model and Animator for seamless animation blending
+  - **WeightedAnimation.init()**: Frame-to-time conversion with offset and start_time parameters
+  - **Arena Memory Management**: Proper cleanup sequence with texture cache management
+  - **Quaternion Renormalization**: Maintained animation blending quality with proper math operations
+- **Files Modified**:
+  - `src/core/animator.zig` - Added WeightedAnimation struct and complex blending logic
+  - `src/core/model.zig` - Added playWeightAnimations method with proper delegation
+  - `src/core/main.zig` - Exported WeightedAnimation for public API access
+  - `game_angrybot/player.zig` - Complete port to glTF system with animation blending preservation
+- **Migration Philosophy Applied**: Successfully applied "rewrite, don't wrap" approach
+  - **No Compatibility Layers**: Direct modernization without maintaining legacy API wrappers
+  - **Pattern Reuse**: Leveraged existing glTF patterns instead of creating ASSIMP-style interfaces
+  - **Future-Proof Design**: Implementation supports additional character types and animation complexity
+- **Next Phase Ready**: Foundation established for porting remaining game_angrybot components (enemy.zig, bullets.zig)
+
+### 2025-07-11 - ASSIMP to glTF Migration System 🚀
+- **Complete Custom Texture Assignment System**: Implemented comprehensive texture assignment system for glTF models
+  - **Purpose**: Port ASSIMP-based projects (like `game_angrybot`) to use glTF models with manual texture assignment
+  - **Key Innovation**: Bridge ASSIMP's texture-type approach with glTF's uniform-name approach for maximum flexibility
+- **Custom Texture Architecture**:
+  - **TextureConfig**: Comprehensive texture configuration (filter, wrap, flip_v, gamma_correction)
+  - **CustomTexture**: Mesh-specific texture assignments with on-demand loading and caching
+  - **Integration**: Seamlessly integrated into `GltfAsset` as equivalent to ASSIMP's `ModelBuilder`
+  - **Override System**: Custom textures override material textures with texture units starting at 10
+- **API Design Philosophy**:
+  - ASSIMP version: `try builder.addTexture("Player", texture_diffuse, "Textures/Player_D.tga")`
+  - glTF version: `try gltf_asset.addTexture("Player", "texture_diffuse", "Textures/Player_D.tga", texture_config)`
+  - Maintains similar simplicity while providing more flexibility with uniform names
+- **Core Implementation Features**:
+  - **Memory Management**: Arena-based allocation with proper GL object cleanup
+  - **Texture Caching**: Avoid duplicate loading with `loadCustomTexture()` caching mechanism
+  - **Mesh-Primitive Architecture**: Uses MeshPrimitive names for efficient texture lookup
+  - **Shader Integration**: Automatic uniform setting with `has_` flags for conditional shader logic
+- **animation_example Port Success**: Completed full port from ASSIMP to glTF system
+  - Successfully loads Player model with custom textures (diffuse, specular, emissive, normal)
+  - Gun mesh textures working correctly with same texture assignment pattern
+  - Bullet model using custom texture assignment for models without materials
+  - Proper API compatibility: `model.update_animation()`, `camera.movement.processMovement()`
+- **Technical Innovation**: Solves the critical gap between ASSIMP's manual texture control and glTF's material system
+  - Allows models with UV coordinates but no material definitions to receive textures
+  - Maintains ASSIMP-style developer control while leveraging glTF's modern architecture
+  - Essential foundation for porting existing ASSIMP-based games to glTF
+- **Files Implemented**:
+  - `src/core/asset_loader.zig` - Core custom texture system with TextureConfig and CustomTexture
+  - `src/core/texture.zig` - Added `initFromFile()` method for custom texture loading
+  - `src/core/mesh.zig` - Added `setCustomTextures()` for mesh-primitive texture application
+  - `examples/animation_example/main.zig` - Complete ASSIMP to glTF port demonstrating the system
+- **Migration Impact**: Enables seamless transition of ASSIMP-based projects to modern glTF architecture
+  - Preserves developer workflow familiarity while modernizing underlying technology
+  - Critical stepping stone for game_angrybot and other ASSIMP-dependent projects
+  - Maintains performance while adding flexibility through uniform name control
+
 ### 2025-07-08 - ASSIMP-Style Asset Loading Options 🔧
 - **Asset Loading Architecture Refactoring**: Implemented ASSIMP-style configuration options for glTF asset loading
 - **Normal Generation System**: Created comprehensive normal generation system with three modes:

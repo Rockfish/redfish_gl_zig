@@ -28,3 +28,5 @@ flamegraph.svg
 # Hyperfine benchmark results
 benchmark_results.json
 
+model_report.md
+

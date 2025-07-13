@@ -16,8 +16,7 @@ const vec3 = math.vec3;
 const vec4 = math.vec4;
 const Quat = math.Quat;
 
-// const animation = @import("animator.zig");
-// const AnimationClip = @import("animator.zig").AnimationClip;
+const animation = @import("animator.zig");
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
@@ -94,9 +93,9 @@ pub const Model = struct {
     //     try self.animator.play_clip_with_transition(clip, transition_duration);
     // }
 
-    // pub fn play_weight_animations(self: *Self, weighted_animation: []const WeightedAnimation, frame_time: f32) !void {
-    //     try self.animator.play_weight_animations(weighted_animation, frame_time);
-    // }
+    pub fn playWeightAnimations(self: *Self, weighted_animations: []const animation.WeightedAnimation, frame_time: f32) !void {
+        try self.animator.playWeightAnimations(weighted_animations, frame_time);
+    }
 
     pub fn render(self: *Self, shader: *const Shader) void {
         shader.useShader();
@@ -170,7 +169,7 @@ pub const Model = struct {
     }
 
     pub fn update_animation(self: *Self, delta_time: f32) !void {
-        try self.animator.update_animation(delta_time);
+        try self.animator.updateAnimation(delta_time);
     }
 
     pub fn calculateBoundingBox(self: *Self) AABB {

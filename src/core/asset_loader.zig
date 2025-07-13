@@ -25,6 +25,33 @@ const Path = std.fs.path;
 
 const GLTF = gltf_types.GLTF;
 
+// Custom texture configuration
+pub const TextureConfig = struct {
+    filter: TextureFilter = .Linear,
+    wrap: TextureWrap = .Clamp,
+    flip_v: bool = true,
+    gamma_correction: bool = false,
+};
+
+pub const TextureFilter = enum {
+    Linear,
+    Nearest,
+};
+
+pub const TextureWrap = enum {
+    Clamp,
+    Repeat,
+};
+
+// Custom texture assignment for meshes without material definitions
+const CustomTexture = struct {
+    mesh_name: []const u8,
+    uniform_name: [:0]const u8,
+    texture_path: []const u8,
+    config: TextureConfig,
+    texture: ?*texture.Texture = null, // Loaded texture cache
+};
+
 // GLB Format Constants
 const GLB_MAGIC: u32 = 0x46546C67; // "glTF" in little-endian
 const GLB_VERSION: u32 = 2;
@@ -62,6 +89,7 @@ pub const GltfAsset = struct {
     buffer_data: ArrayList([]align(4) const u8),
     loaded_textures: std.AutoHashMap(u32, *texture.Texture),
     generated_normals: std.AutoHashMap(u64, []Vec3), // Key: mesh_index << 32 | primitive_index
+    custom_textures: ArrayList(CustomTexture), // Manual texture assignments
     directory: []const u8,
     name: []const u8,
     filepath: [:0]const u8,
@@ -88,6 +116,7 @@ pub const GltfAsset = struct {
             .buffer_data = ArrayList([]align(4) const u8).init(alloc),
             .loaded_textures = std.AutoHashMap(u32, *texture.Texture).init(alloc),
             .generated_normals = std.AutoHashMap(u64, []Vec3).init(alloc),
+            .custom_textures = ArrayList(CustomTexture).init(alloc),
             .directory = try alloc.dupe(u8, Path.dirname(path) orelse ""),
             .name = try alloc.dupe(u8, name),
             .filepath = try alloc.dupeZ(u8, path),
@@ -107,6 +136,13 @@ pub const GltfAsset = struct {
         while (texture_iterator.next()) |tex| {
             tex.*.deleteGlTexture();
         }
+
+        // Free custom textures
+        for (self.custom_textures.items) |*custom_tex| {
+            if (custom_tex.texture) |tex| {
+                tex.deleteGlTexture();
+            }
+        }
     }
 
     pub fn flipv(self: *Self) *Self {
@@ -120,6 +156,65 @@ pub const GltfAsset = struct {
 
     pub fn setNormalGenerationMode(self: *Self, mode: NormalGenerationMode) void {
         self.normal_generation_mode = mode;
+    }
+
+    // Add custom texture assignment for models without material definitions
+    pub fn addTexture(self: *Self, mesh_name: []const u8, uniform_name: []const u8, texture_path: []const u8, config: TextureConfig) !void {
+        const allocator = self.arena.allocator();
+
+        const custom_texture = CustomTexture{
+            .mesh_name = try allocator.dupe(u8, mesh_name),
+            .uniform_name = try allocator.dupeZ(u8, uniform_name),
+            .texture_path = try allocator.dupe(u8, texture_path),
+            .config = config,
+            .texture = null, // Will be loaded on demand
+        };
+
+        try self.custom_textures.append(custom_texture);
+    }
+
+    // Get custom textures for a specific mesh
+    pub fn getCustomTextures(self: *Self, mesh_name: []const u8) []CustomTexture {
+        const allocator = self.arena.allocator();
+        var matching_textures = ArrayList(CustomTexture).init(allocator);
+
+        for (self.custom_textures.items) |*custom_tex| {
+            if (std.mem.eql(u8, custom_tex.mesh_name, mesh_name)) {
+                matching_textures.append(custom_tex.*) catch continue;
+            }
+        }
+
+        return matching_textures.toOwnedSlice() catch &[_]CustomTexture{};
+    }
+
+    // Load custom texture on demand with caching
+    pub fn loadCustomTexture(self: *Self, custom_tex: *CustomTexture) !*texture.Texture {
+        if (custom_tex.texture) |tex| {
+            return tex; // Already loaded
+        }
+
+        // Load texture using custom configuration
+        const tex = try self.loadCustomTextureFromFile(custom_tex.texture_path, custom_tex.config);
+        custom_tex.texture = tex;
+        return tex;
+    }
+
+    // Load custom texture from file with configuration
+    fn loadCustomTextureFromFile(self: *Self, texture_path: []const u8, config: TextureConfig) !*texture.Texture {
+        const allocator = self.arena.allocator();
+
+        // Create full path
+        const full_path = try std.fs.path.join(allocator, &[_][]const u8{ self.directory, texture_path });
+        defer allocator.free(full_path);
+
+        // Load texture manually (similar to ASSIMP system)
+        const tex = try texture.Texture.initFromFile(
+            self.arena,
+            full_path,
+            config,
+        );
+
+        return tex;
     }
 
     // Get pre-generated normals for a specific mesh primitive

@@ -47,7 +47,7 @@ pub const Mesh = struct {
         };
 
         for (gltf_mesh.primitives, 0..) |primitive, primitive_index| {
-            const mesh_primitive = try MeshPrimitive.init(arena, gltf_asset, primitive, mesh_index, primitive_index);
+            const mesh_primitive = try MeshPrimitive.init(arena, gltf_asset, primitive, mesh_index, primitive_index, gltf_mesh.name);
             try mesh.primitives.append(mesh_primitive);
         }
 
@@ -114,12 +114,13 @@ pub const MeshPrimitive = struct {
         }
     }
 
-    pub fn init(arena: *ArenaAllocator, gltf_asset: *GltfAsset, primitive: gltf_types.MeshPrimitive, mesh_index: usize, primitive_index: usize) !*MeshPrimitive {
+    pub fn init(arena: *ArenaAllocator, gltf_asset: *GltfAsset, primitive: gltf_types.MeshPrimitive, mesh_index: usize, primitive_index: usize, mesh_name: ?[]const u8) !*MeshPrimitive {
         const allocator = arena.allocator();
         const mesh_primitive = try allocator.create(MeshPrimitive);
         mesh_primitive.* = MeshPrimitive{
             // .allocator = allocator,
             .id = primitive_index,
+            .name = mesh_name,
             .indices_count = 0,
         };
 
@@ -228,6 +229,9 @@ pub const MeshPrimitive = struct {
     }
 
     pub fn render(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
+        // First, apply custom textures (these override material textures)
+        self.setCustomTextures(gltf_asset, shader);
+
         switch (self.render_mode) {
             .basic => self.setBasicMaterial(gltf_asset, shader),
             .pbr => self.setPBRMaterial(gltf_asset, shader),
@@ -356,6 +360,43 @@ pub const MeshPrimitive = struct {
             shader.bindTexture(4, "occlusionTexture", texture.gl_texture_id);
         } else {
             shader.setBool("hasOcclusionTexture", false);
+        }
+    }
+
+    // Apply custom textures that override material textures
+    fn setCustomTextures(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
+        // Get the mesh name from this primitive
+        const mesh_name = self.name orelse return;
+
+        var texture_unit: u32 = 10; // Start at high texture unit to avoid conflicts
+
+        for (gltf_asset.custom_textures.items) |*custom_tex| {
+            if (std.mem.eql(u8, custom_tex.mesh_name, mesh_name)) {
+                const texture = gltf_asset.loadCustomTexture(custom_tex) catch {
+                    std.debug.print("Failed to load custom texture: {s}\n", .{custom_tex.texture_path});
+                    continue;
+                };
+
+                // Bind custom texture
+                gl.activeTexture(gl.TEXTURE0 + texture_unit);
+                gl.bindTexture(gl.TEXTURE_2D, texture.gl_texture_id);
+
+                // Set shader uniform using custom uniform name
+                shader.setInt(custom_tex.uniform_name, @intCast(texture_unit));
+
+                // Set a flag indicating this uniform has a texture
+                // This allows shaders to conditionally use textures
+                const flag_name = std.fmt.allocPrintZ(gltf_asset.arena.allocator(), "has_{s}", .{custom_tex.uniform_name}) catch {
+                    std.debug.print("Failed to allocate flag name for {s}\n", .{custom_tex.uniform_name});
+                    continue;
+                };
+                // Don't free - arena allocator will handle cleanup
+                shader.setBool(flag_name, true);
+
+                texture_unit += 1;
+
+                std.debug.print("Applied custom texture: {s} -> {s} (unit {d})\n", .{ custom_tex.texture_path, custom_tex.uniform_name, texture_unit - 1 });
+            }
         }
     }
 };

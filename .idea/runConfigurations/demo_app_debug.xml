@@ -3,7 +3,7 @@
     <ZigBrainsOption name="workingDirectory" value="$PROJECT_DIR$" />
     <ZigBrainsOption name="buildSteps" value="" />
     <ZigBrainsOption name="compilerArgs" value="" />
-    <ZigBrainsOption name="debugBuildSteps" value="demo_app-run" />
+    <ZigBrainsOption name="debugBuildSteps" value="animation" />
     <ZigBrainsOption name="debugCompilerArgs" value="" />
     <ZigBrainsOption name="exePath" value="$PROJECT_DIR$/zig-out/bin/demo_app" />
     <ZigBrainsOption name="exeArgs" value="" />
