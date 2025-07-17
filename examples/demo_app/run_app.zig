@@ -18,7 +18,7 @@ const ModelBuilder = core.ModelBuilder;
 const String = core.string.String;
 const FrameCounter = core.FrameCounter;
 const Animator = core.Animator;
-const AnimationClip = core.AnimationClip;
+// const AnimationClip = core.AnimationClip;
 const AnimationRepeatMode = core.AnimationRepeatMode;
 
 const Shader = core.Shader;

@@ -20,6 +20,10 @@ const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
 const Vec4 = math.Vec4;
 
+pub const MeshPrimitiveError = error{
+    AccessorError,
+};
+
 pub const RenderMode = enum {
     basic,
     pbr,
@@ -395,7 +399,7 @@ pub const MeshPrimitive = struct {
 
                 texture_unit += 1;
 
-                std.debug.print("Applied custom texture: {s} -> {s} (unit {d})\n", .{ custom_tex.texture_path, custom_tex.uniform_name, texture_unit - 1 });
+                // std.debug.print("Applied custom texture: {s} -> {s} (unit {d})\n", .{ custom_tex.texture_path, custom_tex.uniform_name, texture_unit - 1 });
             }
         }
     }

@@ -34,8 +34,13 @@ const Window = glfw.Window;
 const SCR_WIDTH: f32 = 800.0;
 const SCR_HEIGHT: f32 = 800.0;
 
-// Model selection flag for testing
-const USE_CESIUM_MAN: bool = true; // Set to true to test CesiumMan.gltf, false for Player.gltf
+// Model selection for testing
+const ModelChoice = enum {
+    cesium_man,
+    player,
+    spacesuit,
+};
+
 
 // Report dumping configuration
 const DUMP_REPORT: bool = true; // Set to true to generate model report
@@ -59,6 +64,7 @@ const State = struct {
     last_y: f32,
     scr_width: f32 = SCR_WIDTH,
     scr_height: f32 = SCR_HEIGHT,
+    current_action: u8 = 0, // 0=idle, 1=forward, 2=backwards, 3=right, 4=left, 5=dying
 };
 
 const content_dir = "assets";
@@ -80,6 +86,26 @@ pub fn main() !void {
     var buf: [512]u8 = undefined;
     const cwd = try std.fs.selfExeDirPath(&buf);
     std.debug.print("Running sample_animation. cwd = {s}\n", .{cwd});
+
+    // Parse command line arguments
+    var args = std.process.args();
+    _ = args.skip(); // Skip program name
+    var runtime_duration: ?f32 = null;
+    
+    while (args.next()) |arg| {
+        if (std.mem.eql(u8, arg, "--duration") or std.mem.eql(u8, arg, "-d")) {
+            if (args.next()) |duration_str| {
+                runtime_duration = std.fmt.parseFloat(f32, duration_str) catch |err| {
+                    std.debug.print("Invalid duration: {s}, error: {}\n", .{duration_str, err});
+                    std.process.exit(1);
+                };
+                std.debug.print("Runtime duration set to: {d} seconds\n", .{runtime_duration.?});
+            } else {
+                std.debug.print("Error: --duration requires a value\n", .{});
+                std.process.exit(1);
+            }
+        }
+    }
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -108,10 +134,10 @@ pub fn main() !void {
 
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    try run(allocator, window);
+    try run(allocator, window, runtime_duration);
 }
 
-pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
+pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f32) !void {
     //var buffer: [1024]u8 = undefined;
     //const root_path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
     //_ = root_path;
@@ -161,9 +187,17 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
     const ambientColor: Vec3 = vec3(NON_BLUE * 0.7, NON_BLUE * 0.7, 0.7);
 
-    // Select model based on flag
-    const model_path = if (USE_CESIUM_MAN) "glTF-Sample-Models/CesiumMan/glTF/CesiumMan.gltf" else "angrybots_assets/Models/Player/Player.gltf";
-    const model_name = if (USE_CESIUM_MAN) "CesiumMan" else "Player";
+    // Select model based on enum
+    const SELECTED_MODEL: ModelChoice = .player;
+    const model_info = switch (SELECTED_MODEL) {
+        // .cesium_man => .{ .path = "glTF-Sample-Models/CesiumMan/glTF/CesiumMan.gltf", .name = "Original CesiumMan" },
+        .cesium_man => .{ .path = "CesiumMan_converted.gltf", .name = "CesiumMan" },
+        .player => .{ .path = "angrybots_assets/Models/Player/Player.gltf", .name = "Player" },
+        .spacesuit => .{ .path = "spacesuit_fixed.gltf", .name = "Spacesuit" },
+        //.spacesuit => .{ .path = "angrybots_assets/Models/Player/Spacesuit_assimp.glb", .name = "Spacesuit" },
+    };
+    const model_path = model_info.path;
+    const model_name = model_info.name;
 
     std.debug.print("Main: loading model: {s}\n", .{model_path});
 
@@ -174,23 +208,42 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     // Define texture configuration (same settings as ASSIMP version)
     const texture_config = TextureConfig{ .filter = .Linear, .flip_v = true, .gamma_correction = false, .wrap = .Clamp };
 
+    var model_transform = Mat4.identity();
+
     std.debug.print("Main: adding custom textures\n", .{});
-    if (USE_CESIUM_MAN) {
-        // Add test textures for CesiumMan to test custom texture system
-        try gltf_asset.addTexture("Cesium_Man", "texture_diffuse", "Textures/Player_D.tga", texture_config);
-        try gltf_asset.addTexture("Cesium_Man", "texture_specular", "Textures/Player_M.tga", texture_config);
-        try gltf_asset.addTexture("Cesium_Man", "texture_emissive", "Textures/Player_E.tga", texture_config);
-        try gltf_asset.addTexture("Cesium_Man", "texture_normal", "Textures/Player_NRM.tga", texture_config);
-    } else {
-        // Player model custom textures
-        try gltf_asset.addTexture("Player", "texture_diffuse", "Textures/Player_D.tga", texture_config);
-        try gltf_asset.addTexture("Player", "texture_specular", "Textures/Player_M.tga", texture_config);
-        try gltf_asset.addTexture("Player", "texture_emissive", "Textures/Player_E.tga", texture_config);
-        try gltf_asset.addTexture("Player", "texture_normal", "Textures/Player_NRM.tga", texture_config);
-        try gltf_asset.addTexture("Gun", "texture_diffuse", "Textures/Gun_D.tga", texture_config);
-        try gltf_asset.addTexture("Gun", "texture_specular", "Textures/Gun_M.tga", texture_config);
-        try gltf_asset.addTexture("Gun", "texture_emissive", "Textures/Gun_E.tga", texture_config);
-        try gltf_asset.addTexture("Gun", "texture_normal", "Textures/Gun_NRM.tga", texture_config);
+    switch (SELECTED_MODEL) {
+        .cesium_man => {
+            model_transform.rotateByDegrees(&vec3(1, 0, 0), -90.0);
+            model_transform.rotateByDegrees(&vec3(0, 0, 1), -90.0);
+            model_transform.translate(&vec3(0.0, 0.0, -1.0));
+            model_transform.scale(&vec3(1.0, 1.0, 1.0));
+            // Add test textures for CesiumMan to test custom texture system
+            //try gltf_asset.addTexture("Cesium_Man", "texture_diffuse", "Textures/Player_D.tga", texture_config);
+            try gltf_asset.addTexture("Cesium_Man", "texture_diffuse", "CesiumMan_img0.jpg", texture_config);
+            // try gltf_asset.addTexture("Cesium_Man", "texture_specular", "Textures/Player_M.tga", texture_config);
+            // try gltf_asset.addTexture("Cesium_Man", "texture_emissive", "Textures/Player_E.tga", texture_config);
+            // try gltf_asset.addTexture("Cesium_Man", "texture_normal", "Textures/Player_NRM.tga", texture_config);
+        },
+        .player => {
+            model_transform.scale(&vec3(0.1, 0.1, 0.1));
+            state.camera.movement.reset(vec3(0.0, 10.0, 30.0), vec3(0.0, 10.0, 0.0));
+            // Player model custom textures
+            try gltf_asset.addTexture("Player", "texture_diffuse", "Textures/Player_D.tga", texture_config);
+            try gltf_asset.addTexture("Player", "texture_specular", "Textures/Player_M.tga", texture_config);
+            try gltf_asset.addTexture("Player", "texture_emissive", "Textures/Player_E.tga", texture_config);
+            try gltf_asset.addTexture("Player", "texture_normal", "Textures/Player_NRM.tga", texture_config);
+            try gltf_asset.addTexture("Gun", "texture_diffuse", "Textures/Gun_D.tga", texture_config);
+            try gltf_asset.addTexture("Gun", "texture_specular", "Textures/Gun_M.tga", texture_config);
+            try gltf_asset.addTexture("Gun", "texture_emissive", "Textures/Gun_E.tga", texture_config);
+            try gltf_asset.addTexture("Gun", "texture_normal", "Textures/Gun_NRM.tga", texture_config);
+        },
+        .spacesuit => {
+            // Spacesuit model custom textures (assuming similar naming to Player)
+            // try gltf_asset.addTexture("Spacesuit", "texture_diffuse", "Textures/Player_D.tga", texture_config);
+            // try gltf_asset.addTexture("Spacesuit", "texture_specular", "Textures/Player_M.tga", texture_config);
+            // try gltf_asset.addTexture("Spacesuit", "texture_emissive", "Textures/Player_E.tga", texture_config);
+            // try gltf_asset.addTexture("Spacesuit", "texture_normal", "Textures/Player_NRM.tga", texture_config);
+        },
     }
 
     std.debug.print("Main: building model: {s}\n", .{model_path});
@@ -219,17 +272,28 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         // bullet_gltf_asset.cleanUp();
     }
 
-    // const idle = AnimationClip.new(55.0, 130.0, AnimationRepeat.Forever);
-    // const forward = AnimationClip.new(134.0, 154.0, AnimationRepeat.Forever);
-    // const backwards = AnimationClip.new(159.0, 179.0, AnimationRepeat.Forever);
-    // const right = AnimationClip.new(184.0, 204.0, AnimationRepeat.Forever);
-    // const left = AnimationClip.new(209.0, 229.0, AnimationRepeat.Forever);
-    // const dying = AnimationClip.new(234.0, 293.0, AnimationRepeat.Once);
-
     std.debug.print("Main: playClip\n", .{});
-    // try model.playClip(idle);
-    // try model.play_clip_with_transition(forward, 6);
-    // try model.playClip(forward);
+
+    // Set up animation based on selected model
+    switch (SELECTED_MODEL) {
+        .cesium_man => {
+            // CesiumMan has a simple walking animation
+            const walking_animation = AnimationClip.init(0, 0.042, 2.0, AnimationRepeat.Forever);
+            try model.animator.playClip(walking_animation);
+        },
+        .player => {
+            // Player model has 1 animation with 294 frames at 30fps = ~9.8 seconds
+            const player_animation = AnimationClip.init(0, 0.0, 294.0/30.0, AnimationRepeat.Forever);
+            try model.animator.playClip(player_animation);
+        },
+        .spacesuit => {
+            // Spacesuit model has 24 animations from the FBX conversion
+            // Use the first animation (Death) as default - 32 frames at 30fps = ~1.07 seconds
+            const spacesuit_animation = AnimationClip.init(0, 0.0, 32.0/30.0, AnimationRepeat.Forever);
+            try model.animator.playClip(spacesuit_animation);
+        },
+    }
+
     std.debug.print("animation state: {any}\n", .{model.animator.current_animation});
 
     // --- event loop
@@ -241,10 +305,19 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     _ = window.setCursorPosCallback(cursorPositionHandler);
     _ = window.setScrollCallback(scrollHandler);
 
+    const start_time = state.last_frame;
     while (!window.shouldClose()) {
         const currentFrame: f32 = @floatCast(glfw.getTime());
         state.delta_time = currentFrame - state.last_frame;
         state.last_frame = currentFrame;
+        
+        // Check if we've exceeded the maximum duration
+        if (max_duration) |duration| {
+            if (currentFrame - start_time >= duration) {
+                std.debug.print("Reached maximum duration of {d} seconds, exiting\n", .{duration});
+                break;
+            }
+        }
 
         frame_counter.update();
 
@@ -261,23 +334,19 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         );
         const view = state.camera.getLookToView();
 
-        var model_transform = Mat4.identity();
-        model_transform.translate(&vec3(0.0, 1.0, -2.0));
-        model_transform.scale(&vec3(1.0, 1.0, 1.0));
-
-        shader.setMat4("projection", &projection);
-        shader.setMat4("view", &view);
-        shader.setMat4("model", &model_transform);
+        shader.setMat4("matProjection", &projection);
+        shader.setMat4("matView", &view);
+        shader.setMat4("matModel", &model_transform);
 
         shader.setBool("useLight", true);
         shader.setVec3("ambient", &ambientColor);
 
         const identity = Mat4.identity();
         shader.setMat4("aimRot", &identity);
-        shader.setMat4("lightSpaceMatrix", &identity);
+        shader.setMat4("matLightSpace", &identity);
 
         // std.debug.print("Main: render\n", .{});
-        try model.update_animation(state.delta_time);
+        try model.updateAnimation(state.delta_time);
         // try model.playTick(140.0);
         model.render(shader);
         // try core.dumpModelNodes(model);

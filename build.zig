@@ -55,6 +55,14 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const formats: []const u8 = "Obj,FBX,glTF,glTF2"; // B3D";
+
+    const assimp = b.dependency("assimp", .{
+        .target = target,
+        .optimize = optimize,
+        .formats = formats,
+    });
+
     const math = b.createModule(.{ .root_source_file = b.path("src/math/main.zig") });
     math.addIncludePath(b.path("src/include"));
 
@@ -87,6 +95,7 @@ pub fn build(b: *std.Build) void {
         // .{ .name = "game_level_001", .exe_name = "game_level_001", .source = "game_level_001/main.zig" },
         .{ .name = "demo_app", .exe_name = "demo_app", .source = "examples/demo_app/main.zig" },
         .{ .name = "game_angrybot", .exe_name = "angry_monsters", .source = "game_angrybot/main.zig" },
+        .{ .name = "converter", .exe_name = "fbx_gltf_converter", .source = "converter/main.zig" },
         // .{ .name = "chat_gltf", .exe_name = "chat_gltf", .source = "examples/chat_gltf/main.zig" },
     }) |app| {
         const exe = b.addExecutable(.{
@@ -111,6 +120,13 @@ pub fn build(b: *std.Build) void {
         exe.root_module.addImport("zgui", zgui.module("root"));
         exe.root_module.addImport("zstbi", zstbi.module("root")); // gui
         exe.root_module.addImport("build_options", build_options.createModule());
+
+        // Add ASSIMP support for converter app
+        if (std.mem.eql(u8, app.name, "converter")) {
+            exe.root_module.addImport("assimp", assimp.module("root"));
+            exe.linkLibrary(assimp.artifact("assimp"));
+            exe.addIncludePath(assimp.path("include"));
+        }
 
         exe.addIncludePath(b.path("src/include"));
         exe.addIncludePath(miniaudio.path("include"));

@@ -312,12 +312,26 @@ pub const GltfAsset = struct {
             }
         }
 
-        // Find the first skin for animation (if any)
+        // Find the skin used by a mesh with skinning data
         var skin_index: ?u32 = null;
         if (self.gltf.skins) |skins| {
             if (skins.len > 0) {
-                skin_index = 0; // Use the first skin
-                std.debug.print("Found {d} skins, using skin 0 with {d} joints\n", .{ skins.len, skins[0].joints.len });
+                // Find which skin is actually used by checking scene nodes
+                if (self.gltf.nodes) |nodes| {
+                    for (nodes, 0..) |node, node_idx| {
+                        if (node.mesh != null and node.skin != null) {
+                            skin_index = node.skin.?;
+                            std.debug.print("Found {d} skins, using skin {d} with {d} joints (from node {d})\n", .{ skins.len, skin_index.?, skins[skin_index.?].joints.len, node_idx });
+                            break;
+                        }
+                    }
+                }
+                
+                // Fallback to first skin if no node with both mesh and skin found
+                if (skin_index == null) {
+                    skin_index = 0;
+                    std.debug.print("Found {d} skins, using fallback skin 0 with {d} joints\n", .{ skins.len, skins[0].joints.len });
+                }
             }
         } else {
             std.debug.print("No skins found in model\n", .{});

@@ -168,7 +168,7 @@ pub const Model = struct {
         shader.setMat4("nodeTransform", node_matrix);
     }
 
-    pub fn update_animation(self: *Self, delta_time: f32) !void {
+    pub fn updateAnimation(self: *Self, delta_time: f32) !void {
         try self.animator.updateAnimation(delta_time);
     }
 
