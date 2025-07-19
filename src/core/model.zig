@@ -97,6 +97,16 @@ pub const Model = struct {
         try self.animator.playWeightAnimations(weighted_animations, frame_time);
     }
 
+    /// Play all animations in the model simultaneously (for InterpolationTest)
+    pub fn playAllAnimations(self: *Self) !void {
+        try self.animator.playAllAnimations();
+    }
+
+    /// Play specific animations by indices
+    pub fn playAnimations(self: *Self, animation_indices: []const u32) !void {
+        try self.animator.playAnimations(animation_indices);
+    }
+
     pub fn render(self: *Self, shader: *const Shader) void {
         shader.useShader();
         var buf: [256:0]u8 = undefined;
@@ -111,7 +121,7 @@ pub const Model = struct {
         if (scene.nodes) |nodes| {
             for (nodes) |node_index| {
                 const node = self.gltf_asset.gltf.nodes.?[node_index];
-                self.renderNodes(shader, node, Mat4.identity());
+                self.renderNodes(shader, node, node_index, Mat4.identity());
             }
         }
     }
@@ -120,12 +130,16 @@ pub const Model = struct {
         debugPrintModelNodeStructure(self);
     }
 
-    fn renderNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, parent_transform: Mat4) void {
-        const transform = Transform{
-            .translation = node.translation orelse vec3(0.0, 0.0, 0.0),
-            .rotation = node.rotation orelse math.quat(0.0, 0.0, 0.0, 1.0),
-            .scale = node.scale orelse vec3(1.0, 1.0, 1.0),
-        };
+    fn renderNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, node_index: usize, parent_transform: Mat4) void {
+        // Use animated transform if available, otherwise fall back to static transform
+        const transform = if (node_index < self.animator.node_transforms.len)
+            self.animator.node_transforms[node_index]
+        else
+            Transform{
+                .translation = node.translation orelse vec3(0.0, 0.0, 0.0),
+                .rotation = node.rotation orelse math.quat(0.0, 0.0, 0.0, 1.0),
+                .scale = node.scale orelse vec3(1.0, 1.0, 1.0),
+            };
         const local_matrix = transform.toMatrix();
         const global_matrix = parent_transform.mulMat4(&local_matrix);
 
@@ -145,9 +159,9 @@ pub const Model = struct {
         }
 
         if (node.children) |children| {
-            for (children) |node_index| {
-                const child = self.gltf_asset.gltf.nodes.?[node_index];
-                self.renderNodes(shader, child, global_matrix);
+            for (children) |child_node_index| {
+                const child = self.gltf_asset.gltf.nodes.?[child_node_index];
+                self.renderNodes(shader, child, child_node_index, global_matrix);
             }
         }
     }

@@ -92,9 +92,9 @@ pub const GltfAnimationState = struct {
 /// Compatible with ASSIMP-based game_angrybot system
 pub const WeightedAnimation = struct {
     weight: f32,
-    start_time: f32,    // Animation start time in seconds
-    end_time: f32,      // Animation end time in seconds  
-    offset: f32,        // Time offset for animation synchronization
+    start_time: f32, // Animation start time in seconds
+    end_time: f32, // Animation end time in seconds
+    offset: f32, // Time offset for animation synchronization
     start_real_time: f32, // Real-world start time for non-looped animations
 
     pub fn init(weight: f32, start_time: f32, end_time: f32, offset: f32, start_real_time: f32) WeightedAnimation {
@@ -162,8 +162,8 @@ pub const Animator = struct {
     skin_index: ?u32,
     joints: []Joint,
 
-    // Animation state
-    current_animation: ?GltfAnimationState,
+    // Animation state - support multiple concurrent animations
+    active_animations: ArrayList(GltfAnimationState),
 
     // Node transform cache (indexed by node index)
     node_transforms: []Transform,
@@ -230,7 +230,7 @@ pub const Animator = struct {
             .gltf_asset = gltf_asset,
             .skin_index = skin_index,
             .joints = try joints.toOwnedSlice(),
-            .current_animation = null,
+            .active_animations = ArrayList(GltfAnimationState).init(allocator),
             .node_transforms = try allocator.alloc(Transform, node_count),
             .node_matrices = try allocator.alloc(Mat4, node_count),
             .joint_matrices = [_]Mat4{Mat4.identity()} ** MAX_JOINTS,
@@ -258,12 +258,15 @@ pub const Animator = struct {
             return;
         }
 
-        self.current_animation = GltfAnimationState.init(
+        // Clear all animations, play just this one (backward compatibility)
+        self.active_animations.clearRetainingCapacity();
+        const anim_state = GltfAnimationState.init(
             clip.animation_index,
             clip.start_time,
             clip.end_time,
             clip.repeat_mode,
         );
+        try self.active_animations.append(anim_state);
 
         std.debug.print("Playing glTF animation {d}\n", .{clip.animation_index});
     }
@@ -275,36 +278,25 @@ pub const Animator = struct {
             return;
         }
 
-        // Calculate animation duration from samplers
+        // Calculate animation duration
+        const max_time = try self.calculateAnimationDuration(animation_index);
         const animation = self.gltf_asset.gltf.animations.?[animation_index];
-        var max_time: f32 = 0.0;
-
-        for (animation.samplers) |sampler| {
-            // Get actual time values from input accessor
-            const times = self.readAccessorAsF32Slice(sampler.input) catch |err| {
-                std.debug.print("Error reading animation times: {}\n", .{err});
-                continue;
-            };
-            if (times.len > 0) {
-                max_time = @max(max_time, times[times.len - 1]);
-            }
-        }
-
-        // Fallback to 1 second if no time data found
-        if (max_time == 0.0) {
-            max_time = 1.0;
-            std.debug.print("Warning: No time data found for animation {d}, using 1 second duration\n", .{animation_index});
-        }
 
         std.debug.print("Animation {d} duration: {d:.2}s, channels: {d}\n", .{ animation_index, max_time, animation.channels.len });
-        const clip = AnimationClip.init(animation_index, 0.0, max_time, .Forever);
-        try self.playClip(clip);
+
+        // Clear all animations, play just this one (backward compatibility)
+        self.active_animations.clearRetainingCapacity();
+        const anim_state = GltfAnimationState.init(animation_index, 0.0, max_time, .Forever);
+        try self.active_animations.append(anim_state);
     }
 
     /// Play animation at specific time - maintains same interface
     pub fn playTick(self: *Self, time: f32) !void {
-        if (self.current_animation) |*anim_state| {
+        // Update time for ALL active animations
+        for (self.active_animations.items) |*anim_state| {
             anim_state.current_time = time;
+        }
+        if (self.active_animations.items.len > 0) {
             try self.updateNodeTransformations();
             try self.updateShaderMatrices();
         }
@@ -312,19 +304,19 @@ pub const Animator = struct {
 
     /// Update animation with delta time - maintains same interface
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
-        if (self.current_animation) |*anim_state| {
+        // Update ALL active animations
+        for (self.active_animations.items) |*anim_state| {
             anim_state.update(delta_time);
+        }
+        if (self.active_animations.items.len > 0) {
             try self.updateNodeTransformations();
             try self.updateShaderMatrices();
         }
     }
 
-    /// Update node transformations from current animation state
+    /// Update node transformations from active animation states
     fn updateNodeTransformations(self: *Self) !void {
-        if (self.current_animation == null or self.gltf_asset.gltf.animations == null) return;
-
-        const anim_state = self.current_animation.?;
-        const animation = self.gltf_asset.gltf.animations.?[anim_state.animation_index];
+        if (self.active_animations.items.len == 0 or self.gltf_asset.gltf.animations == null) return;
 
         // Reset all node transforms to their default values
         if (self.gltf_asset.gltf.nodes) |nodes| {
@@ -338,11 +330,27 @@ pub const Animator = struct {
             }
         }
 
-        // Apply animation channels
-        for (animation.channels) |channel| {
-            if (channel.target.node) |node_index| {
-                if (node_index < self.node_transforms.len) {
-                    try self.evaluateAnimationChannel(channel, animation.samplers[channel.sampler], anim_state.current_time, node_index);
+        // Track animated nodes for conflict detection
+        const allocator = self.arena.allocator();
+        var animated_nodes = try allocator.alloc(bool, self.node_transforms.len);
+        defer allocator.free(animated_nodes);
+        @memset(animated_nodes, false);
+
+        // Apply each active animation
+        for (self.active_animations.items) |anim_state| {
+            const animation = self.gltf_asset.gltf.animations.?[anim_state.animation_index];
+
+            for (animation.channels) |channel| {
+                if (channel.target.node) |node_index| {
+                    if (node_index < self.node_transforms.len) {
+                        // Conflict detection (silenced for now - expected in multi-animation scenarios)
+                        if (animated_nodes[node_index]) {
+                            // std.debug.print("Warning: Multiple animations targeting node {d} - last animation wins\n", .{node_index});
+                        }
+                        animated_nodes[node_index] = true;
+
+                        try self.evaluateAnimationChannel(channel, animation.samplers[channel.sampler], anim_state.current_time, node_index);
+                    }
                 }
             }
         }
@@ -546,14 +554,67 @@ pub const Animator = struct {
         }
     }
 
+    /// Calculate the duration of an animation by finding the maximum time in all samplers
+    fn calculateAnimationDuration(self: *Self, animation_index: u32) !f32 {
+        const animation = self.gltf_asset.gltf.animations.?[animation_index];
+        var max_time: f32 = 0.0;
+
+        for (animation.samplers) |sampler| {
+            // Get actual time values from input accessor
+            const times = self.readAccessorAsF32Slice(sampler.input) catch |err| {
+                std.debug.print("Error reading animation times: {}\n", .{err});
+                continue;
+            };
+            if (times.len > 0) {
+                max_time = @max(max_time, times[times.len - 1]);
+            }
+        }
+
+        // Fallback to 1 second if no time data found
+        if (max_time == 0.0) {
+            max_time = 1.0;
+            std.debug.print("Warning: No time data found for animation {d}, using 1 second duration\n", .{animation_index});
+        }
+
+        return max_time;
+    }
+
+    /// Play all animations in the model simultaneously (for InterpolationTest)
+    pub fn playAllAnimations(self: *Self) !void {
+        if (self.gltf_asset.gltf.animations == null) return;
+
+        self.active_animations.clearRetainingCapacity();
+        const animations = self.gltf_asset.gltf.animations.?;
+
+        for (0..animations.len) |i| {
+            const animation_index = @as(u32, @intCast(i));
+            const duration = try self.calculateAnimationDuration(animation_index);
+            const anim_state = GltfAnimationState.init(animation_index, 0.0, duration, .Forever);
+            try self.active_animations.append(anim_state);
+        }
+
+        std.debug.print("Playing {d} animations simultaneously\n", .{animations.len});
+    }
+
+    /// Play specific animations by indices
+    pub fn playAnimations(self: *Self, animation_indices: []const u32) !void {
+        self.active_animations.clearRetainingCapacity();
+
+        for (animation_indices) |animation_index| {
+            const duration = try self.calculateAnimationDuration(animation_index);
+            const anim_state = GltfAnimationState.init(animation_index, 0.0, duration, .Forever);
+            try self.active_animations.append(anim_state);
+        }
+    }
+
     /// Play multiple animations with different weights - for animation blending
     /// Compatible with ASSIMP-based game_angrybot animation blending system
     pub fn playWeightAnimations(self: *Self, weighted_animations: []const WeightedAnimation, frame_time: f32) !void {
         if (self.gltf_asset.gltf.animations == null) return;
-        
+
         const animations = self.gltf_asset.gltf.animations.?;
         const debug_blending = false;
-        
+
         if (debug_blending) {
             std.debug.print("playWeightAnimations: frame_time={d:.3}, {d} animations\n", .{ frame_time, weighted_animations.len });
         }
@@ -631,10 +692,10 @@ pub const Animator = struct {
                 const inv_weight = 1.0 / total_weights[i];
                 blended_transforms[i].translation = blended_transforms[i].translation.mulScalar(inv_weight);
                 blended_transforms[i].scale = blended_transforms[i].scale.mulScalar(inv_weight);
-                
+
                 // Quaternions need renormalization after weighted blending
                 blended_transforms[i].rotation.normalize();
-                
+
                 self.node_transforms[i] = blended_transforms[i];
             }
         }
@@ -654,7 +715,7 @@ pub const Animator = struct {
                 if (node_index >= self.node_transforms.len) continue;
 
                 const sampler = animation.samplers[channel.sampler];
-                
+
                 // Get time values from the input accessor
                 const times = self.readAccessorAsF32Slice(sampler.input) catch continue;
                 if (times.len == 0) continue;
@@ -696,14 +757,12 @@ pub const Animator = struct {
                             };
 
                             // Blend quaternions - weighted sum (will be normalized later)
-                            const weighted_quat = Quat{
-                                .data = [4]f32{
-                                    interpolated_value.data[0] * weight,
-                                    interpolated_value.data[1] * weight,
-                                    interpolated_value.data[2] * weight,
-                                    interpolated_value.data[3] * weight,
-                                }
-                            };
+                            const weighted_quat = Quat{ .data = [4]f32{
+                                interpolated_value.data[0] * weight,
+                                interpolated_value.data[1] * weight,
+                                interpolated_value.data[2] * weight,
+                                interpolated_value.data[3] * weight,
+                            } };
 
                             blended_transforms[node_index].rotation.data[0] += weighted_quat.data[0];
                             blended_transforms[node_index].rotation.data[1] += weighted_quat.data[1];

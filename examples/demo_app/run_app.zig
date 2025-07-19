@@ -54,8 +54,9 @@ var debug_dump_buffer: [4096]u8 = undefined;
 
 // Model loading helper function
 fn loadModel(allocator: std.mem.Allocator, model_info: assets_list.DemoModel, state: *state_.State) !*Model {
-    const path = try std.fs.path.join(allocator, &[_][]const u8{ assets_list.root, model_info.path });
-    defer allocator.free(path);
+    // const path = try std.fs.path.join(allocator, &[_][]const u8{ assets_list.root, model_info.path });
+    // defer allocator.free(path);
+    const path = model_info.path;
 
     std.debug.print("\nLoading model: {s} ({s}) - {s}\n", .{ model_info.name, model_info.format, model_info.description });
     std.debug.print("Path: {s}\n", .{path});
@@ -68,12 +69,19 @@ fn loadModel(allocator: std.mem.Allocator, model_info: assets_list.DemoModel, st
     try gltf_asset.load();
     const model = try gltf_asset.buildModel();
 
-    // Check if model has animations and start the first one
+    // Check if model has animations and start appropriate animation(s)
     if (gltf_asset.gltf.animations) |animations| {
         if (animations.len > 0) {
-            std.debug.print("Model has {d} animations, playing first animation\n", .{animations.len});
-            try model.animator.playAnimationById(0);
-            state.animation_id = 0;
+            // Check if this model should play all animations simultaneously
+            if (model_info.play_all_animations) {
+                std.debug.print("Model configured for multi-animation - playing all {d} animations simultaneously\n", .{animations.len});
+                try model.playAllAnimations();
+                state.animation_id = -1; // Use -1 to indicate "all animations" mode
+            } else {
+                std.debug.print("Model has {d} animations, playing first animation\n", .{animations.len});
+                try model.animator.playAnimationById(0);
+                state.animation_id = 0;
+            }
         } else {
             std.debug.print("Model has no animations\n", .{});
             state.animation_id = -1;
@@ -131,7 +139,7 @@ fn outputPositions(model: *Model, camera: *Camera) void {
 const camera_position = vec3(0.0, 12.0, 40.0);
 const camera_target = vec3(0.0, 12.0, 0.0);
 
-pub fn run(window: *glfw.Window) !void {
+pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32) !void {
     std.debug.print("running app\n", .{});
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -179,6 +187,7 @@ pub fn run(window: *glfw.Window) !void {
             .key_processed = std.EnumSet(glfw.Key).initEmpty(),
         },
         .animation_id = 0,
+        .current_model_index = initial_model_index,
     };
 
     const state = &state_.state;
@@ -216,7 +225,8 @@ pub fn run(window: *glfw.Window) !void {
     std.debug.print("\n----------------------\n", .{});
 
     // --- event loop
-    state.total_time = @floatCast(glfw.getTime());
+    const start_time = @as(f32, @floatCast(glfw.getTime()));
+    state.total_time = start_time;
     // var frame_counter = FrameCounter.new();
 
     gl.enable(gl.DEPTH_TEST);
@@ -232,6 +242,14 @@ pub fn run(window: *glfw.Window) !void {
         const current_time: f32 = @floatCast(glfw.getTime());
         state.delta_time = current_time - state.total_time;
         state.total_time = current_time;
+
+        // Check if we've exceeded the maximum duration
+        if (max_duration) |duration| {
+            if (current_time - start_time >= duration) {
+                std.debug.print("Reached maximum duration of {d} seconds, exiting\n", .{duration});
+                break;
+            }
+        }
 
         state_.processKeys();
 

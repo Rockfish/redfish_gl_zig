@@ -39,8 +39,9 @@ const ModelChoice = enum {
     cesium_man,
     player,
     spacesuit,
+    securitybot,
+    interpolation_test,
 };
-
 
 // Report dumping configuration
 const DUMP_REPORT: bool = true; // Set to true to generate model report
@@ -82,6 +83,111 @@ const V4 = struct {
     }
 };
 
+const TexConfigs = struct { mesh_name: []const u8, uniform_name: []const u8, texture_path: []const u8, config: TextureConfig };
+
+const CameraPosition = struct {
+    position: Vec3,
+    target: Vec3,
+};
+
+const ModelConfig = struct {
+    choice: ModelChoice,
+    path: []const u8,
+    name: []const u8,
+    transform: Mat4,
+    addTextures: []const TexConfigs,
+    animationClip: ?AnimationClip = null,
+    animationPlayAll: bool = false, // If true, play all animations in the model
+    cameraPosition: ?CameraPosition = null,
+};
+
+// Define texture configuration (same settings as ASSIMP version)
+const texture_config = TextureConfig{ .filter = .Linear, .flip_v = true, .gamma_correction = false, .wrap = .Clamp };
+
+// Model configurations - consolidated from all switch statements
+const model_configs = [_]ModelConfig{
+    // CesiumMan configuration
+    .{
+        .choice = .cesium_man,
+        .path = "BrainStem_converted.gltf",
+        .name = "CesiumMan",
+        .transform = blk: {
+            var transform = Mat4.identity();
+            transform.translate(&vec3(0.0, 0.0, -1.0));
+            transform.scale(&vec3(1.0, 1.0, 1.0));
+            break :blk transform;
+        },
+        .addTextures = &[_]TexConfigs{
+            .{ .mesh_name = "Cesium_Man", .uniform_name = "texture_diffuse", .texture_path = "CesiumMan_img0.jpg", .config = texture_config },
+        },
+        .animationClip = AnimationClip.init(0, 0.042, 2.0, AnimationRepeat.Forever),
+        .cameraPosition = null,
+    },
+    // Player configuration
+    .{
+        .choice = .player,
+        .path = "angrybots_assets/Models/Player/Player.gltf",
+        .name = "Player",
+        .transform = blk: {
+            var transform = Mat4.identity();
+            transform.scale(&vec3(0.1, 0.1, 0.1));
+            break :blk transform;
+        },
+        .addTextures = &[_]TexConfigs{
+            .{ .mesh_name = "Player", .uniform_name = "texture_diffuse", .texture_path = "Textures/Player_D.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "texture_specular", .texture_path = "Textures/Player_M.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "texture_emissive", .texture_path = "Textures/Player_E.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "texture_normal", .texture_path = "Textures/Player_NRM.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "texture_diffuse", .texture_path = "Textures/Gun_D.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "texture_specular", .texture_path = "Textures/Gun_M.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "texture_emissive", .texture_path = "Textures/Gun_E.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "texture_normal", .texture_path = "Textures/Gun_NRM.tga", .config = texture_config },
+        },
+        .animationClip = AnimationClip.init(0, 0.0, 294.0 / 30.0, AnimationRepeat.Forever),
+        .cameraPosition = CameraPosition{ .position = vec3(0.0, 10.0, 30.0), .target = vec3(0.0, 10.0, 0.0) },
+    },
+    // Spacesuit configuration
+    .{
+        .choice = .spacesuit,
+        .path = "angrybots_assets/Models/Player/Spacesuit.gltf",
+        .name = "Spacesuit",
+        .transform = blk: {
+            var transform = Mat4.identity();
+            transform.scale(&vec3(0.5, 0.5, 0.5));
+            break :blk transform;
+        },
+        .addTextures = &[_]TexConfigs{},
+        .animationClip = AnimationClip.init(13, 0.0, 32.0 / 30.0, AnimationRepeat.Forever),
+        .cameraPosition = CameraPosition{ .position = vec3(0.0, 20.0, 80.0), .target = vec3(0.0, 10.0, 0.0) },
+    },
+    // Security Bot configuration
+    .{
+        .choice = .securitybot,
+        .path = "angrybots_assets/security_bot_7/scene.gltf",
+        .name = "Security_Bot",
+        .transform = Mat4.identity(),
+        .addTextures = &[_]TexConfigs{},
+        .animationClip = null,
+        .cameraPosition = null,
+    },
+    // InterpolationTest configuration
+    .{
+        .choice = .interpolation_test,
+        .path = "glTF-Sample-Models/InterpolationTest/glTF/InterpolationTest.gltf",
+        .name = "InterpolationTest",
+        .transform = Mat4.identity(),
+        .addTextures = &[_]TexConfigs{},
+        .animationClip = AnimationClip.init(0, 0.0, 5.0, AnimationRepeat.Forever),
+        .animationPlayAll = true,
+        .cameraPosition = null,
+    },
+};
+
+// glTF-Sample-Models/InterpolationTest/glTF/InterpolationTest.gltf
+
+// Select model based on enum
+const SELECTED_MODEL: ModelChoice = .spacesuit;
+
 pub fn main() !void {
     var buf: [512]u8 = undefined;
     const cwd = try std.fs.selfExeDirPath(&buf);
@@ -91,12 +197,12 @@ pub fn main() !void {
     var args = std.process.args();
     _ = args.skip(); // Skip program name
     var runtime_duration: ?f32 = null;
-    
+
     while (args.next()) |arg| {
         if (std.mem.eql(u8, arg, "--duration") or std.mem.eql(u8, arg, "-d")) {
             if (args.next()) |duration_str| {
                 runtime_duration = std.fmt.parseFloat(f32, duration_str) catch |err| {
-                    std.debug.print("Invalid duration: {s}, error: {}\n", .{duration_str, err});
+                    std.debug.print("Invalid duration: {s}, error: {}\n", .{ duration_str, err });
                     std.process.exit(1);
                 };
                 std.debug.print("Runtime duration set to: {d} seconds\n", .{runtime_duration.?});
@@ -172,6 +278,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
         allocator,
         "examples/animation_example/player_shader.vert",
         "examples/animation_example/player_shader.frag",
+        // "examples/animation_example/pbr.vert",
+        // "examples/animation_example/pbr.frag",
     );
 
     std.debug.print("Shader id: {d}\n", .{shader.id});
@@ -187,17 +295,18 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
 
     const ambientColor: Vec3 = vec3(NON_BLUE * 0.7, NON_BLUE * 0.7, 0.7);
 
-    // Select model based on enum
-    const SELECTED_MODEL: ModelChoice = .player;
-    const model_info = switch (SELECTED_MODEL) {
-        // .cesium_man => .{ .path = "glTF-Sample-Models/CesiumMan/glTF/CesiumMan.gltf", .name = "Original CesiumMan" },
-        .cesium_man => .{ .path = "CesiumMan_converted.gltf", .name = "CesiumMan" },
-        .player => .{ .path = "angrybots_assets/Models/Player/Player.gltf", .name = "Player" },
-        .spacesuit => .{ .path = "spacesuit_fixed.gltf", .name = "Spacesuit" },
-        //.spacesuit => .{ .path = "angrybots_assets/Models/Player/Spacesuit_assimp.glb", .name = "Spacesuit" },
+    // Find the configuration for the selected model
+    const selected_config = blk: {
+        for (model_configs) |config| {
+            if (config.choice == SELECTED_MODEL) {
+                break :blk config;
+            }
+        }
+        @panic("No configuration found for selected model");
     };
-    const model_path = model_info.path;
-    const model_name = model_info.name;
+
+    const model_path = selected_config.path;
+    const model_name = selected_config.name;
 
     std.debug.print("Main: loading model: {s}\n", .{model_path});
 
@@ -205,45 +314,18 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
     var gltf_asset = try GltfAsset.init(allocator, model_name, model_path);
     try gltf_asset.load();
 
-    // Define texture configuration (same settings as ASSIMP version)
-    const texture_config = TextureConfig{ .filter = .Linear, .flip_v = true, .gamma_correction = false, .wrap = .Clamp };
+    // Apply model configuration
+    const model_transform = selected_config.transform;
 
-    var model_transform = Mat4.identity();
+    // Apply camera position if specified
+    if (selected_config.cameraPosition) |cam_pos| {
+        state.camera.movement.reset(cam_pos.position, cam_pos.target);
+    }
 
     std.debug.print("Main: adding custom textures\n", .{});
-    switch (SELECTED_MODEL) {
-        .cesium_man => {
-            model_transform.rotateByDegrees(&vec3(1, 0, 0), -90.0);
-            model_transform.rotateByDegrees(&vec3(0, 0, 1), -90.0);
-            model_transform.translate(&vec3(0.0, 0.0, -1.0));
-            model_transform.scale(&vec3(1.0, 1.0, 1.0));
-            // Add test textures for CesiumMan to test custom texture system
-            //try gltf_asset.addTexture("Cesium_Man", "texture_diffuse", "Textures/Player_D.tga", texture_config);
-            try gltf_asset.addTexture("Cesium_Man", "texture_diffuse", "CesiumMan_img0.jpg", texture_config);
-            // try gltf_asset.addTexture("Cesium_Man", "texture_specular", "Textures/Player_M.tga", texture_config);
-            // try gltf_asset.addTexture("Cesium_Man", "texture_emissive", "Textures/Player_E.tga", texture_config);
-            // try gltf_asset.addTexture("Cesium_Man", "texture_normal", "Textures/Player_NRM.tga", texture_config);
-        },
-        .player => {
-            model_transform.scale(&vec3(0.1, 0.1, 0.1));
-            state.camera.movement.reset(vec3(0.0, 10.0, 30.0), vec3(0.0, 10.0, 0.0));
-            // Player model custom textures
-            try gltf_asset.addTexture("Player", "texture_diffuse", "Textures/Player_D.tga", texture_config);
-            try gltf_asset.addTexture("Player", "texture_specular", "Textures/Player_M.tga", texture_config);
-            try gltf_asset.addTexture("Player", "texture_emissive", "Textures/Player_E.tga", texture_config);
-            try gltf_asset.addTexture("Player", "texture_normal", "Textures/Player_NRM.tga", texture_config);
-            try gltf_asset.addTexture("Gun", "texture_diffuse", "Textures/Gun_D.tga", texture_config);
-            try gltf_asset.addTexture("Gun", "texture_specular", "Textures/Gun_M.tga", texture_config);
-            try gltf_asset.addTexture("Gun", "texture_emissive", "Textures/Gun_E.tga", texture_config);
-            try gltf_asset.addTexture("Gun", "texture_normal", "Textures/Gun_NRM.tga", texture_config);
-        },
-        .spacesuit => {
-            // Spacesuit model custom textures (assuming similar naming to Player)
-            // try gltf_asset.addTexture("Spacesuit", "texture_diffuse", "Textures/Player_D.tga", texture_config);
-            // try gltf_asset.addTexture("Spacesuit", "texture_specular", "Textures/Player_M.tga", texture_config);
-            // try gltf_asset.addTexture("Spacesuit", "texture_emissive", "Textures/Player_E.tga", texture_config);
-            // try gltf_asset.addTexture("Spacesuit", "texture_normal", "Textures/Player_NRM.tga", texture_config);
-        },
+    // Apply textures from configuration
+    for (selected_config.addTextures) |texture_config_item| {
+        try gltf_asset.addTexture(texture_config_item.mesh_name, texture_config_item.uniform_name, texture_config_item.texture_path, texture_config_item.config);
     }
 
     std.debug.print("Main: building model: {s}\n", .{model_path});
@@ -272,29 +354,18 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
         // bullet_gltf_asset.cleanUp();
     }
 
-    std.debug.print("Main: playClip\n", .{});
+    std.debug.print("Main: configuring animation\n", .{});
 
-    // Set up animation based on selected model
-    switch (SELECTED_MODEL) {
-        .cesium_man => {
-            // CesiumMan has a simple walking animation
-            const walking_animation = AnimationClip.init(0, 0.042, 2.0, AnimationRepeat.Forever);
-            try model.animator.playClip(walking_animation);
-        },
-        .player => {
-            // Player model has 1 animation with 294 frames at 30fps = ~9.8 seconds
-            const player_animation = AnimationClip.init(0, 0.0, 294.0/30.0, AnimationRepeat.Forever);
-            try model.animator.playClip(player_animation);
-        },
-        .spacesuit => {
-            // Spacesuit model has 24 animations from the FBX conversion
-            // Use the first animation (Death) as default - 32 frames at 30fps = ~1.07 seconds
-            const spacesuit_animation = AnimationClip.init(0, 0.0, 32.0/30.0, AnimationRepeat.Forever);
-            try model.animator.playClip(spacesuit_animation);
-        },
+    // Apply animation from configuration
+    if (selected_config.animationPlayAll) {
+        std.debug.print("Model configured for multi-animation - playing all animations simultaneously\n", .{});
+        try model.playAllAnimations();
+    } else if (selected_config.animationClip) |animation_clip| {
+        std.debug.print("Playing single animation clip\n", .{});
+        try model.animator.playClip(animation_clip);
     }
 
-    std.debug.print("animation state: {any}\n", .{model.animator.current_animation});
+    std.debug.print("animation state: active_animations={d}\n", .{model.animator.active_animations.items.len});
 
     // --- event loop
     state.last_frame = @floatCast(glfw.getTime());
@@ -310,7 +381,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
         const currentFrame: f32 = @floatCast(glfw.getTime());
         state.delta_time = currentFrame - state.last_frame;
         state.last_frame = currentFrame;
-        
+
         // Check if we've exceeded the maximum duration
         if (max_duration) |duration| {
             if (currentFrame - start_time >= duration) {

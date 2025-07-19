@@ -1,5 +1,3 @@
-pub const root = "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/";
-
 // Curated demo model list - ordered from simple to complex
 pub const DemoModel = struct {
     path: []const u8,
@@ -7,33 +5,36 @@ pub const DemoModel = struct {
     format: []const u8,
     category: []const u8,
     description: []const u8,
+    play_all_animations: bool = false,
 };
 
 pub const demo_models = [_]DemoModel{
+    // random models - basic functionality testing
+    .{
+        .path = "glTF-Sample-Models/InterpolationTest/glTF/InterpolationTest.gltf",
+        .name = "Interpolation Test",
+        .format = "glTF",
+        .category = "Simple",
+        .description = "Interpolation test with simple boxes",
+        .play_all_animations = true,
+    },
     // Simple models - good for basic testing
     .{
-        .path = "Box/glTF-Binary/Box.glb",
-        .name = "Box",
-        .format = "GLB",
-        .category = "Simple",
-        .description = "Basic cube - simplest test case",
-    },
-    .{
-        .path = "BoxTextured/glTF-Binary/BoxTextured.glb",
+        .path = "glTF-Sample-Models/BoxTextured/glTF-Binary/BoxTextured.glb",
         .name = "Textured Box",
         .format = "GLB",
         .category = "Simple",
         .description = "Cube with UV mapping and texture",
     },
     .{
-        .path = "Cube/glTF/Cube.gltf",
+        .path = "glTF-Sample-Models/Cube/glTF/Cube.gltf",
         .name = "Cube",
         .format = "glTF",
         .category = "Simple",
         .description = "Cube with texture",
     },
-     .{
-        .path = "Lantern/glTF/Lantern.gltf",
+    .{
+        .path = "glTF-Sample-Models/Lantern/glTF/Lantern.gltf",
         .name = "Lantern",
         .format = "glTF",
         .category = "Moderate",
@@ -43,74 +44,89 @@ pub const demo_models = [_]DemoModel{
     // Animated models - character movement testing
     .{
         //.path = "Fox/glTF-Binary/Fox.glb",
-        .path = "Fox/glTF/Fox.gltf",
+        .path = "glTF-Sample-Models/Fox/glTF/Fox.gltf",
         .name = "Fox",
         .format = "glTF",
         .category = "Animated",
         .description = "Character with multiple animations",
     },
     .{
-        .path = "CesiumMan/glTF-Binary/CesiumMan.glb",
+        .path = "glTF-Sample-Models/CesiumMan/glTF-Binary/CesiumMan.glb",
         .name = "Cesium Man",
         .format = "GLB",
         .category = "Animated",
         .description = "Walking character animation",
     },
+    // .{
+    //     .path = "glTF-Sample-Models/BoxAnimated/glTF-Binary/BoxAnimated.glb",
+    //     .name = "Animated Box",
+    //     .format = "GLB",
+    //     .category = "Animated",
+    //     .description = "Simple rotation animation",
+    // },
     .{
-        .path = "BoxAnimated/glTF-Binary/BoxAnimated.glb",
+        .path = "glTF-Sample-Models/BoxAnimated/glTF/BoxAnimated.gltf",
         .name = "Animated Box",
-        .format = "GLB",
+        .format = "glTF",
         .category = "Animated",
         .description = "Simple rotation animation",
     },
 
     // Complex models - advanced rendering features
     .{
-        .path = "DamagedHelmet/glTF-Binary/DamagedHelmet.glb",
+        .path = "glTF-Sample-Models/DamagedHelmet/glTF-Binary/DamagedHelmet.glb",
         .name = "Damaged Helmet",
         .format = "GLB",
         .category = "Complex",
         .description = "High-quality PBR showcase",
     },
     .{
-        .path = "FlightHelmet/glTF/FlightHelmet.gltf",
+        .path = "glTF-Sample-Models/FlightHelmet/glTF/FlightHelmet.gltf",
         .name = "Flight Helmet",
         .format = "glTF",
         .category = "Complex",
         .description = "Detailed materials and textures",
     },
     .{
-        .path = "BrainStem/glTF-Binary/BrainStem.glb",
+        .path = "glTF-Sample-Models/BrainStem/glTF-Binary/BrainStem.glb",
         .name = "Brain Stem",
         .format = "GLB",
         .category = "Complex",
         .description = "Complex organic geometry",
     },
+    .{
+        // .path = "Box/glTF-Binary/Box.glb",
+        .path = "glTF-Sample-Models/BrainStem/glTF/BrainStem_converted.gltf",
+        .name = "Brain Stem (Converted)",
+        .format = "glTF",
+        .category = "Complex",
+        .description = "Converted complex organic geometry",
+    },
 
     // Format comparison - same model in different formats
     .{
-        .path = "Duck/glTF/Duck.gltf",
+        .path = "glTF-Sample-Models/Duck/glTF/Duck.gltf",
         .name = "Duck (glTF)",
         .format = "glTF",
         .category = "Format Test",
         .description = "Classic model in glTF format",
     },
     .{
-        .path = "Duck/glTF-Binary/Duck.glb",
+        .path = "glTF-Sample-Models/Duck/glTF-Binary/Duck.glb",
         .name = "Duck (GLB)",
         .format = "GLB",
         .category = "Format Test",
         .description = "Same model in binary format",
     },
     .{
-        .path = "Avocado/glTF/Avocado.gltf",
+        .path = "glTF-Sample-Models/Avocado/glTF/Avocado.gltf",
         .name = "Avocado (glTF)",
         .format = "glTF",
         .category = "Format Test",
         .description = "Organic shape in glTF format",
     },
     .{
-        .path = "Avocado/glTF-Binary/Avocado.glb",
+        .path = "glTF-Sample-Models/Avocado/glTF-Binary/Avocado.glb",
         .name = "Avocado (GLB)",
         .format = "GLB",
         .category = "Format Test",
@@ -119,18 +135,33 @@ pub const demo_models = [_]DemoModel{
 
     // Edge cases - special testing scenarios
     .{
-        .path = "Unicode❤♻Test/glTF-Binary/Unicode❤♻Test.glb",
+        .path = "glTF-Sample-Models/Unicode❤♻Test/glTF-Binary/Unicode❤♻Test.glb",
         .name = "Unicode Test",
         .format = "GLB",
         .category = "Edge Case",
         .description = "Unicode filename handling",
     },
     .{
-        .path = "BoxInterleaved/glTF-Binary/BoxInterleaved.glb",
+        .path = "glTF-Sample-Models/BoxInterleaved/glTF-Binary/BoxInterleaved.glb",
         .name = "Interleaved Box",
         .format = "GLB",
         .category = "Edge Case",
         .description = "Interleaved vertex data",
+    },
+    // Extra models for variety
+    .{
+        .path = "angrybots_assets/Models/Player/Spacesuit_fixed.gltf",
+        .name = "Spacesuit (Fixed)",
+        .format = "glTF",
+        .category = "Complex",
+        .description = "Spacesuit model with color-only materials, no texture issues",
+    },
+    .{
+        .path = "angrybots_assets/Models/Player/Player.gltf",
+        .name = "Player Model",
+        .format = "glTF",
+        .category = "Complex",
+        .description = "Player character model with animations converted from FBX",
     },
 };
 

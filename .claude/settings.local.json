@@ -6,7 +6,8 @@
       "Bash(rg:*)",
       "Bash(find:*)",
       "Bash(zig fmt:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(./zig-out/bin/fbx_gltf_converter:*)"
     ],
     "deny": []
   }

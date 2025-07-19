@@ -36,9 +36,8 @@ uniform bool hasNormalTexture;
 uniform bool hasOcclusionTexture;
 uniform bool hasEmissiveTexture;
 
-// Flags indicating attribute availability
+// Flag indicating normal availability
 uniform bool hasNormals;
-uniform bool hasVertexColors;
 
 // Output fragment color
 out vec4 finalColor;
@@ -51,12 +50,6 @@ void main() {
     if (hasBaseColorTexture) {
         baseColor *= texture(baseColorTexture, fragTexCoord);
     }
-    if (hasVertexColors) {
-        baseColor *= fragColor;
-    }
-    
-    // Ensure minimum brightness for very dark materials to maintain visibility
-    baseColor.rgb = max(baseColor.rgb, vec3(0.05));
 
     // Metallic-Roughness
     vec4 metallicRoughness = vec4(1.0);
@@ -131,8 +124,8 @@ void main() {
         color = baseColor.rgb * (0.3 + simpleLighting); // Higher ambient base for unlit surfaces
     }
     
-    // Add ambient lighting to prevent pure black areas  
-    vec3 ambient = vec3(0.15) * baseColor.rgb;
+    // Add ambient lighting to prevent pure black areas
+    vec3 ambient = vec3(0.05) * baseColor.rgb;
     color += ambient;
 
     // Occlusion

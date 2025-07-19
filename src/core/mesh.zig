@@ -76,6 +76,7 @@ pub const MeshPrimitive = struct {
     index_type: gltf_types.ComponentType = .unsigned_short,
     has_skin: bool = false,
     has_normals: bool = false,
+    has_vertex_colors: bool = false,
     vao: c_uint = 0,
     vbo_positions: c_uint = 0,
     vbo_normals: c_uint = 0,
@@ -164,6 +165,7 @@ pub const MeshPrimitive = struct {
 
         if (primitive.attributes.color_0) |accessor_id| {
             mesh_primitive.vbo_colors = createGlArrayBuffer(gltf_asset, 4, accessor_id);
+            mesh_primitive.has_vertex_colors = true;
             // std.debug.print("has_colors\n", .{});
         }
 
@@ -227,6 +229,26 @@ pub const MeshPrimitive = struct {
                     std.debug.panic("Error loading occlusion texture: {any}", .{err});
                 };
             }
+        } else {
+            // No material assigned - create a default white material with PBR properties
+            mesh_primitive.material = gltf_types.Material{
+                .name = null,
+                .pbr_metallic_roughness = gltf_types.PBRMetallicRoughness{
+                    .base_color_factor = math.vec4(1.0, 1.0, 1.0, 1.0),
+                    .metallic_factor = 0.0,
+                    .roughness_factor = 0.9,
+                    .base_color_texture = null,
+                    .metallic_roughness_texture = null,
+                },
+                .normal_texture = null,
+                .occlusion_texture = null,
+                .emissive_texture = null,
+                .emissive_factor = math.vec3(0.0, 0.0, 0.0),
+                .alpha_mode = .opaque_mode,
+                .alpha_cutoff = 0.5,
+                .double_sided = false,
+            };
+            mesh_primitive.render_mode = .pbr;
         }
 
         return mesh_primitive;
@@ -241,9 +263,10 @@ pub const MeshPrimitive = struct {
             .pbr => self.setPBRMaterial(gltf_asset, shader),
         }
 
-        // Set skin detection uniform for shader
+        // Set attribute detection uniforms for shader
         shader.setBool("hasSkin", self.has_skin);
         shader.setBool("hasNormals", self.has_normals);
+        shader.setBool("hasVertexColors", self.has_vertex_colors);
 
         gl.bindVertexArray(self.vao);
 
@@ -318,6 +341,12 @@ pub const MeshPrimitive = struct {
             shader.set4Float("material.baseColorFactor", @ptrCast(&pbr.base_color_factor));
             shader.setFloat("material.metallicFactor", pbr.metallic_factor);
             shader.setFloat("material.roughnessFactor", pbr.roughness_factor);
+        } else {
+            // Set default material values if PBR properties are missing
+            const default_color = [4]f32{ 1.0, 1.0, 1.0, 1.0 };
+            shader.set4Float("material.baseColorFactor", @ptrCast(&default_color));
+            shader.setFloat("material.metallicFactor", 0.0);
+            shader.setFloat("material.roughnessFactor", 0.9);
         }
         shader.set3Float("material.emissiveFactor", @ptrCast(&self.material.emissive_factor));
 
