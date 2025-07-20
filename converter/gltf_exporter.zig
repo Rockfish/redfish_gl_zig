@@ -196,6 +196,80 @@ pub const GltfExporter = struct {
         return current_index;
     }
 
+    /// Process ASSIMP node hierarchy with mesh index mapping from SimpleMesh to glTF mesh
+    fn processNodeHierarchyWithMapping(
+        self: *GltfExporter,
+        ai_node: *const assimp.aiNode,
+        nodes: *ArrayList(GltfNode),
+        node_name_map: *std.StringHashMap(u32),
+        mesh_to_node_map: *std.AutoHashMap(u32, u32),
+        simple_to_gltf_mesh_map: *const std.AutoHashMap(usize, u32),
+    ) !u32 {
+        const allocator = self.allocator;
+        const current_index: u32 = @intCast(nodes.items.len);
+
+        // Extract node name
+        const ai_name = ai_node.mName;
+        const node_name = try allocator.dupe(u8, ai_name.data[0..ai_name.length]);
+
+        // Extract transform data using proven ASSIMP utilities
+        const ai_transform = ai_node.mTransformation;
+        const transform_matrix = assimp_utils.mat4FromAiMatrix(&ai_transform);
+        const transform = assimp_utils.Transform.fromMatrix(&transform_matrix);
+
+        // Create glTF node with transform components
+        var gltf_node = GltfNode{
+            .name = node_name,
+            .translation = [3]f32{ transform.translation.x, transform.translation.y, transform.translation.z },
+            .rotation = [4]f32{ transform.rotation.data[0], transform.rotation.data[1], transform.rotation.data[2], transform.rotation.data[3] },
+            .scale = [3]f32{ transform.scale.x, transform.scale.y, transform.scale.z },
+        };
+
+        // Associate meshes with this node if any, using the correct mapping
+        if (ai_node.mNumMeshes > 0) {
+            // For simplicity, take the first mesh if multiple meshes are assigned to one node
+            const simple_mesh_index = ai_node.mMeshes[0];
+
+            // Map SimpleMesh index to glTF mesh index
+            if (simple_to_gltf_mesh_map.get(simple_mesh_index)) |gltf_mesh_idx| {
+                gltf_node.mesh = gltf_mesh_idx;
+                try mesh_to_node_map.put(simple_mesh_index, current_index);
+                std.debug.print("    Node {d} '{s}': SimpleMesh {d} -> glTF mesh {d}\n", .{ current_index, node_name, simple_mesh_index, gltf_mesh_idx });
+            } else {
+                std.debug.print("    Warning: SimpleMesh {d} not found in mapping for node '{s}'\n", .{ simple_mesh_index, node_name });
+            }
+        }
+
+        // Add node to list
+        try nodes.append(gltf_node);
+
+        // Add to node name mapping for animation support
+        try node_name_map.put(node_name, current_index);
+
+        std.debug.print("    Processed node {d}: {s} (meshes: {d}, children: {d})\n", .{ current_index, node_name, ai_node.mNumMeshes, ai_node.mNumChildren });
+
+        // Process children recursively and build children array
+        if (ai_node.mNumChildren > 0) {
+            var children = try allocator.alloc(u32, ai_node.mNumChildren);
+
+            for (ai_node.mChildren[0..ai_node.mNumChildren], 0..) |child_node, i| {
+                const child_index = try self.processNodeHierarchyWithMapping(
+                    child_node,
+                    nodes,
+                    node_name_map,
+                    mesh_to_node_map,
+                    simple_to_gltf_mesh_map,
+                );
+                children[i] = child_index;
+            }
+
+            // Update the node with children (nodes list may have been reallocated)
+            nodes.items[current_index].children = children;
+        }
+
+        return current_index;
+    }
+
     pub fn exportModel(self: *GltfExporter, model: *const SimpleModel, input_path: []const u8, output_path: []const u8, scene: ?*const anyopaque) !void {
         std.debug.print("Exporting model to glTF: {s}\n", .{output_path});
 
@@ -229,7 +303,15 @@ pub const GltfExporter = struct {
 
         // Initialize data structures
         var nodes = ArrayList(GltfNode).init(allocator);
-        var meshes = try allocator.alloc(GltfMesh, model.meshes.items.len);
+        var mesh_groups = std.StringHashMap(ArrayList(usize)).init(allocator);
+        defer {
+            var iter = mesh_groups.iterator();
+            while (iter.next()) |entry| {
+                entry.value_ptr.deinit();
+                allocator.free(entry.key_ptr.*);
+            }
+            mesh_groups.deinit();
+        }
         var buffer_views = ArrayList(GltfBufferView).init(allocator);
         var accessors = ArrayList(GltfAccessor).init(allocator);
 
@@ -241,6 +323,93 @@ pub const GltfExporter = struct {
         var mesh_to_node_map = std.AutoHashMap(u32, u32).init(allocator);
         defer mesh_to_node_map.deinit();
 
+        // Group SimpleMeshes by base name to create proper glTF meshes with multiple primitives first
+        // This must happen before node processing so we have correct mesh indices
+        std.debug.print("  Grouping {d} SimpleMeshes by name...\n", .{model.meshes.items.len});
+        for (model.meshes.items, 0..) |*mesh, mesh_idx| {
+            const mesh_name = try allocator.dupe(u8, mesh.name);
+
+            if (mesh_groups.getPtr(mesh_name)) |group| {
+                // Add to existing group
+                try group.append(mesh_idx);
+                allocator.free(mesh_name); // Free the duplicate since we're not using it
+            } else {
+                // Create new group
+                var new_group = ArrayList(usize).init(allocator);
+                try new_group.append(mesh_idx);
+                try mesh_groups.put(mesh_name, new_group);
+            }
+        }
+
+        // Create glTF meshes from grouped SimpleMeshes
+        var meshes_list = ArrayList(GltfMesh).init(allocator);
+        var mesh_groups_iter = mesh_groups.iterator();
+        while (mesh_groups_iter.next()) |group_entry| {
+            const mesh_name = group_entry.key_ptr.*;
+            const mesh_indices = group_entry.value_ptr.*;
+
+            std.debug.print("  Creating glTF mesh '{s}' with {d} primitives\n", .{ mesh_name, mesh_indices.items.len });
+
+            // Create primitives for this mesh
+            var primitives = ArrayList(GltfMeshPrimitive).init(allocator);
+
+            for (mesh_indices.items) |mesh_idx| {
+                const mesh = &model.meshes.items[mesh_idx];
+                std.debug.print("    Processing primitive {d}: {s} ({d} vertices, {d} indices)\n", .{ mesh_idx, mesh.name, mesh.vertices.items.len, mesh.indices.items.len });
+
+                // Create mesh primitive with attributes
+                var attributes = std.StringHashMap(u32).init(allocator);
+
+                // Write vertex data to binary buffer and create accessors
+                const position_accessor = try self.writeVertexAttribute(mesh, "POSITION", &buffer_views, &accessors, null);
+                const normal_accessor = try self.writeVertexAttribute(mesh, "NORMAL", &buffer_views, &accessors, null);
+                const uv_accessor = try self.writeVertexAttribute(mesh, "TEXCOORD_0", &buffer_views, &accessors, null);
+
+                try attributes.put("POSITION", position_accessor);
+                try attributes.put("NORMAL", normal_accessor);
+                try attributes.put("TEXCOORD_0", uv_accessor);
+
+                // Write indices and create accessor
+                var indices_accessor: ?u32 = null;
+                if (mesh.indices.items.len > 0) {
+                    indices_accessor = try self.writeIndexData(mesh, &buffer_views, &accessors);
+                }
+
+                // Create mesh primitive
+                const primitive = GltfMeshPrimitive{
+                    .attributes = attributes,
+                    .indices = indices_accessor,
+                    .material = mesh.material_index,
+                };
+
+                try primitives.append(primitive);
+            }
+
+            // Create the glTF mesh with all primitives
+            const gltf_mesh = GltfMesh{
+                .name = try allocator.dupe(u8, mesh_name),
+                .primitives = try primitives.toOwnedSlice(),
+            };
+
+            try meshes_list.append(gltf_mesh);
+        }
+
+        const meshes = try meshes_list.toOwnedSlice();
+
+        // Create mapping from SimpleMesh index to glTF mesh index
+        var simple_to_gltf_mesh_map = std.AutoHashMap(usize, u32).init(allocator);
+        defer simple_to_gltf_mesh_map.deinit();
+
+        var mesh_groups_iter2 = mesh_groups.iterator();
+        var gltf_mesh_idx: u32 = 0;
+        while (mesh_groups_iter2.next()) |group_entry| {
+            const group_mesh_indices = group_entry.value_ptr.*;
+            for (group_mesh_indices.items) |simple_mesh_idx| {
+                try simple_to_gltf_mesh_map.put(simple_mesh_idx, gltf_mesh_idx);
+            }
+            gltf_mesh_idx += 1;
+        }
+
         // Build node hierarchy from ASSIMP scene if available
         var scene_root_nodes = ArrayList(u32).init(allocator);
         defer scene_root_nodes.deinit();
@@ -249,21 +418,20 @@ pub const GltfExporter = struct {
             const ai_scene = @as(*const assimp.aiScene, @ptrCast(@alignCast(ai_scene_ptr)));
             std.debug.print("  Building node hierarchy from ASSIMP scene...\n", .{});
 
-            // Process the root node hierarchy
-            const root_node_index = try self.processNodeHierarchy(
+            // Process the root node hierarchy with mesh mapping
+            const root_node_index = try self.processNodeHierarchyWithMapping(
                 ai_scene.mRootNode,
                 &nodes,
                 &node_name_map,
                 &mesh_to_node_map,
+                &simple_to_gltf_mesh_map,
             );
 
             // Add root node to scene
             try scene_root_nodes.append(root_node_index);
         } else {
-            std.debug.print("  No ASSIMP scene provided, creating flat node structure...\n", .{});
-
-            // Fallback: create flat nodes for each mesh (old behavior)
-            for (model.meshes.items, 0..) |*mesh, mesh_idx| {
+            std.debug.print("  Creating fallback nodes for {d} glTF meshes...\n", .{meshes.len});
+            for (meshes, 0..) |mesh, mesh_idx| {
                 const node_name = try allocator.dupe(u8, mesh.name);
                 try nodes.append(GltfNode{
                     .mesh = @intCast(mesh_idx),
@@ -271,44 +439,8 @@ pub const GltfExporter = struct {
                 });
                 try node_name_map.put(node_name, @intCast(mesh_idx));
                 try scene_root_nodes.append(@intCast(mesh_idx));
+                std.debug.print("    Created node {d} for mesh '{s}'\n", .{ mesh_idx, mesh.name });
             }
-        }
-
-        // Process each mesh to create mesh data
-        for (model.meshes.items, 0..) |*mesh, mesh_idx| {
-            std.debug.print("  Processing mesh {d}: {s} ({d} vertices, {d} indices)\n", .{ mesh_idx, mesh.name, mesh.vertices.items.len, mesh.indices.items.len });
-
-            // Create mesh primitive with attributes
-            var attributes = std.StringHashMap(u32).init(allocator);
-
-            // Write vertex data to binary buffer and create accessors
-            const position_accessor = try self.writeVertexAttribute(mesh, "POSITION", &buffer_views, &accessors, null);
-            const normal_accessor = try self.writeVertexAttribute(mesh, "NORMAL", &buffer_views, &accessors, null);
-            const uv_accessor = try self.writeVertexAttribute(mesh, "TEXCOORD_0", &buffer_views, &accessors, null);
-
-            try attributes.put("POSITION", position_accessor);
-            try attributes.put("NORMAL", normal_accessor);
-            try attributes.put("TEXCOORD_0", uv_accessor);
-
-            // Note: JOINTS_0 and WEIGHTS_0 will be added later after joint indices are created
-
-            // Write indices and create accessor
-            var indices_accessor: ?u32 = null;
-            if (mesh.indices.items.len > 0) {
-                indices_accessor = try self.writeIndexData(mesh, &buffer_views, &accessors);
-            }
-
-            // Create mesh primitive
-            const primitive = GltfMeshPrimitive{
-                .attributes = attributes,
-                .indices = indices_accessor,
-                .material = mesh.material_index,
-            };
-
-            meshes[mesh_idx] = GltfMesh{
-                .name = try allocator.dupe(u8, mesh.name),
-                .primitives = try allocator.dupe(GltfMeshPrimitive, &[_]GltfMeshPrimitive{primitive}),
-            };
         }
 
         // Process bones as joint nodes - map existing hierarchy nodes to joint indices
@@ -338,27 +470,50 @@ pub const GltfExporter = struct {
                     std.debug.print("    Joint {d}: {s} -> new node index {d}\n", .{ bone_idx, bone.name, node_idx });
                 }
             }
-            // Now add bone vertex attributes to all meshes with joint remapping
-            for (model.meshes.items, 0..) |*mesh, mesh_idx| {
-                if (mesh.vertices.items.len > 0) {
-                    // Check if any vertex has bone data
-                    var has_bone_data = false;
-                    for (mesh.vertices.items) |vertex| {
-                        if (vertex.bone_ids[0] >= 0) {
-                            has_bone_data = true;
-                            break;
+            // Now add bone vertex attributes to all mesh primitives with joint remapping
+            for (meshes, 0..) |*gltf_mesh, gltf_mesh_index| {
+                std.debug.print("    Processing bone attributes for glTF mesh {d}: {s} ({d} primitives)\n", .{ gltf_mesh_index, gltf_mesh.name, gltf_mesh.primitives.len });
+
+                for (gltf_mesh.primitives, 0..) |*primitive, primitive_idx| {
+                    // Find the corresponding SimpleMesh for this primitive
+                    // We need to iterate through mesh groups to find which SimpleMesh this primitive corresponds to
+                    var found_simple_mesh: ?*const SimpleMesh = null;
+                    var simple_mesh_idx: usize = 0;
+
+                    // Find the SimpleMesh index that corresponds to this primitive
+                    var bone_mesh_groups_iter = mesh_groups.iterator();
+                    while (bone_mesh_groups_iter.next()) |group_entry| {
+                        const group_mesh_name = group_entry.key_ptr.*;
+                        const group_mesh_indices = group_entry.value_ptr.*;
+
+                        if (std.mem.eql(u8, group_mesh_name, gltf_mesh.name)) {
+                            if (primitive_idx < group_mesh_indices.items.len) {
+                                simple_mesh_idx = group_mesh_indices.items[primitive_idx];
+                                found_simple_mesh = &model.meshes.items[simple_mesh_idx];
+                                break;
+                            }
                         }
                     }
 
-                    if (has_bone_data) {
-                        std.debug.print("    Adding bone attributes to mesh {d}: {s}\n", .{ mesh_idx, mesh.name });
-                        const joints_accessor = try self.writeVertexAttribute(mesh, "JOINTS_0", &buffer_views, &accessors, joint_indices);
-                        const weights_accessor = try self.writeVertexAttribute(mesh, "WEIGHTS_0", &buffer_views, &accessors, null);
+                    if (found_simple_mesh) |simple_mesh| {
+                        // Check if any vertex has bone data
+                        var has_bone_data = false;
+                        for (simple_mesh.vertices.items) |vertex| {
+                            if (vertex.bone_ids[0] >= 0) {
+                                has_bone_data = true;
+                                break;
+                            }
+                        }
 
-                        // Add to mesh primitive attributes (need to modify the existing primitive)
-                        // Note: This is a simplified approach - we're assuming we can modify the first primitive
-                        try meshes[mesh_idx].primitives[0].attributes.put("JOINTS_0", joints_accessor);
-                        try meshes[mesh_idx].primitives[0].attributes.put("WEIGHTS_0", weights_accessor);
+                        if (has_bone_data) {
+                            std.debug.print("      Adding bone attributes to primitive {d} (SimpleMesh {d}: {s})\n", .{ primitive_idx, simple_mesh_idx, simple_mesh.name });
+                            const joints_accessor = try self.writeVertexAttribute(simple_mesh, "JOINTS_0", &buffer_views, &accessors, joint_indices);
+                            const weights_accessor = try self.writeVertexAttribute(simple_mesh, "WEIGHTS_0", &buffer_views, &accessors, null);
+
+                            // Add to mesh primitive attributes
+                            try primitive.attributes.put("JOINTS_0", joints_accessor);
+                            try primitive.attributes.put("WEIGHTS_0", weights_accessor);
+                        }
                     }
                 }
             }
