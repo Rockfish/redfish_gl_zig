@@ -78,7 +78,7 @@ pub const ModelBone = struct {
         return std.fmt.bufPrintZ(
             buf,
             "bone_name: {s}  index: {d}  offset_transform: {s}",
-            .{self.bone_name.str, self.bone_index, transform_str},
+            .{ self.bone_name.str, self.bone_index, transform_str },
         ) catch @panic("bufPrintZ error.");
     }
 };
@@ -117,5 +117,3 @@ pub const ModelAnimation = struct {
         return animation;
     }
 };
-
-

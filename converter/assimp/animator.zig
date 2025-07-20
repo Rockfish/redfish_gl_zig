@@ -238,7 +238,7 @@ pub const Animator = struct {
         }
 
         if (clip.id < 0 or clip.id > self.animations.items.len) {
-            std.debug.panic("Invalid clip id: {d}  num animations: {d}", .{clip.id, self.animations.items.len});
+            std.debug.panic("Invalid clip id: {d}  num animations: {d}", .{ clip.id, self.animations.items.len });
         }
 
         std.debug.print("playClip name: {s}\n", .{self.animations.items[clip.id].name.str});
@@ -259,7 +259,7 @@ pub const Animator = struct {
 
     pub fn playAnimationById(self: *Self, id: usize) !void {
         if (id < 0 or id >= self.animations.items.len) {
-            std.log.warn("Invalid clip id: {d}  num animations: {d}", .{id, self.animations.items.len});
+            std.log.warn("Invalid clip id: {d}  num animations: {d}", .{ id, self.animations.items.len });
             return;
         }
 

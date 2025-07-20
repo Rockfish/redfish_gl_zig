@@ -41,9 +41,6 @@ pub fn getExistsFilename(allocator: std.mem.Allocator, directory: []const u8, fi
         return path;
     }
 
-    std.debug.print("getExistsFilename file not found error. initial filename: {s}  fixed filename: {s}\n", .{filename, path});
+    std.debug.print("getExistsFilename file not found error. initial filename: {s}  fixed filename: {s}\n", .{ filename, path });
     @panic("getExistsFilename file not found error.");
 }
-
-
-

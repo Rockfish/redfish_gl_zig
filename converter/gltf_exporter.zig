@@ -2,7 +2,6 @@
 const std = @import("std");
 const simple_loader = @import("simple_loader.zig");
 const material_processor = @import("material_processor.zig");
-const animation_exporter = @import("animation_exporter.zig");
 const assimp_utils = @import("assimp_utils.zig");
 const math = @import("math");
 
@@ -26,12 +25,6 @@ const GltfMaterial = material_processor.GltfMaterial;
 const GltfTexture = material_processor.GltfTexture;
 const GltfImage = material_processor.GltfImage;
 const GltfSampler = material_processor.GltfSampler;
-
-const AnimationExporter = animation_exporter.AnimationExporter;
-const GltfAnimation = animation_exporter.GltfAnimation;
-const GltfAnimationChannel = animation_exporter.GltfAnimationChannel;
-const GltfAnimationSampler = animation_exporter.GltfAnimationSampler;
-const GltfAnimationChannelTarget = animation_exporter.GltfAnimationChannelTarget;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
@@ -98,6 +91,29 @@ const GltfSkin = struct {
     name: ?[]const u8 = null,
 };
 
+// glTF animation structures
+pub const GltfAnimation = struct {
+    name: []const u8,
+    channels: []GltfAnimationChannel,
+    samplers: []GltfAnimationSampler,
+};
+
+pub const GltfAnimationChannel = struct {
+    sampler: u32,
+    target: GltfAnimationChannelTarget,
+};
+
+pub const GltfAnimationChannelTarget = struct {
+    node: u32,
+    path: []const u8, // "translation", "rotation", "scale"
+};
+
+pub const GltfAnimationSampler = struct {
+    input: u32, // accessor index for timestamps
+    output: u32, // accessor index for values
+    interpolation: []const u8 = "LINEAR",
+};
+
 const GltfDocument = struct {
     asset: GltfAsset,
     scenes: []GltfScene,
@@ -118,11 +134,13 @@ const GltfDocument = struct {
 pub const GltfExporter = struct {
     allocator: Allocator,
     binary_data: ArrayList(u8),
+    verbose: bool = false,
 
-    pub fn init(allocator: Allocator) GltfExporter {
+    pub fn init(allocator: Allocator, verbose: bool) GltfExporter {
         return GltfExporter{
             .allocator = allocator,
             .binary_data = ArrayList(u8).init(allocator),
+            .verbose = verbose,
         };
     }
 
@@ -166,14 +184,15 @@ pub const GltfExporter = struct {
             try mesh_to_node_map.put(mesh_index, current_index);
         }
 
-        std.debug.print("Node: {any}\n", .{gltf_node});
         // Add node to list
         try nodes.append(gltf_node);
 
         // Add to node name mapping for animation support
         try node_name_map.put(node_name, current_index);
 
-        std.debug.print("    Processed node {d}: {s} (meshes: {d}, children: {d})\n", .{ current_index, node_name, ai_node.mNumMeshes, ai_node.mNumChildren });
+        if (self.verbose) {
+            std.debug.print("    Processed node {d}: {s} (meshes: {d}, children: {d})\n", .{ current_index, node_name, ai_node.mNumMeshes, ai_node.mNumChildren });
+        }
 
         // Process children recursively and build children array
         if (ai_node.mNumChildren > 0) {
@@ -234,9 +253,13 @@ pub const GltfExporter = struct {
             if (simple_to_gltf_mesh_map.get(simple_mesh_index)) |gltf_mesh_idx| {
                 gltf_node.mesh = gltf_mesh_idx;
                 try mesh_to_node_map.put(simple_mesh_index, current_index);
-                std.debug.print("    Node {d} '{s}': SimpleMesh {d} -> glTF mesh {d}\n", .{ current_index, node_name, simple_mesh_index, gltf_mesh_idx });
+                if (self.verbose) {
+                    std.debug.print("    Node {d} '{s}': SimpleMesh {d} -> glTF mesh {d}\n", .{ current_index, node_name, simple_mesh_index, gltf_mesh_idx });
+                }
             } else {
-                std.debug.print("    Warning: SimpleMesh {d} not found in mapping for node '{s}'\n", .{ simple_mesh_index, node_name });
+                if (self.verbose) {
+                    std.debug.print("    Warning: SimpleMesh {d} not found in mapping for node '{s}'\n", .{ simple_mesh_index, node_name });
+                }
             }
         }
 
@@ -246,7 +269,9 @@ pub const GltfExporter = struct {
         // Add to node name mapping for animation support
         try node_name_map.put(node_name, current_index);
 
-        std.debug.print("    Processed node {d}: {s} (meshes: {d}, children: {d})\n", .{ current_index, node_name, ai_node.mNumMeshes, ai_node.mNumChildren });
+        if (self.verbose) {
+            std.debug.print("    Processed node {d}: {s} (meshes: {d}, children: {d})\n", .{ current_index, node_name, ai_node.mNumMeshes, ai_node.mNumChildren });
+        }
 
         // Process children recursively and build children array
         if (ai_node.mNumChildren > 0) {
@@ -270,8 +295,16 @@ pub const GltfExporter = struct {
         return current_index;
     }
 
-    pub fn exportModel(self: *GltfExporter, model: *const SimpleModel, input_path: []const u8, output_path: []const u8, scene: ?*const anyopaque) !void {
-        std.debug.print("Exporting model to glTF: {s}\n", .{output_path});
+    pub fn exportModel(
+        self: *GltfExporter,
+        model: *const SimpleModel,
+        input_path: []const u8,
+        output_path: []const u8,
+        scene: ?*const anyopaque,
+    ) !void {
+        if (self.verbose) {
+            std.debug.print("Exporting model to glTF: {s}\n", .{output_path});
+        }
 
         // Reset binary data
         self.binary_data.clearRetainingCapacity();
@@ -288,16 +321,40 @@ pub const GltfExporter = struct {
         // Write JSON file
         try self.writeJsonFile(output_path, &gltf_doc, bin_path);
 
-        std.debug.print("Successfully exported: {s} ({d} bytes binary)\n", .{ output_path, self.binary_data.items.len });
+        std.debug.print("Exported glTF document to {s}\n", .{output_path});
+        std.debug.print("   scenes: {d}\n   nodes: {d}\n   meshes: {d}\n   materials: {d}\n   textures: {d}\n   images: {d}\n   samplers: {d}\n   animations: {d}\n   skins: {d}\n   buffers: {d}\n   bufferViews: {d}\n   accessors: {d}\n", .{
+            gltf_doc.scenes.len,
+            gltf_doc.nodes.len,
+            gltf_doc.meshes.len,
+            if (gltf_doc.materials) |m| m.len else 0,
+            if (gltf_doc.textures) |t| t.len else 0,
+            if (gltf_doc.images) |i| i.len else 0,
+            if (gltf_doc.samplers) |s| s.len else 0,
+            if (gltf_doc.animations) |a| a.len else 0,
+            if (gltf_doc.skins) |sk| sk.len else 0,
+            gltf_doc.buffers.len,
+            gltf_doc.bufferViews.len,
+            gltf_doc.accessors.len,
+        });
+
+        if (self.verbose) {
+            std.debug.print("Successfully exported: {s} ({d} bytes binary)\n", .{ output_path, self.binary_data.items.len });
+        }
     }
 
-    fn buildGltfDocument(self: *GltfExporter, model: *const SimpleModel, input_path: []const u8, output_path: []const u8, scene: ?*const anyopaque) !GltfDocument {
+    fn buildGltfDocument(
+        self: *GltfExporter,
+        model: *const SimpleModel,
+        input_path: []const u8,
+        output_path: []const u8,
+        scene: ?*const anyopaque,
+    ) !GltfDocument {
         const allocator = self.allocator;
 
         // Process materials if ASSIMP scene is provided
         var material_proc: ?MaterialProcessor = null;
         if (scene) |ai_scene_ptr| {
-            material_proc = MaterialProcessor.init(allocator, input_path, output_path);
+            material_proc = MaterialProcessor.init(allocator, input_path, output_path, self.verbose);
             try material_proc.?.processMaterials(@ptrCast(@alignCast(ai_scene_ptr)));
         }
 
@@ -325,7 +382,9 @@ pub const GltfExporter = struct {
 
         // Group SimpleMeshes by base name to create proper glTF meshes with multiple primitives first
         // This must happen before node processing so we have correct mesh indices
-        std.debug.print("  Grouping {d} SimpleMeshes by name...\n", .{model.meshes.items.len});
+        if (self.verbose) {
+            std.debug.print("  Grouping {d} SimpleMeshes by name...\n", .{model.meshes.items.len});
+        }
         for (model.meshes.items, 0..) |*mesh, mesh_idx| {
             const mesh_name = try allocator.dupe(u8, mesh.name);
 
@@ -348,14 +407,18 @@ pub const GltfExporter = struct {
             const mesh_name = group_entry.key_ptr.*;
             const mesh_indices = group_entry.value_ptr.*;
 
-            std.debug.print("  Creating glTF mesh '{s}' with {d} primitives\n", .{ mesh_name, mesh_indices.items.len });
+            if (self.verbose) {
+                std.debug.print("  Creating glTF mesh '{s}' with {d} primitives\n", .{ mesh_name, mesh_indices.items.len });
+            }
 
             // Create primitives for this mesh
             var primitives = ArrayList(GltfMeshPrimitive).init(allocator);
 
             for (mesh_indices.items) |mesh_idx| {
                 const mesh = &model.meshes.items[mesh_idx];
-                std.debug.print("    Processing primitive {d}: {s} ({d} vertices, {d} indices)\n", .{ mesh_idx, mesh.name, mesh.vertices.items.len, mesh.indices.items.len });
+                if (self.verbose) {
+                    std.debug.print("    Processing primitive {d}: {s} ({d} vertices, {d} indices)\n", .{ mesh_idx, mesh.name, mesh.vertices.items.len, mesh.indices.items.len });
+                }
 
                 // Create mesh primitive with attributes
                 var attributes = std.StringHashMap(u32).init(allocator);
@@ -416,7 +479,9 @@ pub const GltfExporter = struct {
 
         if (scene) |ai_scene_ptr| {
             const ai_scene = @as(*const assimp.aiScene, @ptrCast(@alignCast(ai_scene_ptr)));
-            std.debug.print("  Building node hierarchy from ASSIMP scene...\n", .{});
+            if (self.verbose) {
+                std.debug.print("  Processing ASSIMP scene with {d} meshes...\n", .{ai_scene.mNumMeshes});
+            }
 
             // Process the root node hierarchy with mesh mapping
             const root_node_index = try self.processNodeHierarchyWithMapping(
@@ -430,7 +495,9 @@ pub const GltfExporter = struct {
             // Add root node to scene
             try scene_root_nodes.append(root_node_index);
         } else {
-            std.debug.print("  Creating fallback nodes for {d} glTF meshes...\n", .{meshes.len});
+            if (self.verbose) {
+                std.debug.print("  Creating fallback nodes for {d} glTF meshes...\n", .{meshes.len});
+            }
             for (meshes, 0..) |mesh, mesh_idx| {
                 const node_name = try allocator.dupe(u8, mesh.name);
                 try nodes.append(GltfNode{
@@ -439,20 +506,26 @@ pub const GltfExporter = struct {
                 });
                 try node_name_map.put(node_name, @intCast(mesh_idx));
                 try scene_root_nodes.append(@intCast(mesh_idx));
-                std.debug.print("    Created node {d} for mesh '{s}'\n", .{ mesh_idx, mesh.name });
+                if (self.verbose) {
+                    std.debug.print("    Created node {d} for mesh '{s}'\n", .{ mesh_idx, mesh.name });
+                }
             }
         }
 
         // Process bones as joint nodes - map existing hierarchy nodes to joint indices
         var joint_indices = try allocator.alloc(u32, model.bones.items.len);
         if (model.bones.items.len > 0) {
-            std.debug.print("  Processing {d} bones as joint nodes\n", .{model.bones.items.len});
+            if (self.verbose) {
+                std.debug.print("  Processing {d} bones as joint nodes\n", .{model.bones.items.len});
+            }
 
             for (model.bones.items, 0..) |*bone, bone_idx| {
                 // Check if bone already exists in node hierarchy (preferred)
                 if (node_name_map.get(bone.name)) |existing_node_idx| {
                     joint_indices[bone_idx] = existing_node_idx;
-                    std.debug.print("    Joint {d}: {s} -> existing node index {d}\n", .{ bone_idx, bone.name, existing_node_idx });
+                    if (self.verbose) {
+                        std.debug.print("    Joint {d}: {s} -> existing node index {d}\n", .{ bone_idx, bone.name, existing_node_idx });
+                    }
                 } else {
                     // Fallback: create new node if bone not found in hierarchy
                     const node_idx: u32 = @intCast(nodes.items.len);
@@ -467,12 +540,16 @@ pub const GltfExporter = struct {
                     // Add bone to node name mapping for animation support
                     try node_name_map.put(bone_name, node_idx);
 
-                    std.debug.print("    Joint {d}: {s} -> new node index {d}\n", .{ bone_idx, bone.name, node_idx });
+                    if (self.verbose) {
+                        std.debug.print("    Joint {d}: {s} -> new node index {d}\n", .{ bone_idx, bone.name, node_idx });
+                    }
                 }
             }
             // Now add bone vertex attributes to all mesh primitives with joint remapping
             for (meshes, 0..) |*gltf_mesh, gltf_mesh_index| {
-                std.debug.print("    Processing bone attributes for glTF mesh {d}: {s} ({d} primitives)\n", .{ gltf_mesh_index, gltf_mesh.name, gltf_mesh.primitives.len });
+                if (self.verbose) {
+                    std.debug.print("    Processing bone attributes for glTF mesh {d}: {s} ({d} primitives)\n", .{ gltf_mesh_index, gltf_mesh.name, gltf_mesh.primitives.len });
+                }
 
                 for (gltf_mesh.primitives, 0..) |*primitive, primitive_idx| {
                     // Find the corresponding SimpleMesh for this primitive
@@ -506,7 +583,9 @@ pub const GltfExporter = struct {
                         }
 
                         if (has_bone_data) {
-                            std.debug.print("      Adding bone attributes to primitive {d} (SimpleMesh {d}: {s})\n", .{ primitive_idx, simple_mesh_idx, simple_mesh.name });
+                            if (self.verbose) {
+                                std.debug.print("      Adding bone attributes to primitive {d} (SimpleMesh {d}: {s})\n", .{ primitive_idx, simple_mesh_idx, simple_mesh.name });
+                            }
                             const joints_accessor = try self.writeVertexAttribute(simple_mesh, "JOINTS_0", &buffer_views, &accessors, joint_indices);
                             const weights_accessor = try self.writeVertexAttribute(simple_mesh, "WEIGHTS_0", &buffer_views, &accessors, null);
 
@@ -522,7 +601,9 @@ pub const GltfExporter = struct {
         // Create skin object if bones exist
         var skins_opt: ?[]GltfSkin = null;
         if (model.bones.items.len > 0) {
-            std.debug.print("  Creating skin with {d} joints\n", .{model.bones.items.len});
+            if (self.verbose) {
+                std.debug.print("  Creating skin with {d} joints\n", .{model.bones.items.len});
+            }
 
             // Create inverse bind matrices accessor
             const ibm_start = self.binary_data.items.len;
@@ -564,7 +645,9 @@ pub const GltfExporter = struct {
             // Link first mesh to skin (assuming first mesh is the character mesh)
             if (model.meshes.items.len > 0) {
                 nodes.items[0].skin = 0; // Reference to first (and only) skin
-                std.debug.print("    Skin created with {d} joints, linked to character mesh\n", .{joint_indices.len});
+                if (self.verbose) {
+                    std.debug.print("    Skin created with {d} joints, linked to character mesh\n", .{joint_indices.len});
+                }
             }
         }
 
@@ -1230,7 +1313,9 @@ pub const GltfExporter = struct {
             return &[_]GltfAnimation{};
         }
 
-        std.debug.print("Processing {d} animations for glTF export...\n", .{ai_scene.mNumAnimations});
+        if (self.verbose) {
+            std.debug.print("Processing {d} animations for glTF export...\n", .{ai_scene.mNumAnimations});
+        }
 
         var animations = ArrayList(GltfAnimation).init(self.allocator);
 
@@ -1249,7 +1334,9 @@ pub const GltfExporter = struct {
         else
             try std.fmt.allocPrint(self.allocator, "animation_{d}", .{anim_idx});
 
-        std.debug.print("  Animation '{s}': duration={d}, ticks_per_second={d}, channels={d}\n", .{ anim_name, ai_anim.mDuration, ai_anim.mTicksPerSecond, ai_anim.mNumChannels });
+        if (self.verbose) {
+            std.debug.print("  Animation '{s}': duration={d}, ticks_per_second={d}, channels={d}\n", .{ anim_name, ai_anim.mDuration, ai_anim.mTicksPerSecond, ai_anim.mNumChannels });
+        }
 
         // Convert ASSIMP channels to glTF channels and samplers
         var channels = ArrayList(GltfAnimationChannel).init(self.allocator);
@@ -1267,9 +1354,23 @@ pub const GltfExporter = struct {
         };
     }
 
-    fn processAnimationChannel(self: *GltfExporter, ai_channel: *const assimp.aiNodeAnim, ai_animation: *const assimp.aiAnimation, node_name_map: *const std.StringHashMap(u32), channels: *ArrayList(GltfAnimationChannel), samplers: *ArrayList(GltfAnimationSampler), buffer_views: *ArrayList(GltfBufferView), accessors: *ArrayList(GltfAccessor)) !void {
+    fn processAnimationChannel(
+        self: *GltfExporter,
+        ai_channel: *const assimp.aiNodeAnim,
+        ai_animation: *const assimp.aiAnimation,
+        node_name_map: *const std.StringHashMap(u32),
+        channels: *ArrayList(GltfAnimationChannel),
+        samplers: *ArrayList(GltfAnimationSampler),
+        buffer_views: *ArrayList(GltfBufferView),
+        accessors: *ArrayList(GltfAccessor),
+    ) !void {
         const node_name = ai_channel.mNodeName.data[0..ai_channel.mNodeName.length];
-        std.debug.print("    Channel: node='{s}', pos_keys={d}, rot_keys={d}, scale_keys={d}\n", .{ node_name, ai_channel.mNumPositionKeys, ai_channel.mNumRotationKeys, ai_channel.mNumScalingKeys });
+        if (self.verbose) {
+            std.debug.print(
+                "    Channel: node='{s}', pos_keys={d}, rot_keys={d}, scale_keys={d}\n",
+                .{ node_name, ai_channel.mNumPositionKeys, ai_channel.mNumRotationKeys, ai_channel.mNumScalingKeys },
+            );
+        }
 
         // Find node index by name, default to 0 if not found
         const node_index = node_name_map.get(node_name) orelse blk: {
@@ -1279,8 +1380,18 @@ pub const GltfExporter = struct {
 
         // Translation channel
         if (ai_channel.mNumPositionKeys > 0) {
-            const time_accessor = try self.writeAnimationTimeData(ai_channel.mPositionKeys, ai_channel.mNumPositionKeys, ai_animation.mTicksPerSecond, buffer_views, accessors);
-            const position_accessor = try self.writePositionKeyframes(ai_channel, buffer_views, accessors);
+            const time_accessor = try self.writeAnimationTimeData(
+                ai_channel.mPositionKeys,
+                ai_channel.mNumPositionKeys,
+                ai_animation.mTicksPerSecond,
+                buffer_views,
+                accessors,
+            );
+            const position_accessor = try self.writePositionKeyframes(
+                ai_channel,
+                buffer_views,
+                accessors,
+            );
 
             const sampler_idx: u32 = @intCast(samplers.items.len);
             try samplers.append(GltfAnimationSampler{

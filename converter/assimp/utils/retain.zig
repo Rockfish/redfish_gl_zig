@@ -90,23 +90,22 @@ test "retain.retainObject" {
     debug.print("items type = {s}\n", .{@typeName(@TypeOf(items))});
 
     for (0..10) |i| {
-        const tv: testItem = .{.value = @intCast(i)};
+        const tv: testItem = .{ .value = @intCast(i) };
         items.append(tv) catch unreachable;
     }
 
     for (items.items, 0..) |item, c| {
-        debug.print("{d} : item = {any}\n", .{c, item});
+        debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
     debug.print("\n", .{});
 
-    const tester = testItem.Tester { .max_value = 5 };
+    const tester = testItem.Tester{ .max_value = 5 };
 
     retain(testItem, testItem.Tester, items, tester, a) catch unreachable;
 
-
     for (items.items, 0..) |item, c| {
-        debug.print("{d} : item = {any}\n", .{c, item});
+        debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
     items.deinit();
@@ -145,22 +144,22 @@ test "retain.retainPointerObject" {
 
     for (0..10) |i| {
         const tv: *TestItemPtr = a.create(TestItemPtr) catch unreachable;
-        tv.* = .{.value = @intCast(i), .a = a };
+        tv.* = .{ .value = @intCast(i), .a = a };
         items.append(tv) catch unreachable;
     }
 
     for (items.items, 0..) |item, c| {
-        debug.print("{d} : item = {any}\n", .{c, item});
+        debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
     debug.print("\n", .{});
 
-    const tester = TestItemPtr.Tester { .max_value = 5 };
+    const tester = TestItemPtr.Tester{ .max_value = 5 };
 
     retain(*TestItemPtr, TestItemPtr.Tester, items, tester, a) catch unreachable;
 
     for (items.items, 0..) |item, c| {
-        debug.print("{d} : item = {any}\n", .{c, item});
+        debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
     for (items.items) |item| {

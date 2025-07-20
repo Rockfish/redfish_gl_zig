@@ -71,7 +71,7 @@ pub const Model = struct {
             shader.setMat4(uniform, &bone_transform);
         }
 
-        for (self.meshes.items, 0..) |mesh,n| {
+        for (self.meshes.items, 0..) |mesh, n| {
             if (self.single_mesh_select != -1 and @as(usize, @intCast(self.single_mesh_select)) != n) {
                 continue;
             }
@@ -107,7 +107,7 @@ pub fn dumpModelNodes(model: *Model) !void {
         const name = entry.key_ptr.*;
         const transform = entry.value_ptr.*;
         const str = transform.transform.asString(&buf);
-        std.debug.print("node_name: {s} : {s}\n", .{name, str});
+        std.debug.print("node_name: {s} : {s}\n", .{ name, str });
     }
     std.debug.print("\n", .{});
 
@@ -116,6 +116,6 @@ pub fn dumpModelNodes(model: *Model) !void {
         const name = entry.key_ptr.*;
         const transform = entry.value_ptr.*;
         const str = transform.offset_transform.asString(&buf);
-        std.debug.print("bone_name: {s} : {s}\n", .{name, str});
+        std.debug.print("bone_name: {s} : {s}\n", .{ name, str });
     }
 }

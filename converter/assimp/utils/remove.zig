@@ -50,13 +50,12 @@ test "removeRange.removeVec" {
     debug.print("items type = {s}\n", .{@typeName(@TypeOf(items))});
 
     for (0..10) |i| {
-        const tv: testVec3 = .{.x = i, .y = i, .z = i};
+        const tv: testVec3 = .{ .x = i, .y = i, .z = i };
         items.append(tv) catch unreachable;
     }
 
-
     for (items.items, 0..) |item, c| {
-        debug.print("{d} : item = {any}\n", .{c, item});
+        debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
     debug.print("\n", .{});
@@ -64,7 +63,7 @@ test "removeRange.removeVec" {
     removeRange(testVec3, items, 1, 10) catch unreachable;
 
     for (items.items, 0..) |item, c| {
-        debug.print("{d} : item = {any}\n", .{c, item});
+        debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
     debug.print("items.items.len = {d}\n", .{items.items.len});
@@ -77,7 +76,9 @@ test "removeRange.removePtrVec" {
     debug.print("\n", .{});
 
     const testVec3Ptr = struct {
-        x: usize, y: usize, z: usize,
+        x: usize,
+        y: usize,
+        z: usize,
         a: std.mem.Allocator,
 
         const Self = @This();
@@ -95,12 +96,12 @@ test "removeRange.removePtrVec" {
 
     for (0..10) |i| {
         const tv = a.create(testVec3Ptr) catch unreachable;
-        tv.* = .{.x = i, .y = i, .z = i, .a = a};
+        tv.* = .{ .x = i, .y = i, .z = i, .a = a };
         items.append(tv) catch unreachable;
     }
 
     for (items.items, 0..) |item, c| {
-        debug.print("{d} : item = {any}\n", .{c, item});
+        debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
     debug.print("\n", .{});
@@ -108,7 +109,7 @@ test "removeRange.removePtrVec" {
     removeRange(*testVec3Ptr, items, 0, 10) catch unreachable;
 
     for (items.items, 0..) |item, c| {
-        debug.print("{d} : item = {any}\n", .{c, item});
+        debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
     debug.print("items.items.len = {d}\n", .{items.items.len});

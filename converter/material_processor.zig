@@ -75,8 +75,9 @@ pub const MaterialProcessor = struct {
     images: ArrayList(GltfImage),
     samplers: ArrayList(GltfSampler),
     texture_path_map: std.StringHashMap(u32), // Maps texture paths to texture indices
+    verbose: bool = false,
 
-    pub fn init(allocator: Allocator, input_path: []const u8, output_path: []const u8) MaterialProcessor {
+    pub fn init(allocator: Allocator, input_path: []const u8, output_path: []const u8, verbose: bool) MaterialProcessor {
         return MaterialProcessor{
             .allocator = allocator,
             .input_path = input_path,
@@ -86,6 +87,7 @@ pub const MaterialProcessor = struct {
             .images = ArrayList(GltfImage).init(allocator),
             .samplers = ArrayList(GltfSampler).init(allocator),
             .texture_path_map = std.StringHashMap(u32).init(allocator),
+            .verbose = verbose,
         };
     }
 
@@ -118,7 +120,9 @@ pub const MaterialProcessor = struct {
 
     pub fn processMaterials(self: *MaterialProcessor, scene: *const anyopaque) !void {
         const ai_scene: *const assimp.aiScene = @ptrCast(@alignCast(scene));
-        std.debug.print("Processing {d} materials...\n", .{ai_scene.mNumMaterials});
+        if (self.verbose) {
+            std.debug.print("Processing {d} materials...\n", .{ai_scene.mNumMaterials});
+        }
 
         // Create default sampler (used by all textures for now)
         const default_sampler = GltfSampler{
@@ -140,7 +144,9 @@ pub const MaterialProcessor = struct {
             .name = try self.getMaterialName(ai_material, mat_idx),
         };
 
-        std.debug.print("  Processing material {d}: {s}\n", .{ mat_idx, gltf_material.name });
+        if (self.verbose) {
+            std.debug.print("  Processing material {d}: {s}\n", .{ mat_idx, gltf_material.name });
+        }
 
         // Extract PBR properties
         try self.extractPbrProperties(ai_material, &gltf_material);

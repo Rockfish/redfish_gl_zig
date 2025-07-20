@@ -291,9 +291,10 @@ pub const ModelMesh = struct {
         std.debug.print("mesh: {s}\n", .{self.name});
         for (self.vertices.items) |v| {
             std.debug.print("vert: {{{d}, {d}, {d}}} bone_ids: [{d}, {d}, {d}, {d}], bone_weights: [{d}, {d}, {d}, {d}]\n", .{
-                v.position.x,      v.position.y,      v.position.z, 
-                v.bone_ids[0],     v.bone_ids[1],     v.bone_ids[2], v.bone_ids[3],
-                v.bone_weights[0], v.bone_weights[1], v.bone_weights[2], v.bone_weights[3],
+                v.position.x,      v.position.y,      v.position.z,
+                v.bone_ids[0],     v.bone_ids[1],     v.bone_ids[2],
+                v.bone_ids[3],     v.bone_weights[0], v.bone_weights[1],
+                v.bone_weights[2], v.bone_weights[3],
             });
         }
     }

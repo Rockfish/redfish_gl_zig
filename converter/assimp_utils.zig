@@ -3,11 +3,11 @@ const std = @import("std");
 const math = @import("math");
 
 // Use @cImport to access ASSIMP C functions
-const assimp = @cImport({
-    @cInclude("assimp/cimport.h");
-    @cInclude("assimp/scene.h");
-    @cInclude("assimp/postprocess.h");
-});
+// const assimp = @cImport({
+//     @cInclude("assimp/cimport.h");
+//     @cInclude("assimp/scene.h");
+//     @cInclude("assimp/postprocess.h");
+// });
 
 const Vec3 = math.Vec3;
 const Vec4 = math.Vec4;

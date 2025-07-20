@@ -362,7 +362,7 @@ pub const ModelBuilder = struct {
             if (std.mem.eql(u8, cached_texture.texture_path, filename)) {
                 const texture = try cached_texture.clone();
                 // can the texture types be different? Yes, it's uncommon but does happen.
-                texture.texture_type = texture_config.texture_type; 
+                texture.texture_type = texture_config.texture_type;
                 // std.log.debug("cached texture hit: type: {any}  path: {s}", .{texture.texture_type, texture.texture_path});
                 return texture;
             }
@@ -371,7 +371,7 @@ pub const ModelBuilder = struct {
         const texture = try Texture.init(self.allocator, filename, texture_config);
         try self.texture_cache.append(texture);
 
-        std.log.debug("loaded {any}  path: {s}", .{texture.texture_type, texture.texture_path});
+        std.log.debug("loaded {any}  path: {s}", .{ texture.texture_type, texture.texture_path });
         // cloning to match cloning above, so memory ownership is clear.
         return try texture.clone();
     }
@@ -544,7 +544,7 @@ fn createModelNodeTree(allocator: Allocator, aiNode: [*c]Assimp.aiNode) !*ModelN
 fn findRootNode(node: [*c]Assimp.aiNode) ?[*c]Assimp.aiNode {
     const rootNode = "RootNode";
     const name: []const u8 = node.*.mName.data[0..node.*.mName.length];
-    std.debug.print("Node: '{s}'  node_name: '{s}'\n", .{rootNode, name});
+    std.debug.print("Node: '{s}'  node_name: '{s}'\n", .{ rootNode, name });
 
     if (std.mem.eql(u8, name, rootNode)) {
         return node;

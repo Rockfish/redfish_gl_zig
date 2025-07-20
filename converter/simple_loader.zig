@@ -107,11 +107,27 @@ pub const SimpleModel = struct {
     }
 
     pub fn deinit(self: *SimpleModel) void {
+        // Free mesh names and mesh data
         for (self.meshes.items) |*mesh| {
+            self.allocator.free(mesh.name);
             mesh.deinit();
         }
         self.meshes.deinit();
+
+        // Free animation names
+        for (self.animations.items) |*animation| {
+            self.allocator.free(animation.name);
+        }
         self.animations.deinit();
+
+        // Free bone names and hashmap keys
+        for (self.bones.items) |*bone| {
+            self.allocator.free(bone.name);
+        }
+        var iterator = self.bone_name_to_id.iterator();
+        while (iterator.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+        }
         self.bones.deinit();
         self.bone_name_to_id.deinit();
     }
@@ -127,8 +143,10 @@ pub const LoadResult = struct {
     }
 };
 
-pub fn loadModelWithAssimp(allocator: Allocator, file_path: []const u8) !LoadResult {
-    std.debug.print("  Loading {s} with ASSIMP...\n", .{file_path});
+pub fn loadModelWithAssimp(allocator: Allocator, file_path: []const u8, verbose: bool) !LoadResult {
+    if (verbose) {
+        std.debug.print("  Loading {s} with ASSIMP...\n", .{file_path});
+    }
 
     // Convert to null-terminated string for ASSIMP
     const path_z = try allocator.dupeZ(u8, file_path);
@@ -154,7 +172,9 @@ pub fn loadModelWithAssimp(allocator: Allocator, file_path: []const u8) !LoadRes
     // Create simple model
     var model = SimpleModel.init(allocator, "converted_model");
 
-    std.debug.print("  Found {d} meshes\n", .{aiScene[0].mNumMeshes});
+    if (verbose) {
+        std.debug.print("  Found {d} meshes\n", .{aiScene[0].mNumMeshes});
+    }
 
     // Process meshes
     for (0..aiScene[0].mNumMeshes) |mesh_idx| {
@@ -171,7 +191,9 @@ pub fn loadModelWithAssimp(allocator: Allocator, file_path: []const u8) !LoadRes
         // Store material index
         mesh.material_index = if (aiMesh.mMaterialIndex < aiScene[0].mNumMaterials) aiMesh.mMaterialIndex else null;
 
-        std.debug.print("    Processing mesh {d}: {d} vertices, {d} faces, material: {?d}\n", .{ mesh_idx, aiMesh.mNumVertices, aiMesh.mNumFaces, mesh.material_index });
+        if (verbose) {
+            std.debug.print("    Processing mesh {d}: {d} vertices, {d} faces, material: {?d}\n", .{ mesh_idx, aiMesh.mNumVertices, aiMesh.mNumFaces, mesh.material_index });
+        }
 
         // Process vertices
         for (0..aiMesh.mNumVertices) |v_idx| {
@@ -204,46 +226,62 @@ pub fn loadModelWithAssimp(allocator: Allocator, file_path: []const u8) !LoadRes
 
         // Process bone weights for this mesh
         if (aiMesh.mNumBones > 0) {
-            std.debug.print("      Processing {d} bones for mesh {d}\n", .{ aiMesh.mNumBones, mesh_idx });
-            
+            if (verbose) {
+                std.debug.print("      Processing {d} bones for mesh {d}\n", .{ aiMesh.mNumBones, mesh_idx });
+            }
+
             for (0..aiMesh.mNumBones) |bone_idx| {
                 const aiBone = aiMesh.mBones[bone_idx][0];
                 const bone_name = aiBone.mName.data[0..aiBone.mName.length];
-                
+
                 // Get or create bone ID
                 var bone_id: u32 = undefined;
                 if (model.bone_name_to_id.get(bone_name)) |existing_id| {
                     bone_id = existing_id;
                 } else {
                     bone_id = @intCast(model.bones.items.len);
-                    
+
                     // Convert ASSIMP matrix to array format
                     var offset_matrix: [16]f32 = undefined;
                     const ai_matrix = aiBone.mOffsetMatrix;
-                    offset_matrix[0] = ai_matrix.a1; offset_matrix[1] = ai_matrix.b1; offset_matrix[2] = ai_matrix.c1; offset_matrix[3] = ai_matrix.d1;
-                    offset_matrix[4] = ai_matrix.a2; offset_matrix[5] = ai_matrix.b2; offset_matrix[6] = ai_matrix.c2; offset_matrix[7] = ai_matrix.d2;
-                    offset_matrix[8] = ai_matrix.a3; offset_matrix[9] = ai_matrix.b3; offset_matrix[10] = ai_matrix.c3; offset_matrix[11] = ai_matrix.d3;
-                    offset_matrix[12] = ai_matrix.a4; offset_matrix[13] = ai_matrix.b4; offset_matrix[14] = ai_matrix.c4; offset_matrix[15] = ai_matrix.d4;
-                    
+                    offset_matrix[0] = ai_matrix.a1;
+                    offset_matrix[1] = ai_matrix.b1;
+                    offset_matrix[2] = ai_matrix.c1;
+                    offset_matrix[3] = ai_matrix.d1;
+                    offset_matrix[4] = ai_matrix.a2;
+                    offset_matrix[5] = ai_matrix.b2;
+                    offset_matrix[6] = ai_matrix.c2;
+                    offset_matrix[7] = ai_matrix.d2;
+                    offset_matrix[8] = ai_matrix.a3;
+                    offset_matrix[9] = ai_matrix.b3;
+                    offset_matrix[10] = ai_matrix.c3;
+                    offset_matrix[11] = ai_matrix.d3;
+                    offset_matrix[12] = ai_matrix.a4;
+                    offset_matrix[13] = ai_matrix.b4;
+                    offset_matrix[14] = ai_matrix.c4;
+                    offset_matrix[15] = ai_matrix.d4;
+
                     const simple_bone = SimpleBone{
                         .name = try allocator.dupe(u8, bone_name),
                         .id = bone_id,
                         .offset_matrix = offset_matrix,
                         .parent_id = null, // Will be set later when processing hierarchy
                     };
-                    
+
                     try model.bones.append(simple_bone);
                     try model.bone_name_to_id.put(try allocator.dupe(u8, bone_name), bone_id);
-                    
-                    std.debug.print("        Added bone {d}: {s}\n", .{ bone_id, bone_name });
+
+                    if (verbose) {
+                        std.debug.print("        Added bone {d}: {s}\n", .{ bone_id, bone_name });
+                    }
                 }
-                
+
                 // Apply bone weights to vertices
                 for (0..aiBone.mNumWeights) |weight_idx| {
                     const weight = aiBone.mWeights[weight_idx];
                     const vertex_id = weight.mVertexId;
                     const weight_value = weight.mWeight;
-                    
+
                     if (vertex_id < mesh.vertices.items.len) {
                         mesh.vertices.items[vertex_id].setBoneData(bone_id, weight_value);
                     }
@@ -263,18 +301,27 @@ pub fn loadModelWithAssimp(allocator: Allocator, file_path: []const u8) !LoadRes
     }
 
     // Process animations
-    std.debug.print("  Found {d} animations\n", .{aiScene[0].mNumAnimations});
+    if (verbose) {
+        std.debug.print("  Found {d} animations\n", .{aiScene[0].mNumAnimations});
+    }
     for (0..aiScene[0].mNumAnimations) |anim_idx| {
         const aiAnim = aiScene[0].mAnimations[anim_idx][0];
+        const anim_name = if (aiAnim.mName.length > 0)
+            try allocator.dupe(u8, aiAnim.mName.data[0..aiAnim.mName.length])
+        else
+            try std.fmt.allocPrint(allocator, "animation_{d}", .{anim_idx});
+
         const animation = SimpleAnimation{
-            .name = "animation",
+            .name = anim_name,
             .duration = @floatCast(aiAnim.mDuration),
             .ticks_per_second = @floatCast(aiAnim.mTicksPerSecond),
         };
         try model.animations.append(animation);
     }
 
-    std.debug.print("  Successfully loaded model with {d} meshes, {d} animations, {d} bones\n", .{ model.meshes.items.len, model.animations.items.len, model.bones.items.len });
+    if (verbose) {
+        std.debug.print("  Successfully loaded model with {d} meshes, {d} animations, {d} bones\n", .{ model.meshes.items.len, model.animations.items.len, model.bones.items.len });
+    }
 
     return LoadResult{
         .model = model,
