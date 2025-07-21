@@ -11,6 +11,30 @@ const assimp = @cImport({
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
+// ASSIMP texture type constants (from material.h)
+const AI_TEXTURE_TYPE_BASE_COLOR: u32 = 12; // aiTextureType_BASE_COLOR (typo in header: iTextureType_BASE_COLOR)
+const AI_TEXTURE_TYPE_DIFFUSE_ROUGHNESS: u32 = 16; // aiTextureType_DIFFUSE_ROUGHNESS
+const AI_TEXTURE_TYPE_METALNESS: u32 = 15; // aiTextureType_METALNESS
+const AI_TEXTURE_TYPE_AMBIENT_OCCLUSION: u32 = 17; // aiTextureType_AMBIENT_OCCLUSION
+
+// OpenGL texture filtering constants
+const GL_NEAREST: u32 = 9728;
+const GL_LINEAR: u32 = 9729;
+const GL_LINEAR_MIPMAP_LINEAR: u32 = 9987;
+
+// OpenGL texture wrapping constants
+const GL_REPEAT: u32 = 10497;
+const GL_CLAMP_TO_EDGE: u32 = 33071;
+const GL_MIRRORED_REPEAT: u32 = 33648;
+
+// Material conversion constants
+const SHININESS_MAX_VALUE: f32 = 1000.0; // Maximum shininess value assumed by ASSIMP
+const LUMINANCE_RED_WEIGHT: f32 = 0.2125; // ITU-R BT.709 luminance weights
+const LUMINANCE_GREEN_WEIGHT: f32 = 0.7154;
+const LUMINANCE_BLUE_WEIGHT: f32 = 0.0721;
+const DEFAULT_ROUGHNESS: f32 = 0.9; // Default roughness for non-PBR materials
+const DEFAULT_ALPHA_CUTOFF: f32 = 0.5; // Default alpha cutoff for MASK mode
+
 // glTF material structures
 pub const GltfPbrMetallicRoughness = struct {
     baseColorFactor: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 },
@@ -60,10 +84,10 @@ pub const GltfImage = struct {
 };
 
 pub const GltfSampler = struct {
-    magFilter: ?u32 = null, // 9728=NEAREST, 9729=LINEAR
-    minFilter: ?u32 = null, // 9728=NEAREST, 9729=LINEAR, 9984=NEAREST_MIPMAP_NEAREST, etc.
-    wrapS: u32 = 10497, // 33071=CLAMP_TO_EDGE, 33648=MIRRORED_REPEAT, 10497=REPEAT
-    wrapT: u32 = 10497,
+    magFilter: ?u32 = null, // GL_NEAREST or GL_LINEAR
+    minFilter: ?u32 = null, // GL_NEAREST, GL_LINEAR, GL_LINEAR_MIPMAP_LINEAR, etc.
+    wrapS: u32 = GL_REPEAT, // GL_CLAMP_TO_EDGE, GL_MIRRORED_REPEAT, GL_REPEAT
+    wrapT: u32 = GL_REPEAT,
 };
 
 pub const MaterialProcessor = struct {
@@ -126,10 +150,10 @@ pub const MaterialProcessor = struct {
 
         // Create default sampler (used by all textures for now)
         const default_sampler = GltfSampler{
-            .magFilter = 9729, // LINEAR
-            .minFilter = 9987, // LINEAR_MIPMAP_LINEAR
-            .wrapS = 10497, // REPEAT
-            .wrapT = 10497, // REPEAT
+            .magFilter = GL_LINEAR,
+            .minFilter = GL_LINEAR_MIPMAP_LINEAR,
+            .wrapS = GL_REPEAT,
+            .wrapT = GL_REPEAT,
         };
         try self.samplers.append(default_sampler);
 
@@ -179,14 +203,65 @@ pub const MaterialProcessor = struct {
     fn extractPbrProperties(self: *MaterialProcessor, ai_material: *const assimp.aiMaterial, gltf_material: *GltfMaterial) !void {
         _ = self;
 
-        // Extract diffuse color as base color
-        var diffuse_color: assimp.aiColor4D = undefined;
-        const diffuse_key = "$clr.diffuse";
-        if (assimp.aiGetMaterialColor(ai_material, diffuse_key.ptr, 0, 0, &diffuse_color) == assimp.aiReturn_SUCCESS) {
-            gltf_material.pbrMetallicRoughness.baseColorFactor[0] = diffuse_color.r;
-            gltf_material.pbrMetallicRoughness.baseColorFactor[1] = diffuse_color.g;
-            gltf_material.pbrMetallicRoughness.baseColorFactor[2] = diffuse_color.b;
-            // Alpha stays 1.0 for now
+        // Extract base color with fallback to diffuse (following ASSIMP pattern)
+        var base_color: assimp.aiColor4D = undefined;
+        const base_color_key = "$clr.base";
+        if (assimp.aiGetMaterialColor(ai_material, base_color_key.ptr, 0, 0, &base_color) == assimp.aiReturn_SUCCESS) {
+            gltf_material.pbrMetallicRoughness.baseColorFactor[0] = base_color.r;
+            gltf_material.pbrMetallicRoughness.baseColorFactor[1] = base_color.g;
+            gltf_material.pbrMetallicRoughness.baseColorFactor[2] = base_color.b;
+            gltf_material.pbrMetallicRoughness.baseColorFactor[3] = base_color.a;
+        } else {
+            // Fallback to diffuse color if base color not available
+            var diffuse_color: assimp.aiColor4D = undefined;
+            const diffuse_key = "$clr.diffuse";
+            if (assimp.aiGetMaterialColor(ai_material, diffuse_key.ptr, 0, 0, &diffuse_color) == assimp.aiReturn_SUCCESS) {
+                gltf_material.pbrMetallicRoughness.baseColorFactor[0] = diffuse_color.r;
+                gltf_material.pbrMetallicRoughness.baseColorFactor[1] = diffuse_color.g;
+                gltf_material.pbrMetallicRoughness.baseColorFactor[2] = diffuse_color.b;
+                gltf_material.pbrMetallicRoughness.baseColorFactor[3] = diffuse_color.a;
+            }
+        }
+
+        // Extract metallic factor with default fallback
+        var metallic_factor: f32 = 0.0;
+        const metallic_key = "$mat.metallicFactor";
+        if (assimp.aiGetMaterialFloat(ai_material, metallic_key.ptr, 0, 0, &metallic_factor) == assimp.aiReturn_SUCCESS) {
+            gltf_material.pbrMetallicRoughness.metallicFactor = metallic_factor;
+        } else {
+            // Default to non-metallic if not specified
+            gltf_material.pbrMetallicRoughness.metallicFactor = 0.0;
+        }
+
+        // Extract roughness factor with sophisticated fallback (following ASSIMP pattern)
+        var roughness_factor: f32 = DEFAULT_ROUGHNESS;
+        const roughness_key = "$mat.roughnessFactor";
+        if (assimp.aiGetMaterialFloat(ai_material, roughness_key.ptr, 0, 0, &roughness_factor) == assimp.aiReturn_SUCCESS) {
+            gltf_material.pbrMetallicRoughness.roughnessFactor = roughness_factor;
+        } else {
+            // Try to derive from specular + shininess (ASSIMP conversion algorithm)
+            var specular_color: assimp.aiColor4D = undefined;
+            var shininess: f32 = 0.0;
+            const specular_key = "$clr.specular";
+            const shininess_key = "$mat.shininess";
+
+            if (assimp.aiGetMaterialColor(ai_material, specular_key.ptr, 0, 0, &specular_color) == assimp.aiReturn_SUCCESS and
+                assimp.aiGetMaterialFloat(ai_material, shininess_key.ptr, 0, 0, &shininess) == assimp.aiReturn_SUCCESS)
+            {
+                // Convert specular color to luminance using ITU-R BT.709 weights
+                const specular_intensity = specular_color.r * LUMINANCE_RED_WEIGHT +
+                    specular_color.g * LUMINANCE_GREEN_WEIGHT +
+                    specular_color.b * LUMINANCE_BLUE_WEIGHT;
+                // Normalize shininess with inverse exponential curve (ASSIMP algorithm)
+                const normalized_shininess_raw = @sqrt(shininess / SHININESS_MAX_VALUE);
+                const normalized_shininess = @max(0.0, @min(1.0, normalized_shininess_raw));
+                // Low specular intensity should produce rough material even if shininess is high
+                const final_shininess = normalized_shininess * specular_intensity;
+                gltf_material.pbrMetallicRoughness.roughnessFactor = 1.0 - final_shininess;
+            } else {
+                // Default roughness if no conversion possible
+                gltf_material.pbrMetallicRoughness.roughnessFactor = DEFAULT_ROUGHNESS;
+            }
         }
 
         // Extract emissive color
@@ -198,43 +273,73 @@ pub const MaterialProcessor = struct {
             gltf_material.emissiveFactor[2] = emissive_color.b;
         }
 
-        // Extract opacity for alpha
+        // Extract opacity and alpha mode
         var opacity: f32 = 1.0;
         const opacity_key = "$mat.opacity";
         if (assimp.aiGetMaterialFloat(ai_material, opacity_key.ptr, 0, 0, &opacity) == assimp.aiReturn_SUCCESS) {
-            gltf_material.pbrMetallicRoughness.baseColorFactor[3] = opacity;
             if (opacity < 1.0) {
                 gltf_material.alphaMode = "BLEND";
+                gltf_material.pbrMetallicRoughness.baseColorFactor[3] *= opacity;
             }
         }
 
-        // Set default PBR values (ASSIMP doesn't have direct PBR properties usually)
-        gltf_material.pbrMetallicRoughness.metallicFactor = 0.0; // Assume non-metallic
-        gltf_material.pbrMetallicRoughness.roughnessFactor = 0.9; // Assume somewhat rough
+        // Extract two-sided property
+        var two_sided: i32 = 0;
+        const two_sided_key = "$mat.twosided";
+        if (assimp.aiGetMaterialInteger(ai_material, two_sided_key.ptr, 0, 0, &two_sided) == assimp.aiReturn_SUCCESS) {
+            gltf_material.doubleSided = two_sided != 0;
+        }
+
+        // Extract alpha cutoff for MASK mode
+        var alpha_cutoff: f32 = DEFAULT_ALPHA_CUTOFF;
+        const alpha_cutoff_key = "$mat.gltf.alphaCutoff";
+        if (assimp.aiGetMaterialFloat(ai_material, alpha_cutoff_key.ptr, 0, 0, &alpha_cutoff) == assimp.aiReturn_SUCCESS) {
+            gltf_material.alphaCutoff = alpha_cutoff;
+            if (gltf_material.alphaMode.len == 0 or std.mem.eql(u8, gltf_material.alphaMode, "OPAQUE")) {
+                gltf_material.alphaMode = "MASK";
+            }
+        }
     }
 
     fn extractTextures(self: *MaterialProcessor, ai_material: *const assimp.aiMaterial, gltf_material: *GltfMaterial) !void {
-        // Extract diffuse texture (becomes baseColorTexture)
-        if (try self.extractTexture(ai_material, assimp.aiTextureType_DIFFUSE, 0)) |texture_index| {
+        // Extract base color texture with fallback (following ASSIMP pattern)
+        if (try self.extractTexture(ai_material, AI_TEXTURE_TYPE_BASE_COLOR, 0)) |texture_index| {
+            gltf_material.pbrMetallicRoughness.baseColorTexture = GltfTextureInfo{ .index = texture_index };
+        } else if (try self.extractTexture(ai_material, assimp.aiTextureType_DIFFUSE, 0)) |texture_index| {
+            // Fallback to diffuse texture if no base color texture
             gltf_material.pbrMetallicRoughness.baseColorTexture = GltfTextureInfo{ .index = texture_index };
         }
 
-        // Extract normal texture
+        // Extract metallic-roughness texture with multiple fallbacks (following ASSIMP pattern)
+        if (try self.extractTexture(ai_material, AI_TEXTURE_TYPE_DIFFUSE_ROUGHNESS, 0)) |texture_index| {
+            gltf_material.pbrMetallicRoughness.metallicRoughnessTexture = GltfTextureInfo{ .index = texture_index };
+        } else if (try self.extractTexture(ai_material, AI_TEXTURE_TYPE_METALNESS, 0)) |texture_index| {
+            // Fallback to metalness texture
+            gltf_material.pbrMetallicRoughness.metallicRoughnessTexture = GltfTextureInfo{ .index = texture_index };
+        } else if (try self.extractTexture(ai_material, assimp.aiTextureType_SPECULAR, 0)) |texture_index| {
+            // Last fallback to specular texture (for legacy materials)
+            gltf_material.pbrMetallicRoughness.metallicRoughnessTexture = GltfTextureInfo{ .index = texture_index };
+        }
+
+        // Extract normal texture with height map fallback
         if (try self.extractTexture(ai_material, assimp.aiTextureType_NORMALS, 0)) |texture_index| {
             gltf_material.normalTexture = GltfNormalTextureInfo{ .index = texture_index };
         } else if (try self.extractTexture(ai_material, assimp.aiTextureType_HEIGHT, 0)) |texture_index| {
-            // Sometimes height maps are used as normal maps
+            // Height maps can be used as normal maps
             gltf_material.normalTexture = GltfNormalTextureInfo{ .index = texture_index };
+        }
+
+        // Extract occlusion texture (ASSIMP uses LIGHTMAP for ambient occlusion)
+        if (try self.extractTexture(ai_material, assimp.aiTextureType_LIGHTMAP, 0)) |texture_index| {
+            gltf_material.occlusionTexture = GltfOcclusionTextureInfo{ .index = texture_index };
+        } else if (try self.extractTexture(ai_material, AI_TEXTURE_TYPE_AMBIENT_OCCLUSION, 0)) |texture_index| {
+            // Direct ambient occlusion texture
+            gltf_material.occlusionTexture = GltfOcclusionTextureInfo{ .index = texture_index };
         }
 
         // Extract emissive texture
         if (try self.extractTexture(ai_material, assimp.aiTextureType_EMISSIVE, 0)) |texture_index| {
             gltf_material.emissiveTexture = GltfTextureInfo{ .index = texture_index };
-        }
-
-        // Extract specular texture (could be used for metallic-roughness)
-        if (try self.extractTexture(ai_material, assimp.aiTextureType_SPECULAR, 0)) |texture_index| {
-            gltf_material.pbrMetallicRoughness.metallicRoughnessTexture = GltfTextureInfo{ .index = texture_index };
         }
     }
 

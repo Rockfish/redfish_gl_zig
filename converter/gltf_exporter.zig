@@ -608,8 +608,12 @@ pub const GltfExporter = struct {
             // Create inverse bind matrices accessor
             const ibm_start = self.binary_data.items.len;
             for (model.bones.items) |*bone| {
-                // Convert bone's offset matrix (inverse bind matrix) to bytes
-                const matrix_bytes = std.mem.asBytes(&bone.offset_matrix);
+                // Clean up floating-point precision errors in the matrix
+                var cleaned_matrix = bone.offset_matrix;
+                cleaned_matrix = self.cleanMatrix(cleaned_matrix);
+
+                // Convert cleaned matrix to bytes
+                const matrix_bytes = std.mem.asBytes(&cleaned_matrix);
                 try self.binary_data.appendSlice(matrix_bytes);
             }
 
@@ -642,11 +646,23 @@ pub const GltfExporter = struct {
 
             skins_opt = try allocator.dupe(GltfSkin, &[_]GltfSkin{skin});
 
-            // Link first mesh to skin (assuming first mesh is the character mesh)
+            // Link all nodes with meshes to skin
             if (model.meshes.items.len > 0) {
-                nodes.items[0].skin = 0; // Reference to first (and only) skin
+                var skinned_node_count: u32 = 0;
+                for (nodes.items, 0..) |*node, i| {
+                    if (node.mesh != null) {
+                        node.skin = 0; // Reference to first (and only) skin
+                        skinned_node_count += 1;
+                        if (self.verbose) {
+                            std.debug.print("    Linked node {d} '{s}' with mesh {d} to skin\n", .{ i, node.name orelse "unnamed", node.mesh.? });
+                        }
+                    }
+                }
                 if (self.verbose) {
-                    std.debug.print("    Skin created with {d} joints, linked to character mesh\n", .{joint_indices.len});
+                    std.debug.print("    Skin created with {d} joints, linked to {d} mesh nodes\n", .{ joint_indices.len, skinned_node_count });
+                }
+                if (skinned_node_count == 0 and self.verbose) {
+                    std.debug.print("    Warning: Skin created but no nodes with meshes found to link it to\n", .{});
                 }
             }
         }
@@ -654,12 +670,6 @@ pub const GltfExporter = struct {
         // Create single scene with root nodes
         const scene_struct = GltfScene{
             .nodes = try scene_root_nodes.toOwnedSlice(),
-        };
-
-        // Create buffer description
-        const buffer = GltfBuffer{
-            .byteLength = @intCast(self.binary_data.items.len),
-            .uri = "data.bin",
         };
 
         // Process animations if ASSIMP scene is provided and has animations
@@ -671,6 +681,12 @@ pub const GltfExporter = struct {
                 animations_opt = animations;
             }
         }
+
+        // Create buffer description AFTER all data has been written
+        const buffer = GltfBuffer{
+            .byteLength = @intCast(self.binary_data.items.len),
+            .uri = "data.bin",
+        };
 
         var gltf_doc = GltfDocument{
             .asset = GltfAsset{},
@@ -708,10 +724,13 @@ pub const GltfExporter = struct {
     fn writeVertexAttribute(self: *GltfExporter, mesh: *const SimpleMesh, attribute: []const u8, buffer_views: *ArrayList(GltfBufferView), accessors: *ArrayList(GltfAccessor), joint_remapping: ?[]const u32) !u32 {
         _ = joint_remapping; // No longer used - preserve original bone indices
         const start_offset: u32 = @intCast(self.binary_data.items.len);
-        var min_values: [3]f32 = [_]f32{ std.math.floatMax(f32), std.math.floatMax(f32), std.math.floatMax(f32) };
-        var max_values: [3]f32 = [_]f32{ std.math.floatMin(f32), std.math.floatMin(f32), std.math.floatMin(f32) };
+        var min_values: [4]f32 = undefined;
+        var max_values: [4]f32 = undefined;
+        var calculate_bounds = false;
+        var first_vertex = true;
 
         if (std.mem.eql(u8, attribute, "POSITION")) {
+            calculate_bounds = true;
             // Write position data
             for (mesh.vertices.items) |vertex| {
                 const pos = vertex.position;
@@ -720,27 +739,71 @@ pub const GltfExporter = struct {
                 try self.writeFloat(pos.z);
 
                 // Update min/max for bounds
-                min_values[0] = @min(min_values[0], pos.x);
-                min_values[1] = @min(min_values[1], pos.y);
-                min_values[2] = @min(min_values[2], pos.z);
-                max_values[0] = @max(max_values[0], pos.x);
-                max_values[1] = @max(max_values[1], pos.y);
-                max_values[2] = @max(max_values[2], pos.z);
+                if (first_vertex) {
+                    min_values[0] = pos.x;
+                    min_values[1] = pos.y;
+                    min_values[2] = pos.z;
+                    max_values[0] = pos.x;
+                    max_values[1] = pos.y;
+                    max_values[2] = pos.z;
+                    first_vertex = false;
+                } else {
+                    min_values[0] = @min(min_values[0], pos.x);
+                    min_values[1] = @min(min_values[1], pos.y);
+                    min_values[2] = @min(min_values[2], pos.z);
+                    max_values[0] = @max(max_values[0], pos.x);
+                    max_values[1] = @max(max_values[1], pos.y);
+                    max_values[2] = @max(max_values[2], pos.z);
+                }
             }
         } else if (std.mem.eql(u8, attribute, "NORMAL")) {
+            calculate_bounds = true;
             // Write normal data
             for (mesh.vertices.items) |vertex| {
                 const norm = vertex.normal;
                 try self.writeFloat(norm.x);
                 try self.writeFloat(norm.y);
                 try self.writeFloat(norm.z);
+
+                // Update min/max for bounds
+                if (first_vertex) {
+                    min_values[0] = norm.x;
+                    min_values[1] = norm.y;
+                    min_values[2] = norm.z;
+                    max_values[0] = norm.x;
+                    max_values[1] = norm.y;
+                    max_values[2] = norm.z;
+                    first_vertex = false;
+                } else {
+                    min_values[0] = @min(min_values[0], norm.x);
+                    min_values[1] = @min(min_values[1], norm.y);
+                    min_values[2] = @min(min_values[2], norm.z);
+                    max_values[0] = @max(max_values[0], norm.x);
+                    max_values[1] = @max(max_values[1], norm.y);
+                    max_values[2] = @max(max_values[2], norm.z);
+                }
             }
         } else if (std.mem.eql(u8, attribute, "TEXCOORD_0")) {
+            calculate_bounds = true;
             // Write UV data
             for (mesh.vertices.items) |vertex| {
                 const uv = vertex.uv;
                 try self.writeFloat(uv.x);
                 try self.writeFloat(uv.y);
+
+                // Update min/max for bounds
+                if (first_vertex) {
+                    min_values[0] = uv.x;
+                    min_values[1] = uv.y;
+                    max_values[0] = uv.x;
+                    max_values[1] = uv.y;
+                    first_vertex = false;
+                } else {
+                    min_values[0] = @min(min_values[0], uv.x);
+                    min_values[1] = @min(min_values[1], uv.y);
+                    max_values[0] = @max(max_values[0], uv.x);
+                    max_values[1] = @max(max_values[1], uv.y);
+                }
             }
         } else if (std.mem.eql(u8, attribute, "JOINTS_0")) {
             // Write joint indices as unsigned short (VEC4)
@@ -755,10 +818,33 @@ pub const GltfExporter = struct {
                 }
             }
         } else if (std.mem.eql(u8, attribute, "WEIGHTS_0")) {
-            // Write bone weights as float (VEC4)
+            calculate_bounds = true;
+            // Write bone weights as float (VEC4) with normalization
             for (mesh.vertices.items) |vertex| {
-                for (vertex.bone_weights) |weight| {
+                // Normalize bone weights to ensure they sum to 1.0
+                var normalized_weights = vertex.bone_weights;
+                const weight_sum = normalized_weights[0] + normalized_weights[1] + normalized_weights[2] + normalized_weights[3];
+
+                if (weight_sum > 0.0) {
+                    // Normalize to sum to 1.0
+                    normalized_weights[0] /= weight_sum;
+                    normalized_weights[1] /= weight_sum;
+                    normalized_weights[2] /= weight_sum;
+                    normalized_weights[3] /= weight_sum;
+                }
+
+                for (normalized_weights, 0..) |weight, i| {
                     try self.writeFloat(weight);
+
+                    // Update min/max for bounds
+                    if (first_vertex) {
+                        min_values[i] = weight;
+                        max_values[i] = weight;
+                        if (i == 3) first_vertex = false;
+                    } else {
+                        min_values[i] = @min(min_values[i], weight);
+                        max_values[i] = @max(max_values[i], weight);
+                    }
                 }
             }
         }
@@ -779,10 +865,11 @@ pub const GltfExporter = struct {
         var min_slice: ?[]f32 = null;
         var max_slice: ?[]f32 = null;
 
-        if (std.mem.eql(u8, attribute, "POSITION")) {
-            // Only set bounds for position data
-            min_slice = try self.allocator.dupe(f32, min_values[0..3]);
-            max_slice = try self.allocator.dupe(f32, max_values[0..3]);
+        if (calculate_bounds) {
+            // Set bounds for attributes that need them
+            const component_count: usize = if (std.mem.eql(u8, attribute, "TEXCOORD_0")) 2 else if (std.mem.eql(u8, attribute, "WEIGHTS_0")) 4 else 3;
+            min_slice = try self.allocator.dupe(f32, min_values[0..component_count]);
+            max_slice = try self.allocator.dupe(f32, max_values[0..component_count]);
         }
 
         // Determine component type and vector type based on attribute
@@ -1455,13 +1542,55 @@ pub const GltfExporter = struct {
         return @floatCast(time / tps);
     }
 
+    // Helper function to clean up floating-point precision errors in 4x4 matrices
+    fn cleanMatrix(self: *GltfExporter, matrix: [16]f32) [16]f32 {
+        _ = self; // Unused parameter
+        var cleaned = matrix;
+
+        // For affine transformation matrices, element 15 (bottom-right) should be exactly 1.0
+        // Fix common floating-point precision errors
+        const epsilon = 1e-6;
+
+        // Clean up the homogeneous coordinate (should be 1.0)
+        if (@abs(cleaned[15] - 1.0) < epsilon) {
+            cleaned[15] = 1.0;
+        }
+
+        // Clean up the bottom row (should be [0, 0, 0, 1])
+        if (@abs(cleaned[12]) < epsilon) cleaned[12] = 0.0;
+        if (@abs(cleaned[13]) < epsilon) cleaned[13] = 0.0;
+        if (@abs(cleaned[14]) < epsilon) cleaned[14] = 0.0;
+
+        // Clean up very small values that should be zero
+        for (&cleaned) |*value| {
+            if (@abs(value.*) < epsilon) {
+                value.* = 0.0;
+            }
+        }
+
+        return cleaned;
+    }
+
     // Write animation time data for position keys
     fn writeAnimationTimeData(self: *GltfExporter, keys: [*c]assimp.aiVectorKey, count: u32, ticks_per_second: f64, buffer_views: *ArrayList(GltfBufferView), accessors: *ArrayList(GltfAccessor)) !u32 {
         const start_offset: u32 = @intCast(self.binary_data.items.len);
 
+        // Calculate min/max time values
+        var min_time: f32 = undefined;
+        var max_time: f32 = undefined;
+        var first_time = true;
+
         // Write time data
         for (0..count) |i| {
             const time = GltfExporter.convertTimeToSeconds(keys[i].mTime, ticks_per_second);
+            if (first_time) {
+                min_time = time;
+                max_time = time;
+                first_time = false;
+            } else {
+                min_time = @min(min_time, time);
+                max_time = @max(max_time, time);
+            }
             try self.binary_data.writer().writeAll(std.mem.asBytes(&time));
         }
 
@@ -1477,12 +1606,17 @@ pub const GltfExporter = struct {
         const buffer_view_idx: u32 = @intCast(buffer_views.items.len);
         try buffer_views.append(buffer_view);
 
-        // Create accessor
+        // Create accessor with required min/max for animation input
+        const min_slice = try self.allocator.dupe(f32, &[_]f32{min_time});
+        const max_slice = try self.allocator.dupe(f32, &[_]f32{max_time});
+
         const accessor = GltfAccessor{
             .bufferView = buffer_view_idx,
             .componentType = 5126, // FLOAT
             .count = count,
             .type = "SCALAR",
+            .min = min_slice,
+            .max = max_slice,
         };
 
         const accessor_idx: u32 = @intCast(accessors.items.len);
@@ -1495,9 +1629,22 @@ pub const GltfExporter = struct {
     fn writeAnimationTimeDataRot(self: *GltfExporter, keys: [*c]assimp.aiQuatKey, count: u32, ticks_per_second: f64, buffer_views: *ArrayList(GltfBufferView), accessors: *ArrayList(GltfAccessor)) !u32 {
         const start_offset: u32 = @intCast(self.binary_data.items.len);
 
+        // Calculate min/max time values
+        var min_time: f32 = undefined;
+        var max_time: f32 = undefined;
+        var first_time = true;
+
         // Write time data
         for (0..count) |i| {
             const time = GltfExporter.convertTimeToSeconds(keys[i].mTime, ticks_per_second);
+            if (first_time) {
+                min_time = time;
+                max_time = time;
+                first_time = false;
+            } else {
+                min_time = @min(min_time, time);
+                max_time = @max(max_time, time);
+            }
             try self.binary_data.writer().writeAll(std.mem.asBytes(&time));
         }
 
@@ -1513,12 +1660,17 @@ pub const GltfExporter = struct {
         const buffer_view_idx: u32 = @intCast(buffer_views.items.len);
         try buffer_views.append(buffer_view);
 
-        // Create accessor
+        // Create accessor with required min/max for animation input
+        const min_slice = try self.allocator.dupe(f32, &[_]f32{min_time});
+        const max_slice = try self.allocator.dupe(f32, &[_]f32{max_time});
+
         const accessor = GltfAccessor{
             .bufferView = buffer_view_idx,
             .componentType = 5126, // FLOAT
             .count = count,
             .type = "SCALAR",
+            .min = min_slice,
+            .max = max_slice,
         };
 
         const accessor_idx: u32 = @intCast(accessors.items.len);
@@ -1531,9 +1683,22 @@ pub const GltfExporter = struct {
     fn writeAnimationTimeDataScale(self: *GltfExporter, keys: [*c]assimp.aiVectorKey, count: u32, ticks_per_second: f64, buffer_views: *ArrayList(GltfBufferView), accessors: *ArrayList(GltfAccessor)) !u32 {
         const start_offset: u32 = @intCast(self.binary_data.items.len);
 
+        // Calculate min/max time values
+        var min_time: f32 = undefined;
+        var max_time: f32 = undefined;
+        var first_time = true;
+
         // Write time data
         for (0..count) |i| {
             const time = GltfExporter.convertTimeToSeconds(keys[i].mTime, ticks_per_second);
+            if (first_time) {
+                min_time = time;
+                max_time = time;
+                first_time = false;
+            } else {
+                min_time = @min(min_time, time);
+                max_time = @max(max_time, time);
+            }
             try self.binary_data.writer().writeAll(std.mem.asBytes(&time));
         }
 
@@ -1549,12 +1714,17 @@ pub const GltfExporter = struct {
         const buffer_view_idx: u32 = @intCast(buffer_views.items.len);
         try buffer_views.append(buffer_view);
 
-        // Create accessor
+        // Create accessor with required min/max for animation input
+        const min_slice = try self.allocator.dupe(f32, &[_]f32{min_time});
+        const max_slice = try self.allocator.dupe(f32, &[_]f32{max_time});
+
         const accessor = GltfAccessor{
             .bufferView = buffer_view_idx,
             .componentType = 5126, // FLOAT
             .count = count,
             .type = "SCALAR",
+            .min = min_slice,
+            .max = max_slice,
         };
 
         const accessor_idx: u32 = @intCast(accessors.items.len);
