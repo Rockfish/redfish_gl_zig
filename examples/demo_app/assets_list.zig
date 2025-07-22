@@ -150,18 +150,40 @@ pub const demo_models = [_]DemoModel{
     },
     // Extra models for variety
     .{
-        .path = "angrybots_assets/Models/Player/Spacesuit_fixed.gltf",
-        .name = "Spacesuit (Fixed)",
-        .format = "glTF",
-        .category = "Complex",
-        .description = "Spacesuit model with color-only materials, no texture issues",
-    },
-    .{
         .path = "angrybots_assets/Models/Player/Player.gltf",
         .name = "Player Model",
         .format = "glTF",
         .category = "Complex",
         .description = "Player character model with animations converted from FBX",
+    },
+    .{
+        .path = "angrybots_assets/Models/Player/Spacesuit_converted.gltf",
+        .name = "Spacesuit (Converted)",
+        .format = "glTF",
+        .category = "Complex",
+        .description = "Spacesuit model converted from FBX",
+    },
+    .{
+        .path = "modular_characters/Individual Characters/glTF/Spacesuit.gltf",
+        .name = "Spacesuit (Modular Characters)",
+        .format = "glTF",
+        .category = "Complex",
+        .description = "Spacesuit model from Modular Characters collection",
+    },
+    .{
+        .path = "angrybots_assets/CesiumMan/CesiumMan.gltf",
+        .name = "CesiumMan (original)",
+        .format = "glTF",
+        .category = "Basic",
+        .description = "CesiumMan model glTF",
+    },
+    // glTF-Sample-Models/CesiumMan/glTF/CesiumMan.gltf
+    .{
+        .path = "angrybots_assets/CesiumMan/CesiumMan_converted.gltf",
+        .name = "CesiumMan (Converted)",
+        .format = "glTF",
+        .category = "Basic",
+        .description = "CesiumMan model converted from glTF",
     },
 };
 

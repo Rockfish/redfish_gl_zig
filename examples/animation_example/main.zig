@@ -186,7 +186,7 @@ const model_configs = [_]ModelConfig{
 // glTF-Sample-Models/InterpolationTest/glTF/InterpolationTest.gltf
 
 // Select model based on enum
-const SELECTED_MODEL: ModelChoice = .spacesuit;
+const SELECTED_MODEL: ModelChoice = .player;
 
 pub fn main() !void {
     var buf: [512]u8 = undefined;
