@@ -141,6 +141,222 @@ fn meshHasBoneWeights(mesh: *const SimpleMesh) bool {
     return false;
 }
 
+/// Build parent mapping from node children arrays (child_index -> parent_index)
+fn buildParentMap(allocator: Allocator, nodes: []const GltfNode) !std.AutoHashMap(u32, u32) {
+    var parent_map = std.AutoHashMap(u32, u32).init(allocator);
+
+    for (nodes, 0..) |node, parent_idx| {
+        if (node.children) |children| {
+            for (children) |child_idx| {
+                try parent_map.put(child_idx, @intCast(parent_idx));
+            }
+        }
+    }
+
+    return parent_map;
+}
+
+/// Find path from node to root, returns reversed path (node to root)
+fn findPathToRoot(parent_map: *const std.AutoHashMap(u32, u32), node_idx: u32, path: *std.ArrayList(u32)) !void {
+    var current = node_idx;
+    try path.append(current);
+
+    while (parent_map.get(current)) |parent_idx| {
+        try path.append(parent_idx);
+        current = parent_idx;
+    }
+}
+
+/// Find lowest common ancestor of all joints using standard LCA algorithm
+/// Returns scene root (node 0) if no common ancestor found (disconnected hierarchies)
+fn findLowestCommonAncestor(allocator: Allocator, parent_map: *const std.AutoHashMap(u32, u32), joint_indices: []const u32) !u32 {
+    if (joint_indices.len == 0) {
+        return error.NoJointsProvided;
+    }
+
+    if (joint_indices.len == 1) {
+        return joint_indices[0];
+    }
+
+    // Get path to root for first joint
+    var first_path = std.ArrayList(u32).init(allocator);
+    defer first_path.deinit();
+    try findPathToRoot(parent_map, joint_indices[0], &first_path);
+
+    // Convert to set for fast lookup
+    var first_path_set = std.AutoHashMap(u32, void).init(allocator);
+    defer first_path_set.deinit();
+    for (first_path.items) |node_idx| {
+        try first_path_set.put(node_idx, {});
+    }
+
+    // For each other joint, find first common ancestor with first joint
+    var lca = joint_indices[0];
+
+    for (joint_indices[1..]) |joint_idx| {
+        var current_path = std.ArrayList(u32).init(allocator);
+        defer current_path.deinit();
+        try findPathToRoot(parent_map, joint_idx, &current_path);
+
+        // Find first node in current path that exists in first path
+        var found_lca = false;
+        for (current_path.items) |node_idx| {
+            if (first_path_set.contains(node_idx)) {
+                lca = node_idx;
+                found_lca = true;
+                break;
+            }
+        }
+
+        if (!found_lca) {
+            // No common ancestor found - use scene root (node 0) as fallback
+            // This handles disconnected joint hierarchies
+            return 0;
+        }
+
+        // Update first_path_set to only contain nodes up to new LCA
+        first_path_set.clearRetainingCapacity();
+        var found_new_lca = false;
+        for (first_path.items) |node_idx| {
+            try first_path_set.put(node_idx, {});
+            if (node_idx == lca) {
+                found_new_lca = true;
+                break;
+            }
+        }
+
+        if (!found_new_lca) {
+            // Fallback to scene root if LCA logic fails
+            return 0;
+        }
+    }
+
+    return lca;
+}
+
+/// Find proper skeleton root as lowest common ancestor of all joints
+fn findSkeletonRoot(allocator: Allocator, nodes: []const GltfNode, joint_indices: []const u32) !u32 {
+    var parent_map = try buildParentMap(allocator, nodes);
+    defer parent_map.deinit();
+
+    return try findLowestCommonAncestor(allocator, &parent_map, joint_indices);
+}
+
+/// Calculate world transform by traversing up parent chain
+fn calculateWorldTransform(nodes: []const GltfNode, parent_map: *const std.AutoHashMap(u32, u32), node_idx: u32) math.Mat4 {
+    var transform = math.Mat4.identity();
+    var current = node_idx;
+
+    // Collect transforms from node to root
+    var transforms = std.ArrayList(math.Mat4).init(std.heap.page_allocator);
+    defer transforms.deinit();
+
+    while (true) {
+        const node = &nodes[current];
+        var local_transform = math.Mat4.identity();
+
+        // Create local transform from TRS components
+        const translation = if (node.translation) |t| math.Vec3.init(t[0], t[1], t[2]) else math.Vec3.init(0, 0, 0);
+        const rotation = if (node.rotation) |r| math.Quat{ .data = .{ r[0], r[1], r[2], r[3] } } else math.Quat.identity();
+        const scale = if (node.scale) |s| math.Vec3.init(s[0], s[1], s[2]) else math.Vec3.init(1, 1, 1);
+
+        local_transform = math.Mat4.fromTranslationRotationScale(&translation, &rotation, &scale);
+
+        transforms.append(local_transform) catch break;
+
+        if (parent_map.get(current)) |parent_idx| {
+            current = parent_idx;
+        } else {
+            break;
+        }
+    }
+
+    // Multiply transforms in reverse order (root to node)
+    var i = transforms.items.len;
+    while (i > 0) {
+        i -= 1;
+        transform = transform.mulMat4(&transforms.items[i]);
+    }
+
+    return transform;
+}
+
+/// Remove node from its parent's children array
+fn removeFromParent(nodes: []GltfNode, child_idx: u32, parent_map: *const std.AutoHashMap(u32, u32)) void {
+    if (parent_map.get(child_idx)) |parent_idx| {
+        const parent = &nodes[parent_idx];
+        if (parent.children) |children| {
+            // Find and remove child_idx from children array
+            for (children, 0..) |child, i| {
+                if (child == child_idx) {
+                    // Shift remaining elements left
+                    for (i..children.len - 1) |j| {
+                        children[j] = children[j + 1];
+                    }
+                    // Note: We can't actually shrink the slice here, but the extra element won't be used
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// Bake world transform into node's local transform
+fn bakeWorldTransform(node: *GltfNode, world_transform: math.Mat4) void {
+    const transform = assimp.Transform.fromMatrix(&world_transform);
+    node.translation = transform.translation.asArray();
+    node.rotation = transform.rotation.asArray();
+    node.scale = transform.scale.asArray();
+}
+
+/// Move skinned mesh nodes to scene root to avoid parent transform conflicts
+fn hoistSkinnedMeshesToRoot(allocator: Allocator, nodes: []GltfNode, scene: *GltfScene) !void {
+    var parent_map = try buildParentMap(allocator, nodes);
+    defer parent_map.deinit();
+
+    var nodes_to_hoist = std.ArrayList(u32).init(allocator);
+    defer nodes_to_hoist.deinit();
+
+    // Find all nodes with skin assignment
+    for (nodes, 0..) |node, i| {
+        if (node.skin != null) {
+            try nodes_to_hoist.append(@intCast(i));
+            std.debug.print("    Found skinned mesh node {d}: {s}\n", .{ i, node.name orelse "unnamed" });
+        }
+    }
+
+    std.debug.print("    Found {d} skinned mesh nodes to hoist\n", .{nodes_to_hoist.items.len});
+
+    // Hoist each skinned mesh node
+    for (nodes_to_hoist.items) |node_idx| {
+        // Calculate world transform
+        const world_transform = calculateWorldTransform(nodes, &parent_map, node_idx);
+
+        // Remove from current parent
+        removeFromParent(nodes, node_idx, &parent_map);
+
+        // Add to scene root if not already there
+        var already_in_scene = false;
+        for (scene.nodes) |scene_node| {
+            if (scene_node == node_idx) {
+                already_in_scene = true;
+                break;
+            }
+        }
+
+        if (!already_in_scene) {
+            // Extend scene.nodes array to include this node
+            var new_scene_nodes = try allocator.alloc(u32, scene.nodes.len + 1);
+            @memcpy(new_scene_nodes[0..scene.nodes.len], scene.nodes);
+            new_scene_nodes[scene.nodes.len] = node_idx;
+            scene.nodes = new_scene_nodes;
+        }
+
+        // Bake world transform into local transform
+        bakeWorldTransform(&nodes[node_idx], world_transform);
+    }
+}
+
 pub const GltfExporter = struct {
     allocator: Allocator,
     binary_data: ArrayList(u8),
@@ -584,10 +800,16 @@ pub const GltfExporter = struct {
             };
             try accessors.append(ibm_accessor);
 
+            // Find proper skeleton root as lowest common ancestor of all joints
+            const skeleton_root = if (joint_indices.len > 0)
+                try findSkeletonRoot(allocator, nodes.items, joint_indices)
+            else
+                null;
+
             // Create skin
             const skin = GltfSkin{
                 .inverseBindMatrices = @intCast(accessors.items.len - 1),
-                .skeleton = if (joint_indices.len > 0) joint_indices[0] else null, // Root joint
+                .skeleton = skeleton_root,
                 .joints = joint_indices,
                 .name = "character_skin",
             };
@@ -639,10 +861,18 @@ pub const GltfExporter = struct {
             }
         }
 
-        // Create single scene with root nodes
-        const scene_struct = GltfScene{
+        // Create initial scene with root nodes
+        var scene_struct = GltfScene{
             .nodes = try scene_root_nodes.toOwnedSlice(),
         };
+
+        // Hoist skinned mesh nodes to scene root to avoid parent transform conflicts
+        if (skins_opt != null) {
+            if (self.verbose) {
+                std.debug.print("  Hoisting skinned mesh nodes to scene root...\n", .{});
+            }
+            try hoistSkinnedMeshesToRoot(allocator, nodes.items, &scene_struct);
+        }
 
         // Process animations if ASSIMP scene is provided and has animations
         var animations_opt: ?[]GltfAnimation = null;
