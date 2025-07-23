@@ -336,7 +336,9 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
         }
 
         // Update animation
-        try current_model.animator.updateAnimation(state.delta_time);
+        if (state.run_animation) {
+            try current_model.animator.updateAnimation(state.delta_time);
+        }
 
         // frame_counter.update();
 

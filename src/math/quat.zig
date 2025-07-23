@@ -53,6 +53,10 @@ pub const Quat = extern struct {
         return init(v.x, v.y, v.z, c);
     }
 
+    pub fn asArray(self: *const Quat) [4]f32 {
+        return @as(*[4]f32, @ptrCast(@constCast(self))).*;
+    }
+
     pub inline fn asCPtrF32(q: *const Quat) [*c]f32 {
         return @as([*c]f32, @ptrCast(@constCast(q)));
     }

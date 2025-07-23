@@ -75,6 +75,7 @@ pub const State = struct {
     shader_debug_enabled: bool = false,
     shader_debug_dump_requested: bool = false,
     screenshot_requested: bool = false,
+    run_animation: bool = true,
 
     const Self = @This();
 };
@@ -370,6 +371,12 @@ pub fn processKeys() void {
                 if (!state.input.key_processed.contains(.F12)) {
                     state.screenshot_requested = true;
                     std.debug.print("Screenshot requested (F12)\n", .{});
+                }
+            },
+            .space => {
+                if (!state.input.key_processed.contains(.space)) {
+                    state.run_animation = !state.run_animation;
+                    std.debug.print("Camera reposition requested\n", .{});
                 }
             },
             else => {},

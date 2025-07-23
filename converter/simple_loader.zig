@@ -1,13 +1,7 @@
 // Simplified ASSIMP loader that extracts data without OpenGL dependencies
 const std = @import("std");
 const assimp_mod = @import("assimp");
-
-// Use @cImport to access ASSIMP C functions
-const assimp = @cImport({
-    @cInclude("assimp/cimport.h");
-    @cInclude("assimp/scene.h");
-    @cInclude("assimp/postprocess.h");
-});
+const assimp_utils = @import("assimp_utils.zig");
 const math = @import("math");
 
 const Allocator = std.mem.Allocator;
@@ -135,11 +129,11 @@ pub const SimpleModel = struct {
 
 pub const LoadResult = struct {
     model: SimpleModel,
-    scene: *const assimp.aiScene, // Keep a reference to the scene for material processing
+    scene: *const assimp_utils.aiScene, // Keep a reference to the scene for material processing
 
     pub fn deinit(self: *LoadResult) void {
         self.model.deinit();
-        assimp.aiReleaseImport(self.scene);
+        assimp_utils.aiReleaseImport(self.scene);
     }
 };
 
@@ -153,18 +147,18 @@ pub fn loadModelWithAssimp(allocator: Allocator, file_path: []const u8, verbose:
     defer allocator.free(path_z);
 
     // Load with ASSIMP
-    const aiScene = assimp.aiImportFile(
+    const aiScene = assimp_utils.aiImportFile(
         path_z,
-        assimp.aiProcess_CalcTangentSpace |
-            assimp.aiProcess_Triangulate |
-            assimp.aiProcess_JoinIdenticalVertices |
-            assimp.aiProcess_SortByPType |
-            assimp.aiProcess_FlipUVs |
-            assimp.aiProcess_FindInvalidData, // this fixes animation by removing duplicate keys
+        assimp_utils.aiProcess_CalcTangentSpace |
+            assimp_utils.aiProcess_Triangulate |
+            assimp_utils.aiProcess_JoinIdenticalVertices |
+            assimp_utils.aiProcess_SortByPType |
+            assimp_utils.aiProcess_FlipUVs |
+            assimp_utils.aiProcess_FindInvalidData, // this fixes animation by removing duplicate keys
     );
 
     if (aiScene == null) {
-        const errorMessage = assimp.aiGetErrorString();
+        const errorMessage = assimp_utils.aiGetErrorString();
         std.debug.print("ASSIMP Error: {s}\n", .{errorMessage});
         return error.AssimpLoadFailed;
     }
@@ -241,25 +235,8 @@ pub fn loadModelWithAssimp(allocator: Allocator, file_path: []const u8, verbose:
                 } else {
                     bone_id = @intCast(model.bones.items.len);
 
-                    // Convert ASSIMP matrix to array format
-                    var offset_matrix: [16]f32 = undefined;
-                    const ai_matrix = aiBone.mOffsetMatrix;
-                    offset_matrix[0] = ai_matrix.a1;
-                    offset_matrix[1] = ai_matrix.b1;
-                    offset_matrix[2] = ai_matrix.c1;
-                    offset_matrix[3] = ai_matrix.d1;
-                    offset_matrix[4] = ai_matrix.a2;
-                    offset_matrix[5] = ai_matrix.b2;
-                    offset_matrix[6] = ai_matrix.c2;
-                    offset_matrix[7] = ai_matrix.d2;
-                    offset_matrix[8] = ai_matrix.a3;
-                    offset_matrix[9] = ai_matrix.b3;
-                    offset_matrix[10] = ai_matrix.c3;
-                    offset_matrix[11] = ai_matrix.d3;
-                    offset_matrix[12] = ai_matrix.a4;
-                    offset_matrix[13] = ai_matrix.b4;
-                    offset_matrix[14] = ai_matrix.c4;
-                    offset_matrix[15] = ai_matrix.d4;
+                    // Convert ASSIMP matrix to array format using centralized utility
+                    const offset_matrix = assimp_utils.mat4FromAiMatrix(aiBone.mOffsetMatrix).toArray();
 
                     const simple_bone = SimpleBone{
                         .name = try allocator.dupe(u8, bone_name),

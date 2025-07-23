@@ -200,7 +200,7 @@ pub const UIState = struct {
 
     fn renderPerformance(self: *Self) void {
         // Position at top-right (manual calculation since zgui doesn't have pivot)
-        zgui.setNextWindowPos(.{ .x = self.current_width - 150.0, .y = 10.0, .cond = .always });
+        zgui.setNextWindowPos(.{ .x = self.current_width - 250.0, .y = 10.0, .cond = .always });
 
         const window_flags = zgui.WindowFlags{
             .no_resize = true,
@@ -233,7 +233,7 @@ pub const UIState = struct {
 
     fn renderCameraInfo(self: *Self) void {
         // Position on the right side, below performance metrics
-        zgui.setNextWindowPos(.{ .x = self.current_width - 210.0, .y = 60.0, .cond = .always });
+        zgui.setNextWindowPos(.{ .x = self.current_width - 450.0, .y = 60.0, .cond = .always });
 
         const window_flags = zgui.WindowFlags{
             .no_resize = true,
@@ -292,7 +292,7 @@ pub const UIState = struct {
 
     fn renderHelp(self: *Self) void {
         // Position at bottom-left (manual calculation since zgui doesn't have pivot)
-        zgui.setNextWindowPos(.{ .x = 10.0, .y = self.current_height - 300.0, .cond = .always });
+        zgui.setNextWindowPos(.{ .x = 10.0, .y = self.current_height - 800.0, .cond = .always });
 
         const window_flags = zgui.WindowFlags{
             .no_resize = true,

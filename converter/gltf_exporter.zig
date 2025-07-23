@@ -2,15 +2,15 @@
 const std = @import("std");
 const simple_loader = @import("simple_loader.zig");
 const material_processor = @import("material_processor.zig");
-const assimp_utils = @import("assimp_utils.zig");
+const assimp = @import("assimp_utils.zig");
 const math = @import("math");
 
 // Use @cImport to access ASSIMP C functions for animation processing
-const assimp = @cImport({
-    @cInclude("assimp/cimport.h");
-    @cInclude("assimp/scene.h");
-    @cInclude("assimp/anim.h");
-});
+// const assimp = @cImport({
+//     @cInclude("assimp/cimport.h");
+//     @cInclude("assimp/scene.h");
+//     @cInclude("assimp/anim.h");
+// });
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -131,6 +131,16 @@ const GltfDocument = struct {
     scene: u32 = 0,
 };
 
+/// Check if a SimpleMesh has bone weight data (skeletal animation)
+fn meshHasBoneWeights(mesh: *const SimpleMesh) bool {
+    for (mesh.vertices.items) |vertex| {
+        if (vertex.bone_ids[0] >= 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 pub const GltfExporter = struct {
     allocator: Allocator,
     binary_data: ArrayList(u8),
@@ -146,73 +156,6 @@ pub const GltfExporter = struct {
 
     pub fn deinit(self: *GltfExporter) void {
         self.binary_data.deinit();
-    }
-
-    /// Process ASSIMP node hierarchy recursively to build proper glTF node tree
-    fn processNodeHierarchy(
-        self: *GltfExporter,
-        ai_node: *const assimp.aiNode,
-        nodes: *ArrayList(GltfNode),
-        node_name_map: *std.StringHashMap(u32),
-        mesh_to_node_map: *std.AutoHashMap(u32, u32),
-    ) !u32 {
-        const allocator = self.allocator;
-        const current_index: u32 = @intCast(nodes.items.len);
-
-        // Extract node name
-        const ai_name = ai_node.mName;
-        const node_name = try allocator.dupe(u8, ai_name.data[0..ai_name.length]);
-
-        // Extract transform data using proven ASSIMP utilities
-        const ai_transform = ai_node.mTransformation;
-        const transform_matrix = assimp_utils.mat4FromAiMatrix(&ai_transform);
-        const transform = assimp_utils.Transform.fromMatrix(&transform_matrix);
-
-        // Create glTF node with transform components
-        var gltf_node = GltfNode{
-            .name = node_name,
-            .translation = [3]f32{ transform.translation.x, transform.translation.y, transform.translation.z },
-            .rotation = [4]f32{ transform.rotation.data[0], transform.rotation.data[1], transform.rotation.data[2], transform.rotation.data[3] },
-            .scale = [3]f32{ transform.scale.x, transform.scale.y, transform.scale.z },
-        };
-
-        // Associate meshes with this node if any
-        if (ai_node.mNumMeshes > 0) {
-            // For simplicity, take the first mesh if multiple meshes are assigned to one node
-            const mesh_index = ai_node.mMeshes[0];
-            gltf_node.mesh = mesh_index;
-            try mesh_to_node_map.put(mesh_index, current_index);
-        }
-
-        // Add node to list
-        try nodes.append(gltf_node);
-
-        // Add to node name mapping for animation support
-        try node_name_map.put(node_name, current_index);
-
-        if (self.verbose) {
-            std.debug.print("    Processed node {d}: {s} (meshes: {d}, children: {d})\n", .{ current_index, node_name, ai_node.mNumMeshes, ai_node.mNumChildren });
-        }
-
-        // Process children recursively and build children array
-        if (ai_node.mNumChildren > 0) {
-            var children = try allocator.alloc(u32, ai_node.mNumChildren);
-
-            for (ai_node.mChildren[0..ai_node.mNumChildren], 0..) |child_node, i| {
-                const child_index = try self.processNodeHierarchy(
-                    child_node,
-                    nodes,
-                    node_name_map,
-                    mesh_to_node_map,
-                );
-                children[i] = child_index;
-            }
-
-            // Update the node with children (nodes list may have been reallocated)
-            nodes.items[current_index].children = children;
-        }
-
-        return current_index;
     }
 
     /// Process ASSIMP node hierarchy with mesh index mapping from SimpleMesh to glTF mesh
@@ -233,16 +176,21 @@ pub const GltfExporter = struct {
 
         // Extract transform data using proven ASSIMP utilities
         const ai_transform = ai_node.mTransformation;
-        const transform_matrix = assimp_utils.mat4FromAiMatrix(&ai_transform);
-        const transform = assimp_utils.Transform.fromMatrix(&transform_matrix);
+        const transform_matrix = assimp.mat4FromAiMatrix(ai_transform);
 
-        // Create glTF node with transform components
+        // Only apply transform if it's not identity (matching ASSIMP's behavior)
+        // Use same epsilon as ASSIMP's default: AI_CONFIG_CHECK_IDENTITY_MATRIX_EPSILON_DEFAULT
+        const configEpsilon: f32 = 0.01; // 10e-3 as per ASSIMP default (10 * 10^-3)
         var gltf_node = GltfNode{
             .name = node_name,
-            .translation = [3]f32{ transform.translation.x, transform.translation.y, transform.translation.z },
-            .rotation = [4]f32{ transform.rotation.data[0], transform.rotation.data[1], transform.rotation.data[2], transform.rotation.data[3] },
-            .scale = [3]f32{ transform.scale.x, transform.scale.y, transform.scale.z },
         };
+
+        if (!assimp.isIdentityMatrix(&transform_matrix, configEpsilon)) {
+            const transform = assimp.Transform.fromMatrix(&transform_matrix);
+            gltf_node.translation = transform.translation.asArray();
+            gltf_node.rotation = transform.rotation.asArray();
+            gltf_node.scale = transform.scale.asArray();
+        }
 
         // Associate meshes with this node if any, using the correct mapping
         if (ai_node.mNumMeshes > 0) {
@@ -646,15 +594,39 @@ pub const GltfExporter = struct {
 
             skins_opt = try allocator.dupe(GltfSkin, &[_]GltfSkin{skin});
 
-            // Link all nodes with meshes to skin
+            // Link only nodes with skeletal meshes to skin
             if (model.meshes.items.len > 0) {
                 var skinned_node_count: u32 = 0;
+
+                // Create reverse mapping: glTF mesh index -> SimpleMesh index
+                var gltf_to_simple_mesh_map = std.AutoHashMap(u32, usize).init(allocator);
+                defer gltf_to_simple_mesh_map.deinit();
+
+                var simple_to_gltf_iter = simple_to_gltf_mesh_map.iterator();
+                while (simple_to_gltf_iter.next()) |entry| {
+                    try gltf_to_simple_mesh_map.put(entry.value_ptr.*, entry.key_ptr.*);
+                }
+
                 for (nodes.items, 0..) |*node, i| {
                     if (node.mesh != null) {
-                        node.skin = 0; // Reference to first (and only) skin
-                        skinned_node_count += 1;
-                        if (self.verbose) {
-                            std.debug.print("    Linked node {d} '{s}' with mesh {d} to skin\n", .{ i, node.name orelse "unnamed", node.mesh.? });
+                        const gltf_mesh_index = node.mesh.?;
+
+                        // Check if this mesh has bone data
+                        if (gltf_to_simple_mesh_map.get(gltf_mesh_index)) |simple_mesh_idx| {
+                            const simple_mesh = &model.meshes.items[simple_mesh_idx];
+
+                            // Only assign skin if mesh has bone weights
+                            if (meshHasBoneWeights(simple_mesh)) {
+                                node.skin = 0; // Reference to first (and only) skin
+                                skinned_node_count += 1;
+                                if (self.verbose) {
+                                    std.debug.print("    Linked node {d} '{s}' with skeletal mesh {d} to skin\n", .{ i, node.name orelse "unnamed", gltf_mesh_idx });
+                                }
+                            } else {
+                                if (self.verbose) {
+                                    std.debug.print("    Node {d} '{s}' with non-skeletal mesh {d} remains unbound\n", .{ i, node.name orelse "unnamed", gltf_mesh_idx });
+                                }
+                            }
                         }
                     }
                 }
