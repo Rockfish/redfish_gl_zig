@@ -7,7 +7,9 @@
       "Bash(find:*)",
       "Bash(zig fmt:*)",
       "Bash(ls:*)",
-      "Bash(./zig-out/bin/fbx_gltf_converter:*)"
+      "Bash(./zig-out/bin/fbx_gltf_converter:*)",
+      "Bash(gltf-transform validate:*)",
+      "Bash(converter/zig-out/bin/fbx_gltf_converter:*)"
     ],
     "deny": []
   }
