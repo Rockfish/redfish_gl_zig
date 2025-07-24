@@ -1,6 +1,4 @@
 const std = @import("std");
-const core = @import("core");
-const math = @import("math");
 
 const simple_loader = @import("simple_loader.zig");
 const gltf_exporter = @import("gltf_exporter.zig");

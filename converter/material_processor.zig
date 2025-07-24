@@ -18,14 +18,11 @@ const AI_TEXTURE_TYPE_METALNESS: u32 = 15; // aiTextureType_METALNESS
 const AI_TEXTURE_TYPE_AMBIENT_OCCLUSION: u32 = 17; // aiTextureType_AMBIENT_OCCLUSION
 
 // OpenGL texture filtering constants
-const GL_NEAREST: u32 = 9728;
 const GL_LINEAR: u32 = 9729;
 const GL_LINEAR_MIPMAP_LINEAR: u32 = 9987;
 
 // OpenGL texture wrapping constants
 const GL_REPEAT: u32 = 10497;
-const GL_CLAMP_TO_EDGE: u32 = 33071;
-const GL_MIRRORED_REPEAT: u32 = 33648;
 
 // Material conversion constants
 const SHININESS_MAX_VALUE: f32 = 1000.0; // Maximum shininess value assumed by ASSIMP
@@ -193,10 +190,10 @@ pub const MaterialProcessor = struct {
 
         if (result == assimp.aiReturn_SUCCESS and ai_name.length > 0) {
             const name_slice = ai_name.data[0..ai_name.length];
-            return try self.allocator.dupe(u8, name_slice);
+            return try self.allocator.dupe(u8, name_slice); // zlint-disable no-return-try -- needed for optional
         } else {
             // Generate default name
-            return try std.fmt.allocPrint(self.allocator, "material_{d}", .{mat_idx});
+            return try std.fmt.allocPrint(self.allocator, "material_{d}", .{mat_idx}); // zlint-disable no-return-try -- needed for optional
         }
     }
 
@@ -392,7 +389,7 @@ pub const MaterialProcessor = struct {
     fn extractFileName(self: *MaterialProcessor, path: []const u8) !?[]u8 {
         const basename = std.fs.path.basename(path);
         if (basename.len > 0) {
-            return try self.allocator.dupe(u8, basename);
+            return try self.allocator.dupe(u8, basename); // zlint-disable no-return-try -- needed for optional
         }
         return null;
     }
@@ -407,7 +404,7 @@ pub const MaterialProcessor = struct {
         } else |_| {
             // If making relative path fails, just use the filename
             const filename = std.fs.path.basename(absolute_texture_path);
-            return try self.allocator.dupe(u8, filename);
+            return self.allocator.dupe(u8, filename);
         }
     }
 

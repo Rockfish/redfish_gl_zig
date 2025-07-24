@@ -1,6 +1,5 @@
 // Simplified ASSIMP loader that extracts data without OpenGL dependencies
 const std = @import("std");
-const assimp_mod = @import("assimp");
 const assimp_utils = @import("assimp_utils.zig");
 const math = @import("math");
 
@@ -9,9 +8,6 @@ const ArrayList = std.ArrayList;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
-const Mat4 = math.Mat4;
-const Quat = math.Quat;
 
 pub const SimpleVertex = struct {
     position: Vec3,

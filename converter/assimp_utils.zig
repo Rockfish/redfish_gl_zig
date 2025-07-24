@@ -40,7 +40,6 @@ pub const aiFace = assimp.struct_aiFace;
 pub const aiNode = assimp.struct_aiNode;
 
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
 
@@ -71,7 +70,7 @@ pub const Transform = struct {
     scale: Vec3,
 
     pub fn fromMatrix(m: *const Mat4) Transform {
-        return original_extractTransformFromMatrix(m);
+        return originalExtractTransformFromMatrix(m);
     }
 };
 
@@ -133,7 +132,7 @@ fn extractTransformFromMatrix(matrix: *const Mat4) Transform {
     };
 }
 
-fn original_extractTransformFromMatrix(matrix: *const Mat4) Transform {
+fn originalExtractTransformFromMatrix(matrix: *const Mat4) Transform {
     // Extract translation (last column)
     const translation = Vec3.init(matrix.data[3][0], matrix.data[3][1], matrix.data[3][2]);
 

@@ -14,20 +14,15 @@ const math = @import("math");
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const HashMap = std.HashMap;
 
 const SimpleModel = simple_loader.SimpleModel;
 const SimpleMesh = simple_loader.SimpleMesh;
-const SimpleVertex = simple_loader.SimpleVertex;
 
 const MaterialProcessor = material_processor.MaterialProcessor;
 const GltfMaterial = material_processor.GltfMaterial;
 const GltfTexture = material_processor.GltfTexture;
 const GltfImage = material_processor.GltfImage;
 const GltfSampler = material_processor.GltfSampler;
-
-const Vec2 = math.Vec2;
-const Vec3 = math.Vec3;
 
 // glTF 2.0 JSON structure types
 const GltfAsset = struct {
@@ -239,7 +234,7 @@ fn findSkeletonRoot(allocator: Allocator, nodes: []const GltfNode, joint_indices
     var parent_map = try buildParentMap(allocator, nodes);
     defer parent_map.deinit();
 
-    return try findLowestCommonAncestor(allocator, &parent_map, joint_indices);
+    return findLowestCommonAncestor(allocator, &parent_map, joint_indices);
 }
 
 /// Calculate world transform by traversing up parent chain
@@ -642,7 +637,7 @@ pub const GltfExporter = struct {
         defer scene_root_nodes.deinit();
 
         if (scene) |ai_scene_ptr| {
-            const ai_scene = @as(*const assimp.aiScene, @ptrCast(@alignCast(ai_scene_ptr)));
+            const ai_scene: *const assimp.aiScene = @ptrCast(@alignCast(ai_scene_ptr));
             if (self.verbose) {
                 std.debug.print("  Processing ASSIMP scene with {d} meshes...\n", .{ai_scene.mNumMeshes});
             }
@@ -1149,9 +1144,9 @@ pub const GltfExporter = struct {
         // Replace .gltf extension with .bin
         if (std.mem.endsWith(u8, gltf_path, ".gltf")) {
             const base = gltf_path[0 .. gltf_path.len - 5];
-            return try std.fmt.allocPrint(self.allocator, "{s}.bin", .{base});
+            return std.fmt.allocPrint(self.allocator, "{s}.bin", .{base});
         } else {
-            return try std.fmt.allocPrint(self.allocator, "{s}.bin", .{gltf_path});
+            return std.fmt.allocPrint(self.allocator, "{s}.bin", .{gltf_path});
         }
     }
 
@@ -1614,7 +1609,7 @@ pub const GltfExporter = struct {
             try animations.append(animation);
         }
 
-        return try animations.toOwnedSlice();
+        return animations.toOwnedSlice();
     }
 
     fn processAnimation(self: *GltfExporter, ai_anim: *const assimp.aiAnimation, anim_idx: usize, node_name_map: *const std.StringHashMap(u32), buffer_views: *ArrayList(GltfBufferView), accessors: *ArrayList(GltfAccessor)) !GltfAnimation {
