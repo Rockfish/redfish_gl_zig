@@ -29,20 +29,24 @@ pub const MuzzleFlash = struct {
     const Self = @This();
 
     pub fn deinit(self: *const Self) void {
-        self.muzzle_flash_impact_sprite.texture.deinit();
+        self.muzzle_flash_impact_sprite.texture.deleteGlTexture();
         self.muzzle_flash_sprites_age.deinit();
     }
 
     pub fn new(allocator: Allocator, unit_square_vao: c_uint) !Self {
-        var texture_config = TextureConfig.default();
-        texture_config.set_wrap(TextureWrap.Repeat);
+        const texture_config: TextureConfig = .{ .wrap = .Repeat };
 
-        const texture_muzzle_flash_sprite_sheet = try Texture.init(
-            allocator, 
-            "assets/player/muzzle_spritesheet.png", 
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        const texture_muzzle_flash_sprite_sheet = try Texture.initFromFile(
+            &arena,
+            "angrybots_assets/Textures/Bullet/muzzle_spritesheet.png",
             texture_config,
         );
-        const muzzle_flash_impact_sprite = SpriteSheet.init(texture_muzzle_flash_sprite_sheet, 6, 0.03);
+        const muzzle_flash_impact_sprite = SpriteSheet.init(
+            texture_muzzle_flash_sprite_sheet,
+            6,
+            0.03,
+        );
 
         return .{
             .unit_square_vao = unit_square_vao,
@@ -102,7 +106,11 @@ pub const MuzzleFlash = struct {
         gl.depthMask(gl.FALSE);
         gl.bindVertexArray(self.unit_square_vao);
 
-        sprite_shader.bindTexture(0, "spritesheet", self.muzzle_flash_impact_sprite.texture);
+        sprite_shader.bindTexture(
+            0,
+            "spritesheet",
+            self.muzzle_flash_impact_sprite.texture.gl_texture_id,
+        );
 
         sprite_shader.setInt("numCols", @intFromFloat(self.muzzle_flash_impact_sprite.num_columns));
         sprite_shader.setFloat("timePerSprite", self.muzzle_flash_impact_sprite.time_per_sprite);

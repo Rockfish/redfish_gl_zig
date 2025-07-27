@@ -15,7 +15,6 @@ const gl = zopengl.bindings;
 const Shader = core.Shader;
 const Texture = core.texture.Texture;
 const TextureConfig = core.texture.TextureConfig;
-const TextureType = core.texture.TextureType;
 const TextureWrap = core.texture.TextureWrap;
 const TextureFilter = core.texture.TextureFilter;
 
@@ -45,9 +44,9 @@ pub const Floor = struct {
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
-        self.texture_floor_diffuse.deinit();
-        self.texture_floor_normal.deinit();
-        self.texture_floor_spec.deinit();
+        self.texture_floor_diffuse.deleteGlTexture();
+        self.texture_floor_normal.deleteGlTexture();
+        self.texture_floor_spec.deleteGlTexture();
     }
 
     pub fn new(allocator: Allocator) !Self {
@@ -55,23 +54,24 @@ pub const Floor = struct {
             .flip_v = false,
             .gamma_correction = false,
             .filter = TextureFilter.Linear,
-            .texture_type = TextureType.None,
             .wrap = TextureWrap.Repeat,
         };
 
-        const texture_floor_diffuse = try Texture.init(
-            allocator,
-            "angrybots_assets/Models/Floor D.png",
+        // Use modern texture loading pattern with ArenaAllocator
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        const texture_floor_diffuse = try Texture.initFromFile(
+            &arena,
+            "angrybots_assets/Textures/Floor/Floor D.png",
             texture_config,
         );
-        const texture_floor_normal = try Texture.init(
-            allocator,
-            "angrybots_assets/Models/Floor N.png",
+        const texture_floor_normal = try Texture.initFromFile(
+            &arena,
+            "angrybots_assets/Textures/Floor/Floor N.png",
             texture_config,
         );
-        const texture_floor_spec = try Texture.init(
-            allocator,
-            "angrybots_assets/Models/Floor M.png",
+        const texture_floor_spec = try Texture.initFromFile(
+            &arena,
+            "angrybots_assets/Textures/Floor/Floor M.png",
             texture_config,
         );
 
@@ -121,9 +121,9 @@ pub const Floor = struct {
     pub fn draw(self: *const Self, shader: *const Shader, projection_view: *const Mat4) void {
         shader.useShader();
 
-        shader.bindTexture(0, "texture_diffuse", self.texture_floor_diffuse);
-        shader.bindTexture(1, "texture_normal", self.texture_floor_normal);
-        shader.bindTexture(2, "texture_spec", self.texture_floor_spec);
+        shader.bindTexture(0, "texture_diffuse", self.texture_floor_diffuse.gl_texture_id);
+        shader.bindTexture(1, "texture_normal", self.texture_floor_normal.gl_texture_id);
+        shader.bindTexture(2, "texture_spec", self.texture_floor_spec.gl_texture_id);
 
         // angle floor
         // const _model = Mat4.from_axis_angle(vec3(0.0, 1.0, 0.0), math.degreesToRadians(45.0));

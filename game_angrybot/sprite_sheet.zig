@@ -20,7 +20,7 @@ pub const SpriteSheet = struct {
     const Self = @This();
 
     pub fn deinit(self: *const Self) void {
-        self.texture.deinit();
+        self.texture.deleteGlTexture();
     }
 
     pub fn init(texture: *Texture, num_columns: i32, time_per_sprite: f32) Self {

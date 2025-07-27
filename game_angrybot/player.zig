@@ -17,7 +17,7 @@ const Mat4 = math.Mat4;
 const State = world.State;
 const Model = core.Model;
 const GltfAsset = core.asset_loader.GltfAsset;
-const TextureConfig = core.asset_loader.TextureConfig;
+const TextureConfig = core.texture.TextureConfig;
 const Shader = core.Shader;
 const animation = core.animation;
 const Animator = core.Animator;
@@ -206,6 +206,14 @@ pub const Player = struct {
         const weight_animations = self.updateAnimationWeights(self.direction, aim_theta, state.frame_time);
         // Use the new glTF animation blending system
         try self.model.playWeightAnimations(&weight_animations, state.frame_time);
+    }
+
+    pub fn getMuzzlePosition(self: *Self, player_transform: *const Mat4) Mat4 {
+        _ = self; // Suppress unused parameter warning
+        // Simple muzzle offset - adjust these values as needed for gun positioning
+        const muzzle_offset = vec3(0.0, 0.8, 1.2); // Forward and up from player center
+        const muzzle_translation = Mat4.fromTranslation(&muzzle_offset);
+        return player_transform.mulMat4(&muzzle_translation);
     }
 
     fn updateAnimationWeights(self: *Self, move_vec: Vec2, aim_theta: f32, frame_time: f32) [6]WeightedAnimation {

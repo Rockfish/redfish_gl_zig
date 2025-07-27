@@ -1,4 +1,3 @@
-
 pub const Capsule = struct {
     height: f32,
     radius: f32,

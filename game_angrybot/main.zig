@@ -33,15 +33,11 @@ const Floor = @import("floor.zig").Floor;
 const fb = @import("framebuffers.zig");
 const quads = @import("quads.zig");
 
-const Assimp = core.assimp.Assimp;
 const Model = core.Model;
-const ModelBuilder = core.ModelBuilder;
 const Camera = core.Camera;
 const Shader = core.Shader;
-const String = core.string.String;
-const FrameCount = core.FrameCount;
 const Texture = core.texture.Texture;
-const TextureType = core.texture.TextureType;
+const TextureConfig = core.texture.TextureConfig;
 const Animator = core.animation.Animator;
 const AnimationClip = core.animation.AnimationClip;
 const AnimationRepeat = core.animation.AnimationRepeat;
@@ -75,7 +71,6 @@ pub fn main() !void {
     defer _ = gpa.deinit();
 
     const allocator = gpa.allocator();
-    core.string.init(allocator);
 
     // var arena_state = std.heap.ArenaAllocator.init(allocator);
     // defer arena_state.deinit();
@@ -159,8 +154,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     log.info("game_angrybot/shaders loaded", .{});
     // --- Lighting ---
 
-    const light_dir = vec3(-0.8, 0.0, -1.0).normalizeTo();
-    const player_light_dir = vec3(-1.0, -1.0, -1.0).normalizeTo();
+    const light_dir = vec3(-0.8, 0.0, -1.0).toNormalized();
+    const player_light_dir = vec3(-1.0, -1.0, -1.0).toNormalized();
     const muzzle_point_light_color = vec3(1.0, 0.2, 0.0);
 
     const light_color = vec3(NON_BLUE * 0.406, NON_BLUE * 0.723, 1.0).mulScalar(LIGHT_FACTOR * 1.0);
@@ -208,11 +203,11 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         },
     );
 
-    game_camera.setFromWorldUpYawPitch(
-        vec3(0.0, 1.0, 0.0),
-        -90.0,
-        -20.0,
-    );
+    // game_camera.setFromWorldUpYawPitch(
+    //     vec3(0.0, 1.0, 0.0),
+    //     -90.0,
+    //     -20.0,
+    // );
 
     const floating_camera = try Camera.init(
         allocator,
@@ -224,11 +219,11 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         },
     );
 
-    floating_camera.setFromWorldUpYawPitch(
-        vec3(0.0, 1.0, 0.0),
-        -90.0,
-        -20.0,
-    );
+    // floating_camera.setFromWorldUpYawPitch(
+    //     vec3(0.0, 1.0, 0.0),
+    //     -90.0,
+    //     -20.0,
+    // );
 
     const ortho_camera = try Camera.init(
         allocator,
@@ -240,11 +235,11 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         },
     );
 
-    ortho_camera.setFromWorldUpYawPitch(
-        vec3(0.0, 1.0, 0.0),
-        0.0,
-        -90.0,
-    );
+    // ortho_camera.setFromWorldUpYawPitch(
+    //     vec3(0.0, 1.0, 0.0),
+    //     0.0,
+    //     -90.0,
+    // );
 
     defer game_camera.deinit();
     defer floating_camera.deinit();
@@ -252,12 +247,15 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
     const ortho_width = VIEW_PORT_WIDTH / 130.0;
     const ortho_height = VIEW_PORT_HEIGHT / 130.0;
-    const aspect_ratio = VIEW_PORT_WIDTH / VIEW_PORT_HEIGHT;
+    // const aspect_ratio = VIEW_PORT_WIDTH / VIEW_PORT_HEIGHT;
 
-    const game_projection = Mat4.perspectiveRhGl(math.degreesToRadians(game_camera.zoom), aspect_ratio, 0.1, 100.0);
-    const floating_projection = Mat4.perspectiveRhGl(math.degreesToRadians(floating_camera.zoom), aspect_ratio, 0.1, 100.0);
-
+    // const game_projection = Mat4.perspectiveRhGl(math.degreesToRadians(game_camera.zoom), aspect_ratio, 0.1, 100.0);
+    // const floating_projection = Mat4.perspectiveRhGl(math.degreesToRadians(floating_camera.zoom), aspect_ratio, 0.1, 100.0);
     const orthographic_projection = Mat4.orthographicRhGl(-ortho_width, ortho_width, -ortho_height, ortho_height, 0.1, 100.0);
+
+    const game_projection = game_camera.getProjectionMatrixWithType(.Perspective);
+    const floating_projection = floating_camera.getProjectionMatrixWithType(.Perspective);
+    // const orthographic_projection = ortho_camera.getProjectionMatrixWithType(.Orthographic);
 
     log.info("camers loaded", .{});
 
@@ -405,11 +403,11 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             // );
         }
 
-        state.game_camera.position = player.position.add(&camera_follow_vec);
+        state.game_camera.movement.position = player.position.add(&camera_follow_vec);
         const game_view = Mat4.lookAtRhGl(
-            &state.game_camera.position,
+            &state.game_camera.movement.position,
             &player.position,
-            &state.game_camera.up,
+            &state.game_camera.movement.up,
         );
 
         var pv: PV = undefined;
@@ -419,9 +417,9 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             },
             CameraType.Floating => {
                 const view = Mat4.lookAtRhGl(
-                    &state.floating_camera.position,
+                    &state.floating_camera.movement.position,
                     &player.position,
-                    &state.floating_camera.up,
+                    &state.floating_camera.movement.up,
                 );
                 pv = .{ .projection = state.floating_projection, .view = view };
             },
@@ -459,7 +457,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         var dx: f32 = 0.0;
         var dz: f32 = 0.0;
 
-        // buffer_ready = false;
+        buffer_ready = false;
         if (player.is_alive and buffer_ready) {
             const world_ray = math.getWorldRayFromMouse(
                 state.scaled_width,
@@ -474,7 +472,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             const xz_plane_normal = vec3(0.0, 1.0, 0.0);
 
             const world_point = math.getRayPlaneIntersection(
-                &state.game_camera.position,
+                &state.game_camera.movement.position,
                 &world_ray,
                 &xz_plane_point,
                 &xz_plane_normal,
@@ -577,14 +575,14 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         player_shader.setMat4("projectionView", &projection_view);
         player_shader.setMat4("model", &player_transform);
         player_shader.setMat4("aimRot", &aim_rot);
-        player_shader.setVec3("viewPos", &state.game_camera.position);
+        player_shader.setVec3("viewPos", &state.game_camera.movement.position);
         player_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
         player_shader.setBool("usePointLight", use_point_light);
         player_shader.setVec3("pointLight.color", &muzzle_point_light_color);
         player_shader.setVec3("pointLight.worldPos", &muzzle_world_position);
 
         floor_shader.useShader();
-        floor_shader.setVec3("viewPos", &state.game_camera.position);
+        floor_shader.setVec3("viewPos", &state.game_camera.movement.position);
         floor_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
         floor_shader.setBool("usePointLight", use_point_light);
         floor_shader.setVec3("pointLight.color", &muzzle_point_light_color);
@@ -826,10 +824,10 @@ fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: glfw.A
     }
     if (mods.shift) {
         switch (key) {
-            .w => state.game_camera.processMovement(.Forward, state.delta_time),
-            .s => state.game_camera.processMovement(.Backward, state.delta_time),
-            .a => state.game_camera.processMovement(.Left, state.delta_time),
-            .d => state.game_camera.processMovement(.Right, state.delta_time),
+            .w => state.game_camera.movement.processMovement(.Forward, state.delta_time),
+            .s => state.game_camera.movement.processMovement(.Backward, state.delta_time),
+            .a => state.game_camera.movement.processMovement(.Left, state.delta_time),
+            .d => state.game_camera.movement.processMovement(.Right, state.delta_time),
             else => {},
         }
     } else {
@@ -872,8 +870,8 @@ fn setViewPort(w: i32, h: i32) void {
     const ortho_height = (state.viewport_height / 500);
     const aspect_ratio = (state.viewport_width / state.viewport_height);
 
-    state.game_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.game_camera.zoom), aspect_ratio, 0.1, 100.0);
-    state.floating_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.floating_camera.zoom), aspect_ratio, 0.1, 100.0);
+    state.game_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.game_camera.fov), aspect_ratio, 0.1, 100.0);
+    state.floating_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.floating_camera.fov), aspect_ratio, 0.1, 100.0);
     state.orthographic_projection = Mat4.orthographicRhGl(-ortho_width, ortho_width, -ortho_height, ortho_height, 0.1, 100.0);
 }
 
@@ -902,7 +900,7 @@ fn mouseHander(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Acti
 fn scrollHandler(window: *Window, xoffset: f64, yoffset: f64) callconv(.C) void {
     _ = window;
     _ = xoffset;
-    state.game_camera.processMouseScroll(@floatCast(yoffset));
+    state.game_camera.adjustFov(@floatCast(yoffset));
 }
 
 fn handleKeyPress(action: glfw.Action, key: glfw.Key) void {
@@ -928,7 +926,7 @@ fn handleKeyPress(action: glfw.Action, key: glfw.Key) void {
         }
 
         if (direction_vec.lengthSquared() > 0.01) {
-            state.player.position.addTo(&direction_vec.normalize().mulScalar(player_speed * state.delta_time));
+            state.player.position.addTo(&direction_vec.toNormalized().mulScalar(player_speed * state.delta_time));
         }
         state.player.direction = vec2(direction_vec.x, direction_vec.z);
 

@@ -31,9 +31,9 @@ const Mat4 = math.Mat4;
 const Quat = math.Quat;
 
 const Texture = core.texture.Texture;
-const TextureConfig = core.asset_loader.TextureConfig;
-const TextureWrap = core.asset_loader.TextureWrap;
-const TextureFilter = core.asset_loader.TextureFilter;
+const TextureConfig = core.texture.TextureConfig;
+const TextureWrap = core.texture.TextureWrap;
+const TextureFilter = core.texture.TextureFilter;
 const Animator = Animation.Animator;
 const AnimationClip = Animation.AnimationClip;
 const AnimationRepeat = Animation.AnimationRepeat;
@@ -139,7 +139,7 @@ pub const BulletStore = struct {
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
-        self.bullet_texture.deinit();
+        self.bullet_texture.deleteGlTexture();
         self.all_bullet_positions.deinit();
         self.all_bullet_rotations.deinit();
         self.all_bullet_directions.deinit();
@@ -158,11 +158,11 @@ pub const BulletStore = struct {
             .wrap = .Repeat,
         };
 
-        // Use modern GltfAsset-compatible texture loading
-        const arena = std.heap.ArenaAllocator.init(allocator);
-        const bullet_texture = try Texture.initFromFile(&arena, "assets/bullet/bullet_texture_transparent.png", texture_config);
+        // Use GltfAsset-compatible texture loading
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        const bullet_texture = try Texture.initFromFile(&arena, "angrybots_assets/Textures/Bullet/bullet_texture_transparent.png", texture_config);
 
-        const texture_impact_sprite_sheet = try Texture.initFromFile(&arena, "assets/bullet/impact_spritesheet_with_00.png", texture_config);
+        const texture_impact_sprite_sheet = try Texture.initFromFile(&arena, "angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png", texture_config);
         const bullet_impact_spritesheet = SpriteSheet.init(texture_impact_sprite_sheet, 11, 0.05);
 
         // Pre calculate the bullet spread rotations. Only needs to be done once.
@@ -220,16 +220,16 @@ pub const BulletStore = struct {
 
         const muzzle_world_position = muzzle_transform.mulVec4(&vec4(0.0, 0.0, 0.0, 1.0));
         const projectile_spawn_point = muzzle_world_position.xyz();
-        const mid_direction = vec3(dx, 0.0, dz).normalize();
-        const normalized_direction = mid_direction.normalize();
+        const mid_direction = vec3(dx, 0.0, dz).toNormalized();
+        const normalized_direction = mid_direction;
         const rot_vec = vec3(0.0, 1.0, 0.0); // rotate around y
 
-        const x = vec3(CANONICAL_DIR.x, 0.0, CANONICAL_DIR.z).normalize();
-        const y = vec3(normalized_direction.x, 0.0, normalized_direction.z).normalize();
+        const x = vec3(CANONICAL_DIR.x, 0.0, CANONICAL_DIR.z).toNormalized();
+        const y = vec3(normalized_direction.x, 0.0, normalized_direction.z).toNormalized();
 
         // direction angle with respect to the canonical direction
         const theta = geom.orientedAngle(&x, &y, &rot_vec) * -1.0;
-        var mid_dir_quat = Quat.new(1.0, 0.0, 0.0, 0.0);
+        var mid_dir_quat = Quat.init(0.0, 0.0, 0.0, 1.0);
         mid_dir_quat = mid_dir_quat.mulQuat(&Quat.fromAxisAngle(&rot_vec, math.degreesToRadians(theta)));
 
         const start_index = self.all_bullet_positions.items.len;
@@ -514,8 +514,8 @@ pub const BulletStore = struct {
         shader.setMat4("PV", projection_view);
         shader.setBool("useLight", false);
 
-        shader.bindTexture(0, "texture_diffuse", self.bullet_texture);
-        shader.bindTexture(1, "texture_normal", self.bullet_texture);
+        shader.bindTexture(0, "texture_diffuse", self.bullet_texture.gl_texture_id);
+        shader.bindTexture(1, "texture_normal", self.bullet_texture.gl_texture_id);
 
         // bind bullet vertices and indices
         gl.bindVertexArray(self.bullet_vao);
@@ -559,7 +559,7 @@ pub const BulletStore = struct {
         sprite_shader.setInt("numCols", @intFromFloat(self.bullet_impact_spritesheet.num_columns));
         sprite_shader.setFloat("timePerSprite", self.bullet_impact_spritesheet.time_per_sprite);
 
-        sprite_shader.bindTexture(0, "spritesheet", self.bullet_impact_spritesheet.texture);
+        sprite_shader.bindTexture(0, "spritesheet", self.bullet_impact_spritesheet.texture.gl_texture_id);
 
         gl.enable(gl.BLEND);
         gl.depthMask(gl.FALSE);

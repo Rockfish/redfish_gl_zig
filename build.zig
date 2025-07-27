@@ -94,7 +94,7 @@ pub fn build(b: *std.Build) void {
         // .{ .name = "scene_tree", .exe_name = "scene_tree_example", .source = "examples/scene_tree/main.zig" },
         // .{ .name = "game_level_001", .exe_name = "game_level_001", .source = "game_level_001/main.zig" },
         .{ .name = "demo_app", .exe_name = "demo_app", .source = "examples/demo_app/main.zig" },
-        .{ .name = "game_angrybot", .exe_name = "angry_monsters", .source = "game_angrybot/main.zig" },
+        .{ .name = "game_angrybot", .exe_name = "game_angrybot", .source = "game_angrybot/main.zig" },
         .{ .name = "converter", .exe_name = "fbx_gltf_converter", .source = "converter/main.zig" },
         // .{ .name = "chat_gltf", .exe_name = "chat_gltf", .source = "examples/chat_gltf/main.zig" },
     }) |app| {

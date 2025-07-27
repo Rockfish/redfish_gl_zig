@@ -17,7 +17,7 @@ const Mat4 = math.Mat4;
 const State = world.State;
 const Model = core.Model;
 const GltfAsset = core.asset_loader.GltfAsset;
-const TextureConfig = core.asset_loader.TextureConfig;
+const TextureConfig = core.texture.TextureConfig;
 const Shader = core.Shader;
 const Random = core.Random;
 
@@ -114,7 +114,7 @@ pub const EnemySystem = struct {
             const enemy = &state.enemies.items[i].?;
             var dir = state.player.position.sub(&enemy.position);
             dir.y = 0.0;
-            enemy.dir = dir.normalize();
+            enemy.dir = dir.toNormalized();
             enemy.position = enemy.position.add(&enemy.dir.mulScalar(state.delta_time * world.MONSTER_SPEED));
 
             if (state.player.is_alive) {
@@ -125,7 +125,7 @@ pub const EnemySystem = struct {
                 if (dist <= (world.PLAYER_COLLISION_RADIUS + world.ENEMY_COLLIDER.radius)) {
                     // println!("GOTTEM!");
                     state.player.is_alive = false;
-                    state.player.setPlayerDeathTime(state.frame_time);
+                    state.player.die(state.frame_time);
                     state.player.direction = vec2(0.0, 0.0);
                 }
             }

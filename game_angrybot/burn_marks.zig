@@ -33,16 +33,22 @@ pub const BurnMarks = struct {
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
-        self.mark_texture.deinit();
+        self.mark_texture.deleteGlTexture();
         self.marks.deinit();
         self.allocator.destroy(self);
     }
 
     pub fn init(allocator: Allocator, unit_square_vao: c_uint) !*Self {
-        var texture_config = TextureConfig.default();
-        texture_config.set_wrap(TextureWrap.Repeat);
+        const texture_config = TextureConfig{
+            .filter = .Linear,
+            .wrap = .Repeat,
+            .flip_v = false,
+            .gamma_correction = false,
+        };
 
-        const mark_texture = try Texture.init(allocator, "assets/bullet/burn_mark.png", texture_config);
+        // Use modern texture loading pattern with ArenaAllocator
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        const mark_texture = try Texture.initFromFile(&arena, "angrybots_assets/Textures/Bullet/burn_mark.png", texture_config);
 
         const burn_marks = try allocator.create(BurnMarks);
         burn_marks.* = .{
@@ -70,8 +76,8 @@ pub const BurnMarks = struct {
         shader.useShader();
         shader.setMat4("PV", projection_view);
 
-        shader.bindTexture(0, "texture_diffuse", self.mark_texture);
-        shader.bindTexture(1, "texture_normal", self.mark_texture);
+        shader.bindTexture(0, "texture_diffuse", self.mark_texture.gl_texture_id);
+        shader.bindTexture(1, "texture_normal", self.mark_texture.gl_texture_id);
 
         gl.enable(gl.BLEND);
         gl.depthMask(gl.FALSE);
