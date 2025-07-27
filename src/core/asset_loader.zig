@@ -25,30 +25,14 @@ const Path = std.fs.path;
 
 const GLTF = gltf_types.GLTF;
 
-// Custom texture configuration
-pub const TextureConfig = struct {
-    filter: TextureFilter = .Linear,
-    wrap: TextureWrap = .Clamp,
-    flip_v: bool = true,
-    gamma_correction: bool = false,
-};
 
-pub const TextureFilter = enum {
-    Linear,
-    Nearest,
-};
-
-pub const TextureWrap = enum {
-    Clamp,
-    Repeat,
-};
 
 // Custom texture assignment for meshes without material definitions
 const CustomTexture = struct {
     mesh_name: []const u8,
     uniform_name: [:0]const u8,
     texture_path: []const u8,
-    config: TextureConfig,
+    config: texture.TextureConfig,
     texture: ?*texture.Texture = null, // Loaded texture cache
 };
 
@@ -159,7 +143,7 @@ pub const GltfAsset = struct {
     }
 
     // Add custom texture assignment for models without material definitions
-    pub fn addTexture(self: *Self, mesh_name: []const u8, uniform_name: []const u8, texture_path: []const u8, config: TextureConfig) !void {
+    pub fn addTexture(self: *Self, mesh_name: []const u8, uniform_name: []const u8, texture_path: []const u8, config: texture.TextureConfig) !void {
         const allocator = self.arena.allocator();
 
         const custom_texture = CustomTexture{
@@ -200,7 +184,7 @@ pub const GltfAsset = struct {
     }
 
     // Load custom texture from file with configuration
-    fn loadCustomTextureFromFile(self: *Self, texture_path: []const u8, config: TextureConfig) !*texture.Texture {
+    fn loadCustomTextureFromFile(self: *Self, texture_path: []const u8, config: texture.TextureConfig) !*texture.Texture {
         const allocator = self.arena.allocator();
 
         // Create full path
@@ -675,7 +659,7 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
     // Normalize all accumulated normals
     for (normals) |*normal| {
         if (normal.length() > 0.0) {
-            normal.* = normal.normalizeTo();
+            normal.* = normal.toNormalized();
         } else {
             // Fallback to upward normal if no accumulated normal
             normal.* = Vec3{ .x = 0.0, .y = 1.0, .z = 0.0 };

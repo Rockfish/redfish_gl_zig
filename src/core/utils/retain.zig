@@ -28,7 +28,7 @@ pub fn retain(comptime TA: type, comptime TS: type, list: *std.ArrayList(?TA), f
                 list.items[f] = list.items[i];
                 list.items[i] = null;
 
-                if (delete != null and @typeInfo(TA) == .Pointer) {
+                if (delete != null and @typeInfo(TA) == .pointer) {
                     delete.?.deinit();
                 }
                 f += 1;
@@ -42,7 +42,7 @@ pub fn retain(comptime TA: type, comptime TS: type, list: *std.ArrayList(?TA), f
                 list.items[f] = list.items[i];
                 list.items[i] = null;
 
-                if (delete != null and @typeInfo(TA) == .Pointer) {
+                if (delete != null and @typeInfo(TA) == .pointer) {
                     delete.?.deinit();
                 }
                 f += 1;
@@ -57,7 +57,7 @@ pub fn retain(comptime TA: type, comptime TS: type, list: *std.ArrayList(?TA), f
     // delete remainder
     if (count < length) {
         for (list.items[count..length]) |d| {
-            if (d != null and @typeInfo(TA) == .Pointer) {
+            if (d != null and @typeInfo(TA) == .pointer) {
                 d.?.deinit();
             }
         }

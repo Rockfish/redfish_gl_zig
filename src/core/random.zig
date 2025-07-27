@@ -8,7 +8,7 @@ pub const Random = struct {
     pub fn init() Self {
         // rand.rng = std.rand.Random.init( &rand.xoroshiro, std.rand.Xoroshiro128.fill);
         return  Self {
-            .prng = std.rand.DefaultPrng.init(42),
+            .prng = std.Random.DefaultPrng.init(42),
         };
     }
 

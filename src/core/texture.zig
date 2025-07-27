@@ -10,6 +10,23 @@ const GltfAsset = @import("asset_loader.zig").GltfAsset;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 
+pub const TextureConfig = struct {
+    filter: TextureFilter = .Linear,
+    wrap: TextureWrap = .Clamp,
+    flip_v: bool = true,
+    gamma_correction: bool = false,
+};
+
+pub const TextureFilter = enum {
+    Linear,
+    Nearest,
+};
+
+pub const TextureWrap = enum {
+    Clamp,
+    Repeat,
+};
+
 pub const Texture = struct {
     gltf_texture_id: usize,
     gl_texture_id: u32,
@@ -71,7 +88,7 @@ pub const Texture = struct {
     pub fn initFromFile(
         arena: *ArenaAllocator,
         file_path: []const u8,
-        config: @import("asset_loader.zig").TextureConfig,
+        config: TextureConfig,
     ) !*Texture {
         const allocator = arena.allocator();
 

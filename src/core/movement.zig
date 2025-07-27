@@ -51,7 +51,7 @@ pub const Movement = struct {
     const Self = @This();
 
     pub fn init(position: Vec3, target: Vec3) Movement {
-        const forward = target.sub(&position).normalizeTo();
+        const forward = target.sub(&position).toNormalized();
         const right = forward.crossNormalized(&world_up);
         const up = right.crossNormalized(&forward);
         return Movement{
@@ -66,7 +66,7 @@ pub const Movement = struct {
     pub fn reset(self: *Self, position: Vec3, target: Vec3) void {
         self.position = position;
         self.target = target;
-        self.forward = target.sub(&position).normalizeTo();
+        self.forward = target.sub(&position).toNormalized();
         self.right = self.forward.crossNormalized(&self.world_up);
         self.up = self.right.crossNormalized(&self.forward);
         self.frame_count = 0;
@@ -77,7 +77,7 @@ pub const Movement = struct {
     }
 
     pub fn updateForward(self: *Self) void {
-        self.forward = self.target.sub(&self.position).normalizeTo();
+        self.forward = self.target.sub(&self.position).toNormalized();
     }
 
     pub fn getPosition(self: *const Self) Vec3 {
@@ -213,12 +213,12 @@ pub const Movement = struct {
                 self.right = rot.rotateVec(&self.right);
             },
             .RadiusIn => {
-                const dir = self.target.sub(&self.position).normalizeTo();
+                const dir = self.target.sub(&self.position).toNormalized();
                 self.position = self.position.add(&dir.mulScalar(translation_velocity));
                 self.updateForward();
             },
             .RadiusOut => {
-                const dir = self.target.sub(&self.position).normalizeTo();
+                const dir = self.target.sub(&self.position).toNormalized();
                 self.position = self.position.sub(&dir.mulScalar(translation_velocity));
                 self.updateForward();
             },
@@ -348,7 +348,7 @@ test "orbit right left motion" {
             const current_radius = movement.position.sub(&target).length();
             try std.testing.expectApproxEqAbs(current_radius, radius, epsilon);
             const translated_position = movement.position.sub(&target);
-            const translated_position_norm = translated_position.normalizeTo();
+            const translated_position_norm = translated_position.toNormalized();
             const dot_with_up = translated_position_norm.dot(&movement.up);
             try std.testing.expectApproxEqAbs(dot_with_up, 0.0, epsilon);
         }

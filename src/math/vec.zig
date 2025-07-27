@@ -126,7 +126,7 @@ pub const Vec3 = extern struct {
         v.z = v.z / magnitude;
     }
 
-    pub fn normalizeTo(v: *const Vec3) Vec3 {
+    pub fn toNormalized(v: *const Vec3) Vec3 {
         var result: Vec3 = .{ .x = 0.0, .y = 0.0, .z = 0.0 };
 
         const length_squared = v.lengthSquared();
@@ -326,7 +326,7 @@ pub const Vec4 = extern struct {
         v.w = v.w / magnitude;
     }
 
-    pub fn normalizeTo(v: *const Vec4) Vec4 {
+    pub fn toNormalized(v: *const Vec4) Vec4 {
         var result = Vec4{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 };
 
         const length_squared = v.lengthSquared();
@@ -447,9 +447,9 @@ test "Vec4 normalization" {
     try std.testing.expectApproxEqAbs(vec.x, 0.6, 0.001);
     try std.testing.expectApproxEqAbs(vec.y, 0.8, 0.001);
 
-    // Test normalizeTo (non-mutating)
+    // Test toNormalized (non-mutating)
     const original = Vec4.init(1.0, 2.0, 2.0, 0.0);
-    const normalized = Vec4.normalizeTo(&original);
+    const normalized = Vec4.toNormalized(&original);
     const original_length = original.length();
     const normalized_length = normalized.length();
 
@@ -459,6 +459,6 @@ test "Vec4 normalization" {
     // Test zero vector handling
     var zero_vec = Vec4.init(0.0, 0.0, 0.0, 0.0);
     Vec4.normalize(&zero_vec); // Should not crash
-    const zero_normalized = Vec4.normalizeTo(&zero_vec);
+    const zero_normalized = Vec4.toNormalized(&zero_vec);
     try std.testing.expectApproxEqAbs(zero_normalized.length(), 0.0, 0.001);
 }

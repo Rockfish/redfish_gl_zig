@@ -46,7 +46,7 @@ pub const Quat = extern struct {
 
     pub fn fromAxisAngle(axis: *const Vec3, angle: f32) Quat {
         // glam_assert!(axis.is_normalized());
-        const normalized_axis = axis.normalizeTo();
+        const normalized_axis = axis.toNormalized();
         const s = std.math.sin(angle * 0.5);
         const c = std.math.cos(angle * 0.5);
         const v = normalized_axis.mulScalar(s);
@@ -77,7 +77,7 @@ pub const Quat = extern struct {
         self.data[3] *= inv_length;
     }
 
-    pub fn normalizeTo(q: *const Quat) Quat {
+    pub fn toNormalized(q: *const Quat) Quat {
         const length_squared = q.data[0] * q.data[0] + q.data[1] * q.data[1] + q.data[2] * q.data[2] + q.data[3] * q.data[3];
 
         if (length_squared == 0.0) {
@@ -179,7 +179,7 @@ pub const Quat = extern struct {
                 self.data[2] + clamped_t * (q2.data[2] - self.data[2]),
                 self.data[3] + clamped_t * (q2.data[3] - self.data[3]),
             } };
-            return lerp_result.normalizeTo();
+            return lerp_result.toNormalized();
         }
 
         // Spherical interpolation
@@ -201,7 +201,7 @@ pub const Quat = extern struct {
 
     pub fn toAxes(rotation: *const Quat) [3]Vec4 {
         // glam_assert!(rotation.is_normalized());
-        const normalized_rotation = rotation.normalizeTo();
+        const normalized_rotation = rotation.toNormalized();
         const x = normalized_rotation.data[0];
         const y = normalized_rotation.data[1];
         const z = normalized_rotation.data[2];

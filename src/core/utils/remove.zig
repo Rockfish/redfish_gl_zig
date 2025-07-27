@@ -10,7 +10,7 @@ pub fn removeRange(comptime T: type, list: *std.ArrayList(T), start: usize, end:
     const count = end - start; // + 1;
 
     // Call deinit on each item in the range if T is a pointer type
-    if (@typeInfo(T) == .Pointer) {
+    if (@typeInfo(T) == .pointer) {
         for (start..end) |i| {
             list.items[i].deinit();
         }

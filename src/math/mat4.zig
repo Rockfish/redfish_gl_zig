@@ -231,7 +231,7 @@ pub const Mat4 = extern struct {
 
     pub fn fromAxisAngle(axis: *const Vec3, angleRadians: f32) Mat4 {
         // Rodrigues' rotation formula for creating rotation matrix from axis-angle
-        const normalized_axis = axis.normalizeTo();
+        const normalized_axis = axis.toNormalized();
         const x = normalized_axis.x;
         const y = normalized_axis.y;
         const z = normalized_axis.z;
@@ -385,7 +385,7 @@ pub const Mat4 = extern struct {
     pub fn lookAtRhGl(eye: *const Vec3, center: *const Vec3, up: *const Vec3) Self {
         // CGLM-compatible right-handed look-at implementation
         // Forward vector: center - eye (direction from eye TO center)
-        const f = center.sub(eye).normalizeTo();
+        const f = center.sub(eye).toNormalized();
 
         // Right vector: cross(forward, up) - note the order!
         const s = f.crossNormalized(up);
