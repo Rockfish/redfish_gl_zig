@@ -1,11 +1,12 @@
 const std = @import("std");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
-// const zstbi = @import("zstbi");
 const set = @import("ziglangSet");
 const core = @import("core");
 const math = @import("math");
 const world = @import("world.zig");
+
+const ArenaAllocator = std.heap.ArenaAllocator;
 
 const FloatMode = @import("std").builtin.FloatMode;
 const ArrayList = std.ArrayList;
@@ -71,10 +72,8 @@ pub fn main() !void {
     defer _ = gpa.deinit();
 
     const allocator = gpa.allocator();
-
-    // var arena_state = std.heap.ArenaAllocator.init(allocator);
-    // defer arena_state.deinit();
-    // const arena = arena_state.allocator();
+    // var arena = std.heap.ArenaAllocator.init(allocator);
+    // defer arena.deinit();
 
     try glfw.init();
     defer glfw.terminate();
@@ -101,11 +100,15 @@ pub fn main() !void {
     log.info("Exiting main", .{});
 }
 
-pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
+pub fn run(xallocator: std.mem.Allocator, window: *glfw.Window) !void {
     var buf: [512]u8 = undefined;
     const exe_dir = try std.fs.selfExeDirPath(&buf);
     // const cwd = try std.os.getFdPath(&buf);
     log.info("Running game. exe_dir = {s} ", .{exe_dir});
+
+    var arena = std.heap.ArenaAllocator.init(xallocator);
+    defer arena.deinit();
+    const alloc_arena = arena.allocator();
 
     var buffer: [1024]u8 = undefined;
     const root_path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
@@ -119,24 +122,23 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     _ = window.setMouseButtonCallback(mouseHander);
 
     // Shaders
+    const player_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/player_shader.vert", "game_angrybot/shaders/player_shader.frag");
 
-    const player_shader = try Shader.init(allocator, "game_angrybot/shaders/player_shader.vert", "game_angrybot/shaders/player_shader.frag");
-
-    const player_emissive_shader = try Shader.init(allocator, "game_angrybot/shaders/player_shader.vert", "game_angrybot/shaders/texture_emissive_shader.frag");
-    const wiggly_shader = try Shader.init(allocator, "game_angrybot/shaders/wiggly_shader.vert", "game_angrybot/shaders/player_shader.frag");
-    const floor_shader = try Shader.init(allocator, "game_angrybot/shaders/basic_texture_shader.vert", "game_angrybot/shaders/floor_shader.frag");
+    const player_emissive_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/player_shader.vert", "game_angrybot/shaders/texture_emissive_shader.frag");
+    const wiggly_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/wiggly_shader.vert", "game_angrybot/shaders/player_shader.frag");
+    const floor_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/basic_texture_shader.vert", "game_angrybot/shaders/floor_shader.frag");
 
     // bullets, muzzle flash, burn marks
-    const instanced_texture_shader = try Shader.init(allocator, "game_angrybot/shaders/instanced_texture_shader.vert", "game_angrybot/shaders/basic_texture_shader.frag");
-    const sprite_shader = try Shader.init(allocator, "game_angrybot/shaders/geom_shader2.vert", "game_angrybot/shaders/sprite_shader.frag");
-    const basic_texture_shader = try Shader.init(allocator, "game_angrybot/shaders/basic_texture_shader.vert", "game_angrybot/shaders/basic_texture_shader.frag");
+    const instanced_texture_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/instanced_texture_shader.vert", "game_angrybot/shaders/basic_texture_shader.frag");
+    const sprite_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/geom_shader2.vert", "game_angrybot/shaders/sprite_shader.frag");
+    const basic_texture_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/basic_texture_shader.vert", "game_angrybot/shaders/basic_texture_shader.frag");
 
     // blur and scene
-    const blur_shader = try Shader.init(allocator, "game_angrybot/shaders/basicer_shader.vert", "game_angrybot/shaders/blur_shader.frag");
-    const scene_draw_shader = try Shader.init(allocator, "game_angrybot/shaders/basicer_shader.vert", "game_angrybot/shaders/texture_merge_shader.frag");
+    const blur_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/basicer_shader.vert", "game_angrybot/shaders/blur_shader.frag");
+    const scene_draw_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/basicer_shader.vert", "game_angrybot/shaders/texture_merge_shader.frag");
 
     // for debug
-    const basicer_shader = try Shader.init(allocator, "game_angrybot/shaders/basicer_shader.vert", "game_angrybot/shaders/basicer_shader.frag");
+    const basicer_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/basicer_shader.vert", "game_angrybot/shaders/basicer_shader.frag");
     // const _depth_shader = try Shader.init(allocator, "game_angrybot/shaders/depth_shader.vert", "game_angrybot/shaders/depth_shader.frag");
     // const _debug_depth_shader = try Shader.init(allocator, "game_angrybot/shaders/debug_depth_quad.vert", "game_angrybot/shaders/debug_depth_quad.frag");
 
@@ -194,23 +196,18 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     // const _camera_up = vec3(0.0, 1.0, 0.0);
 
     const game_camera = try Camera.init(
-        allocator,
+        alloc_arena,
         .{
-            .position = vec3(0.0, 20.0, 80.0),
+            //.position = vec3(0.0, 20.0, 80.0),
+            .position = vec3(0.0, 10.0, 40.0),
             .target = vec3(0.0, 0.0, 0.0),
             .scr_width = VIEW_PORT_WIDTH,
             .scr_height = VIEW_PORT_HEIGHT,
         },
     );
 
-    // game_camera.setFromWorldUpYawPitch(
-    //     vec3(0.0, 1.0, 0.0),
-    //     -90.0,
-    //     -20.0,
-    // );
-
     const floating_camera = try Camera.init(
-        allocator,
+        alloc_arena,
         .{
             .position = vec3(0.0, 10.0, 20.0),
             .target = vec3(0.0, 0.0, 0.0),
@@ -219,14 +216,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         },
     );
 
-    // floating_camera.setFromWorldUpYawPitch(
-    //     vec3(0.0, 1.0, 0.0),
-    //     -90.0,
-    //     -20.0,
-    // );
-
     const ortho_camera = try Camera.init(
-        allocator,
+        alloc_arena,
         .{
             .position = vec3(0.0, 1.0, 0.0),
             .target = vec3(0.0, 0.0, 0.0),
@@ -234,12 +225,6 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             .scr_height = VIEW_PORT_HEIGHT,
         },
     );
-
-    // ortho_camera.setFromWorldUpYawPitch(
-    //     vec3(0.0, 1.0, 0.0),
-    //     0.0,
-    //     -90.0,
-    // );
 
     defer game_camera.deinit();
     defer floating_camera.deinit();
@@ -260,17 +245,24 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     log.info("camers loaded", .{});
 
     // Models and systems (modern glTF system doesn't need global texture cache)
-    var player = try Player.init(allocator);
+    var player = try Player.init(alloc_arena);
     log.info("player loaded", .{});
-    var enemy_system = try EnemySystem.init(allocator);
+
+    var enemy_system = try EnemySystem.init(alloc_arena);
     log.info("enemies loaded", .{});
-    var muzzle_flash = try MuzzleFlash.new(allocator, unit_square_quad);
+
+    var muzzle_flash = try MuzzleFlash.init(&arena, unit_square_quad);
     log.info("muzzle_flash loaded", .{});
-    var bullet_store = try BulletStore.init(allocator, unit_square_quad);
+
+    var bullet_store = try BulletStore.init(&arena, unit_square_quad);
     log.info("bullet_store loaded", .{});
-    var floor = try Floor.new(allocator);
-    log.info("floor loaded", .{});
-    var burn_marks = try BurnMarks.init(allocator, unit_square_quad);
+
+    var floor = try Floor.init(&arena);
+    // log.info("floor loaded", .{});
+
+    const burn_marks = try BurnMarks.init(&arena, unit_square_quad);
+
+    log.info("models loaded", .{});
 
     const key_presses = EnumSet(glfw.Key).initEmpty();
 
@@ -279,7 +271,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         .{ .clip = .GunFire, .file = "angrybots_assets/Audio/Player_SFX/player_shooting.wav" },
     };
 
-    log.info("models loaded", .{});
+    var sound_engine = try SoundEngine(world.ClipName, world.ClipData).init(alloc_arena, &clips);
+    defer sound_engine.deinit();
 
     // Initialize the world state
     state = State{
@@ -296,7 +289,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         .floating_projection = floating_projection,
         .orthographic_projection = orthographic_projection,
         .player = player,
-        .enemies = ArrayList(?Enemy).init(allocator),
+        .enemies = ArrayList(?Enemy).init(alloc_arena),
         .light_postion = vec3(1.2, 1.0, 2.0),
         .delta_time = 0.0,
         .frame_time = 0.0,
@@ -306,7 +299,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         .mouse_x = scaled_width / 2.0,
         .mouse_y = scaled_height / 2.0,
         .burn_marks = burn_marks,
-        .sound_engine = try SoundEngine(world.ClipName, world.ClipData).init(allocator, &clips),
+        .sound_engine = sound_engine,
         .key_presses = key_presses,
         .run = true,
     };
@@ -314,12 +307,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     // note: defer occurs in reverse order
     defer player.deinit();
     defer enemy_system.deinit();
-    defer muzzle_flash.deinit();
-    defer bullet_store.deinit();
-    defer floor.deinit();
-    defer burn_marks.deinit();
     defer state.enemies.deinit();
-    defer state.sound_engine.deinit();
 
     // Set fixed shader uniforms
 
@@ -457,7 +445,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         var dx: f32 = 0.0;
         var dz: f32 = 0.0;
 
-        buffer_ready = false;
+        // buffer_ready = false;
         if (player.is_alive and buffer_ready) {
             const world_ray = math.getWorldRayFromMouse(
                 state.scaled_width,
@@ -476,19 +464,21 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
                 &world_ray,
                 &xz_plane_point,
                 &xz_plane_normal,
-            ).?;
+            );
 
-            dx = world_point.x - player.position.x;
-            dz = world_point.z - player.position.z;
+            if (world_point) |point| {
+                dx = point.x - player.position.x;
+                dz = point.z - player.position.z;
 
-            aim_theta = math.atan(dx / dz);
+                aim_theta = math.atan(dx / dz);
 
-            if (dz < 0.0) {
-                aim_theta = aim_theta + math.pi;
-            }
+                if (dz < 0.0) {
+                    aim_theta = aim_theta + math.pi;
+                }
 
-            if (@abs(state.mouse_x) < 0.005 and @abs(state.mouse_y) < 0.005) {
-                aim_theta = 0.0;
+                if (@abs(state.mouse_x) < 0.005 and @abs(state.mouse_y) < 0.005) {
+                    aim_theta = 0.0;
+                }
             }
         }
 
@@ -718,7 +708,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         // log.info("rendering enemies", .{});
         enemy_system.drawEnemies(wiggly_shader, &state);
 
-        // log.info("rendering burn_marks", .{});
+        // log.debug("rendering burn_marks", .{});
         state.burn_marks.drawMarks(basic_texture_shader, &projection_view, state.delta_time);
 
         // log.info("rendering bullet_impacts", .{});

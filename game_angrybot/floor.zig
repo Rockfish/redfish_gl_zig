@@ -10,6 +10,7 @@ const vec2 = math.vec2;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 
+const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 const gl = zopengl.bindings;
 const Shader = core.Shader;
@@ -49,7 +50,7 @@ pub const Floor = struct {
         self.texture_floor_spec.deleteGlTexture();
     }
 
-    pub fn new(allocator: Allocator) !Self {
+    pub fn init(arena: *ArenaAllocator) !Self {
         const texture_config = TextureConfig{
             .flip_v = false,
             .gamma_correction = false,
@@ -57,20 +58,18 @@ pub const Floor = struct {
             .wrap = TextureWrap.Repeat,
         };
 
-        // Use modern texture loading pattern with ArenaAllocator
-        var arena = std.heap.ArenaAllocator.init(allocator);
         const texture_floor_diffuse = try Texture.initFromFile(
-            &arena,
+            arena,
             "angrybots_assets/Textures/Floor/Floor D.png",
             texture_config,
         );
         const texture_floor_normal = try Texture.initFromFile(
-            &arena,
+            arena,
             "angrybots_assets/Textures/Floor/Floor N.png",
             texture_config,
         );
         const texture_floor_spec = try Texture.initFromFile(
-            &arena,
+            arena,
             "angrybots_assets/Textures/Floor/Floor M.png",
             texture_config,
         );

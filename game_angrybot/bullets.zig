@@ -38,6 +38,7 @@ const Animator = Animation.Animator;
 const AnimationClip = Animation.AnimationClip;
 const AnimationRepeat = Animation.AnimationRepeat;
 
+const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 const log = std.log.scoped(.Bullets);
 
@@ -134,7 +135,6 @@ pub const BulletStore = struct {
     bullet_impact_spritesheet: SpriteSheet,
     bullet_impact_sprites: ArrayList(?SpriteSheetSprite),
     unit_square_vao: c_uint,
-    allocator: Allocator,
 
     const Self = @This();
 
@@ -150,7 +150,9 @@ pub const BulletStore = struct {
         self.bullet_impact_spritesheet.deinit();
     }
 
-    pub fn init(allocator: Allocator, unit_square_vao: c_uint) !Self {
+    pub fn init(arena: *ArenaAllocator, unit_square_vao: c_uint) !Self {
+        const allocator = arena.allocator();
+
         const texture_config = TextureConfig{
             .flip_v = false,
             .gamma_correction = false,
@@ -158,11 +160,9 @@ pub const BulletStore = struct {
             .wrap = .Repeat,
         };
 
-        // Use GltfAsset-compatible texture loading
-        var arena = std.heap.ArenaAllocator.init(allocator);
-        const bullet_texture = try Texture.initFromFile(&arena, "angrybots_assets/Textures/Bullet/bullet_texture_transparent.png", texture_config);
+        const bullet_texture = try Texture.initFromFile(arena, "angrybots_assets/Textures/Bullet/bullet_texture_transparent.png", texture_config);
+        const texture_impact_sprite_sheet = try Texture.initFromFile(arena, "angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png", texture_config);
 
-        const texture_impact_sprite_sheet = try Texture.initFromFile(&arena, "angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png", texture_config);
         const bullet_impact_spritesheet = SpriteSheet.init(texture_impact_sprite_sheet, 11, 0.05);
 
         // Pre calculate the bullet spread rotations. Only needs to be done once.
@@ -202,7 +202,6 @@ pub const BulletStore = struct {
             .bullet_texture = bullet_texture,
             .bullet_impact_spritesheet = bullet_impact_spritesheet,
             .unit_square_vao = unit_square_vao,
-            .allocator = allocator,
         };
 
         Self.createShaderBuffers(&bullet_store);

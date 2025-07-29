@@ -4,6 +4,7 @@ const math = @import("math");
 const gl = @import("zopengl").bindings;
 const SpriteSheet = @import("sprite_sheet.zig").SpriteSheet;
 
+const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
@@ -24,7 +25,6 @@ pub const MuzzleFlash = struct {
     unit_square_vao: c_uint,
     muzzle_flash_impact_sprite: SpriteSheet,
     muzzle_flash_sprites_age: ArrayList(?SpriteAge),
-    allocator: Allocator,
 
     const Self = @This();
 
@@ -33,26 +33,26 @@ pub const MuzzleFlash = struct {
         self.muzzle_flash_sprites_age.deinit();
     }
 
-    pub fn new(allocator: Allocator, unit_square_vao: c_uint) !Self {
+    pub fn init(arena: *ArenaAllocator, unit_square_vao: c_uint) !Self {
         const texture_config: TextureConfig = .{ .wrap = .Repeat };
 
-        var arena = std.heap.ArenaAllocator.init(allocator);
         const texture_muzzle_flash_sprite_sheet = try Texture.initFromFile(
-            &arena,
+            arena,
             "angrybots_assets/Textures/Bullet/muzzle_spritesheet.png",
             texture_config,
         );
+
         const muzzle_flash_impact_sprite = SpriteSheet.init(
             texture_muzzle_flash_sprite_sheet,
             6,
             0.03,
         );
 
+        const allocator = arena.allocator();
         return .{
             .unit_square_vao = unit_square_vao,
             .muzzle_flash_impact_sprite = muzzle_flash_impact_sprite,
             .muzzle_flash_sprites_age = ArrayList(?SpriteAge).init(allocator),
-            .allocator = allocator,
         };
     }
 

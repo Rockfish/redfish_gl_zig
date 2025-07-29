@@ -9,7 +9,7 @@ const gl = zopengl.bindings;
 
 const Model = core.Model;
 const GltfAsset = core.asset_loader.GltfAsset;
-const TextureConfig = core.asset_loader.TextureConfig;
+const TextureConfig = core.texture.TextureConfig;
 const animation = core.animation;
 const Camera = core.Camera;
 const Shader = core.Shader;
@@ -296,7 +296,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
     const ambientColor: Vec3 = vec3(NON_BLUE * 0.7, NON_BLUE * 0.7, 0.7);
 
     // Find the configuration for the selected model
-    const selected_config = blk: {
+    const model_config = blk: {
         for (model_configs) |config| {
             if (config.choice == SELECTED_MODEL) {
                 break :blk config;
@@ -305,8 +305,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
         @panic("No configuration found for selected model");
     };
 
-    const model_path = selected_config.path;
-    const model_name = selected_config.name;
+    const model_path = model_config.path;
+    const model_name = model_config.name;
 
     std.debug.print("Main: loading model: {s}\n", .{model_path});
 
@@ -315,17 +315,22 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
     try gltf_asset.load();
 
     // Apply model configuration
-    const model_transform = selected_config.transform;
+    const model_transform = model_config.transform;
 
     // Apply camera position if specified
-    if (selected_config.cameraPosition) |cam_pos| {
+    if (model_config.cameraPosition) |cam_pos| {
         state.camera.movement.reset(cam_pos.position, cam_pos.target);
     }
 
     std.debug.print("Main: adding custom textures\n", .{});
     // Apply textures from configuration
-    for (selected_config.addTextures) |texture_config_item| {
-        try gltf_asset.addTexture(texture_config_item.mesh_name, texture_config_item.uniform_name, texture_config_item.texture_path, texture_config_item.config);
+    for (model_config.addTextures) |texture_config_item| {
+        try gltf_asset.addTexture(
+            texture_config_item.mesh_name,
+            texture_config_item.uniform_name,
+            texture_config_item.texture_path,
+            texture_config_item.config,
+        );
     }
 
     std.debug.print("Main: building model: {s}\n", .{model_path});
@@ -335,37 +340,51 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
     if (DUMP_REPORT) {
         std.debug.print("Generating glTF report to: {s}\n", .{REPORT_PATH});
         const GltfReport = core.gltf_report.GltfReport;
-        try GltfReport.writeDetailedReportToFile(allocator, gltf_asset, REPORT_PATH, 5, 5);
+        try GltfReport.writeDetailedReportToFile(
+            allocator,
+            gltf_asset,
+            REPORT_PATH,
+            5,
+            5,
+        );
         std.debug.print("Report generated successfully\n", .{});
     }
 
     const bullet_model_path = "angrybots_assets/Models/Bullet/Bullet.gltf";
+
     var bullet_gltf_asset = try GltfAsset.init(allocator, "bullet", bullet_model_path);
     try bullet_gltf_asset.load();
+
     bullet_gltf_asset.skipModelTextures();
 
     // Add custom texture for bullet
-    try bullet_gltf_asset.addTexture("Plane001", "texture_diffuse", "Floor D.png", texture_config);
+    try bullet_gltf_asset.addTexture(
+        "Plane001",
+        "texture_diffuse",
+        "Floor D.png",
+        texture_config,
+    );
     var bullet_model = try bullet_gltf_asset.buildModel();
 
     defer {
         bullet_model.deinit();
-        // gltf_asset.cleanUp();
-        // bullet_gltf_asset.cleanUp();
     }
 
     std.debug.print("Main: configuring animation\n", .{});
 
     // Apply animation from configuration
-    if (selected_config.animationPlayAll) {
+    if (model_config.animationPlayAll) {
         std.debug.print("Model configured for multi-animation - playing all animations simultaneously\n", .{});
         try model.playAllAnimations();
-    } else if (selected_config.animationClip) |animation_clip| {
+    } else if (model_config.animationClip) |animation_clip| {
         std.debug.print("Playing single animation clip\n", .{});
         try model.animator.playClip(animation_clip);
     }
 
-    std.debug.print("animation state: active_animations={d}\n", .{model.animator.active_animations.items.len});
+    std.debug.print(
+        "animation state: active_animations={d}\n",
+        .{model.animator.active_animations.items.len},
+    );
 
     // --- event loop
     state.last_frame = @floatCast(glfw.getTime());
@@ -440,7 +459,13 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
     // Texture cleanup is handled by GltfAsset.cleanUp() in defer block
 }
 
-fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) callconv(.C) void {
+fn keyHandler(
+    window: *glfw.Window,
+    key: glfw.Key,
+    scancode: i32,
+    action: glfw.Action,
+    mods: glfw.Mods,
+) callconv(.C) void {
     _ = scancode;
     _ = mods;
     switch (key) {
@@ -473,7 +498,12 @@ fn framebufferSizeHandler(window: *glfw.Window, width: i32, height: i32) callcon
     gl.viewport(0, 0, width, height);
 }
 
-fn mouseHander(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.C) void {
+fn mouseHander(
+    window: *glfw.Window,
+    button: glfw.MouseButton,
+    action: glfw.Action,
+    mods: glfw.Mods,
+) callconv(.C) void {
     _ = window;
     _ = button;
     _ = action;

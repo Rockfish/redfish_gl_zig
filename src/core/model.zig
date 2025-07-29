@@ -63,13 +63,10 @@ pub const Model = struct {
 
         // Cleanup GL resources first
         for (self.meshes.items) |mesh| {
-            mesh.cleanUp();
+            mesh.deinit();
         }
 
-        var texture_iterator = self.gltf_asset.loaded_textures.valueIterator();
-        while (texture_iterator.next()) |tex| {
-            tex.*.deleteGlTexture();
-        }
+        self.gltf_asset.deinit();
 
         // Cleanup animator
         self.animator.deinit();

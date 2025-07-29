@@ -87,7 +87,7 @@ pub const Texture = struct {
     // Initialize from custom file path with configuration (for manual texture assignment)
     pub fn initFromFile(
         arena: *ArenaAllocator,
-        file_path: []const u8,
+        file_path: [:0]const u8,
         config: TextureConfig,
     ) !*Texture {
         const allocator = arena.allocator();
@@ -97,7 +97,7 @@ pub const Texture = struct {
 
         zstbi.setFlipVerticallyOnLoad(config.flip_v);
 
-        var image = zstbi.Image.loadFromFile(try allocator.dupeZ(u8, file_path), 0) catch |err| {
+        var image = zstbi.Image.loadFromFile(file_path, 0) catch |err| {
             std.debug.print("Custom texture loadFromFile error: {any}  filepath: {s}\n", .{ err, file_path });
             return err;
         };

@@ -35,7 +35,7 @@ pub const Mesh = struct {
 
     const Self = @This();
 
-    pub fn cleanUp(self: *Self) void {
+    pub fn deinit(self: *Self) void {
         for (self.primitives.items) |primitive| {
             primitive.deleteGlObjects();
         }

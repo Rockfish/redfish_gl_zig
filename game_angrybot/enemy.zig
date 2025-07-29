@@ -43,14 +43,11 @@ pub const EnemySystem = struct {
     enemy_model: *Model,
     gltf_asset: *GltfAsset, // Keep reference for cleanup
     random: Random,
-    allocator: Allocator,
 
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
         self.enemy_model.deinit();
-        self.gltf_asset.cleanUp();
-        self.allocator.destroy(self.gltf_asset);
     }
 
     pub fn init(allocator: Allocator) !Self {
@@ -71,6 +68,9 @@ pub const EnemySystem = struct {
 
         // Modern glTF texture assignment using string uniform names
         try gltf_asset.addTexture("Eeldog", "texture_diffuse", "Eeldog_Albedo.png", texture_config);
+        try gltf_asset.addTexture("Eeldog", "texture_emissive", "Eeldog_Albedo.png", texture_config);
+        // no normal in shader, so we can skip this
+        //try gltf_asset.addTexture("EelDog", "texture_normal", "Eeldog_Normal.png", texture_config);
 
         std.debug.print("EnemySystem: glTF asset loaded and configured\n", .{});
         const enemy_model = try gltf_asset.buildModel();
@@ -82,7 +82,6 @@ pub const EnemySystem = struct {
             .enemy_model = enemy_model,
             .gltf_asset = gltf_asset,
             .random = Random.init(),
-            .allocator = allocator,
         };
     }
 

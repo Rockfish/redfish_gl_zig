@@ -4,6 +4,7 @@ const math = @import("math");
 const gl = @import("zopengl").bindings;
 const world = @import("world.zig");
 
+const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
@@ -28,17 +29,17 @@ pub const BurnMarks = struct {
     unit_square_vao: c_uint,
     mark_texture: *Texture,
     marks: ArrayList(?BurnMark),
-    allocator: Allocator,
 
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
         self.mark_texture.deleteGlTexture();
         self.marks.deinit();
-        self.allocator.destroy(self);
     }
 
-    pub fn init(allocator: Allocator, unit_square_vao: c_uint) !*Self {
+    pub fn init(arena: *ArenaAllocator, unit_square_vao: c_uint) !*Self {
+        const allocator = arena.allocator();
+
         const texture_config = TextureConfig{
             .filter = .Linear,
             .wrap = .Repeat,
@@ -46,16 +47,14 @@ pub const BurnMarks = struct {
             .gamma_correction = false,
         };
 
-        // Use modern texture loading pattern with ArenaAllocator
-        var arena = std.heap.ArenaAllocator.init(allocator);
-        const mark_texture = try Texture.initFromFile(&arena, "angrybots_assets/Textures/Bullet/burn_mark.png", texture_config);
+        const mark_texture = try Texture.initFromFile(arena, "angrybots_assets/Textures/Bullet/burn_mark.png", texture_config);
 
         const burn_marks = try allocator.create(BurnMarks);
         burn_marks.* = .{
             .unit_square_vao = unit_square_vao,
             .mark_texture = mark_texture,
             .marks = ArrayList(?BurnMark).init(allocator),
-            .allocator = allocator,
+            // .allocator = allocator,
         };
         return burn_marks;
     }

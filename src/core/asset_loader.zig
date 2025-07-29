@@ -88,22 +88,24 @@ pub const GltfAsset = struct {
     const Self = @This();
 
     pub fn init(allocator: Allocator, name: []const u8, path: []const u8) !*Self {
+
+        // will be owned by the model
         const arena = try allocator.create(ArenaAllocator);
         arena.* = ArenaAllocator.init(allocator);
 
-        const alloc = arena.allocator();
-        const asset = try alloc.create(Self);
+        const local_alloc = arena.allocator();
 
+        const asset: *GltfAsset = try local_alloc.create(Self);
         asset.* = GltfAsset{
-            .arena = arena,
+            .arena = arena, // will be owned by the model
             .gltf = undefined, // Will be set during load
-            .buffer_data = ArrayList([]align(4) const u8).init(alloc),
-            .loaded_textures = std.AutoHashMap(u32, *texture.Texture).init(alloc),
-            .generated_normals = std.AutoHashMap(u64, []Vec3).init(alloc),
-            .custom_textures = ArrayList(CustomTexture).init(alloc),
-            .directory = try alloc.dupe(u8, Path.dirname(path) orelse ""),
-            .name = try alloc.dupe(u8, name),
-            .filepath = try alloc.dupeZ(u8, path),
+            .buffer_data = ArrayList([]align(4) const u8).init(local_alloc),
+            .loaded_textures = std.AutoHashMap(u32, *texture.Texture).init(local_alloc),
+            .generated_normals = std.AutoHashMap(u64, []Vec3).init(local_alloc),
+            .custom_textures = ArrayList(CustomTexture).init(local_alloc),
+            .directory = try local_alloc.dupe(u8, Path.dirname(path) orelse ""),
+            .name = try local_alloc.dupe(u8, name),
+            .filepath = try local_alloc.dupeZ(u8, path),
             .gamma_correction = false,
             .flip_v = false,
             .flip_h = false,
@@ -114,7 +116,7 @@ pub const GltfAsset = struct {
         return asset;
     }
 
-    pub fn cleanUp(self: *Self) void {
+    pub fn deinit(self: *Self) void {
         // Free loaded textures
         var texture_iterator = self.loaded_textures.valueIterator();
         while (texture_iterator.next()) |tex| {
@@ -188,7 +190,7 @@ pub const GltfAsset = struct {
         const allocator = self.arena.allocator();
 
         // Create full path
-        const full_path = try std.fs.path.join(allocator, &[_][]const u8{ self.directory, texture_path });
+        const full_path = try std.fs.path.joinZ(allocator, &[_][]const u8{ self.directory, texture_path });
         defer allocator.free(full_path);
 
         // Load texture manually (similar to ASSIMP system)

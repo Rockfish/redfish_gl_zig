@@ -95,7 +95,6 @@ pub const AnimationWeights = struct {
 pub const Player = struct {
     allocator: Allocator,
     model: *Model,
-    gltf_asset: *GltfAsset, // Keep reference for cleanup
     position: Vec3,
     direction: Vec2,
     speed: f32,
@@ -114,8 +113,6 @@ pub const Player = struct {
     pub fn deinit(self: *Self) void {
         self.model.deinit();
         self.anim_hash.deinit();
-        self.gltf_asset.cleanUp();
-        self.allocator.destroy(self.gltf_asset);
         self.allocator.destroy(self);
     }
 
@@ -163,7 +160,6 @@ pub const Player = struct {
         player.* = Player{
             .allocator = allocator,
             .model = model,
-            .gltf_asset = gltf_asset,
             .last_fire_time = 0.0,
             .is_trying_to_fire = false,
             .is_alive = true,
