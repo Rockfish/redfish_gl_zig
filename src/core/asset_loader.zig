@@ -25,8 +25,6 @@ const Path = std.fs.path;
 
 const GLTF = gltf_types.GLTF;
 
-
-
 // Custom texture assignment for meshes without material definitions
 const CustomTexture = struct {
     mesh_name: []const u8,
@@ -312,7 +310,7 @@ pub const GltfAsset = struct {
                         }
                     }
                 }
-                
+
                 // Fallback to first skin if no node with both mesh and skin found
                 if (skin_index == null) {
                     skin_index = 0;

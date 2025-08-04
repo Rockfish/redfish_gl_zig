@@ -2,12 +2,12 @@ const std = @import("std");
 
 pub const Random = struct {
     prng: std.Random.Xoshiro256,
-    
+
     const Self = @This();
 
     pub fn init() Self {
         // rand.rng = std.rand.Random.init( &rand.xoroshiro, std.rand.Xoroshiro128.fill);
-        return  Self {
+        return Self{
             .prng = std.Random.DefaultPrng.init(42),
         };
     }
@@ -54,7 +54,7 @@ test "random.float" {
 
     for (0..10) |i| {
         const r = random.randFloat();
-        std.debug.print("{d} : {d}\n", .{i, r});
+        std.debug.print("{d} : {d}\n", .{ i, r });
     }
 }
 
@@ -67,7 +67,7 @@ test "random.float2" {
 
     for (0..10) |i| {
         const r = rng.float(f32);
-        std.debug.print("{d} : {d}\n", .{i, r});
+        std.debug.print("{d} : {d}\n", .{ i, r });
     }
 }
 
@@ -76,6 +76,6 @@ test "random.prig" {
 
     for (0..10) |i| {
         const r = prng.random().float(f32);
-        std.debug.print("{d} : {d}\n", .{i, r});
+        std.debug.print("{d} : {d}\n", .{ i, r });
     }
 }

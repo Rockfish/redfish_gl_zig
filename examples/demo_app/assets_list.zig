@@ -157,7 +157,7 @@ pub const demo_models = [_]DemoModel{
         .description = "Player character model with animations converted from FBX",
     },
     .{
-        .path = "angrybots_assets/Models/Player/Spacesuit_converted.gltf",
+        .path = "angrybots_assets/Models/Spacesuit/Spacesuit_converted.gltf",
         .name = "Spacesuit (Converted)",
         .format = "glTF",
         .category = "Complex",

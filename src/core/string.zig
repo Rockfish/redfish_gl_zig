@@ -21,7 +21,7 @@ pub const String = struct {
 
     pub fn new(str: []const u8) !*String {
         const string = try _allocator.create(String);
-        string.* = String {
+        string.* = String{
             .str = try _allocator.dupe(u8, str),
         };
         return string;

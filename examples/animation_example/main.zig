@@ -396,6 +396,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
     _ = window.setScrollCallback(scrollHandler);
 
     const start_time = state.last_frame;
+
     while (!window.shouldClose()) {
         const currentFrame: f32 = @floatCast(glfw.getTime());
         state.delta_time = currentFrame - state.last_frame;
