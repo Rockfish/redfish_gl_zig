@@ -118,7 +118,7 @@ pub const Model = struct {
         if (scene.nodes) |nodes| {
             for (nodes) |node_index| {
                 const node = self.gltf_asset.gltf.nodes.?[node_index];
-                self.renderNodes(shader, node, node_index, Mat4.identity());
+                self.renderNodes(shader, node, node_index);
             }
         }
     }
@@ -127,30 +127,11 @@ pub const Model = struct {
         debugPrintModelNodeStructure(self);
     }
 
-    fn renderNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, node_index: usize, parent_transform: Mat4) void {
-        // Use animated transform if available, otherwise fall back to static transform
-        const transform = if (node_index < self.animator.node_transforms.len)
-            self.animator.node_transforms[node_index]
-        else
-            Transform{
-                .translation = node.translation orelse vec3(0.0, 0.0, 0.0),
-                .rotation = node.rotation orelse math.quat(0.0, 0.0, 0.0, 1.0),
-                .scale = node.scale orelse vec3(1.0, 1.0, 1.0),
-            };
-        const local_matrix = transform.toMatrix();
-        const global_matrix = parent_transform.mulMat4(&local_matrix);
-
-        // Debug output for node transforms (only print once per model load)
-        const debug_nodes = false; // Disabled for now
-        if (debug_nodes and node.mesh != null) {
-            // Extract translation from global matrix
-            const global_translation = vec3(global_matrix.data[0][3], global_matrix.data[1][3], global_matrix.data[2][3]);
-            std.debug.print("Node with mesh {}: local_trans=({d:.2}, {d:.2}, {d:.2}) -> global_trans=({d:.2}, {d:.2}, {d:.2})\n", .{ node.mesh.?, transform.translation.x, transform.translation.y, transform.translation.z, global_translation.x, global_translation.y, global_translation.z });
-        }
-
-        shader.setMat4("nodeTransform", &global_matrix);
-
+    fn renderNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, node_index: usize) void {
         if (node.mesh) |mesh_index| {
+            const transform = self.animator.node_transforms[node_index];
+            const local_matrix = transform.toMatrix();
+            shader.setMat4("nodeTransform", &local_matrix);
             const mesh = self.meshes.items[mesh_index];
             mesh.render(self.gltf_asset, shader);
         }
@@ -158,25 +139,9 @@ pub const Model = struct {
         if (node.children) |children| {
             for (children) |child_node_index| {
                 const child = self.gltf_asset.gltf.nodes.?[child_node_index];
-                self.renderNodes(shader, child, child_node_index, global_matrix);
+                self.renderNodes(shader, child, child_node_index);
             }
         }
-    }
-
-    pub fn set_shader_bones_for_mesh(self: *Self, shader: *const Shader, mesh: *MeshPrimitive) !void {
-        var buf: [256:0]u8 = undefined;
-
-        for (0..MAX_JOINTS) |i| {
-            const joint_transform = self.animator.joint_matrices[i];
-            const uniform = try std.fmt.bufPrintZ(&buf, "jointMatrices[{d}]", .{i});
-            shader.set_mat4(uniform, &joint_transform);
-        }
-        // Use node matrix directly with bounds checking
-        const node_matrix = if (mesh.id < self.animator.node_matrices.len)
-            &self.animator.node_matrices[mesh.id]
-        else
-            &Mat4.identity();
-        shader.setMat4("nodeTransform", node_matrix);
     }
 
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {

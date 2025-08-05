@@ -176,6 +176,13 @@ pub const NodeAnimationData = struct {
     weights: ?NodeWeightData,
 };
 
+/// Complete animation data including name, duration, and associated node animations
+pub const Animation = struct {
+    name: []const u8,
+    duration: f32,
+    node_data: []NodeAnimationData,
+};
+
 pub const Animator = struct {
     arena: *ArenaAllocator,
 
@@ -189,14 +196,12 @@ pub const Animator = struct {
 
     // Node transform cache (indexed by node index)
     node_transforms: []Transform,
-    node_matrices: []Mat4,
 
     // Cached root nodes (calculated once at init)
     root_nodes: []u32,
 
-    // Pre-processed node animations indexed by animation_index
-    // Each animation has a list of NodeAnimationData (one per animated node)
-    node_animations: [][]NodeAnimationData,
+    // Pre-processed animations with names, durations, and node data
+    animations: []Animation,
 
     // Final matrices for rendering
     joint_matrices: [MAX_JOINTS]Mat4,
@@ -292,7 +297,7 @@ pub const Animator = struct {
         }
 
         // Pre-process animation channels
-        const node_animations = try preprocessAnimationChannels(allocator, gltf_asset);
+        const animations = try preprocessAnimationChannels(allocator, gltf_asset);
 
         animator.* = Animator{
             .arena = arena,
@@ -301,16 +306,14 @@ pub const Animator = struct {
             .joints = try joints.toOwnedSlice(),
             .active_animations = ArrayList(AnimationState).init(allocator),
             .node_transforms = try allocator.alloc(Transform, node_count),
-            .node_matrices = try allocator.alloc(Mat4, node_count),
             .root_nodes = try root_nodes_list.toOwnedSlice(),
-            .node_animations = node_animations,
+            .animations = animations,
             .joint_matrices = [_]Mat4{Mat4.identity()} ** MAX_JOINTS,
         };
 
         // Initialize node transforms to identity
         for (0..animator.node_transforms.len) |i| {
             animator.node_transforms[i] = Transform.init();
-            animator.node_matrices[i] = Mat4.identity();
         }
 
         return animator;
@@ -324,13 +327,13 @@ pub const Animator = struct {
 
     /// Play an animation clip
     pub fn playClip(self: *Self, clip: AnimationClip) !void {
-        if (self.gltf_asset.gltf.animations == null or clip.animation_index >= self.gltf_asset.gltf.animations.?.len) {
+        if (clip.animation_index >= self.animations.len) {
             std.debug.print("Invalid animation index: {d}\n", .{clip.animation_index});
             return;
         }
 
-        // Clear all animations, play just this one (backward compatibility)
         self.active_animations.clearRetainingCapacity();
+
         const anim_state = AnimationState.init(
             clip.animation_index,
             clip.start_time,
@@ -344,18 +347,16 @@ pub const Animator = struct {
 
     /// Play animation by index
     pub fn playAnimationById(self: *Self, animation_index: u32) !void {
-        if (self.gltf_asset.gltf.animations == null or animation_index >= self.gltf_asset.gltf.animations.?.len) {
+        if (animation_index >= self.animations.len) {
             std.debug.print("Invalid animation index: {d}\n", .{animation_index});
             return;
         }
 
-        // Calculate animation duration
-        const max_time = try self.calculateAnimationDuration(animation_index);
-        const animation = self.gltf_asset.gltf.animations.?[animation_index];
+        const animation = self.animations[animation_index];
 
         std.debug.print(
-            "Animation {d} duration: {d:.2}s, channels: {d}\n",
-            .{ animation_index, max_time, animation.channels.len },
+            "Animation {d} '{s}' duration: {d:.2}s, nodes: {d}\n",
+            .{ animation_index, animation.name, animation.duration, animation.node_data.len },
         );
 
         // Clear all animations, play just this one (backward compatibility)
@@ -363,13 +364,13 @@ pub const Animator = struct {
         const anim_state = AnimationState.init(
             animation_index,
             0.0,
-            max_time,
+            animation.duration,
             .Forever,
         );
         try self.active_animations.append(anim_state);
     }
 
-    /// Play animation at specific time - maintains same interface
+    /// Play animation at specific time
     pub fn playTick(self: *Self, time: f32) !void {
         // Update time for ALL active animations
         for (self.active_animations.items) |*anim_state| {
@@ -377,29 +378,64 @@ pub const Animator = struct {
         }
         if (self.active_animations.items.len > 0) {
             try self.updateNodeTransformations();
-            try self.calculateNodeMatrices();
+            try self.calculateNodeTransforms();
             try self.setShaderMatrices();
+        }
+    }
+
+    /// Play all animations in the model simultaneously (for InterpolationTest)
+    pub fn playAllAnimations(self: *Self) !void {
+        if (self.animations.len == 0) return;
+
+        self.active_animations.clearRetainingCapacity();
+
+        for (0..self.animations.len) |i| {
+            const animation_index = @as(u32, @intCast(i));
+            const animation = self.animations[animation_index];
+            const anim_state = AnimationState.init(
+                animation_index,
+                0.0,
+                animation.duration,
+                .Forever,
+            );
+            try self.active_animations.append(anim_state);
+        }
+
+        std.debug.print("Playing {d} animations simultaneously\n", .{self.animations.len});
+    }
+
+    /// Play specific animations by indices
+    pub fn playAnimations(self: *Self, animation_indices: []const u32) !void {
+        self.active_animations.clearRetainingCapacity();
+
+        for (animation_indices) |animation_index| {
+            if (animation_index >= self.animations.len) continue;
+            const animation = self.animations[animation_index];
+            const anim_state = AnimationState.init(
+                animation_index,
+                0.0,
+                animation.duration,
+                .Forever,
+            );
+            try self.active_animations.append(anim_state);
         }
     }
 
     /// Update animation with delta time - maintains same interface
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
-        // Update ALL active animations
         for (self.active_animations.items) |*anim_state| {
             anim_state.update(delta_time);
         }
         if (self.active_animations.items.len > 0) {
-            try self.updateNodeTransformations();
-            try self.calculateNodeMatrices();
-            try self.setShaderMatrices();
+            self.resetNodeTransformations();
+            self.updateNodeTransformations();
+            self.calculateNodeTransforms();
+            self.setShaderMatrices();
         }
     }
 
-    /// Update node transformations from active animation states
-    fn updateNodeTransformations(self: *Self) !void {
-        if (self.active_animations.items.len == 0) return;
-
-        // Reset all node transforms to their default values
+    /// Reset all node transforms to their default values
+    fn resetNodeTransformations(self: *Self) void {
         if (self.gltf_asset.gltf.nodes) |nodes| {
             for (nodes, 0..) |node, i| {
                 self.node_transforms[i] = Transform{
@@ -409,190 +445,65 @@ pub const Animator = struct {
                 };
             }
         }
+    }
 
-        // Apply each active animation using pre-processed channels
+    /// Update node transformations from active animation states
+    fn updateNodeTransformations(self: *Self) void {
         for (self.active_animations.items) |anim_state| {
-            if (anim_state.animation_index >= self.node_animations.len) continue;
-
-            const animation_data = self.node_animations[anim_state.animation_index];
+            if (anim_state.animation_index >= self.animations.len) continue;
+            const animation_data = self.animations[anim_state.animation_index].node_data;
 
             for (animation_data) |node_anim| {
-                if (node_anim.node_id >= self.node_transforms.len) continue;
-
                 const node_index = node_anim.node_id;
 
-                // Apply translation animation
-                if (node_anim.translation) |translation_data| {
-                    const keyframe_info = findKeyframeIndices(
-                        translation_data.keyframe_times,
-                        anim_state.current_time,
-                    );
-
-                    const value = interpolateVec3(
-                        translation_data.positions,
-                        keyframe_info.start_index,
-                        keyframe_info.end_index,
-                        keyframe_info.factor,
-                        translation_data.interpolation,
-                    );
+                if (animateTranslation(node_anim.translation, anim_state.current_time)) |value| {
                     self.node_transforms[node_index].translation = value;
                 }
 
-                // Apply rotation animation
-                if (node_anim.rotation) |rotation_data| {
-                    const keyframe_info = findKeyframeIndices(
-                        rotation_data.keyframe_times,
-                        anim_state.current_time,
-                    );
-
-                    const value = interpolateQuat(
-                        rotation_data.rotations,
-                        keyframe_info.start_index,
-                        keyframe_info.end_index,
-                        keyframe_info.factor,
-                        rotation_data.interpolation,
-                    );
+                if (animateRotation(node_anim.rotation, anim_state.current_time)) |value| {
                     self.node_transforms[node_index].rotation = value;
                 }
 
-                // Apply scale animation
-                if (node_anim.scale) |scale_data| {
-                    const keyframe_info = findKeyframeIndices(
-                        scale_data.keyframe_times,
-                        anim_state.current_time,
-                    );
-
-                    const value = interpolateVec3(
-                        scale_data.scales,
-                        keyframe_info.start_index,
-                        keyframe_info.end_index,
-                        keyframe_info.factor,
-                        scale_data.interpolation,
-                    );
+                if (animateScale(node_anim.scale, anim_state.current_time)) |value| {
                     self.node_transforms[node_index].scale = value;
                 }
 
-                // Apply weight animation (morph targets)
-                if (node_anim.weights) |weight_data| {
-                    const keyframe_info = findKeyframeIndices(
-                        weight_data.keyframe_times,
-                        anim_state.current_time,
-                    );
-
-                    // Weight animation handling would go here
-                    // Currently not implemented in Transform struct
-                    // _ = weight_data;
-                    _ = keyframe_info;
-                }
+                // Weight animation (morph targets) - not yet implemented
             }
         }
     }
 
-    /// Set node transform from animation channel at the given time
-    fn setNodeTransformFromChannel(
-        self: *Self,
-        channel: gltf_types.AnimationChannel,
-        sampler: gltf_types.AnimationSampler,
-        current_time: f32,
-        node_index: usize,
-    ) !void {
-        // Get time values from the input accessor
-        const times = try self.readAccessorAsF32Slice(sampler.input);
-        if (times.len == 0) return;
-
-        // Find the keyframe indices and interpolation factor
-        const keyframe_info = findKeyframeIndices(times, current_time);
-
-        // Apply the animation based on the target property
-        switch (channel.target.path) {
-            .translation => {
-                const values = try self.readAccessorAsVec3Slice(sampler.output);
-                if (values.len > keyframe_info.start_index) {
-                    const start_value = values[keyframe_info.start_index];
-                    const end_value = if (keyframe_info.end_index < values.len) values[keyframe_info.end_index] else start_value;
-
-                    self.node_transforms[node_index].translation = switch (sampler.interpolation) {
-                        .linear => Vec3.lerp(&start_value, &end_value, keyframe_info.factor),
-                        .step => start_value,
-                        .cubic_spline => start_value, // TODO: implement cubic spline
-                    };
-                }
-            },
-            .rotation => {
-                const values = try self.readAccessorAsQuatSlice(sampler.output);
-                if (values.len > keyframe_info.start_index) {
-                    const start_value = values[keyframe_info.start_index];
-                    const end_value = if (keyframe_info.end_index < values.len) values[keyframe_info.end_index] else start_value;
-
-                    self.node_transforms[node_index].rotation = switch (sampler.interpolation) {
-                        .linear => start_value.slerp(&end_value, keyframe_info.factor),
-                        .step => start_value,
-                        .cubic_spline => start_value, // TODO: implement cubic spline
-                    };
-                }
-            },
-            .scale => {
-                const values = try self.readAccessorAsVec3Slice(sampler.output);
-                if (values.len > keyframe_info.start_index) {
-                    const start_value = values[keyframe_info.start_index];
-                    const end_value = if (keyframe_info.end_index < values.len) values[keyframe_info.end_index] else start_value;
-
-                    self.node_transforms[node_index].scale = switch (sampler.interpolation) {
-                        .linear => Vec3.lerp(&start_value, &end_value, keyframe_info.factor),
-                        .step => start_value,
-                        .cubic_spline => start_value, // TODO: implement cubic spline
-                    };
-                }
-            },
-            .weights => {
-                // TODO: implement morph target weights
-            },
-        }
-    }
-
-    /// Calculate world matrices for all nodes
-    fn calculateNodeMatrices(self: *Self) !void {
+    /// Calculate world transforms for all nodes using Transform operations
+    fn calculateNodeTransforms(self: *Self) void {
         if (self.gltf_asset.gltf.nodes == null) return;
 
-        const nodes = self.gltf_asset.gltf.nodes.?;
-
-        // First, calculate local matrices for all nodes
-        for (0..nodes.len) |i| {
-            self.node_matrices[i] = self.node_transforms[i].toMatrix();
-        }
-
-        // Then calculate global matrices by traversing the scene hierarchy
-        // Use the cached root nodes instead of recalculating them
+        // Calculate world transforms by traversing the scene hierarchy
         for (self.root_nodes) |root_node_index| {
-            if (root_node_index < nodes.len) {
-                try self.calculateNodeMatrixRecursive(root_node_index, Mat4.identity());
-            }
+            self.calculateNodeTransformRecursive(root_node_index, Transform.init());
         }
     }
 
-    /// Recursively calculate node matrices with proper parent-child relationships
-    fn calculateNodeMatrixRecursive(self: *Self, node_index: usize, parent_matrix: Mat4) !void {
-        if (node_index >= self.node_matrices.len) return;
+    /// Recursively calculate node transforms with proper parent-child relationships
+    fn calculateNodeTransformRecursive(self: *Self, node_index: usize, parent_transform: Transform) void {
+        if (node_index >= self.node_transforms.len) return;
 
         const nodes = self.gltf_asset.gltf.nodes.?;
         const node = nodes[node_index];
 
-        // Calculate this node's global matrix
-        const local_matrix = self.node_transforms[node_index].toMatrix();
-        self.node_matrices[node_index] = parent_matrix.mulMat4(&local_matrix);
+        // Calculate this node's world transform
+        const local_transform = self.node_transforms[node_index];
+        self.node_transforms[node_index] = parent_transform.mulTransform(local_transform);
 
         // Process children
         if (node.children) |children| {
             for (children) |child_index| {
-                if (child_index < self.node_matrices.len) {
-                    try self.calculateNodeMatrixRecursive(child_index, self.node_matrices[node_index]);
-                }
+                self.calculateNodeTransformRecursive(child_index, self.node_transforms[node_index]);
             }
         }
     }
 
     /// Set final matrices for shader rendering
-    fn setShaderMatrices(self: *Self) !void {
+    fn setShaderMatrices(self: *Self) void {
         // Debug first time
         const debug_joints = false;
         if (debug_joints and self.joints.len > 0) {
@@ -602,8 +513,10 @@ pub const Animator = struct {
         // Update joint matrices for skinned meshes
         for (0..@min(self.joints.len, MAX_JOINTS)) |i| {
             const joint = self.joints[i];
-            if (joint.node_index < self.node_matrices.len) {
-                self.joint_matrices[i] = self.node_matrices[joint.node_index].mulMat4(&joint.inverse_bind_matrix);
+            if (joint.node_index < self.node_transforms.len) {
+                // Convert transform to matrix only when needed for joint calculation
+                const node_matrix = self.node_transforms[joint.node_index].toMatrix();
+                self.joint_matrices[i] = node_matrix.mulMat4(&joint.inverse_bind_matrix);
 
                 if (debug_joints and i < 3) {
                     std.debug.print(
@@ -611,7 +524,7 @@ pub const Animator = struct {
                         .{
                             i,
                             joint.node_index,
-                            self.node_matrices[joint.node_index].isIdentity(),
+                            node_matrix.isIdentity(),
                             joint.inverse_bind_matrix.isIdentity(),
                         },
                     );
@@ -633,95 +546,10 @@ pub const Animator = struct {
         }
     }
 
-    /// Calculate the duration of an animation using pre-processed channel data
-    fn calculateAnimationDuration(self: *Self, animation_index: u32) !f32 {
-        if (animation_index >= self.node_animations.len) {
-            std.debug.print("Invalid animation index: {d}\n", .{animation_index});
-            return DEFAULT_ANIMATION_DURATION;
-        }
-
-        const animation_data = self.node_animations[animation_index];
-        var max_time: f32 = 0.0;
-
-        // Find the maximum time across all pre-processed channels
-        for (animation_data) |node_anim| {
-            // Check translation channel
-            if (node_anim.translation) |translation_data| {
-                max_time = @max(max_time, getLastKeyframeTime(translation_data.keyframe_times));
-            }
-
-            // Check rotation channel
-            if (node_anim.rotation) |rotation_data| {
-                max_time = @max(max_time, getLastKeyframeTime(rotation_data.keyframe_times));
-            }
-
-            // Check scale channel
-            if (node_anim.scale) |scale_data| {
-                max_time = @max(max_time, getLastKeyframeTime(scale_data.keyframe_times));
-            }
-
-            // Check weights channel
-            if (node_anim.weights) |weight_data| {
-                max_time = @max(max_time, getLastKeyframeTime(weight_data.keyframe_times));
-            }
-        }
-
-        // Fallback to default duration if no time data found
-        if (max_time == 0.0) {
-            max_time = DEFAULT_ANIMATION_DURATION;
-            std.debug.print(
-                "Warning: No time data found for animation {d}, using {d}s default duration\n",
-                .{ animation_index, DEFAULT_ANIMATION_DURATION },
-            );
-        }
-
-        return max_time;
-    }
-
-    /// Play all animations in the model simultaneously (for InterpolationTest)
-    pub fn playAllAnimations(self: *Self) !void {
-        if (self.gltf_asset.gltf.animations == null) return;
-
-        self.active_animations.clearRetainingCapacity();
-        const animations = self.gltf_asset.gltf.animations.?;
-
-        for (0..animations.len) |i| {
-            const animation_index = @as(u32, @intCast(i));
-            const duration = try self.calculateAnimationDuration(animation_index);
-            const anim_state = AnimationState.init(
-                animation_index,
-                0.0,
-                duration,
-                .Forever,
-            );
-            try self.active_animations.append(anim_state);
-        }
-
-        std.debug.print("Playing {d} animations simultaneously\n", .{animations.len});
-    }
-
-    /// Play specific animations by indices
-    pub fn playAnimations(self: *Self, animation_indices: []const u32) !void {
-        self.active_animations.clearRetainingCapacity();
-
-        for (animation_indices) |animation_index| {
-            const duration = try self.calculateAnimationDuration(animation_index);
-            const anim_state = AnimationState.init(
-                animation_index,
-                0.0,
-                duration,
-                .Forever,
-            );
-            try self.active_animations.append(anim_state);
-        }
-    }
-
     /// Play multiple animations with different weights - for animation blending
     /// Compatible with ASSIMP-based game_angrybot animation blending system
     pub fn playWeightAnimations(self: *Self, weighted_animations: []const WeightedAnimation, frame_time: f32) !void {
-        if (self.gltf_asset.gltf.animations == null) return;
-
-        const animations = self.gltf_asset.gltf.animations.?;
+        if (self.animations.len == 0) return;
         const ENABLE_BLEND_DEBUG = std.debug.runtime_safety and false; // Enable for debugging
 
         if (ENABLE_BLEND_DEBUG) {
@@ -796,7 +624,7 @@ pub const Animator = struct {
             // Since we only have one animation in glTF models, use animation index 0
             // The time-based subdivision is handled by the weighted animation parameters
             const animation_index: u32 = 0;
-            if (animation_index >= animations.len) continue;
+            if (animation_index >= self.animations.len) continue;
 
             // Apply this animation with the given weight
             try self.blendAnimationAtTime(
@@ -824,7 +652,7 @@ pub const Animator = struct {
         }
 
         // Calculate final matrices
-        try self.calculateNodeMatrices();
+        try self.calculateNodeTransforms();
         try self.setShaderMatrices();
     }
 
@@ -837,9 +665,9 @@ pub const Animator = struct {
         accumulator_transforms: []Transform,
         weight_totals: []f32,
     ) !void {
-        if (animation_index >= self.node_animations.len) return;
+        if (animation_index >= self.animations.len) return;
 
-        const animation_data = self.node_animations[animation_index];
+        const animation_data = self.animations[animation_index].node_data;
 
         // Apply each node's animation channels with blending
         for (animation_data) |node_anim| {
@@ -926,6 +754,45 @@ fn getLastKeyframeTime(keyframe_times: []const f32) f32 {
     return if (keyframe_times.len > 0) keyframe_times[keyframe_times.len - 1] else 0.0;
 }
 
+fn animateTranslation(translation_data: ?NodeTranslationData, current_time: f32) ?Vec3 {
+    const data = translation_data orelse return null;
+
+    const keyframe_info = findKeyframeIndices(data.keyframe_times, current_time);
+    return interpolateVec3(
+        data.positions,
+        keyframe_info.start_index,
+        keyframe_info.end_index,
+        keyframe_info.factor,
+        data.interpolation,
+    );
+}
+
+fn animateRotation(rotation_data: ?NodeRotationData, current_time: f32) ?Quat {
+    const data = rotation_data orelse return null;
+
+    const keyframe_info = findKeyframeIndices(data.keyframe_times, current_time);
+    return interpolateQuat(
+        data.rotations,
+        keyframe_info.start_index,
+        keyframe_info.end_index,
+        keyframe_info.factor,
+        data.interpolation,
+    );
+}
+
+fn animateScale(scale_data: ?NodeScaleData, current_time: f32) ?Vec3 {
+    const data = scale_data orelse return null;
+
+    const keyframe_info = findKeyframeIndices(data.keyframe_times, current_time);
+    return interpolateVec3(
+        data.scales,
+        keyframe_info.start_index,
+        keyframe_info.end_index,
+        keyframe_info.factor,
+        data.interpolation,
+    );
+}
+
 /// Find interpolation factor and surrounding keyframe indices
 pub fn findKeyframeIndices(times: []const f32, current_time: f32) KeyframeInfo {
     if (times.len == 0) return .{ .start_index = 0, .end_index = 0, .factor = 0.0 };
@@ -989,14 +856,14 @@ pub fn interpolateQuat(
     };
 }
 
-/// Pre-process all animation channels into node-centric format for optimal runtime performance
+/// Pre-process all animation channels into Animation structs with pre-calculated durations
 /// Groups all animation data affecting each node together for better cache locality
-fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsset) ![][]NodeAnimationData {
-    const animations = gltf_asset.gltf.animations orelse return try allocator.alloc([]NodeAnimationData, 0);
+fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsset) ![]Animation {
+    const gltf_animations = gltf_asset.gltf.animations orelse return try allocator.alloc(Animation, 0);
 
-    var all_animation_channels = try allocator.alloc([]NodeAnimationData, animations.len);
+    var all_animations = try allocator.alloc(Animation, gltf_animations.len);
 
-    for (animations, 0..) |animation, anim_idx| {
+    for (gltf_animations, 0..) |gltf_animation, anim_idx| {
         // Use a HashMap to group channels by node_id
         var node_channel_map = std.HashMap(
             u32,
@@ -1007,9 +874,9 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
         defer node_channel_map.deinit();
 
         // Process each channel in this animation
-        for (animation.channels) |channel| {
+        for (gltf_animation.channels) |channel| {
             const node_id = channel.target.node orelse continue;
-            const sampler = animation.samplers[channel.sampler];
+            const sampler = gltf_animation.samplers[channel.sampler];
 
             // Read input and output data once
             const input_times = readAccessorAsF32Slice(gltf_asset, sampler.input);
@@ -1072,12 +939,41 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
             i += 1;
         }
 
-        all_animation_channels[anim_idx] = node_channels_list;
+        // Calculate animation duration from all channels
+        var max_time: f32 = 0.0;
+        for (node_channels_list) |node_anim| {
+            if (node_anim.translation) |translation_data| {
+                max_time = @max(max_time, getLastKeyframeTime(translation_data.keyframe_times));
+            }
+            if (node_anim.rotation) |rotation_data| {
+                max_time = @max(max_time, getLastKeyframeTime(rotation_data.keyframe_times));
+            }
+            if (node_anim.scale) |scale_data| {
+                max_time = @max(max_time, getLastKeyframeTime(scale_data.keyframe_times));
+            }
+            if (node_anim.weights) |weight_data| {
+                max_time = @max(max_time, getLastKeyframeTime(weight_data.keyframe_times));
+            }
+        }
 
-        std.debug.print("Pre-processed animation {d}: {d} nodes with animation data\n", .{ anim_idx, node_channels_list.len });
+        // Use default duration if no time data found
+        if (max_time == 0.0) {
+            max_time = DEFAULT_ANIMATION_DURATION;
+        }
+
+        // Create Animation struct with name, duration, and node data
+        const animation_name = if (gltf_animation.name) |name| name else try std.fmt.allocPrint(allocator, "Animation_{d}", .{anim_idx});
+
+        all_animations[anim_idx] = Animation{
+            .name = animation_name,
+            .duration = max_time,
+            .node_data = node_channels_list,
+        };
+
+        std.debug.print("Pre-processed animation {d} '{s}': {d:.2}s duration, {d} nodes with animation data\n", .{ anim_idx, animation_name, max_time, node_channels_list.len });
     }
 
-    return all_animation_channels;
+    return all_animations;
 }
 
 /// Helper function to read accessor data as f32 slice (standalone version for preprocessing)
