@@ -451,24 +451,16 @@ pub const Animator = struct {
     fn updateNodeTransformations(self: *Self) void {
         for (self.active_animations.items) |anim_state| {
             if (anim_state.animation_index >= self.animations.len) continue;
+
             const animation_data = self.animations[anim_state.animation_index].node_data;
 
             for (animation_data) |node_anim| {
                 const node_index = node_anim.node_id;
-
-                if (animateTranslation(node_anim.translation, anim_state.current_time)) |value| {
-                    self.node_transforms[node_index].translation = value;
-                }
-
-                if (animateRotation(node_anim.rotation, anim_state.current_time)) |value| {
-                    self.node_transforms[node_index].rotation = value;
-                }
-
-                if (animateScale(node_anim.scale, anim_state.current_time)) |value| {
-                    self.node_transforms[node_index].scale = value;
-                }
-
-                // Weight animation (morph targets) - not yet implemented
+                self.node_transforms[node_index] = evaluateNodeTransform(
+                    self.node_transforms[node_index],
+                    node_anim,
+                    anim_state.current_time,
+                );
             }
         }
     }
@@ -749,12 +741,37 @@ pub const Animator = struct {
     }
 };
 
+/// Evaluate animated transform for a single node at a specific time
+fn evaluateNodeTransform(
+    base_transform: Transform,
+    node_anim: NodeAnimationData,
+    current_time: f32,
+) Transform {
+    var transform = base_transform.clone();
+
+    if (getAnimatedTranslation(node_anim.translation, current_time)) |value| {
+        transform.translation = value;
+    }
+
+    if (getAnimatedRotation(node_anim.rotation, current_time)) |value| {
+        transform.rotation = value;
+    }
+
+    if (getAnimatedScale(node_anim.scale, current_time)) |value| {
+        transform.scale = value;
+    }
+
+    // Weight animation (morph targets) - not yet implemented
+
+    return transform;
+}
+
 /// Get the last keyframe time from a keyframe times array
 fn getLastKeyframeTime(keyframe_times: []const f32) f32 {
     return if (keyframe_times.len > 0) keyframe_times[keyframe_times.len - 1] else 0.0;
 }
 
-fn animateTranslation(translation_data: ?NodeTranslationData, current_time: f32) ?Vec3 {
+fn getAnimatedTranslation(translation_data: ?NodeTranslationData, current_time: f32) ?Vec3 {
     const data = translation_data orelse return null;
 
     const keyframe_info = findKeyframeIndices(data.keyframe_times, current_time);
@@ -767,7 +784,7 @@ fn animateTranslation(translation_data: ?NodeTranslationData, current_time: f32)
     );
 }
 
-fn animateRotation(rotation_data: ?NodeRotationData, current_time: f32) ?Quat {
+fn getAnimatedRotation(rotation_data: ?NodeRotationData, current_time: f32) ?Quat {
     const data = rotation_data orelse return null;
 
     const keyframe_info = findKeyframeIndices(data.keyframe_times, current_time);
@@ -780,7 +797,7 @@ fn animateRotation(rotation_data: ?NodeRotationData, current_time: f32) ?Quat {
     );
 }
 
-fn animateScale(scale_data: ?NodeScaleData, current_time: f32) ?Vec3 {
+fn getAnimatedScale(scale_data: ?NodeScaleData, current_time: f32) ?Vec3 {
     const data = scale_data orelse return null;
 
     const keyframe_info = findKeyframeIndices(data.keyframe_times, current_time);

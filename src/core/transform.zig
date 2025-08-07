@@ -19,6 +19,22 @@ pub const Transform = struct {
 
     const Self = @This();
 
+    pub fn init() Transform {
+        return Transform{
+            .translation = vec3(0.0, 0.0, 0.0),
+            .rotation = Quat{ .data = [4]f32{ 0.0, 0.0, 0.0, 1.0 } },
+            .scale = vec3(1.0, 1.0, 1.0),
+        };
+    }
+
+    pub fn clone(self: *const Self) Transform {
+        return Transform{
+            .translation = self.translation,
+            .rotation = self.rotation,
+            .scale = self.scale,
+        };
+    }
+
     pub fn fromMatrix(m: *const Mat4) Transform {
         return extractTransformFromMatrix(m);
     }
@@ -49,14 +65,6 @@ pub const Transform = struct {
             .rotation = rotation,
             .scale = extracted_scale,
         };
-    }
-
-    pub fn default() Transform {
-        return fromMatrix(&Mat4.identity());
-    }
-
-    pub fn init() Transform {
-        return fromMatrix(&Mat4.identity());
     }
 
     pub fn clear(self: *Self) void {
