@@ -99,7 +99,7 @@ pub const AnimationClip = struct {
     }
 };
 
-pub const WeightedAnimation2 = struct {
+pub const WeightedAnimation = struct {
     animation_index: u32,
     start_time: f32, // Animation start time in seconds
     end_time: f32, // Animation end time in seconds
@@ -114,7 +114,7 @@ pub const WeightedAnimation2 = struct {
         end_time: f32,
         offset: f32,
         optional_start: f32,
-    ) WeightedAnimation2 {
+    ) WeightedAnimation {
         return .{
             .animation_index = animation_index,
             .start_time = start_time,
@@ -125,32 +125,6 @@ pub const WeightedAnimation2 = struct {
         };
     }
 };
-
-// /// Weighted animation for blending multiple animations simultaneously
-// /// Compatible with ASSIMP-based game_angrybot system
-// pub const WeightedAnimation = struct {
-//     weight: f32,
-//     start_time: f32, // Animation start time in seconds
-//     end_time: f32, // Animation end time in seconds
-//     offset: f32, // Time offset for animation synchronization
-//     start_real_time: f32, // Real-world start time for non-looped animations
-//
-//     pub fn init(
-//         weight: f32,
-//         start_time: f32,
-//         end_time: f32,
-//         offset: f32,
-//         start_real_time: f32,
-//     ) WeightedAnimation {
-//         return .{
-//             .weight = weight,
-//             .start_time = start_time,
-//             .end_time = end_time,
-//             .offset = offset,
-//             .start_real_time = start_real_time,
-//         };
-//     }
-// };
 
 /// Joint information from glTF skin
 pub const Joint = struct {
@@ -230,7 +204,7 @@ pub const Animator = struct {
     // Animation state - support multiple concurrent animations
     active_animations: ArrayList(AnimationState),
 
-    weight_animations: ArrayList(WeightedAnimation2),
+    weight_animations: ArrayList(WeightedAnimation),
 
     // Final matrices for rendering
     joint_matrices: [MAX_JOINTS]Mat4,
@@ -334,7 +308,7 @@ pub const Animator = struct {
             .skin_index = skin_index,
             .joints = try joints.toOwnedSlice(),
             .active_animations = ArrayList(AnimationState).init(allocator),
-            .weight_animations = ArrayList(WeightedAnimation2).init(allocator),
+            .weight_animations = ArrayList(WeightedAnimation).init(allocator),
             .node_transforms = try allocator.alloc(Transform, node_count),
             .root_nodes = try root_nodes_list.toOwnedSlice(),
             .animations = animations,
@@ -452,7 +426,7 @@ pub const Animator = struct {
     }
 
     // Assumes that PlayClip has been called before and that self.active_animations[0] is valid
-    pub fn playWeightAnimations2(self: *Self, weighted_animations: []const WeightedAnimation2, frame_time: f32) !void {
+    pub fn playWeightAnimations(self: *Self, weighted_animations: []const WeightedAnimation, frame_time: f32) !void {
 
         // Clear node transforms to default state
         self.resetNodeTransformations();
@@ -707,220 +681,6 @@ pub const Animator = struct {
             self.joint_matrices[i] = Mat4.identity();
         }
     }
-
-//     /// Play multiple animations with different weights - for animation blending
-//     /// Compatible with ASSIMP-based game_angrybot animation blending system
-//     pub fn playWeightAnimations(self: *Self, weighted_animations: []const WeightedAnimation, frame_time: f32) !void {
-//         if (self.animations.len == 0) return;
-//         const ENABLE_BLEND_DEBUG = std.debug.runtime_safety and false; // Enable for debugging
-//
-//         if (ENABLE_BLEND_DEBUG) {
-//             std.debug.print(
-//                 "playWeightAnimations: frame_time={d:.3}, {d} animations\n",
-//                 .{ frame_time, weighted_animations.len },
-//             );
-//         }
-//
-//         // Clear node transforms to default state
-//         if (self.gltf_asset.gltf.nodes) |nodes| {
-//             for (0..nodes.len) |i| {
-//                 const node = nodes[i];
-//                 self.node_transforms[i] = Transform{
-//                     .translation = node.translation,
-//                     .rotation = node.rotation,
-//                     .scale = node.scale,
-//                 };
-//             }
-//         }
-//
-//         // Temporary storage for blended transforms
-//         const allocator = self.arena.allocator();
-//         var blended_transforms = try allocator.alloc(Transform, self.node_transforms.len);
-//         var total_weights = try allocator.alloc(f32, self.node_transforms.len);
-//         defer allocator.free(blended_transforms);
-//         defer allocator.free(total_weights);
-//
-//         // Initialize blended transforms and weights
-//         for (0..self.node_transforms.len) |i| {
-//             blended_transforms[i] = Transform.init();
-//             total_weights[i] = 0.0;
-//         }
-//
-//         // Process each weighted animation
-//         for (weighted_animations) |weighted| {
-//             if (weighted.weight <= 0.0) {
-//                 continue;
-//             }
-//
-//             if (ENABLE_BLEND_DEBUG) {
-//                 std.debug.print(
-//                     "  Processing animation weight={d:.3}, start_time={d:.2}, end_time={d:.2}\n",
-//                     .{ weighted.weight, weighted.start_time, weighted.end_time },
-//                 );
-//             }
-//
-//             // ASSIMP Compatibility: Calculate animation time using two distinct timing modes
-//             const time_range = weighted.end_time - weighted.start_time;
-//             var target_anim_time: f32 = 0.0;
-//
-//             if (weighted.start_real_time > 0.0) {
-//                 // One-shot animations (e.g., death, attack): play once from start_real_time
-//                 // Progress linearly until completion, then stay at end
-//                 const elapsed_since_start = frame_time - weighted.start_real_time;
-//                 target_anim_time = @min(elapsed_since_start + weighted.offset, time_range);
-//             } else {
-//                 // Looping animations (e.g., idle, walk, run): repeat indefinitely
-//                 // Use modulo to wrap time within animation range for continuous loops
-//                 target_anim_time = @mod((frame_time + weighted.offset), time_range);
-//             }
-//
-//             target_anim_time += weighted.start_time;
-//
-//             // Clamp to valid range
-//             target_anim_time = @max(weighted.start_time, @min(weighted.end_time, target_anim_time));
-//
-//             if (ENABLE_BLEND_DEBUG) {
-//                 std.debug.print("    Calculated time: {d:.3}\n", .{target_anim_time});
-//             }
-//
-//             // Since we only have one animation in glTF models, use animation index 0
-//             // The time-based subdivision is handled by the weighted animation parameters
-//             const animation_index: u32 = 0;
-//             if (animation_index >= self.animations.len) continue;
-//
-//             // Apply this animation with the given weight
-//             try self.blendAnimationAtTime(
-//                 animation_index,
-//                 target_anim_time,
-//                 weighted.weight,
-//                 blended_transforms,
-//                 total_weights,
-//             );
-//         }
-//
-//         // Normalize and apply blended transforms
-//         for (0..self.node_transforms.len) |i| {
-//             if (total_weights[i] > 0.0) {
-//                 // Normalize by total weight
-//                 const inv_weight = 1.0 / total_weights[i];
-//                 if (blended_transforms[i].translation) |*trans| {
-//                     trans.* = trans.mulScalar(inv_weight);
-//                 }
-//                 if (blended_transforms[i].scale) |*scale| {
-//                     scale.* = scale.mulScalar(inv_weight);
-//                 }
-//
-//                 // Quaternions need renormalization after weighted blending
-//                 if (blended_transforms[i].rotation) |*rot| {
-//                     rot.normalize();
-//                 }
-//
-//                 self.node_transforms[i] = blended_transforms[i];
-//             }
-//         }
-//
-//         // Calculate final matrices
-//         try self.calculateNodeTransforms();
-//         try self.setShaderMatrices();
-//     }
-//
-//     /// Blend a single animation at a specific time with a given weight
-//     fn blendAnimationAtTime(
-//         self: *Self,
-//         animation_index: u32,
-//         current_time: f32,
-//         blend_weight: f32,
-//         accumulator_transforms: []Transform,
-//         weight_totals: []f32,
-//     ) !void {
-//         if (animation_index >= self.animations.len) return;
-//
-//         const animation_data = self.animations[animation_index].node_data;
-//
-//         // Apply each node's animation channels with blending
-//         for (animation_data) |node_anim| {
-//             if (node_anim.node_id >= self.node_transforms.len) continue;
-//
-//             const node_index = node_anim.node_id;
-//
-//             // Blend translation animation
-//             if (node_anim.translation) |translation_data| {
-//                 const keyframe_info = findKeyframeIndices(translation_data.keyframe_times, current_time);
-//
-//                 const interpolated_value = interpolateVec3(
-//                     translation_data.positions,
-//                     keyframe_info.start_index,
-//                     keyframe_info.end_index,
-//                     keyframe_info.factor,
-//                     translation_data.interpolation,
-//                 );
-//
-//                 // Blend with existing translation
-//                 const current_trans = accumulator_transforms[node_index].translation orelse vec3(0.0, 0.0, 0.0);
-//                 accumulator_transforms[node_index].translation = current_trans.add(&interpolated_value.mulScalar(blend_weight));
-//             }
-//
-//             // Blend rotation animation
-//             if (node_anim.rotation) |rotation_data| {
-//                 const keyframe_info = findKeyframeIndices(rotation_data.keyframe_times, current_time);
-//
-//                 const interpolated_value = interpolateQuat(
-//                     rotation_data.rotations,
-//                     keyframe_info.start_index,
-//                     keyframe_info.end_index,
-//                     keyframe_info.factor,
-//                     rotation_data.interpolation,
-//                 );
-//
-//                 // Blend quaternions - weighted sum (will be normalized later)
-//                 const weighted_quat = Quat{ .data = [4]f32{
-//                     interpolated_value.data[0] * blend_weight,
-//                     interpolated_value.data[1] * blend_weight,
-//                     interpolated_value.data[2] * blend_weight,
-//                     interpolated_value.data[3] * blend_weight,
-//                 } };
-//
-//                 if (accumulator_transforms[node_index].rotation) |*current_rot| {
-//                     current_rot.data[0] += weighted_quat.data[0];
-//                     current_rot.data[1] += weighted_quat.data[1];
-//                     current_rot.data[2] += weighted_quat.data[2];
-//                     current_rot.data[3] += weighted_quat.data[3];
-//                 } else {
-//                     accumulator_transforms[node_index].rotation = weighted_quat;
-//                 }
-//             }
-//
-//             // Blend scale animation
-//             if (node_anim.scale) |scale_data| {
-//                 const keyframe_info = findKeyframeIndices(scale_data.keyframe_times, current_time);
-//
-//                 const interpolated_value = interpolateVec3(
-//                     scale_data.scales,
-//                     keyframe_info.start_index,
-//                     keyframe_info.end_index,
-//                     keyframe_info.factor,
-//                     scale_data.interpolation,
-//                 );
-//
-//                 // Blend with existing scale
-//                 const current_scale = accumulator_transforms[node_index].scale orelse vec3(1.0, 1.0, 1.0);
-//                 accumulator_transforms[node_index].scale = current_scale.add(&interpolated_value.mulScalar(blend_weight));
-//             }
-//
-//             // Blend weight animation (morph targets)
-//             if (node_anim.weights) |weight_data| {
-//                 const keyframe_info = findKeyframeIndices(weight_data.keyframe_times, current_time);
-//
-//                 // Weight animation handling would go here
-//                 // Currently not implemented in Transform struct
-//                 // _ = weight_data;
-//                 _ = keyframe_info;
-//             }
-//
-//             // Update total weight for this node
-//             weight_totals[node_index] += blend_weight;
-//         }
-//     }
 };
 
 /// Evaluate animated transform for a single node at a specific time

@@ -90,8 +90,8 @@ pub const Model = struct {
     //     try self.animator.play_clip_with_transition(clip, transition_duration);
     // }
 
-    pub fn playWeightAnimations2(self: *Self, weighted_animations: []const animation.WeightedAnimation2, frame_time: f32) !void {
-        try self.animator.playWeightAnimations2(weighted_animations, frame_time);
+    pub fn playWeightAnimations2(self: *Self, weighted_animations: []const animation.WeightedAnimation, frame_time: f32) !void {
+        try self.animator.playWeightAnimations(weighted_animations, frame_time);
     }
 
     /// Play all animations in the model simultaneously (for InterpolationTest)
