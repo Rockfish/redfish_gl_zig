@@ -66,6 +66,8 @@ const State = struct {
     scr_width: f32 = SCR_WIDTH,
     scr_height: f32 = SCR_HEIGHT,
     current_action: u8 = 0, // 0=idle, 1=forward, 2=backwards, 3=right, 4=left, 5=dying
+    current_clip_index: usize = 0, // Index into player_clips array
+    model: ?*Model = null, // Reference to the model for animation updates
 };
 
 const content_dir = "assets";
@@ -88,6 +90,23 @@ const TexConfigs = struct { mesh_name: []const u8, uniform_name: []const u8, tex
 const CameraPosition = struct {
     position: Vec3,
     target: Vec3,
+};
+
+const PlayerClip = struct {
+    name: []const u8,
+    clip: AnimationClip,
+};
+
+const fps: f32 = 30.0;
+
+// Player animation clips from game_angrybot/player.zig
+const player_clips = [_]PlayerClip{
+    .{ .name = "idle", .clip = AnimationClip.init(0, 55.0 / fps, 130.0 / fps, AnimationRepeat.Forever) },
+    .{ .name = "right", .clip = AnimationClip.init(0, 184.0 / fps, 204.0 / fps, AnimationRepeat.Forever) },
+    .{ .name = "forward", .clip = AnimationClip.init(0, 134.0 / fps, 154.0 / fps, AnimationRepeat.Forever) },
+    .{ .name = "back", .clip = AnimationClip.init(0, 159.0 / fps, 179.0 / fps, AnimationRepeat.Forever) },
+    .{ .name = "left", .clip = AnimationClip.init(0, 209.0 / fps, 229.0 / fps, AnimationRepeat.Forever) },
+    .{ .name = "dead", .clip = AnimationClip.init(0, 234.0 / fps, 293.0 / fps, AnimationRepeat.Once) },
 };
 
 const ModelConfig = struct {
@@ -372,10 +391,18 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
 
     std.debug.print("Main: configuring animation\n", .{});
 
+    // Store model reference for key handler
+    state.model = model;
+
     // Apply animation from configuration
     if (model_config.animationPlayAll) {
         std.debug.print("Model configured for multi-animation - playing all animations simultaneously\n", .{});
         try model.playAllAnimations();
+    } else if (SELECTED_MODEL == .player) {
+        // For player model, use the first clip from our array
+        const initial_clip = player_clips[state.current_clip_index];
+        std.debug.print("Playing player animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ initial_clip.name, initial_clip.clip.start_time, initial_clip.clip.end_time });
+        try model.animator.playClip(initial_clip.clip);
     } else if (model_config.animationClip) |animation_clip| {
         std.debug.print("Playing single animation clip\n", .{});
         try model.animator.playClip(animation_clip);
@@ -489,6 +516,18 @@ fn keyHandler(
         },
         .d => {
             state.camera.movement.processMovement(.CircleRight, state.delta_time);
+        },
+        .n => {
+            if (action == glfw.Action.press) {
+                if (SELECTED_MODEL == .player and state.model != null) {
+                    state.current_clip_index = (state.current_clip_index + 1) % player_clips.len;
+                    const current_clip = player_clips[state.current_clip_index];
+                    std.debug.print("Switching to animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ current_clip.name, current_clip.clip.start_time, current_clip.clip.end_time });
+                    state.model.?.animator.playClip(current_clip.clip) catch |err| {
+                        std.debug.print("Failed to play animation clip: {}\n", .{err});
+                    };
+                }
+            }
         },
         else => {},
     }
