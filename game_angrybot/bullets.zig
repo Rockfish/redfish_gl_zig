@@ -4,7 +4,7 @@ const math = @import("math");
 //const aabb = @import("aabb.zig");
 const geom = @import("geom.zig");
 const sprites = @import("sprite_sheet.zig");
-const world = @import("world.zig");
+const world = @import("state.zig");
 const gl = @import("zopengl").bindings;
 const Capsule = @import("capsule.zig").Capsule;
 const Enemy = @import("enemy.zig").Enemy;
@@ -71,6 +71,7 @@ const SIZE_OF_QUAT = @sizeOf(Quat);
 const SCALE_VEC: Vec3 = vec3(world.BULLET_SCALE, world.BULLET_SCALE, world.BULLET_SCALE);
 const BULLET_NORMAL: Vec3 = vec3(0.0, 1.0, 0.0);
 const CANONICAL_DIR: Vec3 = vec3(0.0, 0.0, 1.0);
+const UP_VEC = vec3(0.0, 1.0, 0.0); // rotate around y
 
 const BULLET_ENEMY_MAX_COLLISION_DIST: f32 = world.BULLET_COLLIDER.height / 2.0 + world.BULLET_COLLIDER.radius + world.ENEMY_COLLIDER.height / 2.0 + world.ENEMY_COLLIDER.radius;
 
@@ -211,25 +212,12 @@ pub const BulletStore = struct {
         return bullet_store;
     }
 
-    pub fn createBullets(self: *Self, dx: f32, dz: f32, muzzle_transform: *const Mat4, _: i32) !bool {
-        // limit number of bullet groups
-        ////if (self.bullet_groups.items.len > 10) {
-        //return false;
-        //}
-
+    pub fn createBullets(self: *Self, aim_theta: f32, muzzle_transform: *const Mat4) !bool {
         const muzzle_world_position = muzzle_transform.mulVec4(&vec4(0.0, 0.0, 0.0, 1.0));
         const projectile_spawn_point = muzzle_world_position.xyz();
-        const mid_direction = vec3(dx, 0.0, dz).toNormalized();
-        const normalized_direction = mid_direction;
-        const rot_vec = vec3(0.0, 1.0, 0.0); // rotate around y
 
-        const x = vec3(CANONICAL_DIR.x, 0.0, CANONICAL_DIR.z).toNormalized();
-        const y = vec3(normalized_direction.x, 0.0, normalized_direction.z).toNormalized();
-
-        // direction angle with respect to the canonical direction
-        const theta = geom.orientedAngle(&x, &y, &rot_vec) * -1.0;
-        var mid_dir_quat = Quat.init(0.0, 0.0, 0.0, 1.0);
-        mid_dir_quat = mid_dir_quat.mulQuat(&Quat.fromAxisAngle(&rot_vec, math.degreesToRadians(theta)));
+        var mid_dir_quat = Quat.default();
+        mid_dir_quat = mid_dir_quat.mulQuat(&Quat.fromAxisAngle(&UP_VEC, aim_theta));
 
         const start_index = self.all_bullet_positions.items.len;
         const bullet_group_size = world.SPREAD_AMOUNT * world.SPREAD_AMOUNT;
@@ -250,7 +238,7 @@ pub const BulletStore = struct {
 
             const y_quat = mid_dir_quat.mulQuat(&self.y_rotations.items[i]);
             const rot_quat = y_quat.mulQuat(&self.x_rotations.items[j]);
-            const direction = rot_quat.rotateVec(&CANONICAL_DIR.mulScalar(-1.0));
+            const direction = rot_quat.rotateVec(&CANONICAL_DIR);
 
             self.all_bullet_positions.items[index] = projectile_spawn_point;
             self.all_bullet_rotations.items[index] = rot_quat;

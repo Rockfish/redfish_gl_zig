@@ -4,7 +4,7 @@ const zopengl = @import("zopengl");
 const set = @import("ziglangSet");
 const core = @import("core");
 const math = @import("math");
-const world = @import("world.zig");
+const world = @import("state.zig");
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 
@@ -100,13 +100,13 @@ pub fn main() !void {
     log.info("Exiting main", .{});
 }
 
-pub fn run(xallocator: std.mem.Allocator, window: *glfw.Window) !void {
+pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     var buf: [512]u8 = undefined;
     const exe_dir = try std.fs.selfExeDirPath(&buf);
     // const cwd = try std.os.getFdPath(&buf);
     log.info("Running game. exe_dir = {s} ", .{exe_dir});
 
-    var arena = std.heap.ArenaAllocator.init(xallocator);
+    var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const alloc_arena = arena.allocator();
 
@@ -232,21 +232,21 @@ pub fn run(xallocator: std.mem.Allocator, window: *glfw.Window) !void {
 
     const ortho_width = VIEW_PORT_WIDTH / 130.0;
     const ortho_height = VIEW_PORT_HEIGHT / 130.0;
-    // const aspect_ratio = VIEW_PORT_WIDTH / VIEW_PORT_HEIGHT;
+    const aspect_ratio = VIEW_PORT_WIDTH / VIEW_PORT_HEIGHT;
 
-    // const game_projection = Mat4.perspectiveRhGl(math.degreesToRadians(game_camera.zoom), aspect_ratio, 0.1, 100.0);
-    // const floating_projection = Mat4.perspectiveRhGl(math.degreesToRadians(floating_camera.zoom), aspect_ratio, 0.1, 100.0);
+    const game_projection = Mat4.perspectiveRhGl(math.degreesToRadians(game_camera.fov), aspect_ratio, 0.1, 100.0);
+    const floating_projection = Mat4.perspectiveRhGl(math.degreesToRadians(floating_camera.fov), aspect_ratio, 0.1, 100.0);
     const orthographic_projection = Mat4.orthographicRhGl(-ortho_width, ortho_width, -ortho_height, ortho_height, 0.1, 100.0);
 
-    const game_projection = game_camera.getProjectionMatrixWithType(.Perspective);
-    const floating_projection = floating_camera.getProjectionMatrixWithType(.Perspective);
+    // const game_projection = game_camera.getProjectionMatrixWithType(.Perspective);
+    // const floating_projection = floating_camera.getProjectionMatrixWithType(.Perspective);
     // const orthographic_projection = ortho_camera.getProjectionMatrixWithType(.Orthographic);
 
     log.info("camers loaded", .{});
 
     // Models and systems (modern glTF system doesn't need global texture cache)
     var player = try Player.init(alloc_arena);
-    log.info("player loaded", .{});
+    log.info("player loaded - position: {any}", .{player.position});
 
     var enemy_system = try EnemySystem.init(alloc_arena);
     log.info("enemies loaded", .{});
@@ -296,13 +296,18 @@ pub fn run(xallocator: std.mem.Allocator, window: *glfw.Window) !void {
         .first_mouse = true,
         .last_x = VIEW_PORT_WIDTH / 2.0,
         .last_y = VIEW_PORT_HEIGHT / 2.0,
-        .mouse_x = scaled_width / 2.0,
-        .mouse_y = scaled_height / 2.0,
+        .mouse_x = VIEW_PORT_WIDTH / 2.0,
+        .mouse_y = VIEW_PORT_HEIGHT / 2.0,
         .burn_marks = burn_marks,
         .sound_engine = sound_engine,
         .key_presses = key_presses,
         .run = true,
     };
+
+    log.info("state.viewport_width: {d}", .{state.viewport_width});
+    log.info("state.viewport_height: {d}", .{state.viewport_height});
+    log.info("state.mouse_x: {d}", .{state.mouse_x});
+    log.info("state.mouse_y: {d}", .{state.mouse_y});
 
     // note: defer occurs in reverse order
     defer player.deinit();
@@ -339,7 +344,6 @@ pub fn run(xallocator: std.mem.Allocator, window: *glfw.Window) !void {
 
     const use_framebuffers = true;
 
-    var buffer_ready = false;
     var aim_theta: f32 = 0.0;
     var quad_vao: gl.Uint = 0;
 
@@ -445,14 +449,13 @@ pub fn run(xallocator: std.mem.Allocator, window: *glfw.Window) !void {
         var dx: f32 = 0.0;
         var dz: f32 = 0.0;
 
-        // buffer_ready = false;
-        if (player.is_alive and buffer_ready) {
+        if (player.is_alive) {
             const world_ray = math.getWorldRayFromMouse(
                 state.scaled_width,
                 state.scaled_height,
                 &state.game_projection,
                 &game_view,
-                state.mouse_x,
+                state.mouse_x + 0.0001,
                 state.mouse_y,
             );
 
@@ -470,7 +473,9 @@ pub fn run(xallocator: std.mem.Allocator, window: *glfw.Window) !void {
                 dx = point.x - player.position.x;
                 dz = point.z - player.position.z;
 
-                aim_theta = math.atan(dx / dz);
+                if (dz != 0.0) {
+                    aim_theta = math.atan(dx / dz);
+                }
 
                 if (dz < 0.0) {
                     aim_theta = aim_theta + math.pi;
@@ -505,7 +510,7 @@ pub fn run(xallocator: std.mem.Allocator, window: *glfw.Window) !void {
 
         if (player.is_alive and player.is_trying_to_fire and (player.last_fire_time + world.FIRE_INTERVAL) < state.frame_time) {
             player.last_fire_time = state.frame_time;
-            if (try bullet_store.createBullets(dx, dz, &muzzle_transform, world.SPREAD_AMOUNT)) {
+            if (try bullet_store.createBullets(aim_theta, &muzzle_transform)) {
                 try muzzle_flash.addFlash();
                 state.sound_engine.playSound(.GunFire);
             }
@@ -653,7 +658,6 @@ pub fn run(xallocator: std.mem.Allocator, window: *glfw.Window) !void {
                 // log.info("rendering quads ", .{});
                 quads.renderQuad(&quad_vao);
 
-                buffer_ready = true;
                 window.swap_buffers();
                 continue;
             }
@@ -792,13 +796,10 @@ pub fn run(xallocator: std.mem.Allocator, window: *glfw.Window) !void {
 
                 quads.renderQuad(&quad_vao);
 
-                buffer_ready = true;
                 window.swap_buffers();
                 continue;
             }
         }
-
-        buffer_ready = true;
 
         window.swapBuffers();
     }
@@ -891,6 +892,9 @@ fn scrollHandler(window: *Window, xoffset: f64, yoffset: f64) callconv(.C) void 
     _ = window;
     _ = xoffset;
     state.game_camera.adjustFov(@floatCast(yoffset));
+    const aspect_ratio = (state.viewport_width / state.viewport_height);
+    state.game_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.game_camera.fov), aspect_ratio, 0.1, 100.0);
+    state.floating_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.floating_camera.fov), aspect_ratio, 0.1, 100.0);
 }
 
 fn handleKeyPress(action: glfw.Action, key: glfw.Key) void {
@@ -920,8 +924,8 @@ fn handleKeyPress(action: glfw.Action, key: glfw.Key) void {
         }
         state.player.direction = vec2(direction_vec.x, direction_vec.z);
 
-        // info!("key presses: {:?}", &state.key_presses);
-        // info!("direction: {:?}  player.direction: {:?}  delta_time: {:?}", direction_vec, player.direction, state.frame_time);
+        // log.info("key presses: {any}" , .{state.key_presses});
+        // log.info("direction: {any}  player.direction: {any}  delta_time: {any}", .{direction_vec, state.player.direction, state.frame_time});
     }
 }
 
