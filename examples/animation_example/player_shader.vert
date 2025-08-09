@@ -26,6 +26,8 @@ out vec4 fragColor;
 out vec4 fragPosLightSpace;
 out vec3 fragWorldPos;
 
+vec3 localNormal = vec3(0.0f);
+
 void main() {
     vec4 totalPosition = vec4(0.0f);
 
@@ -44,7 +46,7 @@ void main() {
             vec4 localPosition = jointMatrices[inJointIds[i]] * vec4(inPosition, 1.0f);
             totalPosition += localPosition * inWeights[i];
 
-            vec3 localNormal = mat3(jointMatrices[inJointIds[i]]) * inNormal;
+            localNormal = mat3(jointMatrices[inJointIds[i]]) * inNormal;
         }
     } else {
         // Use node transform for non-skinned models
