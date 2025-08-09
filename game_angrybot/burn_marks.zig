@@ -2,7 +2,7 @@ const std = @import("std");
 const core = @import("core");
 const math = @import("math");
 const gl = @import("zopengl").bindings;
-const world = @import("world.zig");
+const world = @import("state.zig");
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;

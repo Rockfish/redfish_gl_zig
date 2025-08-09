@@ -120,7 +120,8 @@ pub const MuzzleFlash = struct {
         var model = muzzle_transform.mulMat4(&Mat4.fromScale(&vec3(scale, scale, scale)));
 
         model = model.mulMat4(&Mat4.fromRotationX(math.degreesToRadians(-90.0)));
-        model = model.mulMat4(&Mat4.fromTranslation(&vec3(0.7, 0.0, 0.0))); // adjust for position in the texture
+        model = model.mulMat4(&Mat4.fromRotationZ(math.degreesToRadians(-90.0)));
+        model = model.mulMat4(&Mat4.fromTranslation(&vec3(0.7, -0.5, -0.7))); // adjust for position in the texture
 
         sprite_shader.setMat4("model", &model);
 

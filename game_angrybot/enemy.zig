@@ -1,7 +1,7 @@
 const std = @import("std");
 const math = @import("math");
 const core = @import("core");
-const world = @import("world.zig");
+const world = @import("state.zig");
 const geom = @import("geom.zig");
 
 const Allocator = std.mem.Allocator;

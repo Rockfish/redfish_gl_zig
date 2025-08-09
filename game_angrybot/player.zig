@@ -1,7 +1,7 @@
 const std = @import("std");
 const core = @import("core");
 const math = @import("math");
-const world = @import("world.zig");
+const world = @import("state.zig");
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -24,6 +24,7 @@ const Animator = core.Animator;
 const AnimationClip = core.AnimationClip;
 const AnimationRepeatMode = core.AnimationRepeatMode;
 const WeightedAnimation = core.WeightedAnimation;
+const WeightedAnimation2 = core.WeightedAnimation2;
 
 pub const AnimationName = enum {
     idle,
@@ -201,18 +202,18 @@ pub const Player = struct {
     pub fn update(self: *Self, state: *State, aim_theta: f32) !void {
         const weight_animations = self.updateAnimationWeights(self.direction, aim_theta, state.frame_time);
         // Use the new glTF animation blending system
-        try self.model.playWeightAnimations(&weight_animations, state.frame_time);
+        try self.model.playWeightAnimations2(&weight_animations, state.frame_time);
     }
 
     pub fn getMuzzlePosition(self: *Self, player_transform: *const Mat4) Mat4 {
         _ = self; // Suppress unused parameter warning
         // Simple muzzle offset - adjust these values as needed for gun positioning
-        const muzzle_offset = vec3(0.0, 0.8, 1.2); // Forward and up from player center
+        const muzzle_offset = vec3(0.0, 120, 100); // Forward and up from player center
         const muzzle_translation = Mat4.fromTranslation(&muzzle_offset);
         return player_transform.mulMat4(&muzzle_translation);
     }
 
-    fn updateAnimationWeights(self: *Self, move_vec: Vec2, aim_theta: f32, frame_time: f32) [6]WeightedAnimation {
+    fn updateAnimationWeights(self: *Self, move_vec: Vec2, aim_theta: f32, frame_time: f32) [6]WeightedAnimation2 {
         const is_moving = move_vec.lengthSquared() > 0.1;
         const move_theta = math.atan(move_vec.x / move_vec.y) + if (move_vec.y < @as(f32, 0.0)) math.pi else @as(f32, 0.0);
         const theta_delta = move_theta - aim_theta;
@@ -250,15 +251,14 @@ pub const Player = struct {
         self.anim_weights.prev_back_weight = max(self.anim_weights.prev_back_weight, back_weight);
         self.anim_weights.prev_left_weight = max(self.anim_weights.prev_left_weight, left_weight);
 
-        // Convert frame-based timing to time-based for glTF
-        const fps = 24.0;
+        const fps = 30.0;
         return .{
-            WeightedAnimation.init(idle_weight, 55.0 / fps, 130.0 / fps, 0.0, 0.0),
-            WeightedAnimation.init(forward_weight, 134.0 / fps, 154.0 / fps, 0.0, 0.0),
-            WeightedAnimation.init(back_weight, 159.0 / fps, 179.0 / fps, 10.0 / fps, 0.0),
-            WeightedAnimation.init(right_weight, 184.0 / fps, 204.0 / fps, 10.0 / fps, 0.0),
-            WeightedAnimation.init(left_weight, 209.0 / fps, 229.0 / fps, 0.0, 0.0),
-            WeightedAnimation.init(dead_weight, 234.0 / fps, 293.0 / fps, 0.0, self.death_time),
+            WeightedAnimation2.init(0, idle_weight, 55.0 / fps, 130.0 / fps, 0.0, 0.0),
+            WeightedAnimation2.init(0, forward_weight, 134.0 / fps, 154.0 / fps, 0.0, 0.0),
+            WeightedAnimation2.init(0, back_weight, 159.0 / fps, 179.0 / fps, 10.0 / fps, 0.0),
+            WeightedAnimation2.init(0, right_weight, 184.0 / fps, 204.0 / fps, 10.0 / fps, 0.0),
+            WeightedAnimation2.init(0, left_weight, 209.0 / fps, 229.0 / fps, 0.0, 0.0),
+            WeightedAnimation2.init(0, dead_weight, 234.0 / fps, 293.0 / fps, 0.0, self.death_time),
         };
     }
 };
