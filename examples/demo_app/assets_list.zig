@@ -9,7 +9,7 @@ pub const DemoModel = struct {
 };
 
 pub const demo_models = [_]DemoModel{
-    // random models - basic functionality testing
+    // Animated models - character movement testing
     .{
         .path = "glTF-Sample-Models/InterpolationTest/glTF/InterpolationTest.gltf",
         .name = "Interpolation Test",
@@ -18,6 +18,65 @@ pub const demo_models = [_]DemoModel{
         .description = "Interpolation test with simple boxes",
         .play_all_animations = true,
     },
+    .{
+        //.path = "Fox/glTF-Binary/Fox.glb",
+        .path = "glTF-Sample-Models/Fox/glTF/Fox.gltf",
+        .name = "Fox",
+        .format = "glTF",
+        .category = "Animated",
+        .description = "Character with multiple animations",
+    },
+    .{
+        .path = "glTF-Sample-Models/CesiumMan/glTF-Binary/CesiumMan.glb",
+        .name = "Cesium Man glb",
+        .format = "GLB",
+        .category = "Animated",
+        .description = "Walking character animation",
+    },
+    .{
+        .path = "glTF-Sample-Models/BrainStem/glTF-Binary/BrainStem.glb",
+        .name = "Brain Stem",
+        .format = "GLB",
+        .category = "Complex",
+        .description = "Complex organic geometry",
+    },
+    .{
+        .path = "angrybots_assets/Models/Player/Player.gltf",
+        .name = "Player Model",
+        .format = "glTF",
+        .category = "Complex",
+        .description = "Player character model with animations converted from FBX",
+    },
+    .{
+        .path = "angrybots_assets/Models/Spacesuit/Spacesuit_converted.gltf",
+        .name = "Spacesuit (Converted)",
+        .format = "glTF",
+        .category = "Complex",
+        .description = "Spacesuit model converted from FBX",
+    },
+    .{
+        .path = "modular_characters/Individual Characters/glTF/Spacesuit.gltf",
+        .name = "Spacesuit (Modular Characters)",
+        .format = "glTF",
+        .category = "Complex",
+        .description = "Spacesuit model from Modular Characters collection",
+    },
+    .{
+        .path = "angrybots_assets/Models/CesiumMan/CesiumMan.gltf",
+        .name = "CesiumMan (original)",
+        .format = "glTF",
+        .category = "Basic",
+        .description = "CesiumMan model glTF",
+    },
+    // glTF-Sample-Models/CesiumMan/glTF/CesiumMan.gltf
+    .{
+        .path = "angrybots_assets/Models/CesiumMan/CesiumMan_converted.gltf",
+        .name = "CesiumMan (Converted)",
+        .format = "glTF",
+        .category = "Basic",
+        .description = "CesiumMan model converted from glTF",
+    },
+
     // Simple models - good for basic testing
     .{
         .path = "glTF-Sample-Models/BoxTextured/glTF-Binary/BoxTextured.glb",
@@ -41,22 +100,7 @@ pub const demo_models = [_]DemoModel{
         .description = "Lamp post with lantern",
     },
 
-    // Animated models - character movement testing
-    .{
-        //.path = "Fox/glTF-Binary/Fox.glb",
-        .path = "glTF-Sample-Models/Fox/glTF/Fox.gltf",
-        .name = "Fox",
-        .format = "glTF",
-        .category = "Animated",
-        .description = "Character with multiple animations",
-    },
-    .{
-        .path = "glTF-Sample-Models/CesiumMan/glTF-Binary/CesiumMan.glb",
-        .name = "Cesium Man",
-        .format = "GLB",
-        .category = "Animated",
-        .description = "Walking character animation",
-    },
+
     // .{
     //     .path = "glTF-Sample-Models/BoxAnimated/glTF-Binary/BoxAnimated.glb",
     //     .name = "Animated Box",
@@ -87,22 +131,6 @@ pub const demo_models = [_]DemoModel{
         .category = "Complex",
         .description = "Detailed materials and textures",
     },
-    .{
-        .path = "glTF-Sample-Models/BrainStem/glTF-Binary/BrainStem.glb",
-        .name = "Brain Stem",
-        .format = "GLB",
-        .category = "Complex",
-        .description = "Complex organic geometry",
-    },
-    .{
-        // .path = "Box/glTF-Binary/Box.glb",
-        .path = "glTF-Sample-Models/BrainStem/glTF/BrainStem_converted.gltf",
-        .name = "Brain Stem (Converted)",
-        .format = "glTF",
-        .category = "Complex",
-        .description = "Converted complex organic geometry",
-    },
-
     // Format comparison - same model in different formats
     .{
         .path = "glTF-Sample-Models/Duck/glTF/Duck.gltf",
@@ -149,42 +177,7 @@ pub const demo_models = [_]DemoModel{
         .description = "Interleaved vertex data",
     },
     // Extra models for variety
-    .{
-        .path = "angrybots_assets/Models/Player/Player.gltf",
-        .name = "Player Model",
-        .format = "glTF",
-        .category = "Complex",
-        .description = "Player character model with animations converted from FBX",
-    },
-    .{
-        .path = "angrybots_assets/Models/Spacesuit/Spacesuit_converted.gltf",
-        .name = "Spacesuit (Converted)",
-        .format = "glTF",
-        .category = "Complex",
-        .description = "Spacesuit model converted from FBX",
-    },
-    .{
-        .path = "modular_characters/Individual Characters/glTF/Spacesuit.gltf",
-        .name = "Spacesuit (Modular Characters)",
-        .format = "glTF",
-        .category = "Complex",
-        .description = "Spacesuit model from Modular Characters collection",
-    },
-    .{
-        .path = "angrybots_assets/CesiumMan/CesiumMan.gltf",
-        .name = "CesiumMan (original)",
-        .format = "glTF",
-        .category = "Basic",
-        .description = "CesiumMan model glTF",
-    },
-    // glTF-Sample-Models/CesiumMan/glTF/CesiumMan.gltf
-    .{
-        .path = "angrybots_assets/CesiumMan/CesiumMan_converted.gltf",
-        .name = "CesiumMan (Converted)",
-        .format = "glTF",
-        .category = "Basic",
-        .description = "CesiumMan model converted from glTF",
-    },
+
 };
 
 // Legacy arrays maintained for compatibility

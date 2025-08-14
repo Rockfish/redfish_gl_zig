@@ -90,8 +90,8 @@ pub const Model = struct {
     //     try self.animator.play_clip_with_transition(clip, transition_duration);
     // }
 
-    pub fn playWeightAnimations2(self: *Self, weighted_animations: []const animation.WeightedAnimation, frame_time: f32) !void {
-        try self.animator.playWeightAnimations(weighted_animations, frame_time);
+    pub fn updateWeightedAnimations(self: *Self, weighted_animations: []const animation.WeightedAnimation, frame_time: f32) !void {
+        try self.animator.updateWeightedAnimations(weighted_animations, frame_time);
     }
 
     /// Play all animations in the model simultaneously (for InterpolationTest)
@@ -129,7 +129,7 @@ pub const Model = struct {
 
     fn renderNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, node_index: usize) void {
         if (node.mesh) |mesh_index| {
-            const transform = self.animator.node_transforms[node_index];
+            const transform = self.animator.nodes[node_index].calculated_transform;
             const local_matrix = transform.toMatrix();
             shader.setMat4("nodeTransform", &local_matrix);
             const mesh = self.meshes.items[mesh_index];

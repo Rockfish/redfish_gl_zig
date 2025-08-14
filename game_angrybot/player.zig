@@ -202,7 +202,7 @@ pub const Player = struct {
     pub fn update(self: *Self, state: *State, aim_theta: f32) !void {
         const weight_animations = self.updateAnimationWeights(self.direction, aim_theta, state.frame_time);
         // Use the new glTF animation blending system
-        try self.model.playWeightAnimations2(&weight_animations, state.frame_time);
+        try self.model.updateWeightedAnimations(&weight_animations, state.frame_time);
     }
 
     pub fn getMuzzlePosition(self: *Self, player_transform: *const Mat4) Mat4 {

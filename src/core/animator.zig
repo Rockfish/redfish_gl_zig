@@ -184,6 +184,17 @@ pub const Animation = struct {
     node_data: []NodeAnimationData,
 };
 
+/// Preprocessed node data with transform extracted from either TRS or matrix
+pub const Node = struct {
+    name: ?[]const u8,
+    children: ?[]const u32,
+    mesh: ?u32,
+    skin: ?u32,
+    initial_transform: Transform,
+    calculated_transform: Transform,
+    calculated_is_set: bool,
+};
+
 pub const Animator = struct {
     arena: *ArenaAllocator,
 
@@ -195,8 +206,8 @@ pub const Animator = struct {
     // Cached root nodes (calculated once at init)
     root_nodes: []u32,
 
-    // Node transform cache (indexed by node index)
-    node_transforms: []Transform,
+    // Preprocessed initial node data with transforms extracted from TRS or matrix
+    nodes: []Node,
 
     // Pre-processed animations with names, durations, and node data
     animations: []Animation,
@@ -266,8 +277,6 @@ pub const Animator = struct {
             }
         }
 
-        const node_count = if (gltf_asset.gltf.nodes) |nodes| nodes.len else 0;
-
         // Calculate root nodes once at initialization
         var root_nodes_list = ArrayList(u32).init(allocator);
         if (gltf_asset.gltf.nodes) |nodes| {
@@ -302,6 +311,14 @@ pub const Animator = struct {
         // Pre-process animation channels
         const animations = try preprocessAnimationChannels(allocator, gltf_asset);
 
+        // Pre-process initial nodes
+        const initial_nodes = preprocessNodes(allocator, gltf_asset);
+
+        var buf: [500]u8 = undefined;
+        for (initial_nodes, 0..) |node, i| {
+            std.debug.print("Node {d}: '{s}' transform: {s}\n", .{ i, node.name orelse "unnamed", node.initial_transform.asString(&buf) });
+        }
+
         animator.* = Animator{
             .arena = arena,
             .gltf_asset = gltf_asset,
@@ -309,16 +326,11 @@ pub const Animator = struct {
             .joints = try joints.toOwnedSlice(),
             .active_animations = ArrayList(AnimationState).init(allocator),
             .weight_animations = ArrayList(WeightedAnimation).init(allocator),
-            .node_transforms = try allocator.alloc(Transform, node_count),
             .root_nodes = try root_nodes_list.toOwnedSlice(),
+            .nodes = initial_nodes,
             .animations = animations,
             .joint_matrices = [_]Mat4{Mat4.identity()} ** MAX_JOINTS,
         };
-
-        // Initialize node transforms to identity
-        for (0..animator.node_transforms.len) |i| {
-            animator.node_transforms[i] = Transform.init();
-        }
 
         return animator;
     }
@@ -382,7 +394,7 @@ pub const Animator = struct {
         }
         if (self.active_animations.items.len > 0) {
             try self.updateNodeTransformations();
-            try self.calculateNodeTransforms();
+            try self.calculateWorldTransforms();
             try self.setShaderMatrices();
         }
     }
@@ -425,15 +437,47 @@ pub const Animator = struct {
         }
     }
 
-    // Assumes that PlayClip has been called before and that self.active_animations[0] is valid
-    pub fn playWeightAnimations(self: *Self, weighted_animations: []const WeightedAnimation, frame_time: f32) !void {
+    pub fn updateAnimation(self: *Self, delta_time: f32) !void {
+        for (self.active_animations.items) |*anim_state| {
+            anim_state.update(delta_time);
+        }
+        if (self.active_animations.items.len > 0) {
+            self.resetNodeTransformations();
+            self.updateNodeTransformations();
+            self.calculateWorldTransforms();
+            self.setShaderMatrices();
+        }
+    }
 
-        // Clear node transforms to default state
+    pub fn updateWeightedAnimations(self: *Self, weighted_animations: []const WeightedAnimation, frame_time: f32) !void {
         self.resetNodeTransformations();
+        self.updateNodeTransformationsWeighted(weighted_animations, frame_time);
+        self.calculateWorldTransforms();
+        self.setShaderMatrices();
+    }
 
-        // const animation_state = self.active_animations.items[0];
+    /// Reset all node transforms to their default values using preprocessed initial nodes
+    fn resetNodeTransformations(self: *Self) void {
+        for (self.nodes, 0..) |*node, i| {
+            self.nodes[i].calculated_transform = node.initial_transform;
+            self.nodes[i].calculated_is_set = false;
+        }
+    }
 
-        // Update all active animations
+    /// Update node transformations from active animation states
+    fn updateNodeTransformations(self: *Self) void {
+        for (self.active_animations.items) |anim_state| {
+            const node_anim_data = self.animations[anim_state.animation_index].node_data;
+
+            for (node_anim_data) |anim_data| {
+                const initial_transform = self.nodes[anim_data.node_id].initial_transform;
+                const animated_transform = getAnimatedTransform(initial_transform, anim_data, anim_state.current_time);
+                self.nodes[anim_data.node_id].calculated_transform = animated_transform;
+            }
+        }
+    }
+
+    fn updateNodeTransformationsWeighted(self: *Self, weighted_animations: []const WeightedAnimation, frame_time: f32) void {
         for (weighted_animations) |weighted| {
             if (weighted.weight <= 0.0) continue;
 
@@ -442,200 +486,58 @@ pub const Animator = struct {
             var target_anim_time: f32 = 0.0;
 
             if (weighted.optional_start > 0.0) {
-                //const time = (frame_time - weighted.optional_start) * animation_state.ticks_per_second + weighted.offset;
                 const time = (frame_time - weighted.optional_start) + weighted.offset;
                 target_anim_time = @min(time, time_range);
             } else {
-                //target_anim_time = @mod((frame_time * animation_state.ticks_per_second + weighted.offset), time_range);
                 target_anim_time = @mod((frame_time + weighted.offset), time_range);
             }
-
             target_anim_time += weighted.start_time;
 
-            if ((target_anim_time < (weighted.start_time - 0.01)) or (target_anim_time > (weighted.end_time + 0.01))) {
-                std.debug.panic("target_anim_ticks out of range: {any}", .{target_anim_time});
+            if (target_anim_time < (weighted.start_time - 0.01)) {
+                std.debug.panic("target_anim_ticks: {d}  less then start_time: {d}", .{ target_anim_time, weighted.start_time - 0.01 });
+            }
+            if (target_anim_time > (weighted.end_time + 0.01)) {
+                std.debug.panic("target_anim_ticks: {d}  greater then end_time: {d}", .{ target_anim_time, weighted.end_time + 0.01 });
             }
 
-            self.calculateNodeTransformsRecursiveWeighted(
-                weighted.animation_index,
-                self.root_nodes[0],
-                Transform.identity(),
-                target_anim_time,
-                weighted.weight,
-            );
-        }
+            const node_anim_data = self.animations[weighted.animation_index].node_data;
 
-        self.setShaderMatrices();
-    }
-
-    fn calculateNodeTransformsRecursiveWeighted(
-        self: *Self,
-        anim_index: u32,
-        node_index: u32,
-        parent_transform: Transform,
-        anim_time: f32,
-        weight: f32,
-    ) void {
-        const global_transform = self.calculateNodeTransformWeighted(
-            anim_index,
-            node_index,
-            parent_transform,
-            anim_time,
-            weight,
-        );
-
-        const nodes = self.gltf_asset.gltf.nodes.?;
-        const node = nodes[node_index];
-
-        // Calculate world transforms by traversing the scene hierarchy
-        if (node.children) |children| {
-            for (children) |child_index| {
-                self.calculateNodeTransformsRecursiveWeighted(
-                    anim_index,
-                    child_index,
-                    global_transform,
-                    anim_time,
-                    weight,
-                );
+            for (node_anim_data) |anim_data| {
+                const initial_transform = self.nodes[anim_data.node_id].initial_transform;
+                const animated_transform = getAnimatedTransform(initial_transform, anim_data, target_anim_time);
+                if (self.nodes[anim_data.node_id].calculated_is_set == false) {
+                    self.nodes[anim_data.node_id].calculated_transform = animated_transform;
+                    self.nodes[anim_data.node_id].calculated_is_set = true;
+                    continue;
+                }
+                const blended_transform = self.nodes[anim_data.node_id].calculated_transform.blendTransforms(animated_transform, weighted.weight);
+                self.nodes[anim_data.node_id].calculated_transform = blended_transform;
             }
-        }
-    }
-
-    /// Calculate node transforms for a specific node and its animations
-    fn calculateNodeTransformWeighted(
-        self: *Self,
-        anim_index: u32,
-        node_index: u32,
-        parent_transform: Transform,
-        anim_time: f32,
-        weight: f32,
-    ) Transform {
-        if (node_index >= self.node_transforms.len) return Transform.init();
-
-        var global_transform: Transform = undefined;
-
-        const node_anim_data = self.getNodeAnimationData(anim_index, node_index);
-
-        if (node_anim_data) |anim_data| {
-            const node_transform = getAnimatedTransform(anim_data, anim_time);
-            global_transform = parent_transform.mulTransform(node_transform);
-        } else {
-            const nodes = self.gltf_asset.gltf.nodes.?;
-            const node = nodes[node_index];
-            const node_transform = Transform{
-                .translation = node.translation,
-                .rotation = node.rotation,
-                .scale = node.scale,
-            };
-            global_transform = parent_transform.mulTransform(node_transform);
-        }
-
-        self.node_transforms[node_index] = self.node_transforms[node_index].mulTransformWeighted(global_transform, weight);
-
-        return global_transform;
-    }
-
-    fn getNodeAnimationData(self: *Self, anim_index: u32, node_index: u32) ?NodeAnimationData {
-        if (anim_index >= self.animations.len) return null;
-        const node_data = self.animations[anim_index].node_data;
-        for (node_data) |data| {
-            if (data.node_id == node_index) {
-                return data;
-            }
-        }
-        return null;
-    }
-
-    /// Update animation with delta time - maintains same interface
-    pub fn updateAnimation(self: *Self, delta_time: f32) !void {
-        for (self.active_animations.items) |*anim_state| {
-            anim_state.update(delta_time);
-        }
-        if (self.active_animations.items.len > 0) {
-            self.resetNodeTransformations();
-            self.updateNodeTransformations();
-            self.calculateNodeTransforms();
-            self.setShaderMatrices();
-        }
-    }
-
-    /// Reset all node transforms to their default values
-    fn resetNodeTransformations(self: *Self) void {
-        if (self.gltf_asset.gltf.nodes) |nodes| {
-            for (nodes, 0..) |node, i| {
-                self.node_transforms[i] = Transform{
-                    .translation = node.translation,
-                    .rotation = node.rotation,
-                    .scale = node.scale,
-                };
-            }
-        }
-    }
-
-    /// Update node transformations from active animation states
-    fn updateNodeTransformations(self: *Self) void {
-        for (self.active_animations.items) |anim_state| {
-            if (anim_state.animation_index >= self.animations.len) continue;
-
-            const animation_data = self.animations[anim_state.animation_index].node_data;
-
-            for (animation_data) |node_anim_data| {
-                const animatedTransfrom = getAnimatedTransform(
-                    node_anim_data,
-                    anim_state.current_time,
-                );
-                self.node_transforms[node_anim_data.node_id] = self.node_transforms[node_anim_data.node_id].mulTransformWeighted(animatedTransfrom, 1.0);
-            } else {}
         }
     }
 
     /// Calculate world transforms for all nodes using Transform operations
-    fn calculateNodeTransforms(self: *Self) void {
+    fn calculateWorldTransforms(self: *Self) void {
         if (self.gltf_asset.gltf.nodes == null) return;
 
         // Calculate world transforms by traversing the scene hierarchy
         for (self.root_nodes) |root_node_index| {
-            self.calculateNodeTransformRecursive(root_node_index, Transform.init());
+            self.calculateWorldTransformRecursive(root_node_index, Transform.init());
         }
     }
 
     /// Recursively calculate node transforms with proper parent-child relationships
-    fn calculateNodeTransformRecursive(self: *Self, node_index: usize, parent_transform: Transform) void {
-        if (node_index >= self.node_transforms.len) return;
+    fn calculateWorldTransformRecursive(self: *Self, node_index: usize, parent_transform: Transform) void {
+        const local_transform = self.nodes[node_index].calculated_transform;
+        const wold_transform = parent_transform.composeTransforms(local_transform);
 
-        const nodes = self.gltf_asset.gltf.nodes.?;
-        const node = nodes[node_index];
+        self.nodes[node_index].calculated_transform = wold_transform;
 
-        // Calculate this node's world transform
-        const local_transform = self.node_transforms[node_index];
-        self.node_transforms[node_index] = parent_transform.mulTransform(local_transform);
-
-        // Process children
-        if (node.children) |children| {
+        if (self.nodes[node_index].children) |children| {
             for (children) |child_index| {
-                self.calculateNodeTransformRecursive(child_index, self.node_transforms[node_index]);
+                self.calculateWorldTransformRecursive(child_index, self.nodes[node_index].calculated_transform);
             }
         }
-    }
-
-    // lets try the other project's weight animation version
-
-    pub fn updateWeightedAnimations(self: *Self, frame_time: f32) !void {
-        if (self.animations.len == 0) return;
-
-        // Debugging enabled
-
-        // Clear node transforms to default state
-        self.resetNodeTransformations();
-
-        // Update all active animations
-        for (self.active_animations.items) |*anim_state| {
-            anim_state.update(frame_time);
-        }
-
-        // Calculate final matrices after all animations have been applied
-        try self.calculateNodeTransforms();
-        try self.setShaderMatrices();
     }
 
     /// Set final matrices for shader rendering
@@ -649,9 +551,9 @@ pub const Animator = struct {
         // Update joint matrices for skinned meshes
         for (0..@min(self.joints.len, MAX_JOINTS)) |i| {
             const joint = self.joints[i];
-            if (joint.node_index < self.node_transforms.len) {
+            if (joint.node_index < self.nodes.len) {
                 // Convert transform to matrix only when needed for joint calculation
-                const node_matrix = self.node_transforms[joint.node_index].toMatrix();
+                const node_matrix = self.nodes[joint.node_index].calculated_transform.toMatrix();
                 self.joint_matrices[i] = node_matrix.mulMat4(&joint.inverse_bind_matrix);
 
                 if (debug_joints and i < 3) {
@@ -683,9 +585,8 @@ pub const Animator = struct {
     }
 };
 
-/// Evaluate animated transform for a single node at a specific time
-fn getAnimatedTransform(node_anim: NodeAnimationData, current_time: f32) Transform {
-    var transform = Transform.init();
+fn getAnimatedTransform(initial_transform: Transform, node_anim: NodeAnimationData, current_time: f32) Transform {
+    var transform = initial_transform;
 
     if (getAnimatedTranslation(node_anim.translation, current_time)) |value| {
         transform.translation = value;
@@ -814,120 +715,127 @@ pub fn interpolateQuat(
 /// Pre-process all animation channels into Animation structs with pre-calculated durations
 /// Groups all animation data affecting each node together for better cache locality
 fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsset) ![]Animation {
-    const gltf_animations = gltf_asset.gltf.animations orelse return try allocator.alloc(Animation, 0);
-
-    var all_animations = try allocator.alloc(Animation, gltf_animations.len);
-
-    for (gltf_animations, 0..) |gltf_animation, anim_idx| {
-        // Use a HashMap to group channels by node_id
-        var node_channel_map = std.HashMap(
-            u32,
-            NodeAnimationData,
-            std.hash_map.AutoContext(u32),
-            std.hash_map.default_max_load_percentage,
-        ).init(allocator);
-        defer node_channel_map.deinit();
-
-        // Process each channel in this animation
-        for (gltf_animation.channels) |channel| {
-            const node_id = channel.target.node orelse continue;
-            const sampler = gltf_animation.samplers[channel.sampler];
-
-            // Read input and output data once
-            const input_times = readAccessorAsF32Slice(gltf_asset, sampler.input);
-
-            // Get or create NodeAnimationData for this node
-            var node_channels = node_channel_map.get(node_id) orelse NodeAnimationData{
-                .node_id = node_id,
-                .translation = null,
-                .rotation = null,
-                .scale = null,
-                .weights = null,
-            };
-
-            // Add the appropriate channel data
-            switch (channel.target.path) {
-                .translation => {
-                    const output_values = readAccessorAsVec3Slice(gltf_asset, sampler.output);
-                    node_channels.translation = NodeTranslationData{
-                        .interpolation = sampler.interpolation,
-                        .keyframe_times = input_times,
-                        .positions = output_values,
-                    };
-                },
-                .rotation => {
-                    const output_values = readAccessorAsQuatSlice(gltf_asset, sampler.output);
-                    node_channels.rotation = NodeRotationData{
-                        .interpolation = sampler.interpolation,
-                        .keyframe_times = input_times,
-                        .rotations = output_values,
-                    };
-                },
-                .scale => {
-                    const output_values = readAccessorAsVec3Slice(gltf_asset, sampler.output);
-                    node_channels.scale = NodeScaleData{
-                        .interpolation = sampler.interpolation,
-                        .keyframe_times = input_times,
-                        .scales = output_values,
-                    };
-                },
-                .weights => {
-                    const output_values = readAccessorAsF32Slice(gltf_asset, sampler.output);
-                    node_channels.weights = NodeWeightData{
-                        .interpolation = sampler.interpolation,
-                        .keyframe_times = input_times,
-                        .weights = output_values,
-                    };
-                },
-            }
-
-            // Update the map
-            try node_channel_map.put(node_id, node_channels);
-        }
-
-        // Convert HashMap to array
-        const node_channels_list = try allocator.alloc(NodeAnimationData, node_channel_map.count());
-        var iterator = node_channel_map.iterator();
-        var i: usize = 0;
-        while (iterator.next()) |entry| {
-            node_channels_list[i] = entry.value_ptr.*;
-            i += 1;
-        }
-
-        // Calculate animation duration from all channels
-        var max_time: f32 = 0.0;
-        for (node_channels_list) |node_anim| {
-            if (node_anim.translation) |translation_data| {
-                max_time = @max(max_time, getLastKeyframeTime(translation_data.keyframe_times));
-            }
-            if (node_anim.rotation) |rotation_data| {
-                max_time = @max(max_time, getLastKeyframeTime(rotation_data.keyframe_times));
-            }
-            if (node_anim.scale) |scale_data| {
-                max_time = @max(max_time, getLastKeyframeTime(scale_data.keyframe_times));
-            }
-            if (node_anim.weights) |weight_data| {
-                max_time = @max(max_time, getLastKeyframeTime(weight_data.keyframe_times));
-            }
-        }
-
-        // Use default duration if no time data found
-        if (max_time == 0.0) {
-            max_time = DEFAULT_ANIMATION_DURATION;
-        }
-
-        // Create Animation struct with name, duration, and node data
-        const animation_name = if (gltf_animation.name) |name| name else try std.fmt.allocPrint(allocator, "Animation_{d}", .{anim_idx});
-
-        all_animations[anim_idx] = Animation{
-            .name = animation_name,
-            .duration = max_time,
-            .node_data = node_channels_list,
+    if (gltf_asset.gltf.animations) |gltf_animations| {
+        var all_animations: []Animation = allocator.alloc(Animation, gltf_animations.len) catch {
+            std.debug.panic("Failed to allocate memory for animations\n", .{});
         };
 
-        std.debug.print("Pre-processed animation {d} '{s}': {d:.2}s duration, {d} nodes with animation data\n", .{ anim_idx, animation_name, max_time, node_channels_list.len });
+        for (gltf_animations, 0..) |gltf_animation, anim_idx| {
+            // Use a HashMap to group channels by node_id
+            var node_channel_map = std.HashMap(
+                u32,
+                NodeAnimationData,
+                std.hash_map.AutoContext(u32),
+                std.hash_map.default_max_load_percentage,
+            ).init(allocator);
+            defer node_channel_map.deinit();
+
+            // Process each channel in this animation
+            for (gltf_animation.channels) |channel| {
+                const node_id = channel.target.node orelse continue;
+                const sampler = gltf_animation.samplers[channel.sampler];
+
+                // Read input and output data once
+                const input_times = readAccessorAsF32Slice(gltf_asset, sampler.input);
+
+                // Get or create NodeAnimationData for this node
+                var node_channels = node_channel_map.get(node_id) orelse NodeAnimationData{
+                    .node_id = node_id,
+                    .translation = null,
+                    .rotation = null,
+                    .scale = null,
+                    .weights = null,
+                };
+
+                // Add the appropriate channel data
+                switch (channel.target.path) {
+                    .translation => {
+                        const output_values = readAccessorAsVec3Slice(gltf_asset, sampler.output);
+                        node_channels.translation = NodeTranslationData{
+                            .interpolation = sampler.interpolation,
+                            .keyframe_times = input_times,
+                            .positions = output_values,
+                        };
+                    },
+                    .rotation => {
+                        const output_values = readAccessorAsQuatSlice(gltf_asset, sampler.output);
+                        node_channels.rotation = NodeRotationData{
+                            .interpolation = sampler.interpolation,
+                            .keyframe_times = input_times,
+                            .rotations = output_values,
+                        };
+                    },
+                    .scale => {
+                        const output_values = readAccessorAsVec3Slice(gltf_asset, sampler.output);
+                        node_channels.scale = NodeScaleData{
+                            .interpolation = sampler.interpolation,
+                            .keyframe_times = input_times,
+                            .scales = output_values,
+                        };
+                    },
+                    .weights => {
+                        const output_values = readAccessorAsF32Slice(gltf_asset, sampler.output);
+                        node_channels.weights = NodeWeightData{
+                            .interpolation = sampler.interpolation,
+                            .keyframe_times = input_times,
+                            .weights = output_values,
+                        };
+                    },
+                }
+
+                // Update the map
+                try node_channel_map.put(node_id, node_channels);
+            }
+
+            // Convert HashMap to array
+            const node_channels_list = try allocator.alloc(NodeAnimationData, node_channel_map.count());
+            var iterator = node_channel_map.iterator();
+            var i: usize = 0;
+            while (iterator.next()) |entry| {
+                node_channels_list[i] = entry.value_ptr.*;
+                i += 1;
+            }
+
+            // Calculate animation duration from all channels
+            var max_time: f32 = 0.0;
+            for (node_channels_list) |node_anim| {
+                if (node_anim.translation) |translation_data| {
+                    max_time = @max(max_time, getLastKeyframeTime(translation_data.keyframe_times));
+                }
+                if (node_anim.rotation) |rotation_data| {
+                    max_time = @max(max_time, getLastKeyframeTime(rotation_data.keyframe_times));
+                }
+                if (node_anim.scale) |scale_data| {
+                    max_time = @max(max_time, getLastKeyframeTime(scale_data.keyframe_times));
+                }
+                if (node_anim.weights) |weight_data| {
+                    max_time = @max(max_time, getLastKeyframeTime(weight_data.keyframe_times));
+                }
+            }
+
+            // Use default duration if no time data found
+            if (max_time == 0.0) {
+                max_time = DEFAULT_ANIMATION_DURATION;
+            }
+
+            // Create Animation struct with name, duration, and node data
+            const animation_name = if (gltf_animation.name) |name| name else try std.fmt.allocPrint(allocator, "Animation_{d}", .{anim_idx});
+
+            all_animations[anim_idx] = Animation{
+                .name = animation_name,
+                .duration = max_time,
+                .node_data = node_channels_list,
+            };
+
+            std.debug.print("Pre-processed animation {d} '{s}': {d:.2}s duration, {d} nodes with animation data\n", .{ anim_idx, animation_name, max_time, node_channels_list.len });
+        }
+
+        return all_animations;
     }
 
+    const all_animations: []Animation = allocator.alloc(Animation, 0) catch {
+        std.debug.panic("Failed to allocate memory for animations\n", .{});
+    };
     return all_animations;
 }
 
@@ -971,4 +879,45 @@ fn readAccessorAsQuatSlice(gltf_asset: *const GltfAsset, accessor_index: u32) []
 
     const data = buffer_data[start..end];
     return @as([*]const Quat, @ptrCast(@alignCast(data)))[0..accessor.count];
+}
+
+/// Preprocess all glTF nodes into Node structs with transforms extracted from either TRS or matrix
+fn preprocessNodes(allocator: Allocator, gltf_asset: *const GltfAsset) []Node {
+    if (gltf_asset.gltf.nodes) |gltf_nodes| {
+        var nodes = allocator.alloc(Node, gltf_nodes.len) catch {
+            std.debug.panic("Failed to allocate memory for nodes\n", .{});
+        };
+
+        for (gltf_nodes, 0..) |gltf_node, i| {
+            var transform: Transform = undefined;
+
+            if (gltf_node.matrix) |matrix| {
+                transform = Transform.fromMatrix(&matrix);
+            } else {
+                transform = Transform{
+                    .translation = gltf_node.translation orelse Vec3.zero(),
+                    .rotation = gltf_node.rotation orelse Quat.identity(),
+                    .scale = gltf_node.scale orelse Vec3.one(),
+                };
+            }
+
+            nodes[i] = Node{
+                .name = gltf_node.name,
+                .children = gltf_node.children,
+                .mesh = gltf_node.mesh,
+                .skin = gltf_node.skin,
+                .initial_transform = transform,
+                .calculated_transform = transform,
+                .calculated_is_set = false,
+            };
+        }
+
+        std.debug.print("Preprocessed {d} nodes with transform data\n", .{nodes.len});
+        return nodes;
+    }
+
+    const nodes: []Node = allocator.alloc(Node, 0) catch {
+        std.debug.panic("Failed to allocate memory for nodes\n", .{});
+    };
+    return nodes;
 }

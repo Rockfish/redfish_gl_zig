@@ -13,17 +13,17 @@ const Mat4 = math.Mat4;
 const Quat = math.Quat;
 
 pub const Transform = struct {
-    translation: ?Vec3,
-    rotation: ?Quat,
-    scale: ?Vec3,
+    translation: Vec3,
+    rotation: Quat,
+    scale: Vec3,
 
     const Self = @This();
 
     pub fn init() Transform {
         return Transform{
-            .translation = null,
-            .rotation = null,
-            .scale = null,
+            .translation = vec3(0.0, 0.0, 0.0),
+            .rotation = Quat{ .data = [4]f32{ 0.0, 0.0, 0.0, 1.0 } },
+            .scale = vec3(1.0, 1.0, 1.0),
         };
     }
 
@@ -76,27 +76,18 @@ pub const Transform = struct {
     }
 
     pub fn clear(self: *Self) void {
-        self.translation = null;
-        self.rotation = null;
-        self.scale = null;
+        self.translation = Vec3.zero();
+        self.rotation = Quat.identity();
+        self.scale = Vec3.one();
     }
 
-    pub fn mulTransformWeighted(self: *const Self, transform: Transform, weight: f32) Self {
-        const translation = if (self.translation != null and transform.translation != null)
-            self.translation.?.lerp(&transform.translation.?, weight)
-        else
-            transform.translation orelse self.translation;
-
-        const rotation = if (self.rotation != null and transform.rotation != null)
-            self.rotation.?.slerp(&transform.rotation.?, weight)
-        else
-            transform.rotation orelse self.rotation;
-
-        const scale = if (self.scale != null and transform.scale != null)
-            self.scale.?.lerp(&transform.scale.?, weight)
-        else
-            transform.scale orelse self.scale;
-
+    /// Blends this transform with another `transform` based on the given `weight`.
+    /// The `weight` should be in the range [0.0, 1.0], where 0.0 means no influence from the other transform,
+    /// and 1.0 means full influence from the other transform.
+    pub fn blendTransforms(self: *const Transform, transform: Transform, weight: f32) Transform {
+        const translation = self.translation.lerp(&transform.translation, weight);
+        const rotation = self.rotation.slerp(&transform.rotation, weight);
+        const scale = self.scale.lerp(&transform.scale, weight);
         return Transform{
             .translation = translation,
             .rotation = rotation,
@@ -104,25 +95,11 @@ pub const Transform = struct {
         };
     }
 
-    pub fn mulTransform(self: *const Self, transform: Transform) Self {
-        const translation = if (transform.translation) |t|
-            if (self.translation != null or self.rotation != null or self.scale != null)
-                self.transformPoint(t)
-            else
-                t
-        else
-            self.translation;
-
-        const rotation = if (self.rotation != null and transform.rotation != null)
-            Quat.mulQuat(&self.rotation.?, &transform.rotation.?)
-        else
-            transform.rotation orelse self.rotation;
-
-        const scale = if (self.scale != null and transform.scale != null)
-            self.scale.?.mul(&transform.scale.?)
-        else
-            transform.scale orelse self.scale;
-
+    /// Composes or multiply this transform with another transform.
+    pub fn composeTransforms(self: *const Transform, transform: Transform) Transform {
+        const translation = self.transformPoint(transform.translation);
+        const rotation = Quat.mulQuat(&self.rotation, &transform.rotation);
+        const scale = self.scale.mul(&transform.scale);
         return Transform{
             .translation = translation,
             .rotation = rotation,
@@ -130,49 +107,48 @@ pub const Transform = struct {
         };
     }
 
-    pub fn transformPoint(self: *const Self, point: Vec3) Vec3 {
-        var _point = if (self.scale) |s| s.mul(&point) else point;
-        _point = if (self.rotation) |r| r.rotateVec(&_point) else _point;
-        _point = if (self.translation) |t| t.add(&_point) else _point;
-        return _point;
+    /// Transforms the given `point`, applying scale, rotation and translation.
+    pub fn transformPoint(self: *const Self, in_point: Vec3) Vec3 {
+        var point = self.scale.mul(&in_point);
+        point = self.rotation.rotateVec(&point);
+        point = self.translation.add(&point);
+        return point;
     }
 
     pub fn toMatrix(self: *const Self) Mat4 {
-        const translation = self.translation orelse vec3(0.0, 0.0, 0.0);
-        const rotation = self.rotation orelse Quat{ .data = [4]f32{ 0.0, 0.0, 0.0, 1.0 } };
-        const scale = self.scale orelse vec3(1.0, 1.0, 1.0);
-        return Mat4.fromTranslationRotationScale(&translation, &rotation, &scale);
+        return Mat4.fromTranslationRotationScale(&self.translation, &self.rotation, &self.scale);
     }
 
     pub fn asString(self: *const Self, buf: []u8) [:0]u8 {
-        const t = self.translation orelse vec3(0.0, 0.0, 0.0);
-        const r = self.rotation orelse Quat{ .data = [4]f32{ 0.0, 0.0, 0.0, 1.0 } };
-        const s = self.scale orelse vec3(1.0, 1.0, 1.0);
         return std.fmt.bufPrintZ(
             buf,
             "{{.translation={{{d}, {d}, {d}}} .rotation={{{d}, {d}, {d}, {d}}} .scale={{{d}, {d}, {d}}}}}",
-            .{ t.x, t.y, t.z, r.data[0], r.data[1], r.data[2], r.data[3], s.x, s.y, s.z },
+            .{
+                self.translation.x,
+                self.translation.y,
+                self.translation.z,
+                self.rotation.data[0],
+                self.rotation.data[1],
+                self.rotation.data[2],
+                self.rotation.data[3],
+                self.scale.x,
+                self.scale.y,
+                self.scale.z,
+            },
         ) catch @panic("bufPrintZ error.");
     }
 
     pub fn equal(self: *const Self, other: Transform) bool {
-        const self_t = self.translation;
-        const other_t = other.translation;
-        const self_r = self.rotation;
-        const other_r = other.rotation;
-        const self_s = self.scale;
-        const other_s = other.scale;
-
-        // Check if both are null or both have same values
-        const trans_equal = (self_t == null and other_t == null) or
-            (self_t != null and other_t != null and self_t.?.x == other_t.?.x and self_t.?.y == other_t.?.y and self_t.?.z == other_t.?.z);
-
-        const rot_equal = (self_r == null and other_r == null) or
-            (self_r != null and other_r != null and self_r.?.data[0] == other_r.?.data[0] and self_r.?.data[1] == other_r.?.data[1] and self_r.?.data[2] == other_r.?.data[2] and self_r.?.data[3] == other_r.?.data[3]);
-
-        const scale_equal = (self_s == null and other_s == null) or
-            (self_s != null and other_s != null and self_s.?.x == other_s.?.x and self_s.?.y == other_s.?.y and self_s.?.z == other_s.?.z);
-
-        return trans_equal and rot_equal and scale_equal;
+        // zig fmt: off
+        return self.translation.x == other.translation.x
+            and self.translation.y == other.translation.y
+            and self.translation.z == other.translation.z
+            and self.rotation.data[0] == other.rotation.data[0]
+            and self.rotation.data[1] == other.rotation.data[1]
+            and self.rotation.data[2] == other.rotation.data[2]
+            and self.rotation.data[3] == other.rotation.data[3]
+            and self.scale.x == self.scale.x
+            and self.scale.y == self.scale.y
+            and self.scale.z == self.scale.z;
     }
 };
