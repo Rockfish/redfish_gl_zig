@@ -129,7 +129,7 @@ pub const Model = struct {
 
     fn renderNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, node_index: usize) void {
         if (node.mesh) |mesh_index| {
-            const transform = self.animator.nodes[node_index].calculated_transform;
+            const transform = self.animator.nodes[node_index].calculated_transform.?;
             const local_matrix = transform.toMatrix();
             shader.setMat4("nodeTransform", &local_matrix);
             const mesh = self.meshes.items[mesh_index];

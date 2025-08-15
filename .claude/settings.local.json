@@ -9,7 +9,8 @@
       "Bash(ls:*)",
       "Bash(./zig-out/bin/fbx_gltf_converter:*)",
       "Bash(gltf-transform validate:*)",
-      "Bash(converter/zig-out/bin/fbx_gltf_converter:*)"
+      "Bash(converter/zig-out/bin/fbx_gltf_converter:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
