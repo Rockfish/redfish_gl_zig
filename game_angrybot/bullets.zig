@@ -6,25 +6,19 @@ const geom = @import("geom.zig");
 const sprites = @import("sprite_sheet.zig");
 const world = @import("state.zig");
 const gl = @import("zopengl").bindings;
-const Capsule = @import("capsule.zig").Capsule;
 const Enemy = @import("enemy.zig").Enemy;
 
 const ArrayList = std.ArrayList;
-const HashMap = std.AutoArrayHashMap;
 
 const AABB = core.AABB;
 const State = world.State;
 const Shader = core.Shader;
-const Model = core.Model;
 const Animation = core.animation;
-const WeightedAnimation = core.animation.WeightedAnimation;
 const SpriteSheet = sprites.SpriteSheet;
 const SpriteSheetSprite = sprites.SpriteSheetSprite;
 
-const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
 const Vec4 = math.Vec4;
-const vec2 = math.vec2;
 const vec3 = math.vec3;
 const vec4 = math.vec4;
 const Mat4 = math.Mat4;
@@ -351,7 +345,7 @@ pub const BulletStore = struct {
 
             const sprite_tester = SpriteAgeTester{ .sprite_duration = sprite_duration };
 
-            try core.utils.retain(
+            core.utils.retain(
                 SpriteSheetSprite,
                 SpriteAgeTester,
                 &self.bullet_impact_sprites,
@@ -370,7 +364,7 @@ pub const BulletStore = struct {
 
         const enemyTester = EnemyTester{};
         // state.enemies.retain(|e| e.is_alive);
-        try core.utils.retain(
+        core.utils.retain(
             Enemy,
             EnemyTester,
             &state.enemies,

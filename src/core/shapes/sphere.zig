@@ -1,22 +1,15 @@
 const std = @import("std");
-const gl = @import("zopengl").bindings;
 const math = @import("math");
 const shape = @import("shape.zig");
 
 const Allocator = std.mem.Allocator;
-const ModelVertex = @import("../model_mesh.zig").ModelVertex;
 
-const AABB = @import("../aabb.zig").AABB;
+// const AABB = @import("../aabb.zig").AABB;
 
-const Vec2 = math.Vec2;
-const vec2 = math.vec2;
-const Vec3 = math.Vec3;
 const vec3 = math.vec3;
 const Vec4 = math.Vec4;
-const vec4 = math.vec4;
 
 const SIZE_OF_U32 = @sizeOf(u32);
-const SIZE_OF_FLOAT = @sizeOf(f32);
 
 pub const Sphere = struct {
 

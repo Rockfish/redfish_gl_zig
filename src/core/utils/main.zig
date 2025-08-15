@@ -22,7 +22,7 @@ pub fn fileExists(path: []const u8) bool {
 /// Returns owned string
 pub fn getExistsFilename(allocator: std.mem.Allocator, directory: []const u8, filename: []const u8) ![]const u8 {
     if (fileExists(filename)) {
-        return try allocator.dupe(u8, filename);
+        return allocator.dupe(u8, filename);
     }
 
     var path = try std.fs.path.join(allocator, &[_][]const u8{ directory, filename });
@@ -68,7 +68,7 @@ pub fn strchr(str: []const u8, c: u8) ?usize {
 /// Generate a timestamp string in format: YYYY-MM-DD_HH.MM.SS.mmm
 pub fn generateTimestamp() [23]u8 {
     const timestamp = std.time.timestamp();
-    const epoch_seconds = @as(u64, @intCast(timestamp));
+    const epoch_seconds: u64 = @intCast(timestamp);
     const millis = @as(u64, @intCast(std.time.milliTimestamp())) % 1000;
 
     // Convert to local time structure
@@ -86,7 +86,11 @@ pub fn generateTimestamp() [23]u8 {
     const day = ((days_since_epoch % 365) % 30) + 1;
 
     var result: [23]u8 = undefined;
-    _ = std.fmt.bufPrint(&result, "{d:0>4}-{d:0>2}-{d:0>2}_{d:0>2}.{d:0>2}.{d:0>2}.{d:0>3}", .{ year, month, day, hour, minute, second, millis }) catch unreachable;
+    _ = std.fmt.bufPrint(
+        &result,
+        "{d:0>4}-{d:0>2}-{d:0>2}_{d:0>2}.{d:0>2}.{d:0>2}.{d:0>3}",
+        .{ year, month, day, hour, minute, second, millis },
+    ) catch @panic("Failed to generate timestamp string");
 
     return result;
 }

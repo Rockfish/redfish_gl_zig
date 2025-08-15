@@ -4,22 +4,18 @@ const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 const Shader = @import("shader.zig").Shader;
 const Mesh = @import("mesh.zig").Mesh;
-const MeshPrimitive = @import("mesh.zig").MeshPrimitive;
 const Animator = @import("animator.zig").Animator;
 const Transform = @import("transform.zig").Transform;
 const AABB = @import("aabb.zig").AABB;
 
 const Mat4 = math.Mat4;
-const mat4 = math.mat4;
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
 const vec4 = math.vec4;
-const Quat = math.Quat;
 
 const animation = @import("animator.zig");
 
 const ArenaAllocator = std.heap.ArenaAllocator;
-const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
 // const Animator = animation.Animator;
@@ -109,7 +105,7 @@ pub const Model = struct {
         var buf: [256:0]u8 = undefined;
         for (0..MAX_JOINTS) |i| {
             const joint_transform = self.animator.joint_matrices[i];
-            const uniform = std.fmt.bufPrintZ(&buf, "jointMatrices[{d}]", .{i}) catch unreachable;
+            const uniform = std.fmt.bufPrintZ(&buf, "jointMatrices[{d}]", .{i}) catch @panic("bufPrintZ error");
             shader.setMat4(uniform, &joint_transform);
         }
 

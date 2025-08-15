@@ -4,12 +4,10 @@ const math = @import("math");
 const world = @import("state.zig");
 
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
 const HashMap = std.AutoArrayHashMap;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
 const vec2 = math.vec2;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
@@ -19,12 +17,9 @@ const Model = core.Model;
 const GltfAsset = core.asset_loader.GltfAsset;
 const TextureConfig = core.texture.TextureConfig;
 const Shader = core.Shader;
-const animation = core.animation;
-const Animator = core.Animator;
 const AnimationClip = core.AnimationClip;
 const AnimationRepeatMode = core.AnimationRepeatMode;
 const WeightedAnimation = core.WeightedAnimation;
-const WeightedAnimation2 = core.WeightedAnimation2;
 
 pub const AnimationName = enum {
     idle,
@@ -213,7 +208,7 @@ pub const Player = struct {
         return player_transform.mulMat4(&muzzle_translation);
     }
 
-    fn updateAnimationWeights(self: *Self, move_vec: Vec2, aim_theta: f32, frame_time: f32) [6]WeightedAnimation2 {
+    fn updateAnimationWeights(self: *Self, move_vec: Vec2, aim_theta: f32, frame_time: f32) [6]WeightedAnimation {
         const is_moving = move_vec.lengthSquared() > 0.1;
         const move_theta = math.atan(move_vec.x / move_vec.y) + if (move_vec.y < @as(f32, 0.0)) math.pi else @as(f32, 0.0);
         const theta_delta = move_theta - aim_theta;
@@ -253,12 +248,12 @@ pub const Player = struct {
 
         const fps = 30.0;
         return .{
-            WeightedAnimation2.init(0, idle_weight, 55.0 / fps, 130.0 / fps, 0.0, 0.0),
-            WeightedAnimation2.init(0, forward_weight, 134.0 / fps, 154.0 / fps, 0.0, 0.0),
-            WeightedAnimation2.init(0, back_weight, 159.0 / fps, 179.0 / fps, 10.0 / fps, 0.0),
-            WeightedAnimation2.init(0, right_weight, 184.0 / fps, 204.0 / fps, 10.0 / fps, 0.0),
-            WeightedAnimation2.init(0, left_weight, 209.0 / fps, 229.0 / fps, 0.0, 0.0),
-            WeightedAnimation2.init(0, dead_weight, 234.0 / fps, 293.0 / fps, 0.0, self.death_time),
+            WeightedAnimation.init(0, idle_weight, 55.0 / fps, 130.0 / fps, 0.0, 0.0),
+            WeightedAnimation.init(0, forward_weight, 134.0 / fps, 154.0 / fps, 0.0, 0.0),
+            WeightedAnimation.init(0, back_weight, 159.0 / fps, 179.0 / fps, 10.0 / fps, 0.0),
+            WeightedAnimation.init(0, right_weight, 184.0 / fps, 204.0 / fps, 10.0 / fps, 0.0),
+            WeightedAnimation.init(0, left_weight, 209.0 / fps, 229.0 / fps, 0.0, 0.0),
+            WeightedAnimation.init(0, dead_weight, 234.0 / fps, 293.0 / fps, 0.0, self.death_time),
         };
     }
 };

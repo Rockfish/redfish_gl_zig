@@ -1,8 +1,6 @@
 const std = @import("std");
 const gl = @import("zopengl").bindings;
 const math = @import("math");
-const core = @import("main.zig");
-const Texture = @import("texture.zig").Texture;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
@@ -16,10 +14,10 @@ const Mat4 = math.Mat4;
 const Allocator = std.mem.Allocator;
 const StringHashMap = std.StringHashMap;
 
-const ShaderError = error{
-    CompileError,
-    LinkError,
-};
+// const ShaderError = error{
+//     CompileError,
+//     LinkError,
+// };
 
 pub const Shader = struct {
     id: u32,
@@ -194,9 +192,9 @@ pub const Shader = struct {
             return result.?;
         }
 
-        const key = self.allocator.dupe(u8, uniform) catch unreachable;
+        const key = self.allocator.dupe(u8, uniform) catch @panic("Failed to duplicate uniform key");
         const loc = gl.getUniformLocation(self.id, uniform);
-        self.locations.put(key, loc) catch unreachable;
+        self.locations.put(key, loc) catch @panic("Failed to cache uniform location");
 
         return loc;
     }

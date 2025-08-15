@@ -1,32 +1,16 @@
 const std = @import("std");
 const glfw = @import("zglfw");
-const set = @import("ziglangSet");
 const core = @import("core");
 const math = @import("math");
 
-const ArrayList = std.ArrayList;
 const EnumSet = std.EnumSet;
 
 const Player = @import("player.zig").Player;
 const Enemy = @import("enemy.zig").Enemy;
-const EnemySystem = @import("enemy.zig").EnemySystem;
-const BulletStore = @import("bullets.zig").BulletStore;
 const BurnMarks = @import("burn_marks.zig").BurnMarks;
-const MuzzleFlash = @import("muzzle_flash.zig").MuzzleFlash;
-const Floor = @import("floor.zig").Floor;
-const fb = @import("framebuffers.zig");
-const quads = @import("quads.zig");
 const Capsule = @import("capsule.zig").Capsule;
 
-const Assimp = core.assimp.Assimp;
-const Model = core.Model;
-const ModelBuilder = core.ModelBuilder;
-const Animation = core.animation;
-const Texture = core.texture.Texture;
 const Camera = core.Camera;
-const Shader = core.Shader;
-const String = core.string.String;
-const FrameCount = core.FrameCount;
 const SoundEngine = core.SoundEngine;
 
 // Player

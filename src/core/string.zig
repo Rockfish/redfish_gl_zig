@@ -28,7 +28,7 @@ pub const String = struct {
     }
 
     pub fn clone(self: *Self) !*String {
-        return try String.new(self.str);
+        return String.new(self.str);
     }
 
     pub fn equals(self: *Self, other: *String) bool {

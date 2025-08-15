@@ -7,14 +7,9 @@ const Transform = @import("transform.zig").Transform;
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const ArrayList = std.ArrayList;
-const StringHashMap = std.StringHashMap;
 
-const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
-const vec2 = math.vec2;
 const vec3 = math.vec3;
-const vec4 = math.vec4;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
 const quat = math.quat;
@@ -327,7 +322,7 @@ pub const Animator = struct {
         self.active_animations.clearRetainingCapacity();
 
         for (0..self.animations.len) |i| {
-            const animation_index = @as(u32, @intCast(i));
+            const animation_index: u32 = @intCast(i);
             const animation = self.animations[animation_index];
             const anim_state = AnimationState.init(
                 animation_index,

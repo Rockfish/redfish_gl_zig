@@ -1,22 +1,16 @@
 const std = @import("std");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
-const set = @import("ziglangSet");
 const core = @import("core");
 const math = @import("math");
 const world = @import("state.zig");
 
-const ArenaAllocator = std.heap.ArenaAllocator;
-
-const FloatMode = @import("std").builtin.FloatMode;
 const ArrayList = std.ArrayList;
 const EnumSet = std.EnumSet;
 
 const gl = zopengl.bindings;
 
-const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
 const vec2 = math.vec2;
 const vec3 = math.vec3;
 const vec4 = math.vec4;
@@ -34,14 +28,8 @@ const Floor = @import("floor.zig").Floor;
 const fb = @import("framebuffers.zig");
 const quads = @import("quads.zig");
 
-const Model = core.Model;
 const Camera = core.Camera;
 const Shader = core.Shader;
-const Texture = core.texture.Texture;
-const TextureConfig = core.texture.TextureConfig;
-const Animator = core.animation.Animator;
-const AnimationClip = core.animation.AnimationClip;
-const AnimationRepeat = core.animation.AnimationRepeat;
 const SoundEngine = core.SoundEngine;
 
 const log = std.log.scoped(.Main);
@@ -58,7 +46,6 @@ const BLUR_SCALE: i32 = 2;
 const FLOOR_LIGHT_FACTOR: f32 = 0.35;
 const FLOOR_NON_BLUE: f32 = 0.7;
 
-const content_dir = "assets";
 
 const PV = struct {
     projection: Mat4,

@@ -1,14 +1,8 @@
 const std = @import("std");
 const math = @import("math");
 
-const Allocator = std.mem.Allocator;
-
-const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
-const vec2 = math.vec2;
 const vec3 = math.vec3;
-const vec4 = math.vec4;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
 

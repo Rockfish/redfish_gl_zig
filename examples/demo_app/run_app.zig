@@ -1,7 +1,6 @@
 const std = @import("std");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
-const zstbi = @import("zstbi");
 const core = @import("core");
 const math = @import("math");
 const assets_list = @import("assets_list.zig");
@@ -14,37 +13,18 @@ const asset_loader = core.asset_loader;
 const gl = zopengl.bindings;
 
 const Model = core.Model;
-const ModelBuilder = core.ModelBuilder;
-const String = core.string.String;
-const FrameCounter = core.FrameCounter;
-const Animator = core.Animator;
-// const AnimationClip = core.AnimationClip;
-const AnimationRepeatMode = core.AnimationRepeatMode;
 
 const Shader = core.Shader;
 
-const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
-const vec2 = math.vec2;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
-const Quat = math.Quat;
 
-const Window = glfw.Window;
 
 // Lighting
-const LIGHT_FACTOR: f32 = 1.0;
 const NON_BLUE: f32 = 0.9;
 
-const FLOOR_LIGHT_FACTOR: f32 = 0.35;
-const FLOOR_NON_BLUE: f32 = 0.7;
-
-const content_dir = "assets";
-
 const state_ = @import("state.zig");
-const State = state_.State;
-const AABB = core.AABB;
 
 var buf1: [1024]u8 = undefined;
 var buf2: [1024]u8 = undefined;
@@ -194,7 +174,7 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
     state_.initWindowHandlers(window);
 
     // Initialize UI system
-    var ui_state = try ui_display.UIState.init(allocator, window);
+    var ui_state = ui_display.UIState.init(allocator, window);
     defer ui_state.deinit();
 
     // Initialize screenshot system
@@ -225,7 +205,7 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
     std.debug.print("\n----------------------\n", .{});
 
     // --- event loop
-    const start_time = @as(f32, @floatCast(glfw.getTime()));
+    const start_time: f32 = @floatCast(glfw.getTime());
     state.total_time = start_time;
     // var frame_counter = FrameCounter.new();
 

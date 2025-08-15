@@ -4,11 +4,9 @@ const math = @import("math");
 const Allocator = std.mem.Allocator;
 
 const Movement = @import("movement.zig").Movement;
-const MovementDirection = @import("movement.zig").MovementDirection;
 
 const Vec3 = math.Vec3;
 const Mat4 = math.Mat4;
-const Quat = math.Quat;
 
 const MIN_FOV: f32 = 10.0;
 const MAX_FOV: f32 = 120.0;

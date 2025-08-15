@@ -219,7 +219,7 @@ pub const ScreenshotCapture = struct {
         gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb.framebuffer_id);
 
         // Allocate buffer for RGB data
-        const pixel_count = @as(usize, @intCast(fb.width * fb.height));
+        const pixel_count: usize = @intCast(fb.width * fb.height);
         const rgb_data = try self.allocator.alloc(u8, pixel_count * 3);
 
         // Read pixels (RGB format)

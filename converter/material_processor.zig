@@ -190,10 +190,10 @@ pub const MaterialProcessor = struct {
 
         if (result == assimp.aiReturn_SUCCESS and ai_name.length > 0) {
             const name_slice = ai_name.data[0..ai_name.length];
-            return try self.allocator.dupe(u8, name_slice); // zlint-disable no-return-try -- needed for optional
+            return self.allocator.dupe(u8, name_slice);
         } else {
             // Generate default name
-            return try std.fmt.allocPrint(self.allocator, "material_{d}", .{mat_idx}); // zlint-disable no-return-try -- needed for optional
+            return std.fmt.allocPrint(self.allocator, "material_{d}", .{mat_idx});
         }
     }
 
@@ -389,7 +389,7 @@ pub const MaterialProcessor = struct {
     fn extractFileName(self: *MaterialProcessor, path: []const u8) !?[]u8 {
         const basename = std.fs.path.basename(path);
         if (basename.len > 0) {
-            return try self.allocator.dupe(u8, basename); // zlint-disable no-return-try -- needed for optional
+            return self.allocator.dupe(u8, basename); // zlint-disable no-return-try -- needed for optional
         }
         return null;
     }

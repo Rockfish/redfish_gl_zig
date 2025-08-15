@@ -2,7 +2,6 @@ const std = @import("std");
 const zopengl = @import("zopengl");
 const gl = zopengl.bindings;
 
-const SIZE_OF_FLOAT = @sizeOf(f32);
 
 const BLUR_SCALE: i32 = 2;
 pub const SHADOW_WIDTH: i32 = 6 * 1024;

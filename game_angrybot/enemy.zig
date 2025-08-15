@@ -5,11 +5,7 @@ const world = @import("state.zig");
 const geom = @import("geom.zig");
 
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
-
-const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
 const vec2 = math.vec2;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;

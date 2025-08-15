@@ -646,7 +646,7 @@ fn parseAccessor(allocator: Allocator, accessor_json: json.Value) !gltf_types.Ac
     if (count_json != .integer) {
         return ParseError.InvalidJson;
     }
-    const count = @as(u32, @intCast(count_json.integer));
+    const count: u32 = @intCast(count_json.integer);
 
     const type_json = accessor_json.object.get("type") orelse return ParseError.InvalidJson;
     if (type_json != .string) {
@@ -722,7 +722,7 @@ fn parseBufferView(allocator: Allocator, buffer_view_json: json.Value) !gltf_typ
     if (buffer_json != .integer) {
         return ParseError.InvalidJson;
     }
-    const buffer_index = @as(u32, @intCast(buffer_json.integer));
+    const buffer_index: u32 = @intCast(buffer_json.integer);
 
     var byte_offset: u32 = 0;
     if (buffer_view_json.object.get("byteOffset")) |byte_offset_json| {
@@ -735,7 +735,7 @@ fn parseBufferView(allocator: Allocator, buffer_view_json: json.Value) !gltf_typ
     if (byte_length_json != .integer) {
         return ParseError.InvalidJson;
     }
-    const byte_length = @as(u32, @intCast(byte_length_json.integer));
+    const byte_length: u32 = @intCast(byte_length_json.integer);
 
     var byte_stride: ?u32 = null;
     if (buffer_view_json.object.get("byteStride")) |byte_stride_json| {
@@ -794,7 +794,7 @@ fn parseBuffer(allocator: Allocator, buffer_json: json.Value) !gltf_types.Buffer
     if (byte_length_json != .integer) {
         return ParseError.InvalidJson;
     }
-    const byte_length = @as(u32, @intCast(byte_length_json.integer));
+    const byte_length: u32 = @intCast(byte_length_json.integer);
 
     var name_str: ?[]const u8 = null;
     if (buffer_json.object.get("name")) |name_json| {
@@ -970,7 +970,7 @@ fn parseTextureInfo(texture_json: json.Value) !gltf_types.TextureInfo {
     if (index_json != .integer) {
         return ParseError.InvalidJson;
     }
-    const index = @as(u32, @intCast(index_json.integer));
+    const index: u32 = @intCast(index_json.integer);
 
     var tex_coord: u32 = 0;
     if (texture_json.object.get("texCoord")) |tex_coord_json| {
@@ -1220,7 +1220,7 @@ fn parseAnimationChannel(channel_json: json.Value) !gltf_types.AnimationChannel 
     if (sampler_json != .integer) {
         return ParseError.InvalidJson;
     }
-    const sampler_index = @as(u32, @intCast(sampler_json.integer));
+    const sampler_index: u32 = @intCast(sampler_json.integer);
 
     const target_json = channel_json.object.get("target") orelse return ParseError.InvalidJson;
     const target = try parseAnimationChannelTarget(target_json);
@@ -1273,13 +1273,13 @@ fn parseAnimationSampler(sampler_json: json.Value) !gltf_types.AnimationSampler 
     if (input_json != .integer) {
         return ParseError.InvalidJson;
     }
-    const input = @as(u32, @intCast(input_json.integer));
+    const input: u32 = @intCast(input_json.integer);
 
     const output_json = sampler_json.object.get("output") orelse return ParseError.InvalidJson;
     if (output_json != .integer) {
         return ParseError.InvalidJson;
     }
-    const output = @as(u32, @intCast(output_json.integer));
+    const output: u32 = @intCast(output_json.integer);
 
     var interpolation = gltf_types.Interpolation.linear;
     if (sampler_json.object.get("interpolation")) |interp_json| {

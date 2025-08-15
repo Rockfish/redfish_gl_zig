@@ -1,24 +1,16 @@
 const std = @import("std");
 const math = @import("math");
 const gl = @import("zopengl").bindings;
-const Texture = @import("texture.zig").Texture;
 const Shader = @import("shader.zig").Shader;
-const utils = @import("utils/main.zig");
 const AABB = @import("aabb.zig").AABB;
 
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 
-// const gltf_utils = @import("gltf/gltf_utils.zig");
-// const getBufferSlice = gltf_utils.getBufferSlice;
-
 const ArenaAllocator = std.heap.ArenaAllocator;
-const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
-const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
 
 pub const MeshPrimitiveError = error{
     AccessorError,

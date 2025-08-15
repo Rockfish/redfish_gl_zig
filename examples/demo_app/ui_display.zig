@@ -27,7 +27,7 @@ pub const UIState = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, window: *glfw.Window) !Self {
+    pub fn init(allocator: Allocator, window: *glfw.Window) Self {
         var ui_state = Self{};
 
         // Initialize zgui

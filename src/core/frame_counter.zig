@@ -1,7 +1,5 @@
 const std = @import("std");
 
-const log = std.log.scoped(.FrameCounter);
-
 pub const FrameCounter = struct {
     last_time: i64,
     frame_count: f32,

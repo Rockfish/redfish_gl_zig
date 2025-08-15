@@ -101,7 +101,7 @@ pub const BurnMarks = struct {
 
         const tester = Tester{};
 
-        try core.utils.retain(
+        core.utils.retain(
             BurnMark,
             Tester,
             &self.marks,

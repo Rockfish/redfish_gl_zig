@@ -1,6 +1,5 @@
 const std = @import("std");
 const math = @import("math");
-const gl = @import("zopengl").bindings;
 const gltf_types = @import("gltf/gltf.zig");
 const parser = @import("gltf/parser.zig");
 const texture = @import("texture.zig");
@@ -229,7 +228,7 @@ pub const GltfAsset = struct {
                     };
 
                     const position_accessor = self.gltf.accessors.?[position_accessor_id];
-                    const vertex_count = @as(u32, @intCast(position_accessor.count));
+                    const vertex_count: u32 = @intCast(position_accessor.count);
 
                     // Generate normals based on mode
                     const normals = switch (self.normal_generation_mode) {

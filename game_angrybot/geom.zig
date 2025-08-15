@@ -1,8 +1,6 @@
-const std = @import("std");
 const math = @import("math");
 
 const Vec3 = math.Vec3;
-const vec3 = math.vec3;
 const Mat3 = math.Mat3;
 const mat3 = math.mat3;
 

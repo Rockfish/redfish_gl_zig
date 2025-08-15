@@ -1,20 +1,13 @@
 const std = @import("std");
 const glfw = @import("zglfw");
-const zopengl = @import("zopengl");
 const gl = @import("zopengl").bindings;
 const core = @import("core");
 const math = @import("math");
 const assets_list = @import("assets_list.zig");
 
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
-const vec3 = math.vec3;
-const vec4 = math.vec4;
 const Mat4 = math.Mat4;
-const Quat = math.Quat;
-const Ray = core.Ray;
 
-const Allocator = std.mem.Allocator;
 const EnumSet = std.EnumSet;
 
 const Window = glfw.Window;

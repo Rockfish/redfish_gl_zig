@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub const zstbi = @import("zstbi");
 pub const string = @import("string.zig");
 pub const texture = @import("texture.zig");
@@ -25,13 +23,8 @@ pub const Ray = @import("aabb.zig").Ray;
 
 pub const Model = @import("model.zig").Model;
 pub const Mesh = @import("mesh.zig").Mesh;
+pub const animation = @import("animator.zig");
 pub const Animator = @import("animator.zig").Animator;
 pub const AnimationClip = @import("animator.zig").AnimationClip;
 pub const AnimationRepeatMode = @import("animator.zig").AnimationRepeatMode;
 pub const WeightedAnimation = @import("animator.zig").WeightedAnimation;
-pub const WeightedAnimation2 = @import("animator.zig").WeightedAnimation;
-// pub const ModelBone = @import("model_animation.zig").ModelBone;
-// pub const ModelBuilder = @import("model_builder.zig").ModelBuilder;
-pub const animation = @import("animator.zig");
-// pub const shapes = @import("shapes/main.zig");
-// pub const dumpModelNodes = @import("model.zig").dumpModelNodes;

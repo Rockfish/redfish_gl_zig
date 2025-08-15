@@ -1,8 +1,5 @@
-const std = @import("std");
 const gl = @import("zopengl").bindings;
-const core = @import("core");
 
-const SIZE_OF_U32 = @sizeOf(u32);
 const SIZE_OF_FLOAT = @sizeOf(f32);
 
 const CUBE_VERTICES = [_]f32{

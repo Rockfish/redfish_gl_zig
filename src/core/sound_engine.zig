@@ -1,5 +1,4 @@
 const std = @import("std");
-const glfw = @import("zglfw");
 const a = @import("miniaudio").MiniAudio;
 
 const Allocator = std.mem.Allocator;

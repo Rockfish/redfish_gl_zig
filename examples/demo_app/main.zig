@@ -1,14 +1,9 @@
 const std = @import("std");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
-const gl = @import("zopengl").bindings;
-const core = @import("core");
-const math = @import("math");
-// const glftReport = @import("gltf_report.zig").gltfReport;
 const run = @import("run_app.zig").run;
 
 const assets_list = @import("assets_list.zig");
-const state_module = @import("state.zig");
 
 const SCR_WIDTH: f32 = 1000.0;
 const SCR_HEIGHT: f32 = 1000.0;
