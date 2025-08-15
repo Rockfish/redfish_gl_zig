@@ -207,6 +207,7 @@ pub const Animator = struct {
     // Animation state - support multiple concurrent animations
     active_animations: ArrayList(AnimationState),
 
+    // Weighted animations for blending multiple animations together
     weight_animations: ArrayList(WeightedAnimation),
 
     // Final matrices for rendering
@@ -232,7 +233,10 @@ pub const Animator = struct {
 
         var buf: [500]u8 = undefined;
         for (initial_nodes, 0..) |node, i| {
-            std.debug.print("Node {d}: '{s}' transform: {s}\n", .{ i, node.name orelse "unnamed", node.initial_transform.asString(&buf) });
+            std.debug.print(
+                "Node {d}: '{s}' transform: {s}\n",
+                .{ i, node.name orelse "unnamed", node.initial_transform.asString(&buf) },
+            );
         }
 
         animator.* = Animator{
@@ -386,7 +390,11 @@ pub const Animator = struct {
 
             for (node_anim_data) |anim_data| {
                 const initial_transform = self.nodes[anim_data.node_id].initial_transform;
-                const animated_transform = getAnimatedTransform(initial_transform, anim_data, anim_state.current_time);
+                const animated_transform = getAnimatedTransform(
+                    initial_transform,
+                    anim_data,
+                    anim_state.current_time,
+                );
                 self.nodes[anim_data.node_id].calculated_transform = animated_transform;
             }
         }
@@ -394,7 +402,7 @@ pub const Animator = struct {
 
     fn updateNodeTransformationsWeighted(self: *Self, weighted_animations: []const WeightedAnimation, frame_time: f32) void {
         for (weighted_animations) |weighted| {
-            if (weighted.weight <= 0.0) continue;
+            if (weighted.weight <= 0.05) continue; // Skip animations with < 5% influence
 
             const time_range = weighted.end_time - weighted.start_time;
 
@@ -408,10 +416,16 @@ pub const Animator = struct {
             }
 
             if (target_anim_time < (weighted.start_time - 0.01)) {
-                std.debug.panic("target_anim_ticks: {d}  less then start_time: {d}", .{ target_anim_time, weighted.start_time - 0.01 });
+                std.debug.panic(
+                    "target_anim_ticks: {d}  less then start_time: {d}",
+                    .{ target_anim_time, weighted.start_time - 0.01 },
+                );
             }
             if (target_anim_time > (weighted.end_time + 0.01)) {
-                std.debug.panic("target_anim_ticks: {d}  greater then end_time: {d}", .{ target_anim_time, weighted.end_time + 0.01 });
+                std.debug.panic(
+                    "target_anim_ticks: {d}  greater then end_time: {d}",
+                    .{ target_anim_time, weighted.end_time + 0.01 },
+                );
             }
 
             const node_anim_data = self.animations[weighted.animation_index].node_data;
@@ -764,7 +778,10 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                 .node_data = node_channels_list,
             };
 
-            std.debug.print("Pre-processed animation {d} '{s}': {d:.2}s duration, {d} nodes with animation data\n", .{ anim_idx, animation_name, max_time, node_channels_list.len });
+            std.debug.print(
+                "Pre-processed animation {d} '{s}': {d:.2}s duration, {d} nodes with animation data\n",
+                .{ anim_idx, animation_name, max_time, node_channels_list.len },
+            );
         }
 
         return all_animations;
