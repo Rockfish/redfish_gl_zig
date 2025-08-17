@@ -109,25 +109,25 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     _ = window.setMouseButtonCallback(mouseHander);
 
     // Shaders
-    const player_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/player_shader.vert", "game_angrybot/shaders/player_shader.frag");
+    const player_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/player_shader.vert", "games/angrybot/shaders/player_shader.frag");
 
-    const player_emissive_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/player_shader.vert", "game_angrybot/shaders/texture_emissive_shader.frag");
-    const wiggly_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/wiggly_shader.vert", "game_angrybot/shaders/player_shader.frag");
-    const floor_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/basic_texture_shader.vert", "game_angrybot/shaders/floor_shader.frag");
+    const player_emissive_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/player_shader.vert", "games/angrybot/shaders/texture_emissive_shader.frag");
+    const wiggly_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/wiggly_shader.vert", "games/angrybot/shaders/player_shader.frag");
+    const floor_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/basic_texture_shader.vert", "games/angrybot/shaders/floor_shader.frag");
 
     // bullets, muzzle flash, burn marks
-    const instanced_texture_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/instanced_texture_shader.vert", "game_angrybot/shaders/basic_texture_shader.frag");
-    const sprite_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/geom_shader2.vert", "game_angrybot/shaders/sprite_shader.frag");
-    const basic_texture_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/basic_texture_shader.vert", "game_angrybot/shaders/basic_texture_shader.frag");
+    const instanced_texture_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/instanced_texture_shader.vert", "games/angrybot/shaders/basic_texture_shader.frag");
+    const sprite_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/geom_shader2.vert", "games/angrybot/shaders/sprite_shader.frag");
+    const basic_texture_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/basic_texture_shader.vert", "games/angrybot/shaders/basic_texture_shader.frag");
 
     // blur and scene
-    const blur_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/basicer_shader.vert", "game_angrybot/shaders/blur_shader.frag");
-    const scene_draw_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/basicer_shader.vert", "game_angrybot/shaders/texture_merge_shader.frag");
+    const blur_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/basicer_shader.vert", "games/angrybot/shaders/blur_shader.frag");
+    const scene_draw_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/basicer_shader.vert", "games/angrybot/shaders/texture_merge_shader.frag");
 
     // for debug
-    const basicer_shader = try Shader.init(alloc_arena, "game_angrybot/shaders/basicer_shader.vert", "game_angrybot/shaders/basicer_shader.frag");
-    // const _depth_shader = try Shader.init(allocator, "game_angrybot/shaders/depth_shader.vert", "game_angrybot/shaders/depth_shader.frag");
-    // const _debug_depth_shader = try Shader.init(allocator, "game_angrybot/shaders/debug_depth_quad.vert", "game_angrybot/shaders/debug_depth_quad.frag");
+    const basicer_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/basicer_shader.vert", "games/angrybot/shaders/basicer_shader.frag");
+    // const _depth_shader = try Shader.init(allocator, "games/angrybot/shaders/depth_shader.vert", "games/angrybot/shaders/depth_shader.frag");
+    // const _debug_depth_shader = try Shader.init(allocator, "games/angrybot/shaders/debug_depth_quad.vert", "games/angrybot/shaders/debug_depth_quad.frag");
 
     defer player_shader.deinit();
     defer player_emissive_shader.deinit();
@@ -140,7 +140,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     defer scene_draw_shader.deinit();
     defer basicer_shader.deinit();
 
-    log.info("game_angrybot/shaders loaded", .{});
+    log.info("games/angrybot/shaders loaded", .{});
     // --- Lighting ---
 
     const light_dir = vec3(-0.8, 0.0, -1.0).toNormalized();
@@ -326,7 +326,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     wiggly_shader.setVec3("directionLight.color", &light_color);
     wiggly_shader.setVec3("ambient", &ambient_color);
 
-    log.info("game_angrybot/shaders initilized", .{});
+    log.info("games/angrybot/shaders initilized", .{});
     // --------------------------------
 
     const use_framebuffers = true;
