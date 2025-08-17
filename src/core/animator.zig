@@ -134,46 +134,30 @@ pub const KeyframeInfo = struct {
     factor: f32,
 };
 
-/// Cubic spline keyframe structures
-/// A single cubic spline keyframe for Vec3 data
-pub const Vec3CubicKeyframe = struct {
-    in_tangent: Vec3,
-    value: Vec3,
-    out_tangent: Vec3,
-};
-
-/// A single cubic spline keyframe for Quat data
-pub const QuatCubicKeyframe = struct {
-    in_tangent: Quat,
-    value: Quat,
-    out_tangent: Quat,
-};
-
-/// A single cubic spline keyframe for scalar data
-pub const ScalarCubicKeyframe = struct {
-    in_tangent: f32,
-    value: f32,
-    out_tangent: f32,
+/// Linear interpolation modes (subset of gltf_types.Interpolation)
+pub const LinearInterpolation = enum {
+    linear,
+    step,
 };
 
 /// Linear interpolation data structures
 /// Linear/step interpolation data for Vec3 values
 pub const Vec3LinearData = struct {
-    interpolation: gltf_types.Interpolation,
+    interpolation: LinearInterpolation,
     keyframe_times: []const f32,
     values: []const Vec3,
 };
 
 /// Linear/step interpolation data for Quat values
 pub const QuatLinearData = struct {
-    interpolation: gltf_types.Interpolation,
+    interpolation: LinearInterpolation,
     keyframe_times: []const f32,
     values: []const Quat,
 };
 
 /// Linear/step interpolation data for scalar values
 pub const ScalarLinearData = struct {
-    interpolation: gltf_types.Interpolation,
+    interpolation: LinearInterpolation,
     keyframe_times: []const f32,
     values: []const f32,
 };
@@ -181,23 +165,26 @@ pub const ScalarLinearData = struct {
 /// Cubic spline data structures
 /// Cubic spline data for Vec3 values (translation/scale)
 pub const Vec3CubicData = struct {
-    interpolation: gltf_types.Interpolation, // Must be .cubic_spline
     keyframe_times: []const f32,
-    keyframes: []const Vec3CubicKeyframe, // Same length as keyframe_times
+    in_tangents: []const Vec3,
+    values: []const Vec3,
+    out_tangents: []const Vec3,
 };
 
 /// Cubic spline data for Quat values (rotation)
 pub const QuatCubicData = struct {
-    interpolation: gltf_types.Interpolation, // Must be .cubic_spline
     keyframe_times: []const f32,
-    keyframes: []const QuatCubicKeyframe, // Same length as keyframe_times
+    in_tangents: []const Quat,
+    values: []const Quat,
+    out_tangents: []const Quat,
 };
 
 /// Cubic spline data for scalar values (weights)
 pub const ScalarCubicData = struct {
-    interpolation: gltf_types.Interpolation, // Must be .cubic_spline
     keyframe_times: []const f32,
-    keyframes: []const ScalarCubicKeyframe, // Same length as keyframe_times
+    in_tangents: []const f32,
+    values: []const f32,
+    out_tangents: []const f32,
 };
 
 /// Animation data unions
@@ -624,7 +611,6 @@ fn interpolateVec3Linear(data: Vec3LinearData, current_time: f32) Vec3 {
     return switch (data.interpolation) {
         .linear => Vec3.lerp(&start_value, &end_value, keyframe_info.factor),
         .step => start_value,
-        .cubic_spline => @panic("Cubic spline interpolation should not be used with linear data"),
     };
 }
 
@@ -640,7 +626,6 @@ fn interpolateQuatLinear(data: QuatLinearData, current_time: f32) Quat {
     return switch (data.interpolation) {
         .linear => start_value.slerp(&end_value, keyframe_info.factor),
         .step => start_value,
-        .cubic_spline => @panic("Cubic spline interpolation should not be used with linear data"),
     };
 }
 
@@ -656,7 +641,6 @@ fn interpolateScalarLinear(data: ScalarLinearData, current_time: f32) f32 {
     return switch (data.interpolation) {
         .linear => start_value + (end_value - start_value) * keyframe_info.factor,
         .step => start_value,
-        .cubic_spline => @panic("Cubic spline interpolation should not be used with linear data"),
     };
 }
 
@@ -666,23 +650,19 @@ fn interpolateVec3Cubic(data: Vec3CubicData, current_time: f32) Vec3 {
     const keyframe_info = findKeyframeIndices(data.keyframe_times, current_time);
 
     if (keyframe_info.start_index == keyframe_info.end_index) {
-        return data.keyframes[keyframe_info.start_index].value;
+        return data.values[keyframe_info.start_index];
     }
 
     const t = keyframe_info.factor;
 
-    // Much clearer access to spline data!
-    const start_keyframe = data.keyframes[keyframe_info.start_index];
-    const end_keyframe = data.keyframes[keyframe_info.end_index];
-
-    const v0 = start_keyframe.value;
-    const v1 = end_keyframe.value;
+    const v0 = data.values[keyframe_info.start_index];
+    const v1 = data.values[keyframe_info.end_index];
 
     // Pre-scale tangents by keyDelta (matches Khronos exactly)
     const dt = data.keyframe_times[keyframe_info.end_index] -
         data.keyframe_times[keyframe_info.start_index];
-    const a = end_keyframe.in_tangent.mulScalar(dt);
-    const b = start_keyframe.out_tangent.mulScalar(dt);
+    const a = data.in_tangents[keyframe_info.end_index].mulScalar(dt);
+    const b = data.out_tangents[keyframe_info.start_index].mulScalar(dt);
 
     // Hermite basis functions (exactly matching Khronos hermite function)
     const t2 = t * t;
@@ -703,32 +683,30 @@ fn interpolateQuatCubic(data: QuatCubicData, current_time: f32) Quat {
     const keyframe_info = findKeyframeIndices(data.keyframe_times, current_time);
 
     if (keyframe_info.start_index == keyframe_info.end_index) {
-        return data.keyframes[keyframe_info.start_index].value;
+        return data.values[keyframe_info.start_index];
     }
 
     const t = keyframe_info.factor;
-    const start_keyframe = data.keyframes[keyframe_info.start_index];
-    const end_keyframe = data.keyframes[keyframe_info.end_index];
 
-    const v0 = start_keyframe.value; // v0
-    const v1 = end_keyframe.value; // v1
+    const v0 = data.values[keyframe_info.start_index];
+    const v1 = data.values[keyframe_info.end_index];
 
     // Pre-scale tangents by keyDelta (matches Khronos exactly)
     const dt = data.keyframe_times[keyframe_info.end_index] -
         data.keyframe_times[keyframe_info.start_index];
 
     const a = Quat{ .data = .{
-        dt * end_keyframe.in_tangent.data[0],
-        dt * end_keyframe.in_tangent.data[1],
-        dt * end_keyframe.in_tangent.data[2],
-        dt * end_keyframe.in_tangent.data[3],
+        dt * data.in_tangents[keyframe_info.end_index].data[0],
+        dt * data.in_tangents[keyframe_info.end_index].data[1],
+        dt * data.in_tangents[keyframe_info.end_index].data[2],
+        dt * data.in_tangents[keyframe_info.end_index].data[3],
     } };
 
     const b = Quat{ .data = .{
-        dt * start_keyframe.out_tangent.data[0],
-        dt * start_keyframe.out_tangent.data[1],
-        dt * start_keyframe.out_tangent.data[2],
-        dt * start_keyframe.out_tangent.data[3],
+        dt * data.out_tangents[keyframe_info.start_index].data[0],
+        dt * data.out_tangents[keyframe_info.start_index].data[1],
+        dt * data.out_tangents[keyframe_info.start_index].data[2],
+        dt * data.out_tangents[keyframe_info.start_index].data[3],
     } };
 
     // Hermite basis functions (exactly matching Khronos hermite function)
@@ -758,22 +736,19 @@ fn interpolateScalarCubic(data: ScalarCubicData, current_time: f32) f32 {
     const keyframe_info = findKeyframeIndices(data.keyframe_times, current_time);
 
     if (keyframe_info.start_index == keyframe_info.end_index) {
-        return data.keyframes[keyframe_info.start_index].value;
+        return data.values[keyframe_info.start_index];
     }
 
     const t = keyframe_info.factor;
 
-    const start_keyframe = data.keyframes[keyframe_info.start_index];
-    const end_keyframe = data.keyframes[keyframe_info.end_index];
-
-    const v0 = start_keyframe.value;
-    const v1 = end_keyframe.value;
+    const v0 = data.values[keyframe_info.start_index];
+    const v1 = data.values[keyframe_info.end_index];
 
     // Pre-scale tangents by keyDelta (matches Khronos exactly)
     const dt = data.keyframe_times[keyframe_info.end_index] -
         data.keyframe_times[keyframe_info.start_index];
-    const a = end_keyframe.in_tangent * dt;
-    const b = start_keyframe.out_tangent * dt;
+    const a = data.in_tangents[keyframe_info.end_index] * dt;
+    const b = data.out_tangents[keyframe_info.start_index] * dt;
 
     // Hermite basis functions (exactly matching Khronos hermite function)
     const t2 = t * t;
@@ -899,22 +874,23 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                 const output_values = readAccessorAsVec3Slice(gltf_asset, sampler.output);
                                 node_channels.translation = NodeTranslationData{
                                     .linear = Vec3LinearData{
-                                        .interpolation = sampler.interpolation,
+                                        .interpolation = toLinearInterpolation(sampler.interpolation),
                                         .keyframe_times = input_times,
                                         .values = output_values,
                                     },
                                 };
                             },
                             .cubic_spline => {
-                                const keyframes = try parseCubicSplineVec3Data(allocator, gltf_asset, sampler.output);
+                                const cubic_data = try parseCubicSplineVec3Data(allocator, gltf_asset, sampler.output);
                                 node_channels.translation = NodeTranslationData{
                                     .cubic_spline = Vec3CubicData{
-                                        .interpolation = sampler.interpolation,
                                         .keyframe_times = input_times,
-                                        .keyframes = keyframes,
+                                        .in_tangents = cubic_data.in_tangents,
+                                        .values = cubic_data.values,
+                                        .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                std.debug.print("Parsed cubic spline translation with {d} keyframes\\n", .{keyframes.len});
+                                std.debug.print("Parsed cubic spline translation with {d} keyframes\\n", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -924,22 +900,23 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                 const output_values = readAccessorAsQuatSlice(gltf_asset, sampler.output);
                                 node_channels.rotation = NodeRotationData{
                                     .linear = QuatLinearData{
-                                        .interpolation = sampler.interpolation,
+                                        .interpolation = toLinearInterpolation(sampler.interpolation),
                                         .keyframe_times = input_times,
                                         .values = output_values,
                                     },
                                 };
                             },
                             .cubic_spline => {
-                                const keyframes = try parseCubicSplineQuatData(allocator, gltf_asset, sampler.output);
+                                const cubic_data = try parseCubicSplineQuatData(allocator, gltf_asset, sampler.output);
                                 node_channels.rotation = NodeRotationData{
                                     .cubic_spline = QuatCubicData{
-                                        .interpolation = sampler.interpolation,
                                         .keyframe_times = input_times,
-                                        .keyframes = keyframes,
+                                        .in_tangents = cubic_data.in_tangents,
+                                        .values = cubic_data.values,
+                                        .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                std.debug.print("Parsed cubic spline rotation with {d} keyframes\\n", .{keyframes.len});
+                                std.debug.print("Parsed cubic spline rotation with {d} keyframes\\n", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -949,22 +926,23 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                 const output_values = readAccessorAsVec3Slice(gltf_asset, sampler.output);
                                 node_channels.scale = NodeScaleData{
                                     .linear = Vec3LinearData{
-                                        .interpolation = sampler.interpolation,
+                                        .interpolation = toLinearInterpolation(sampler.interpolation),
                                         .keyframe_times = input_times,
                                         .values = output_values,
                                     },
                                 };
                             },
                             .cubic_spline => {
-                                const keyframes = try parseCubicSplineVec3Data(allocator, gltf_asset, sampler.output);
+                                const cubic_data = try parseCubicSplineVec3Data(allocator, gltf_asset, sampler.output);
                                 node_channels.scale = NodeScaleData{
                                     .cubic_spline = Vec3CubicData{
-                                        .interpolation = sampler.interpolation,
                                         .keyframe_times = input_times,
-                                        .keyframes = keyframes,
+                                        .in_tangents = cubic_data.in_tangents,
+                                        .values = cubic_data.values,
+                                        .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                std.debug.print("Parsed cubic spline scale with {d} keyframes\\n", .{keyframes.len});
+                                std.debug.print("Parsed cubic spline scale with {d} keyframes\\n", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -974,22 +952,23 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                 const output_values = readAccessorAsF32Slice(gltf_asset, sampler.output);
                                 node_channels.weights = NodeWeightData{
                                     .linear = ScalarLinearData{
-                                        .interpolation = sampler.interpolation,
+                                        .interpolation = toLinearInterpolation(sampler.interpolation),
                                         .keyframe_times = input_times,
                                         .values = output_values,
                                     },
                                 };
                             },
                             .cubic_spline => {
-                                const keyframes = try parseCubicSplineScalarData(allocator, gltf_asset, sampler.output);
+                                const cubic_data = try parseCubicSplineScalarData(allocator, gltf_asset, sampler.output);
                                 node_channels.weights = NodeWeightData{
                                     .cubic_spline = ScalarCubicData{
-                                        .interpolation = sampler.interpolation,
                                         .keyframe_times = input_times,
-                                        .keyframes = keyframes,
+                                        .in_tangents = cubic_data.in_tangents,
+                                        .values = cubic_data.values,
+                                        .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                std.debug.print("Parsed cubic spline weights with {d} keyframes\\n", .{keyframes.len});
+                                std.debug.print("Parsed cubic spline weights with {d} keyframes\\n", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -1195,63 +1174,73 @@ fn preprocessRootNodes(allocator: Allocator, gltf_asset: *const GltfAsset) !Arra
 
 /// Helper function to parse cubic spline Vec3 data from accessor
 /// glTF cubic spline layout: [in_tangent0, value0, out_tangent0, in_tangent1, value1, out_tangent1, ...]
-fn parseCubicSplineVec3Data(allocator: Allocator, gltf_asset: *const GltfAsset, accessor_index: u32) ![]Vec3CubicKeyframe {
+fn parseCubicSplineVec3Data(allocator: Allocator, gltf_asset: *const GltfAsset, accessor_index: u32) !struct { in_tangents: []Vec3, values: []Vec3, out_tangents: []Vec3 } {
     const raw_data = readAccessorAsVec3Slice(gltf_asset, accessor_index);
 
     // Each keyframe has 3 Vec3s: in_tangent, value, out_tangent
     const keyframe_count = raw_data.len / 3;
-    var keyframes = try allocator.alloc(Vec3CubicKeyframe, keyframe_count);
+    var in_tangents = try allocator.alloc(Vec3, keyframe_count);
+    var values = try allocator.alloc(Vec3, keyframe_count);
+    var out_tangents = try allocator.alloc(Vec3, keyframe_count);
 
     for (0..keyframe_count) |i| {
         const base_index = i * 3;
-        keyframes[i] = Vec3CubicKeyframe{
-            .in_tangent = raw_data[base_index + 0],
-            .value = raw_data[base_index + 1],
-            .out_tangent = raw_data[base_index + 2],
-        };
+        in_tangents[i] = raw_data[base_index + 0];
+        values[i] = raw_data[base_index + 1];
+        out_tangents[i] = raw_data[base_index + 2];
     }
 
-    return keyframes;
+    return .{ .in_tangents = in_tangents, .values = values, .out_tangents = out_tangents };
 }
 
 /// Helper function to parse cubic spline Quat data from accessor
 /// glTF cubic spline layout: [in_tangent0, value0, out_tangent0, in_tangent1, value1, out_tangent1, ...]
-fn parseCubicSplineQuatData(allocator: Allocator, gltf_asset: *const GltfAsset, accessor_index: u32) ![]QuatCubicKeyframe {
+fn parseCubicSplineQuatData(allocator: Allocator, gltf_asset: *const GltfAsset, accessor_index: u32) !struct { in_tangents: []Quat, values: []Quat, out_tangents: []Quat } {
     const raw_data = readAccessorAsQuatSlice(gltf_asset, accessor_index);
 
     // Each keyframe has 3 Quats: in_tangent, value, out_tangent
     const keyframe_count = raw_data.len / 3;
-    var keyframes = try allocator.alloc(QuatCubicKeyframe, keyframe_count);
+    var in_tangents = try allocator.alloc(Quat, keyframe_count);
+    var values = try allocator.alloc(Quat, keyframe_count);
+    var out_tangents = try allocator.alloc(Quat, keyframe_count);
 
     for (0..keyframe_count) |i| {
         const base_index = i * 3;
-        keyframes[i] = QuatCubicKeyframe{
-            .in_tangent = raw_data[base_index + 0],
-            .value = raw_data[base_index + 1],
-            .out_tangent = raw_data[base_index + 2],
-        };
+        in_tangents[i] = raw_data[base_index + 0];
+        values[i] = raw_data[base_index + 1];
+        out_tangents[i] = raw_data[base_index + 2];
     }
 
-    return keyframes;
+    return .{ .in_tangents = in_tangents, .values = values, .out_tangents = out_tangents };
 }
 
 /// Helper function to parse cubic spline scalar data from accessor
 /// glTF cubic spline layout: [in_tangent0, value0, out_tangent0, in_tangent1, value1, out_tangent1, ...]
-fn parseCubicSplineScalarData(allocator: Allocator, gltf_asset: *const GltfAsset, accessor_index: u32) ![]ScalarCubicKeyframe {
+fn parseCubicSplineScalarData(allocator: Allocator, gltf_asset: *const GltfAsset, accessor_index: u32) !struct { in_tangents: []f32, values: []f32, out_tangents: []f32 } {
     const raw_data = readAccessorAsF32Slice(gltf_asset, accessor_index);
 
     // Each keyframe has 3 scalars: in_tangent, value, out_tangent
     const keyframe_count = raw_data.len / 3;
-    var keyframes = try allocator.alloc(ScalarCubicKeyframe, keyframe_count);
+    var in_tangents = try allocator.alloc(f32, keyframe_count);
+    var values = try allocator.alloc(f32, keyframe_count);
+    var out_tangents = try allocator.alloc(f32, keyframe_count);
 
     for (0..keyframe_count) |i| {
         const base_index = i * 3;
-        keyframes[i] = ScalarCubicKeyframe{
-            .in_tangent = raw_data[base_index + 0],
-            .value = raw_data[base_index + 1],
-            .out_tangent = raw_data[base_index + 2],
-        };
+        in_tangents[i] = raw_data[base_index + 0];
+        values[i] = raw_data[base_index + 1];
+        out_tangents[i] = raw_data[base_index + 2];
     }
 
-    return keyframes;
+    return .{ .in_tangents = in_tangents, .values = values, .out_tangents = out_tangents };
+}
+
+/// Convert from gltf_types.Interpolation to LinearInterpolation
+/// Panics if the interpolation is cubic_spline since that should not be used with linear data
+fn toLinearInterpolation(interpolation: gltf_types.Interpolation) LinearInterpolation {
+    return switch (interpolation) {
+        .linear => .linear,
+        .step => .step,
+        .cubic_spline => @panic("cubic_spline interpolation should not be used with linear data"),
+    };
 }
