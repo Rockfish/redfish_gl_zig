@@ -55,7 +55,7 @@ pub const ShapeObj = struct {
     }
 
     pub fn render(self: *ShapeObj, shader: *Shader) void {
-        shader.bindTexture(0, "texture_diffuse", self.texture);
+        shader.bindTexture(0, "texture_diffuse", self.texture.gl_texture_id);
         self.shape.render();
     }
 };
@@ -148,8 +148,8 @@ pub const Node = struct {
             .allocator = allocator,
             .name = name,
             .object = object,
-            .transform = Transform.default(), // object.getTransform(),
-            .global_transform = Transform.default(),
+            .transform = Transform.init(), // object.getTransform(),
+            .global_transform = Transform.init(),
             .parent = null,
             .children = std.ArrayList(*Node).init(allocator),
         };
@@ -215,7 +215,7 @@ pub const Node = struct {
     /// Update all objects' transform matrix in tree
     pub fn updateTransforms(self: *Node, parent_transform: ?*Transform) void {
         if (parent_transform) |transform| {
-            self.global_transform = transform.mulTransform(self.transform);
+            self.global_transform = transform.composeTransforms(self.transform);
         } else {
             self.global_transform = self.transform;
         }
@@ -246,7 +246,7 @@ pub const Node = struct {
     }
 
     pub fn render(self: *Node, shader: *Shader) void {
-        const model_mat = self.global_transform.getMatrix();
+        const model_mat = self.global_transform.toMatrix();
         shader.setMat4("matModel", &model_mat);
         self.object.render(shader);
         // for (self.children.items) |child| {

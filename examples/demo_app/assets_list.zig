@@ -48,7 +48,7 @@ pub const demo_models = [_]DemoModel{
         .description = "Player character model with animations converted from FBX",
     },
     .{
-        .path = "angrybots_assets/Models/Spacesuit/Spacesuit_converted.gltf",
+        .path = "assets/Models/Spacesuit/Spacesuit_converted.gltf",
         .name = "Spacesuit (Converted)",
         .format = "glTF",
         .category = "Complex",
@@ -62,7 +62,7 @@ pub const demo_models = [_]DemoModel{
         .description = "Spacesuit model from Modular Characters collection",
     },
     .{
-        .path = "angrybots_assets/Models/CesiumMan/CesiumMan.gltf",
+        .path = "glTF-Sample-Models/CesiumMan/glTF/CesiumMan.gltf",
         .name = "CesiumMan (original)",
         .format = "glTF",
         .category = "Basic",
@@ -70,7 +70,7 @@ pub const demo_models = [_]DemoModel{
     },
     // glTF-Sample-Models/CesiumMan/glTF/CesiumMan.gltf
     .{
-        .path = "angrybots_assets/Models/CesiumMan/CesiumMan_converted.gltf",
+        .path = "assets/Models/CesiumMan/CesiumMan_converted.gltf",
         .name = "CesiumMan (Converted)",
         .format = "glTF",
         .category = "Basic",

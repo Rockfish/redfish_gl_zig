@@ -28,3 +28,5 @@ pub const Animator = @import("animator.zig").Animator;
 pub const AnimationClip = @import("animator.zig").AnimationClip;
 pub const AnimationRepeatMode = @import("animator.zig").AnimationRepeatMode;
 pub const WeightedAnimation = @import("animator.zig").WeightedAnimation;
+
+pub const shapes = @import("shapes/main.zig");

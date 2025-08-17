@@ -39,8 +39,8 @@ pub const UIState = struct {
 
         // Load fonts
         const font_size = 14.0 * ui_state.scale_factor;
-        ui_state.font_mono = zgui.io.addFontFromFile(content_dir ++ "fonts/FiraCode-Medium.ttf", math.floor(font_size));
-        ui_state.font_normal = zgui.io.addFontFromFile(content_dir ++ "fonts/Roboto-Medium.ttf", math.floor(font_size));
+        ui_state.font_mono = zgui.io.addFontFromFile(content_dir ++ "Fonts/FiraCode-Medium.ttf", math.floor(font_size));
+        ui_state.font_normal = zgui.io.addFontFromFile(content_dir ++ "Fonts/Roboto-Medium.ttf", math.floor(font_size));
 
         // Initialize backend
         zgui.backend.init(window);

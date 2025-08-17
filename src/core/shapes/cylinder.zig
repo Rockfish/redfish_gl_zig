@@ -159,7 +159,7 @@ pub const Cylinder = struct {
             try builder.indices.append(i + sides + 1);
         }
 
-        // std.debug.print("num verts: {d}\n", .{builder.vertices.items.len});
+        // std.debug.print("num vertices: {d}\n", .{builder.vertices.items.len});
         // std.debug.print("num indices: {d}\n", .{builder.indices.items.len});
         // std.debug.print("indices: {any}\n", .{builder.indices.items});
         // const c = builder.indices.items.len / 3;
@@ -168,17 +168,17 @@ pub const Cylinder = struct {
         //     std.debug.print("{d}, {d}, {d}\n", .{ builder.indices.items[i], builder.indices.items[i + 1], builder.indices.items[i + 2] });
         // }
 
-        // const num_faces = (builder.indices.items.len - initial_indice_count) / 3;
+        // const num_faces = (builder.indices.items.len - initial_indices_count) / 3;
         // // std.debug.print("num indices: {d}  num_faces: {d}\n", .{ builder.indices.items.len, num_faces });
         //
         // // calculating the normals manually to learn how to do it.
         // for (0..num_faces) |i| {
-        //     const f = initial_indice_count + i * 3;
+        //     const f = initial_indices_count + i * 3;
         //     const v1 = builder.indices.items[f];
         //     const v2 = builder.indices.items[f + 1];
         //     const v3 = builder.indices.items[f + 2];
         //
-        //     // std.debug.print("face: {d}  indice index: {d}\n", .{ i, f });
+        //     // std.debug.print("face: {d}  indices index: {d}\n", .{ i, f });
         //     // std.debug.print("i: {d}  v1: {any}\n", .{ f, v1 });
         //     // std.debug.print("i: {d}  v2: {any}\n", .{ f + 1, v2 });
         //     // std.debug.print("i: {d}  v3: {any}\n", .{ f + 2, v3 });

@@ -48,7 +48,7 @@ void main() {
     vec3 diffuse = max(dot(fragNormal, -directionLight.dir), 0.0) * diffuseColor.rgb;
 
     if (hasColor == 1) {
-        color = diffuse;
+        color = vec4(diffuse, 1.0);
     } else {
         color = texture(textureDiffuse, fragTexCoord);
     }

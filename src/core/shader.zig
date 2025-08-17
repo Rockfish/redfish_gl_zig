@@ -87,7 +87,7 @@ pub const Shader = struct {
         gl.shaderSource(vertex_shader, 1, &[_][*c]const u8{c_vert_code.ptr}, 0);
         gl.compileShader(vertex_shader);
 
-        checkCompileErrors(vertex_shader, "VERTEX");
+        checkCompileErrors(vertex_shader, "VERTEX", vert_file_path);
 
         const frag_file = try std.fs.cwd().openFile(frag_file_path, .{});
         const frag_code = try frag_file.readToEndAlloc(allocator, 256 * 1024);
@@ -103,7 +103,7 @@ pub const Shader = struct {
         gl.shaderSource(frag_shader, 1, &[_][*c]const u8{c_frag_code.ptr}, 0);
         gl.compileShader(frag_shader);
 
-        checkCompileErrors(frag_shader, "FRAGMENT");
+        checkCompileErrors(frag_shader, "FRAGMENT", frag_file_path);
 
         var geom_shader: ?c_uint = null;
         if (optional_geom_file) |geom_file_path| {
@@ -119,7 +119,7 @@ pub const Shader = struct {
             gl.shaderSource(geom_shader.?, 1, &[_][*c]const u8{c_geom_code.ptr}, 0);
             gl.compileShader(geom_shader.?);
 
-            checkCompileErrors(geom_shader.?, "GEOM");
+            checkCompileErrors(geom_shader.?, "GEOM", geom_file_path);
         }
 
         const shader_id = gl.createProgram();
@@ -131,7 +131,7 @@ pub const Shader = struct {
         }
         gl.linkProgram(shader_id);
 
-        checkCompileErrors(shader_id, "PROGRAM");
+        checkCompileErrors(shader_id, "PROGRAM", "program");
 
         // delete the shaders as they're linked into our program now and no longer necessary
         gl.deleteShader(vertex_shader);
@@ -381,7 +381,7 @@ pub const Shader = struct {
         var buf: [512]u8 = undefined;
 
         const value_str = switch (@TypeOf(value)) {
-            bool => std.fmt.bufPrint(&buf, "{}", .{value}) catch return,
+            bool => std.fmt.bufPrint(&buf, "{any}", .{value}) catch return,
             i32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
             u32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
             f32 => std.fmt.bufPrint(&buf, "{d:.3}", .{value}) catch return,
@@ -463,13 +463,13 @@ pub const Shader = struct {
         const timestamp = std.time.timestamp();
 
         try writer.print("{{\n", .{});
-        try writer.print("  \"timestamp\": {},\n", .{timestamp});
+        try writer.print("  \"timestamp\": {d},\n", .{timestamp});
         try writer.print("  \"timestamp_str\": \"{s}\",\n", .{timestamp_str});
         try writer.print("  \"shader\": {{\n", .{});
         try writer.print("    \"vertex\": \"{s}\",\n", .{self.vert_file});
         try writer.print("    \"fragment\": \"{s}\"\n", .{self.frag_file});
         try writer.print("  }},\n", .{});
-        try writer.print("  \"uniform_count\": {},\n", .{self.debug_uniforms.count()});
+        try writer.print("  \"uniform_count\": {d},\n", .{self.debug_uniforms.count()});
         try writer.print("  \"uniforms\": {{\n", .{});
 
         // Collect and sort uniform keys for better readability
@@ -504,7 +504,7 @@ pub const Shader = struct {
     }
 };
 
-fn checkCompileErrors(id: u32, check_type: []const u8) void {
+fn checkCompileErrors(id: u32, check_type: []const u8, filename: []const u8) void {
     var infoLog: [10000]u8 = undefined;
     var successful: c_int = undefined;
 
@@ -514,7 +514,7 @@ fn checkCompileErrors(id: u32, check_type: []const u8) void {
             var len: c_int = 0;
             gl.getShaderiv(id, gl.INFO_LOG_LENGTH, &len);
             gl.getShaderInfoLog(id, 2024, null, &infoLog);
-            std.debug.panic("shader {s} compile error: {s}", .{ check_type, infoLog[0..@intCast(len)] });
+            std.debug.panic("shader {s} compile error in {s}: {s}", .{ check_type, filename, infoLog[0..@intCast(len)] });
         }
     } else {
         gl.getProgramiv(id, gl.LINK_STATUS, &successful);
@@ -522,7 +522,7 @@ fn checkCompileErrors(id: u32, check_type: []const u8) void {
             var len: c_int = 0;
             gl.getProgramiv(id, gl.INFO_LOG_LENGTH, &len);
             gl.getProgramInfoLog(id, 2024, null, &infoLog);
-            std.debug.panic("shader {s} link error: {s}", .{ check_type, infoLog[0..@intCast(len)] });
+            std.debug.panic("shader {s} link error in {s}: {s}", .{ check_type, filename, infoLog[0..@intCast(len)] });
         }
     }
 }

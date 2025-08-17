@@ -389,7 +389,7 @@ pub const MaterialProcessor = struct {
     fn extractFileName(self: *MaterialProcessor, path: []const u8) !?[]u8 {
         const basename = std.fs.path.basename(path);
         if (basename.len > 0) {
-            return self.allocator.dupe(u8, basename); // zlint-disable no-return-try -- needed for optional
+            return try self.allocator.dupe(u8, basename); // zlint-disable no-return-try -- needed for optional
         }
         return null;
     }

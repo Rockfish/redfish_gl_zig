@@ -1,0 +1,160 @@
+#version 400 core
+
+in vec3 fragWorldPosition;
+in vec2 fragTexCoord;
+in vec3 fragTangent;
+in vec4 fragColor;
+in vec3 fragNormal;
+in mat3 fragTBN;
+
+uniform vec3 lightPosition;
+uniform vec3 lightColor;
+uniform float lightIntensity;
+
+uniform vec3 viewPosition;
+
+struct Material {
+    vec4 baseColorFactor;
+    float metallicFactor;
+    float roughnessFactor;
+    vec3 emissiveFactor;
+};
+
+uniform Material material;
+
+// Texture samplers
+uniform sampler2D baseColorTexture;
+uniform sampler2D metallicRoughnessTexture;
+uniform sampler2D normalTexture;
+uniform sampler2D occlusionTexture;
+uniform sampler2D emissiveTexture;
+
+// Flags indicating texture availability
+uniform bool hasBaseColorTexture;
+uniform bool hasMetallicRoughnessTexture;
+uniform bool hasNormalTexture;
+uniform bool hasOcclusionTexture;
+uniform bool hasEmissiveTexture;
+
+// Flags indicating attribute availability
+uniform bool hasNormals;
+uniform bool hasVertexColors;
+
+// Output fragment color
+out vec4 finalColor;
+
+const float PI = 3.14159265359;
+
+void main() {
+    // Base Color
+    vec4 baseColor = material.baseColorFactor;
+    if (hasBaseColorTexture) {
+        baseColor *= texture(baseColorTexture, fragTexCoord);
+    }
+    if (hasVertexColors) {
+        baseColor *= fragColor;
+    }
+    
+    // Ensure minimum brightness for very dark materials to maintain visibility
+    baseColor.rgb = max(baseColor.rgb, vec3(0.05));
+
+    // Metallic-Roughness
+    vec4 metallicRoughness = vec4(1.0);
+    if (hasMetallicRoughnessTexture) {
+        metallicRoughness = texture(metallicRoughnessTexture, fragTexCoord);
+    }
+    // glTF: metallic is in the blue channel and roughness is in the green channel
+    float metallic = material.metallicFactor * metallicRoughness.b;
+    float roughness = material.roughnessFactor * metallicRoughness.g;
+    
+    // Clamp roughness to prevent extremely dark surfaces
+    roughness = clamp(roughness, 0.1, 0.9);
+ 
+    vec3 color;
+    
+    if (hasNormals) {
+        // Normal-based PBR lighting
+        vec3 normal = fragNormal;
+        if (hasNormalTexture) {
+            vec3 normalMap = texture(normalTexture, fragTexCoord).xyz * 2.0 - 1.0;
+            normal = normalize(fragTBN * normalMap);
+        }
+
+        // Lighting calculations
+        vec3 lightDir = normalize(lightPosition - fragWorldPosition);
+        vec3 viewDir = normalize(viewPosition - fragWorldPosition);
+        vec3 halfDir = normalize(lightDir + viewDir);
+
+        float dist = length(lightPosition - fragWorldPosition);
+        float attenuation = 1.0 / (1.0 + 0.01 * dist + 0.001 * dist * dist);
+        vec3 radiance = lightColor * lightIntensity * attenuation;
+
+        float NdotL = max(dot(normal, lightDir), 0.0);
+        float NdotV = max(dot(normal, viewDir), 0.0);
+        float NdotH = max(dot(normal, halfDir), 0.0);
+
+        // Fresnel-Schlick approximation
+        vec3 F0 = mix(vec3(0.04), baseColor.rgb, metallic);
+        vec3 F = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
+
+        // Microfacet Distribution (GGX)
+        float alpha = roughness * roughness;
+        float alpha2 = alpha * alpha;
+        float denom = (NdotH * NdotH * (alpha2 - 1.0) + 1.0);
+        float D = alpha2 / (PI * denom * denom);
+
+        // Geometry function (Schlick-GGX)
+        float k = alpha / 2.0;  // Alternative formulations exist (e.g., k = (roughness + 1)^2 / 8)
+        float G_V = NdotV / (NdotV * (1.0 - k) + k);
+        float G_L = NdotL / (NdotL * (1.0 - k) + k);
+        float G = G_V * G_L;
+
+        // Specular term
+        vec3 specular = (F * D * G) / (4.0 * NdotV * NdotL + 0.0001);
+
+        // Diffuse term (energy conservation: non-metallic surfaces contribute to diffuse)
+        vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
+        vec3 diffuse = kD * baseColor.rgb / PI;
+
+        // Combined lighting contribution
+        color = (diffuse + specular) * NdotL * radiance;
+    } else {
+        // Fallback lighting without normals - simple distance-based lighting
+        float dist = length(lightPosition - fragWorldPosition);
+        float attenuation = 1.0 / (1.0 + 0.01 * dist + 0.001 * dist * dist);
+        
+        // Use a simple lighting model based on distance and material properties
+        float lightFactor = attenuation * lightIntensity * 0.001; // Scale down intensity for unlit mode
+        vec3 simpleLighting = lightColor * lightFactor;
+        
+        // Apply basic material properties
+        color = baseColor.rgb * (0.3 + simpleLighting); // Higher ambient base for unlit surfaces
+    }
+    
+    // Add ambient lighting to prevent pure black areas  
+    vec3 ambient = vec3(0.15) * baseColor.rgb;
+    color += ambient;
+
+    // Occlusion
+    if (hasOcclusionTexture) {
+        float occlusion = texture(occlusionTexture, fragTexCoord).r;
+        color *= occlusion;
+    }
+
+    // Emissive
+    vec3 emissive = vec3(0.0);
+    if (hasEmissiveTexture) {
+        emissive = material.emissiveFactor * texture(emissiveTexture, fragTexCoord).rgb;
+    }
+
+    // Add emissive to final color
+    color += emissive;
+    
+    // Apply tone mapping (Reinhard)
+    color = color / (color + vec3(1.0));
+    
+    // Apply gamma correction
+    color = pow(color, vec3(1.0/2.2));
+
+    finalColor = vec4(color, baseColor.a);
+}

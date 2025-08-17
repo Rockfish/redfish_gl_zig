@@ -259,15 +259,6 @@ pub const Movement = struct {
                 self.orthonormalizeRightPeriodic();
             },
             .CircleRight => {
-                const rot = Quat.fromAxisAngle(&self.world_up, -orbit_angle);
-                const translated_position = self.position.sub(&self.target);
-                const rotated_position = rot.rotateVec(&translated_position);
-                self.position = self.target.add(&rotated_position);
-                self.updateForward();
-                self.up = rot.rotateVec(&self.up);
-                self.right = self.forward.crossNormalized(&self.up);
-            },
-            .CircleLeft => {
                 const rot = Quat.fromAxisAngle(&self.world_up, orbit_angle);
                 const translated_position = self.position.sub(&self.target);
                 const rotated_position = rot.rotateVec(&translated_position);
@@ -276,8 +267,17 @@ pub const Movement = struct {
                 self.up = rot.rotateVec(&self.up);
                 self.right = self.forward.crossNormalized(&self.up);
             },
+            .CircleLeft => {
+                const rot = Quat.fromAxisAngle(&self.world_up, -orbit_angle);
+                const translated_position = self.position.sub(&self.target);
+                const rotated_position = rot.rotateVec(&translated_position);
+                self.position = self.target.add(&rotated_position);
+                self.updateForward();
+                self.up = rot.rotateVec(&self.up);
+                self.right = self.forward.crossNormalized(&self.up);
+            },
             .CircleUp => {
-                const rot_90 = Quat.fromAxisAngle(&self.world_up, -half_pi);
+                const rot_90 = Quat.fromAxisAngle(&self.world_up, half_pi);
                 const forward_zx = vec3(self.forward.x, 0.0, self.forward.z);
                 const target_right = rot_90.rotateVec(&forward_zx);
                 const rot = Quat.fromAxisAngle(&target_right, orbit_angle);
@@ -301,6 +301,13 @@ pub const Movement = struct {
                 self.right = self.forward.crossNormalized(&self.up);
             },
         }
+    }
+
+    pub fn processMouseMovement(self: *Self, xoffset_in: f32, yoffset_in: f32, constrain_pitch: bool) void {
+        _ = self;
+        _ = xoffset_in;
+        _ = yoffset_in;
+        _ = constrain_pitch;
     }
 
     pub fn printState(self: *Self) void {

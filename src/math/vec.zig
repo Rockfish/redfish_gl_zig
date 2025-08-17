@@ -352,7 +352,7 @@ pub const Vec4 = extern struct {
     }
 
     pub fn asString(self: *const Vec4, buf: []u8) []u8 {
-        return std.fmt.bufPrint(buf, "Vec4{{ {d}, {d}, {d}, {d} }", .{ self.x, self.y, self.z, self.w }) catch |err| std.debug.panic("{any}", .{err});
+        return std.fmt.bufPrint(buf, "Vec4{{ {d}, {d}, {d}, {d} }}", .{ self.x, self.y, self.z, self.w }) catch |err| std.debug.panic("{any}", .{err});
     }
 
 };

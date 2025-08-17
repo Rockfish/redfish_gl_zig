@@ -82,11 +82,7 @@ pub fn build(b: *std.Build) void {
         exe_name: []const u8,
         source: []const u8,
     }{
-        // .{ .name = "main", .exe_name = "core_main", .source = "src/main.zig" },
         .{ .name = "animation", .exe_name = "animation_example", .source = "examples/animation_example/main.zig" },
-        // .{ .name = "assimp_report", .exe_name = "assimp_report", .source = "examples/assimp_report/assimp_report.zig" },
-        // .{ .name = "bullets", .exe_name = "bullets_example", .source = "examples/bullets/main.zig" },
-        // .{ .name = "audio", .exe_name = "audio_example", .source = "examples/audio/main.zig" },
         // .{ .name = "gui_settings", .exe_name = "gui_example", .source = "examples/gui_settings/gui_settings.zig" },
         // .{ .name = "skybox", .exe_name = "skybox_example", .source = "examples/skybox/main.zig" },
         // .{ .name = "picker", .exe_name = "picker_example", .source = "examples/picker/main.zig" },
@@ -94,9 +90,9 @@ pub fn build(b: *std.Build) void {
         // .{ .name = "scene_tree", .exe_name = "scene_tree_example", .source = "examples/scene_tree/main.zig" },
         // .{ .name = "game_level_001", .exe_name = "game_level_001", .source = "game_level_001/main.zig" },
         .{ .name = "demo_app", .exe_name = "demo_app", .source = "examples/demo_app/main.zig" },
-        .{ .name = "game_angrybot", .exe_name = "game_angrybot", .source = "game_angrybot/main.zig" },
         .{ .name = "converter", .exe_name = "fbx_gltf_converter", .source = "converter/main.zig" },
-        // .{ .name = "chat_gltf", .exe_name = "chat_gltf", .source = "examples/chat_gltf/main.zig" },
+        .{ .name = "angrybot", .exe_name = "angrybot", .source = "games/angrybot/main.zig" },
+        .{ .name = "level_01", .exe_name = "level_01", .source = "games/level_01/main.zig" },
     }) |app| {
         const exe = b.addExecutable(.{
             .name = app.exe_name,

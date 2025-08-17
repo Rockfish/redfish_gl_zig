@@ -115,28 +115,42 @@ pub fn processKeys() void {
                 if (state.input.key_shift) {
                     state.camera.movement.processMovement(.Left, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.OrbitLeft, state.delta_time);
+                    state.camera.movement.processMovement(.CircleLeft, state.delta_time);
                 }
             },
             .d => {
                 if (state.input.key_shift) {
                     state.camera.movement.processMovement(.Right, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.OrbitRight, state.delta_time);
+                    state.camera.movement.processMovement(.CircleRight, state.delta_time);
+                }
+            },
+            .left => {
+                if (state.input.key_shift) {
+                    state.camera.movement.processMovement(.Left, state.delta_time);
+                } else {
+                    state.camera.movement.processMovement(.CircleLeft, state.delta_time);
+                }
+            },
+            .right => {
+                if (state.input.key_shift) {
+                    state.camera.movement.processMovement(.Right, state.delta_time);
+                } else {
+                    state.camera.movement.processMovement(.CircleRight, state.delta_time);
                 }
             },
             .up => {
                 if (state.input.key_shift) {
                     state.camera.movement.processMovement(.Up, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.OrbitUp, state.delta_time);
+                    state.camera.movement.processMovement(.CircleUp, state.delta_time);
                 }
             },
             .down => {
                 if (state.input.key_shift) {
                     state.camera.movement.processMovement(.Down, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.OrbitDown, state.delta_time);
+                    state.camera.movement.processMovement(.CircleDown, state.delta_time);
                 }
             },
             .one => {

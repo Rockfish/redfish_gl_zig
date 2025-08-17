@@ -21,7 +21,7 @@ const Ray = core.Ray;
 const Allocator = std.mem.Allocator;
 const EnumSet = std.EnumSet;
 
-const ModelBuilder = core.ModelBuilder;
+const GltfAsset = core.asset_loader.GltfAsset;
 const Shader = core.Shader;
 const Texture = core.texture.Texture;
 const TextureType = core.texture.TextureType;
@@ -60,7 +60,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     const camera = try Camera.init(
         allocator,
         .{
-            .position = vec3(0.0, 10.0, 30.0),
+            .position = vec3(0.0, 4.0, 20.0),
             .target = vec3(0.0, 2.0, 0.0),
             .scr_width = scaled_width,
             .scr_height = scaled_height,
@@ -97,25 +97,20 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     var node_manager = try nodes.NodeManager.init(allocator);
     defer node_manager.deinit();
 
-    var texture_cache = std.ArrayList(*Texture).init(allocator);
-    defer {
-        for (texture_cache.items) |_texture| { 
-            _texture.deinit(); 
-        }
-        texture_cache.deinit();
-    }
+    // Create temporary arena for standalone textures
+    var texture_arena = std.heap.ArenaAllocator.init(allocator);
+    defer texture_arena.deinit();
 
-    const basic_shader = try Shader.new(
+    const basic_shader = try Shader.init(
         allocator,
-        "game_level_001/shaders/basic_model.vert",
-        "game_level_001/shaders/basic_model.frag",
+        "games/level_01/shaders/basic_model.vert",
+        "games/level_01/shaders/basic_model.frag",
     );
     defer basic_shader.deinit();
 
-    const model_shader = try Shader.new(allocator, 
-        "game_level_001/shaders/player_shader.vert", 
-        //"game_level_001/shaders/player_shader.frag",
-        "game_level_001/shaders/basic_model.frag",
+    const model_shader = try Shader.init(allocator, 
+        "games/level_01/shaders/animated_pbr.vert",
+        "games/level_01/shaders/animated_pbr.frag",
     );
     defer model_shader.deinit();
 
@@ -154,29 +149,26 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     defer sphere.deinit();
 
     var texture_diffuse = TextureConfig{
-        .texture_type = .Diffuse,
         .filter = .Linear,
         .flip_v = false,
         .gamma_correction = false,
-        .wrap = TextureWrap.Repeat,
+        .wrap = .Repeat,
     };
 
-    const cube_texture = try Texture.init(
-        allocator,
+    const cube_texture = try Texture.initFromFile(
+        &texture_arena,
         "assets/textures/container.jpg",
         texture_diffuse,
     );
-    try texture_cache.append(cube_texture);
 
-    texture_diffuse.wrap = TextureWrap.Repeat;
+    texture_diffuse.wrap = .Repeat;
 
-    const surface_texture = try Texture.init(
-        allocator,
-        "angrybots_assets/Models/Floor D.png",
+    const surface_texture = try Texture.initFromFile(
+        &texture_arena,
+        "angrybots_assets/Textures/Floor/Floor D.png",
         //"assets/texturest/IMGP5487_seamless.jpg",
         texture_diffuse,
     );
-    try texture_cache.append(surface_texture);
 
     const model_paths = [_][]const u8{
         "/Users/john/Dev/Assets/spacekit_2/Models/OBJ format/alien.obj",
@@ -186,19 +178,19 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         "/Users/john/Dev/Assets/glTF-Sample-Models/1.0/RiggedFigure/glTF/RiggedFigure.gltf",
         "/Users/john/Dev/Repos/irrlicht/media/faerie.md2", // use skipModelTextures
         "/Users/john/Downloads/Robot2.fbx",
-        "/Users/john/Dev/Assets/modular_characters/Individual Characters/FBX/Spacesuit.fbx",
+        "modular_characters/Individual Characters/glTF/Spacesuit.gltf",
+        "assets/Models/Spacesuit/Spacesuit_converted.gltf",
         // these are not loading
         "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/RiggedFigure/glTF-Binary/RiggedFigure.glb",
         "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/RiggedFigure/glTF/RiggedFigure.gltf",
         "/Users/john/Dev/Repos/Egregoria/assets/models/pedestrian.glb",
     };
 
+    // TODO: Fix model loading
     std.debug.print("Loading model: {s}\n", .{model_paths[7]});
-    var builder = try ModelBuilder.init(allocator, &texture_cache, "alien", model_paths[7]);
-    //try builder.addTexture("Robot2", texture_diffuse, "/Users/john/Dev/Zig/Dev/angry_gl_zig/assets/textures/IMGP5487_seamless.jpg");
-    var model = try builder.build();
-    builder.deinit();
-
+    var gltf_asset = try GltfAsset.init(allocator, "alien", model_paths[7]);
+    try gltf_asset.load();
+    var model = try gltf_asset.buildModel();
     defer model.deinit();
 
     var basic_obj = nodes.BasicObj.init("basic");
@@ -212,10 +204,11 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     const model_node = try nodes.Node.init(allocator, "robot", .{ .model = &model_obj });
     defer model_node.deinit();
 
-    model_node.setTranslation(vec3(0.0, 0.0, 0.0));
-    model_node.setRotation(Quat.fromAxisAngle(&vec3(1.0, 0.0, 0.0), math.degreesToRadians(-90.0)));
-    model_node.setScale(vec3(3.5, 3.5, 3.5));
-    model_node.updateTransforms(null);
+    try model.animator.playAnimationById(23); // 23 is wave, 4 is idle
+    model_node.setTranslation(vec3(5.0, 0.0, 5.0));
+    // model_node.setRotation(Quat.fromAxisAngle(&vec3(1.0, 0.0, 0.0), math.degreesToRadians(-90.0)));
+    model_node.setScale(vec3(2.0, 2.0, 2.0));
+    // model_node.updateTransforms(null);
 
     const node_cylinder = try node_manager.create("shape_cylinder", .{ .shape = &cylinder_obj });
     const node_sphere = try node_manager.create("shpere_shape", .{ .shape = &sphere_obj });
@@ -252,8 +245,9 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
     var moving = false;
 
-    const clip = AnimationClip.init(0.0, 32.0, core.animation.AnimationRepeatMode.Forever);
-    try model_obj.model.playClip(clip);
+    // TODO: Fix animation system
+    // const clip = AnimationClip.init(0, 0.0, 32.0, core.animation.AnimationRepeatMode.Forever);
+    // try model_obj.model.playClip(clip);
 
     gl.enable(gl.DEPTH_TEST);
 
@@ -265,8 +259,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         state.total_time = current_time;
 
         state.view = switch (state.view_type) {
-            .LookAt => camera.get_lookat_view(),
-            .LookTo => camera.get_lookto_view(),
+            .LookAt => camera.getLookAtView(),
+            .LookTo => camera.getLookToView(),
         };
 
         state_.processKeys();
@@ -284,7 +278,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         );
 
         state.world_point = math.getRayPlaneIntersection(
-            &state.camera.position,
+            &state.camera.movement.position,
             &world_ray, // direction
             &xz_plane_point,
             &xz_plane_normal,
@@ -295,19 +289,18 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             .direction = world_ray,
         };
 
-
         basic_shader.setMat4("matProjection", &state.projection);
         basic_shader.setMat4("matView", &state.view);
-        basic_shader.setVec3("ambient_color", &vec3(1.0, 0.6, 0.6));
-        basic_shader.setVec3("light_color", &vec3(0.35, 0.4, 0.5));
-        basic_shader.setVec3("light_dir", &vec3(3.0, 3.0, 3.0));
-        basic_shader.bindTexture(0, "texture_diffuse", cube_texture);
+        basic_shader.setVec3("ambientColor", &vec3(1.0, 0.6, 0.6));
+        basic_shader.setVec3("lightColor", &vec3(0.35, 0.4, 0.5));
+        basic_shader.setVec3("lightDirection", &vec3(3.0, 3.0, 3.0));
+        basic_shader.bindTexture(0, "textureDiffuse", cube_texture.gl_texture_id);
 
         model_shader.setMat4("matProjection", &state.projection);
         model_shader.setMat4("matView", &state.view);
         model_shader.setVec3("ambient_color", &vec3(1.0, 0.6, 0.6));
-        model_shader.setVec3("light_color", &vec3(0.35, 0.4, 0.5));
-        model_shader.setVec3("light_dir", &vec3(3.0, 3.0, 3.0));
+        model_shader.setVec3("lightColor", &vec3(0.35, 0.4, 0.5));
+        model_shader.setVec3("lightDirection", &vec3(3.0, 3.0, 3.0));
 
         if (state.input.mouse_left_button and state.world_point != null) {
             state.target_position = state.world_point.?;
@@ -322,7 +315,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
                 state.current_position = state.target_position;
                 moving = false;
             } else {
-                direction = direction.normalizeTo();
+                direction.normalize();
                 const moveDistance = state.delta_time * 20.0;
 
                 if (moveDistance > distance) {
@@ -334,7 +327,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             }
         }
 
-        // model_node.updateAnimation(state.delta_time);
+        model_node.updateAnimation(state.delta_time);
         model_node.render(model_shader);
         //model_node.render(basic_shader);
 
@@ -355,7 +348,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
         for (node_manager.node_list.items, 0..) |n, id| {
             if (n.object.getBoundingBox()) |aabb| {
-                const box = aabb.transform(&n.global_transform.get_matrix());
+                const box = aabb.transform(&n.global_transform.toMatrix());
                 const distance = box.rayIntersects(ray);
                 if (distance) |d| {
                     if (picked.id != null) {
@@ -373,21 +366,21 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
         for (node_manager.node_list.items, 0..) |n, id| {
             if (picked.id != null and picked.id == @as(u32, @intCast(id))) {
-                basic_shader.setVec4("hit_color", &vec4(1.0, 0.0, 0.0, 0.0));
+                basic_shader.setVec4("hitColor", &vec4(1.0, 0.0, 0.0, 0.0));
             }
-            _ = n;
-            //n.render(basic_shader);
-            basic_shader.setVec4("hit_color", &vec4(0.0, 0.0, 0.0, 0.0));
+            n.render(basic_shader);
+            basic_shader.setVec4("hitColor", &vec4(0.0, 0.0, 0.0, 0.0));
         }
 
         const plane_transform = Mat4.fromTranslation(&vec3(0.0, -1.0, 0.0));
 
         basic_shader.setMat4("matModel", &plane_transform);
-        basic_shader.bindTexture(0, "texture_diffuse", surface_texture);
+        basic_shader.setBool("hasTexture", true);
+        basic_shader.bindTexture(0, "textureDiffuse", surface_texture.gl_texture_id);
         plane.render();
 
         if (state.spin) {
-            state.camera.processMovement(.OrbitRight, state.delta_time * 1.0);
+            state.camera.movement.processMovement(.CircleRight, state.delta_time * 1.0);
         }
 
         window.swapBuffers();
@@ -431,7 +424,7 @@ pub fn moveTowards(currentPosition: Vec3, targetPosition: Vec3, speed: f32, delt
     }
 
     // Normalize the direction to get a constant movement vector
-    direction = direction.normalizeTo();
+    direction.normalize();
 
     // Calculate how far to move this frame (based on speed and deltaTime)
     const moveDistance = speed * deltaTime;

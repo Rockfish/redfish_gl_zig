@@ -3,7 +3,6 @@ const gl = @import("zopengl").bindings;
 const math = @import("math");
 
 const Allocator = std.mem.Allocator;
-const ModelVertex = @import("../model_mesh.zig").ModelVertex;
 
 const AABB = @import("../aabb.zig").AABB;
 
