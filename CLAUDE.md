@@ -4,28 +4,18 @@
 
 **redfish_gl_zig** is a 3D graphics engine written in Zig focused on real-time rendering of animated glTF models with physically-based rendering (PBR). The engine supports character animation, texturing, lighting, and camera controls.
 
-### Current Status (2025-07-12)
-- ✅ Core rendering pipeline with OpenGL 4.0
-- ✅ Architecture refactoring completed (commit 6725b17)
-- ✅ Format-agnostic rendering components (Model, Mesh, Animator)
-- ✅ **Native glTF Animation System** - Complete ASSIMP replacement with glTF-native implementation
-- ✅ **Skeletal Animation System** - Fully functional with Fox, Cesium Man, and mixed model support
-- ✅ PBR material support (diffuse, specular, emissive, normals)
-- ✅ Camera controls (WASD movement + mouse look)
-- ✅ Custom math library integration with column-major matrix fixes
-- ✅ **Completed**: Plan 001 - GLB Support (completed 2024-06-26)
-- ✅ **Completed**: Plan 002 - Demo Application (fully completed 2025-07-04)
-- ✅ **Major Milestone**: Complete Skeletal Animation Implementation
-- ✅ **Enhanced UI**: Model statistics display with comprehensive runtime metrics
-- ✅ **glTF Development Tools**: Comprehensive glTF inspection and reporting system with detailed animation keyframes and skin data (2025-07-13)
-- ✅ **Professional Development Workflow**: Automated build, test, and shader validation tools
-- ✅ **Screenshot & Debug System**: F12 framebuffer screenshots with synchronized shader uniform dumps (2025-07-06)
-- ✅ **ASSIMP-Style Asset Loading Options** - Configurable normal generation with skip/simple/accurate modes (2025-07-08)
-- ✅ **ASSIMP to glTF Migration System** - Complete custom texture assignment system for porting ASSIMP projects (2025-07-11)
-- ✅ **Animation Blending System** - WeightedAnimation implementation with playWeightAnimations for complex character animation (2025-07-12)
-- ✅ **game_angrybot Player Port** - Complete modernization from ASSIMP to glTF system maintaining animation blending (2025-07-12)
-- 🚧 **Active**: Continue porting game_angrybot components (enemy.zig, bullets.zig, etc.)
-- 📋 Next: Complete remaining game_angrybot components, then Plan 003 - Basic PBR Shaders
+### Current Status (2025-08-19)
+- ✅ **Production-Ready 3D Engine** - Complete foundation with PBR rendering pipeline
+- ✅ **Core Rendering**: OpenGL 4.0 pipeline with Cook-Torrance PBR shaders
+- ✅ **Native glTF System** - Complete glTF 2.0 support with skeletal animation
+- ✅ **Cubic Spline Animation** - glTF-compliant Hermite interpolation system
+- ✅ **Enhanced Animation Blending** - WeightedAnimation system with precision controls
+- ✅ **Multi-Game Architecture** - Successfully supports multiple game projects
+- ✅ **Game Projects**: angrybot (fully migrated), level_01 (active development)
+- ✅ **Movement System** - Precision-preserved movement with enhanced performance
+- ✅ **Development Tools**: Comprehensive debugging, profiling, and shader validation
+- ✅ **Foundation Plans Completed**: Plans 001-003 (GLB, Demo, PBR Shaders)
+- 🎯 **Current Phase**: Advanced game development and engine feature expansion
 
 ### Architecture
 
@@ -34,18 +24,22 @@ src/
 ├── core/           # Core engine systems
 │   ├── gltf/      # glTF parsing and model loading
 │   ├── shapes/    # Primitive geometry generators
+│   ├── movement.zig # Enhanced movement system with precision preservation
 │   └── utils/     # Utility functions
 └── math/          # Custom math library (Vec2/3/4, Mat4, etc.)
 
 examples/
-└── demo_app/      # main demo application using core/gltf
+└── demo_app/      # Main demo application with PBR shaders
+
+games/             # Game projects using the engine
+├── angrybot/      # Fully migrated 3D shooter game
+└── level_01/      # Active game development project
 
 libs/              # Third-party dependencies
 ├── zglfw/         # GLFW windowing
 ├── zopengl/       # OpenGL bindings
 ├── zgui/          # Dear ImGui
 ├── zstbi/         # Image loading
-├── cglm/          # C math library - for reference
 └── miniaudio/     # Audio support
 ```
 
@@ -57,19 +51,13 @@ libs/              # Third-party dependencies
 - **Textures**: Support for diffuse, specular, emissive, and normal maps
 - **Camera**: Free-look camera with movement controls
 
-#### Animation System (glTF Native)
+#### Animation System (`src/core/animator.zig`)
 - **AnimationClip**: glTF animation references with time-based repeat modes
-- **Animator**: Native glTF animation playback with keyframe interpolation
-- **Joints**: Skeletal animation using glTF skin/joint system with inverse bind matrices
-- **Interpolation**: Linear Vec3 and spherical quaternion interpolation
-- **API Compatibility**: Maintains all existing interfaces for seamless mini-game integration
-
-#### Animation Blending System (`src/core/animator.zig`)
-- **WeightedAnimation**: Multi-animation blending with weight, timing, and offset control
-- **playWeightAnimations**: Simultaneous animation mixing for complex character movement
-- **Frame-to-Time Conversion**: Automatic conversion from ASSIMP frame-based to glTF time-based animation
-- **Weight Normalization**: Proper blending mathematics with quaternion renormalization
-- **ASSIMP Compatibility**: Maintains same blending behavior as original game_angrybot system
+- **Skeletal Animation**: Complete glTF skin/joint system with inverse bind matrices
+- **Cubic Spline Interpolation**: glTF-compliant Hermite interpolation for smooth animation curves
+- **Linear Interpolation**: Standard Vec3 linear and quaternion spherical (slerp) interpolation
+- **WeightedAnimation**: Enhanced multi-animation blending with precision controls
+- **playWeightAnimations**: Sophisticated animation mixing for complex character movement
 - **Usage**: `model.playWeightAnimations(&weight_animations, frame_time)` for directional character animation
 
 #### Math Library (`src/math/`)
@@ -103,14 +91,11 @@ libs/              # Third-party dependencies
 - **Automatic Detection**: Only generates normals for mesh primitives that lack them
 - **Memory Management**: Pre-generated normals stored in HashMap with composite keys
 
-#### ASSIMP to glTF Migration System (`src/core/asset_loader.zig`)
-- **Custom Texture Assignment**: Manual texture assignment for models without material definitions
-- **API Bridge**: ASSIMP texture-type approach ↔ glTF uniform-name approach for maximum flexibility
-- **TextureConfig**: Comprehensive texture settings (filter, wrap, flip_v, gamma_correction)
-- **Usage Pattern**: `gltf_asset.addTexture("MeshName", "texture_diffuse", "path.tga", config)`
-- **Override System**: Custom textures override material textures with priority control
-- **Memory Management**: Arena-based allocation with texture caching and proper GL cleanup
-- **Critical for Porting**: Enables seamless migration of ASSIMP-based games to glTF architecture
+#### Enhanced Movement System (`src/core/movement.zig`)
+- **Precision Preservation**: Enhanced movement calculations with improved numerical precision
+- **Performance Optimized**: Refactored for better performance in game scenarios
+- **Type Safety**: Improved data structures with better performance and type safety
+- **Game Integration**: Seamlessly integrated into angrybot and level_01 game projects
 
 ## Coding Style Guidelines
 
@@ -190,11 +175,12 @@ This applies to scenarios where referencing nested fields directly in function c
 # Development with auto-rebuild
 just dev
 
-# Shader development (Plan 003)
-just pbr-dev
-
 # Quick build and run
 just run
+
+# Build specific game projects
+zig build angrybot-run
+zig build level_01-run
 
 # Run all tests
 just test
@@ -241,41 +227,20 @@ just doctor
 - **cglm**: C math library (present but unused - prefer local math library)
 - **miniaudio**: Audio playback support
 
-## Known Issues & TODOs
+## Future Development Areas
 
-### Current Issues
-- Memory management needs review in texture cache cleanup
-- Animation blending not yet implemented (future enhancement)
-- Single model rendering only (no scene graph)
-
-### Next Steps
-1. **Mini-Game Integration** 
-   - Port existing mini-game code to use new glTF animation system
-   - Test API compatibility and performance with game-specific animation patterns
-   - Verify skeletal animation works correctly with character controllers
-
-2. **Animation System Enhancements**
-   - Implement animation blending and transitions between clips
-   - Add support for morph target animations (weights)
-   - Optimize keyframe lookup with binary search for large animations
-
-3. **Performance Optimization**
-   - Optimize keyframe lookup with binary search for large animations
-   - Implement animation data caching for frequently used clips
-   - Profile memory usage and optimize joint matrix calculations
-
-4. **Future enhancements**:
-   - Implement animation blending and transitions between clips
-   - Add support for multiple models in a scene
-   - Implement shadow mapping for better lighting
-   - Add audio integration for ambient sounds
-   - Create scene serialization system
+### Potential Enhancements
+- **Scene Management**: Multi-model scene support with spatial organization
+- **Advanced Lighting**: Shadow mapping, environment mapping, multi-light support
+- **Performance**: Animation data caching, keyframe lookup optimization  
+- **Audio Integration**: 3D positional audio and ambient sound support
+- **Serialization**: Scene and game state serialization systems
 
 ## Current Active Plans
 
 See `plan/active-plans.md` for detailed project roadmap.
 
-**Current Focus**: Plan 003 - Shader Improvements (Basic PBR rendering and materials)
+**Current Focus**: Advanced game development and engine feature expansion beyond foundation plans
 
 ## Recent Changes
 
@@ -287,7 +252,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 - **Math Library**: Pure Zig implementation in `src/math/` - add missing functions here
 - **Asset Loading**: Use `GltfAsset` from `src/core/asset_loader.zig` for all model loading
 - **glTF Analysis**: Use `core.gltf_report.GltfReport` for model inspection and debugging
-- **Development Workflow**: Use `just dev` for auto-rebuild, `just pbr-dev` for shader work
+- **Development Workflow**: Use `just dev` for auto-rebuild, specific game builds for focused development
 - **Complete Guide**: See `DEVELOPMENT.md` for comprehensive workflow documentation
 - **Watch Scripts**: Use `./scripts/watch-*.sh` for specialized development modes
 
@@ -302,34 +267,17 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 - **Code Organization**: When refactoring, prefer moving functionality to appropriate modules over creating new structures. Extract functions cleanly from domain-specific modules to general-purpose ones.
 - **Documentation Standards**: Add comprehensive struct documentation when dealing with complex conventions (e.g., matrix storage formats, coordinate systems).
 
-## ASSIMP→glTF Migration Rules
+## Advanced Features
 
-### Core Principle: REWRITE, DON'T WRAP
-- **Rule**: Modernize legacy code to use glTF patterns during migration, never create compatibility layers
-- **Why**: Reduces complexity, improves maintainability, leverages glTF improvements
-- **GltfAsset ≡ ModelBuilder**: Equivalent functionality, better API - always use GltfAsset
+### Cubic Spline Animation System
+- **glTF Compliance**: Full implementation of glTF CUBICSPLINE interpolation mode
+- **Hermite Basis**: Standard cubic Hermite basis functions matching Khronos reference
+- **Smooth Animation**: Eliminates jerky transitions with continuous velocity and acceleration
+- **Type-Safe Dispatch**: Union-based architecture for compile-time interpolation selection
+- **Data Structures**: `Vec3CubicKeyframe`, `QuatCubicKeyframe` with in_tangent/value/out_tangent fields
 
-### Decision Tree for Migration
-1. **Equivalent exists?** → Rewrite calls to use modern glTF API
-2. **Core missing functionality?** → Implement new (e.g., playWeightAnimations)  
-3. **Just API differences?** → Always rewrite, never wrap
-
-### Migration Patterns (Apply These)
-```zig
-// ModelBuilder.init() → GltfAsset.init()
-// addTexture(mesh, texture_diffuse, path) → addTexture(mesh, "texture_diffuse", path, config)
-// .fbx/.dae paths → .gltf paths
-// Keep: playWeightAnimations() (genuinely new functionality)
-```
-
-### Red Flags (Avoid These)
-- Creating ModelBuilder wrapper struct around GltfAsset
-- Enum→string conversion utilities for textures
-- Any "compatibility layer" thinking
-- Maintaining multiple APIs for same functionality
-- TextureType enum instead of string uniform names
-
-### Implementation Memory
-- **ASSIMP Migration Pattern**: `try gltf_asset.addTexture("MeshName", "uniform_name", "path.tga", config)` bridges ASSIMP texture-type with glTF uniform-name system
-- **Animation Blending**: `playWeightAnimations()` handles sophisticated weight-based animation mixing essential for game_angrybot character animation
-- **Custom Textures**: Override material textures with texture units starting at 10 to avoid conflicts
+### Enhanced Animation Blending
+- **WeightedAnimation**: Sophisticated multi-animation blending with precision controls
+- **playWeightAnimations()**: Handles complex character movement with weight-based mixing
+- **Quaternion Normalization**: Proper blending mathematics for smooth rotational transitions
+- **Game Integration**: Successfully integrated into angrybot character animation system
