@@ -100,17 +100,13 @@ pub const MuzzleFlash = struct {
         }
 
         sprite_shader.useShader();
-        sprite_shader.setMat4("PV", projection_view);
+        sprite_shader.setMat4("projectionView", projection_view);
 
         gl.enable(gl.BLEND);
         gl.depthMask(gl.FALSE);
         gl.bindVertexArray(self.unit_square_vao);
 
-        sprite_shader.bindTexture(
-            0,
-            "spritesheet",
-            self.muzzle_flash_impact_sprite.texture.gl_texture_id,
-        );
+        sprite_shader.bindTextureAuto("spritesheet", self.muzzle_flash_impact_sprite.texture.gl_texture_id);
 
         sprite_shader.setInt("numCols", @intFromFloat(self.muzzle_flash_impact_sprite.num_columns));
         sprite_shader.setFloat("timePerSprite", self.muzzle_flash_impact_sprite.time_per_sprite);

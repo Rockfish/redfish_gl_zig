@@ -1,14 +1,14 @@
-#version 330 core
+#version 400 core
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec2 inTexCoord;
 layout(location = 3) in vec3 inTangent;
-layout(location = 4) in vec3 inBiTangent;
-layout(location = 5) in ivec4 inBoneIds;
+layout(location = 4) in vec4 inColor;
+layout(location = 5) in ivec4 inJointIds;
 layout(location = 6) in vec4 inWeights;
 
-out vec2 TexCoord;
+out vec2 FragTextureCoord;
 
 // animation
 const int MAX_BONES = 100;
@@ -48,5 +48,5 @@ void main() {
 
     gl_Position = projectionView * model * final_position;
 
-    TexCoord = inTexCoord;
+    FragTextureCoord = inTexCoord;
 }

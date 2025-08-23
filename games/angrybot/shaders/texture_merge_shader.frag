@@ -1,5 +1,6 @@
-#version 330 core
-in vec2 TexCoord;
+#version 400 core
+
+in vec2 FragTextureCoord;
 
 out vec4 FragColor;
 
@@ -19,9 +20,9 @@ vec4 ScaleColor(float scale, vec4 color) {
 
 void main() {
 
-  FragColor = vec4(texture(base_texture, TexCoord).rgb + texture(emission_texture, TexCoord).rgb * 2.9, 1.0);
+  FragColor = vec4(texture(base_texture, FragTextureCoord).rgb + texture(emission_texture, FragTextureCoord).rgb * 2.9, 1.0);
 
-  vec3 rawBright = texture(bright_texture, TexCoord).rgb;
+  vec3 rawBright = texture(bright_texture, FragTextureCoord).rgb;
 
   if (CalcBrightness(rawBright) > 0.05) {
     float mult = 1.5;

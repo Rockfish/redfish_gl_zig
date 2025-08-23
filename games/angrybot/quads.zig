@@ -137,7 +137,7 @@ pub fn createMoreObnoxiousQuadVao() gl.Uint {
 
 pub fn renderQuad(quad_vao: *gl.Uint) void {
     // initialize (if necessary)
-    if (*quad_vao == 0) {
+    if (quad_vao.* == 0) {
         const quad_vertices: [20]f32 = .{
             // positions     // texture Coords
             -1.0, 1.0,  0.0, 0.0, 1.0,
@@ -150,7 +150,7 @@ pub fn renderQuad(quad_vao: *gl.Uint) void {
         var quad_vbo: gl.Uint = 0;
         gl.genVertexArrays(1, quad_vao);
         gl.genBuffers(1, &quad_vbo);
-        gl.bindVertexArray(*quad_vao);
+        gl.bindVertexArray(quad_vao.*);
         gl.bindBuffer(gl.ARRAY_BUFFER, quad_vbo);
         gl.bufferData(
             gl.ARRAY_BUFFER,
@@ -178,7 +178,7 @@ pub fn renderQuad(quad_vao: *gl.Uint) void {
         );
     }
 
-    gl.bindVertexArray(*quad_vao);
+    gl.bindVertexArray(quad_vao.*);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.bindVertexArray(0);
 }

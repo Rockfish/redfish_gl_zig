@@ -26,7 +26,7 @@ const NUM_TILE_WRAPS: f32 = FLOOR_SIZE / TILE_SIZE;
 const SIZE_OF_FLOAT = @sizeOf(f32);
 
 const FLOOR_VERTICES: [30]f32 = .{
-    // Vertices                                // TexCoord
+    // Vertices                                // FragTextureCoord
     -FLOOR_SIZE / 2.0, 0.0, -FLOOR_SIZE / 2.0, 0.0,            0.0,
     -FLOOR_SIZE / 2.0, 0.0, FLOOR_SIZE / 2.0,  NUM_TILE_WRAPS, 0.0,
     FLOOR_SIZE / 2.0,  0.0, FLOOR_SIZE / 2.0,  NUM_TILE_WRAPS, NUM_TILE_WRAPS,
@@ -120,16 +120,16 @@ pub const Floor = struct {
     pub fn draw(self: *const Self, shader: *const Shader, projection_view: *const Mat4) void {
         shader.useShader();
 
-        shader.bindTexture(0, "texture_diffuse", self.texture_floor_diffuse.gl_texture_id);
-        shader.bindTexture(1, "texture_normal", self.texture_floor_normal.gl_texture_id);
-        shader.bindTexture(2, "texture_spec", self.texture_floor_spec.gl_texture_id);
+        shader.bindTextureAuto("texture_diffuse", self.texture_floor_diffuse.gl_texture_id);
+        shader.bindTextureAuto("texture_normal", self.texture_floor_normal.gl_texture_id);
+        shader.bindTextureAuto("texture_spec", self.texture_floor_spec.gl_texture_id);
 
         // angle floor
         // const _model = Mat4.from_axis_angle(vec3(0.0, 1.0, 0.0), math.degreesToRadians(45.0));
 
         const model = Mat4.identity();
 
-        shader.setMat4("PV", projection_view);
+        shader.setMat4("projectionView", projection_view);
         shader.setMat4("model", &model);
 
         gl.bindVertexArray(self.floor_vao);

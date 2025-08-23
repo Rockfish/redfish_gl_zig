@@ -1,4 +1,5 @@
-#version 330 core
+#version 400 core
+
 // model data
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 inTexCoord;
@@ -7,10 +8,10 @@ layout(location = 1) in vec2 inTexCoord;
 layout(location = 2) in vec4 rotationQuat;
 layout(location = 3) in vec3 positionOffset;
 
-out vec2 TexCoord;
+out vec2 FragTextureCoord;
 
 // Transformation matrices
-uniform mat4 PV;
+uniform mat4 projectionView;
 
 vec4 hamiltonProduct(vec4 q1, const vec4 q2) {
     return vec4(
@@ -52,7 +53,7 @@ void main() {
     // rotate bullet sprite to face in the direction of travel
     vec3 rotatedInPos = rotateByQuat(inPosition, rotationQuat);
 
-    gl_Position = PV * vec4(rotatedInPos + positionOffset, 1.0);
+    gl_Position = projectionView * vec4(rotatedInPos + positionOffset, 1.0);
 
-    TexCoord = inTexCoord;
+    FragTextureCoord = inTexCoord;
 }

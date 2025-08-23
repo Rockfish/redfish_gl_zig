@@ -1,4 +1,4 @@
-#version 330 core
+#version 400 core
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
@@ -19,8 +19,8 @@ uniform mat4 projectionView;
 uniform mat4 model;
 uniform mat4 aimRot;
 
-out vec2 TexCoord;
-out vec3 Norm;
+out vec2 FragTextureCoord;
+out vec3 FragNormal;
 out vec4 FragPosLightSpace;
 out vec3 FragWorldPos;
 
@@ -66,10 +66,11 @@ void main() {
         gl_Position = projectionView * model * final_position;
     }
 
-    TexCoord = inTexCoord;
+    // Outputs
+    FragTextureCoord = inTexCoord;
 
-    Norm = vec3(aimRot * vec4(localNormal, 1.0));
-    //Norm = vec3(aimRot * vec4(inNormal, 1.0));
+    FragNormal = vec3(aimRot * vec4(localNormal, 1.0));
+//    FragNormal = vec3(aimRot * vec4(inNormal, 1.0));
 
     FragWorldPos = vec3(model * vec4(inPosition, 1.0));
 

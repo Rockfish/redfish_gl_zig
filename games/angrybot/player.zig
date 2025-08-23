@@ -208,9 +208,9 @@ pub const Player = struct {
         return player_transform.mulMat4(&muzzle_translation);
     }
 
-    fn updateAnimationWeights(self: *Self, move_vec: Vec2, aim_theta: f32, frame_time: f32) [6]WeightedAnimation {
-        const is_moving = move_vec.lengthSquared() > 0.1;
-        const move_theta = math.atan(move_vec.x / move_vec.y) + if (move_vec.y < @as(f32, 0.0)) math.pi else @as(f32, 0.0);
+    fn updateAnimationWeights(self: *Self, direction: Vec2, aim_theta: f32, frame_time: f32) [6]WeightedAnimation {
+        const is_moving = direction.lengthSquared() > 0.1;
+        const move_theta = math.atan(direction.x / direction.y) + if (direction.y < @as(f32, 0.0)) math.pi else @as(f32, 0.0);
         const theta_delta = move_theta - aim_theta;
         const anim_move = vec2(math.sin(theta_delta), math.cos(theta_delta));
 

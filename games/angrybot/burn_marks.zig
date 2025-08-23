@@ -73,10 +73,10 @@ pub const BurnMarks = struct {
         }
 
         shader.useShader();
-        shader.setMat4("PV", projection_view);
+        shader.setMat4("projectionView", projection_view);
 
-        shader.bindTexture(0, "texture_diffuse", self.mark_texture.gl_texture_id);
-        shader.bindTexture(1, "texture_normal", self.mark_texture.gl_texture_id);
+        shader.bindTextureAuto("texture_diffuse", self.mark_texture.gl_texture_id);
+        shader.bindTextureAuto("texture_normal", self.mark_texture.gl_texture_id);
 
         gl.enable(gl.BLEND);
         gl.depthMask(gl.FALSE);

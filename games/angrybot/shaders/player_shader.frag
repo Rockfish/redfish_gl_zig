@@ -1,7 +1,7 @@
-#version 330 core
+#version 400 core
 
-in vec2 TexCoord;
-in vec3 Norm;
+in vec2 FragTextureCoord;
+in vec3 FragNormal;
 in vec4 FragPosLightSpace;
 in vec3 FragWorldPos;
 
@@ -26,13 +26,13 @@ uniform sampler2D texture_diffuse;
 uniform sampler2D texture_specular;
 uniform sampler2D texture_normals;
 uniform sampler2D texture_emissive;
-
 uniform sampler2D shadow_map;
 
 uniform bool useLight;
 uniform bool useEmissive;
 uniform vec3 ambient;
 uniform vec3 viewPos;
+uniform bool depth_mode;
 
 float ShadowCalculation(float bias, vec4 fragPosLightSpace) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -47,10 +47,16 @@ float ShadowCalculation(float bias, vec4 fragPosLightSpace) {
 }
 
 void main() {
-    vec4 color = texture(texture_diffuse, TexCoord);
+
+    if (depth_mode) {
+        FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        return;
+    }
+
+    vec4 color = texture(texture_diffuse, FragTextureCoord);
 
     if (useLight) {
-        vec3 normal = normalize(Norm);
+        vec3 normal = normalize(FragNormal);
 
         float shadow = 0.0;
 
@@ -60,7 +66,7 @@ void main() {
 
             // TODO use normal texture as well
             float diff = max(dot(normal, lightDir), 0.0);
-            vec3 amb = ambient * vec3(texture(texture_diffuse, TexCoord));
+            vec3 amb = ambient * vec3(texture(texture_diffuse, FragTextureCoord));
             float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
 
             shadow = ShadowCalculation(bias, FragPosLightSpace);
@@ -71,7 +77,7 @@ void main() {
         if (usePointLight) {
             vec3 lightDir = normalize(pointLight.worldPos - FragWorldPos);
             float diff = max(dot(normal, lightDir), 0.0);
-            vec3 diffuse = 0.7 * pointLight.color * diff * vec3(texture(texture_diffuse, TexCoord));
+            vec3 diffuse = 0.7 * pointLight.color * diff * vec3(texture(texture_diffuse, FragTextureCoord));
             color += vec4(diffuse.xyz, 1.0);
         }
 
@@ -81,16 +87,16 @@ void main() {
             float shininess = 24;
             float str = 1; //0.88;
             float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-            color += str * spec * texture(texture_specular, TexCoord) * vec4(directionLight.color, 1.0);
+            color += str * spec * texture(texture_specular, FragTextureCoord) * vec4(directionLight.color, 1.0);
             color += spec * 0.1 * vec4(1.0, 1.0, 1.0, 1.0);
         }
 
         if (useEmissive) {
-            vec4 emission = texture(texture_emissive, TexCoord); //.rgb;
+            vec4 emission = texture(texture_emissive, FragTextureCoord); //.rgb;
             color += emission;
         }
     }
 
-    //  color = vec4(0.2, 0.8, 0.2, 1.0);
+//      color = vec4(0.2, 0.8, 0.2, 1.0);
     FragColor = color;
 }

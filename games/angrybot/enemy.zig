@@ -118,7 +118,6 @@ pub const EnemySystem = struct {
                 const dist = geom.distanceBetweenPointAndLineSegment(&player_collision_position, &p1, &p2);
 
                 if (dist <= (world.PLAYER_COLLISION_RADIUS + world.ENEMY_COLLIDER.radius)) {
-                    // println!("GOTTEM!");
                     state.player.is_alive = false;
                     state.player.die(state.frame_time);
                     state.player.direction = vec2(0.0, 0.0);

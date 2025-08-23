@@ -176,7 +176,7 @@ pub const BulletStore = struct {
             );
             const x_rot = Quat.fromAxisAngle(
                 &vec3(1.0, 0.0, 0.0),
-                rotation_per_bullet * ((i_f32 - world.SPREAD_AMOUNT) / @as(f32, 2.0)) + spread_centering,
+                rotation_per_bullet * ((i_f32 - world.SPREAD_AMOUNT) / @as(f32, 2.0)) + spread_centering + math.pi,
             );
             // std.debug.print("x_rot = {any}\n", .{x_rot});
             try x_rotations.append(x_rot);
@@ -232,6 +232,7 @@ pub const BulletStore = struct {
 
             const y_quat = mid_dir_quat.mulQuat(&self.y_rotations.items[i]);
             const rot_quat = y_quat.mulQuat(&self.x_rotations.items[j]);
+
             const direction = rot_quat.rotateVec(&CANONICAL_DIR);
 
             self.all_bullet_positions.items[index] = projectile_spawn_point;
@@ -281,14 +282,13 @@ pub const BulletStore = struct {
                         const change = direction.mulScalar(delta_position_magnitude);
 
                         var position = self.all_bullet_positions.items[bullet_index];
-                        position = position.add(&change);
+                        position = position.sub(&change);
                         self.all_bullet_positions.items[bullet_index] = position;
                     }
 
                     var subgroup_bound_box = AABB.init();
 
                     if (use_aabb) {
-                        // -1?
                         for (bullet_start..bullet_end) |bullet_index| {
                             subgroup_bound_box.expand_to_include(self.all_bullet_positions.items[bullet_index]);
                         }
@@ -492,11 +492,11 @@ pub const BulletStore = struct {
         gl.disable(gl.CULL_FACE);
 
         shader.useShader();
-        shader.setMat4("PV", projection_view);
+        shader.setMat4("projectionView", projection_view);
         shader.setBool("useLight", false);
 
-        shader.bindTexture(0, "texture_diffuse", self.bullet_texture.gl_texture_id);
-        shader.bindTexture(1, "texture_normal", self.bullet_texture.gl_texture_id);
+        shader.bindTextureAuto("texture_diffuse", self.bullet_texture.gl_texture_id);
+        shader.bindTextureAuto("texture_normal", self.bullet_texture.gl_texture_id);
 
         // bind bullet vertices and indices
         gl.bindVertexArray(self.bullet_vao);
@@ -510,7 +510,7 @@ pub const BulletStore = struct {
             gl.STREAM_DRAW,
         );
 
-        // bind and load bullet postions
+        // bind and load bullet positions
         gl.bindBuffer(gl.ARRAY_BUFFER, self.positions_vbo);
         gl.bufferData(
             gl.ARRAY_BUFFER,
@@ -535,12 +535,12 @@ pub const BulletStore = struct {
 
     pub fn drawBulletImpacts(self: *const Self, sprite_shader: *Shader, projection_view: *const Mat4) void {
         sprite_shader.useShader();
-        sprite_shader.setMat4("PV", projection_view);
+        sprite_shader.setMat4("projectionView", projection_view);
 
         sprite_shader.setInt("numCols", @intFromFloat(self.bullet_impact_spritesheet.num_columns));
         sprite_shader.setFloat("timePerSprite", self.bullet_impact_spritesheet.time_per_sprite);
 
-        sprite_shader.bindTexture(0, "spritesheet", self.bullet_impact_spritesheet.texture.gl_texture_id);
+        _ = sprite_shader.bindTextureAuto("spritesheet", self.bullet_impact_spritesheet.texture.gl_texture_id);
 
         gl.enable(gl.BLEND);
         gl.depthMask(gl.FALSE);

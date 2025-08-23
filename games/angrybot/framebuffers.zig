@@ -2,7 +2,6 @@ const std = @import("std");
 const zopengl = @import("zopengl");
 const gl = zopengl.bindings;
 
-
 const BLUR_SCALE: i32 = 2;
 pub const SHADOW_WIDTH: i32 = 6 * 1024;
 pub const SHADOW_HEIGHT: i32 = 6 * 1024;
@@ -10,6 +9,11 @@ pub const SHADOW_HEIGHT: i32 = 6 * 1024;
 pub const FrameBuffer = struct {
     framebuffer_id: u32, // framebuffer object
     texture_id: u32, // texture object
+
+    pub fn deinit(self: FrameBuffer) void {
+        gl.deleteFramebuffers(1, &self.framebuffer_id);
+        gl.deleteTextures(1, &self.texture_id);
+    }
 };
 
 pub fn createDepthMapFbo() FrameBuffer {

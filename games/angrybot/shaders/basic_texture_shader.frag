@@ -1,5 +1,5 @@
 #version 330 core
-in vec2 TexCoord;
+in vec2 FragTextureCoord;
 
 out vec4 FragColor;
 
@@ -17,14 +17,14 @@ uniform bool useLight;
 uniform vec3 ambient;
 
 void main() {
-  vec4 color = texture(texture_diffuse, TexCoord);
+  vec4 color = texture(texture_diffuse, FragTextureCoord);
 
   if (useLight) {
     vec3 lightDir = normalize(-directionLight.dir);
-    vec3 normal = vec3(texture(texture_normal, TexCoord));
+    vec3 normal = vec3(texture(texture_normal, FragTextureCoord));
     normal = normalize(normal * 2.0 - 1.0);
     float diff = max(dot(normal, lightDir), 0.0);
-    vec3 amb = ambient * vec3(texture(texture_diffuse, TexCoord));
+    vec3 amb = ambient * vec3(texture(texture_diffuse, FragTextureCoord));
     color = vec4(directionLight.color, 1.0) * color * diff + vec4(amb, 1.0);
   }
 
