@@ -69,7 +69,7 @@ pub const Texture = struct {
             }
         };
 
-        const gl_texture_id = createGlTexture(image, sampler);
+        const gl_texture_id = createGl2DTexture(image, sampler);
 
         const texture = try allocator.create(Texture);
         texture.* = Texture{
@@ -121,7 +121,7 @@ pub const Texture = struct {
             },
         };
 
-        const gl_texture_id = createGlTexture(image, sampler);
+        const gl_texture_id = createGl2DTexture(image, sampler);
 
         const texture = try allocator.create(Texture);
         texture.* = Texture{
@@ -202,7 +202,7 @@ pub fn loadImage(allocator: Allocator, gltf_asset: *GltfAsset, gltf_image: gltf_
     }
 }
 
-pub fn createGlTexture(image: zstbi.Image, sampler: gltf_types.Sampler) c_uint {
+pub fn createGl2DTexture(image: zstbi.Image, sampler: gltf_types.Sampler) c_uint {
     const format: u32 = switch (image.num_components) {
         0 => gl.RED,
         3 => gl.RGB,

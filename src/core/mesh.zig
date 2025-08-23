@@ -307,17 +307,8 @@ pub const MeshPrimitive = struct {
     fn setBasicMaterial(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
         if (self.material.pbr_metallic_roughness) |pbr| {
             if (pbr.base_color_texture) |baseColorTexture| {
-                const texUnit: u32 = 0;
                 const texture = gltf_asset.loaded_textures.get(baseColorTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-                gl.activeTexture(gl.TEXTURE0 + @as(c_uint, @intCast(texUnit)));
-                gl.bindTexture(gl.TEXTURE_2D, texture.gl_texture_id);
-
-                const error_code = gl.getError();
-                if (error_code != gl.NO_ERROR) {
-                    std.debug.print("OpenGL error after texture bind: {d}\n", .{error_code});
-                }
-
-                shader.setInt("textureDiffuse", texUnit);
+                shader.bindTextureAuto("textureDiffuse", texture.gl_texture_id);
                 shader.setBool("hasTexture", true);
             } else {
                 const color = pbr.base_color_factor;
@@ -345,7 +336,7 @@ pub const MeshPrimitive = struct {
         if (self.material.pbr_metallic_roughness) |pbr| {
             if (pbr.base_color_texture) |baseColorTexture| {
                 const texture = gltf_asset.loaded_textures.get(baseColorTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-                shader.bindTexture(0, "baseColorTexture", texture.gl_texture_id);
+                shader.bindTextureAuto("baseColorTexture", texture.gl_texture_id);
                 shader.setBool("hasBaseColorTexture", true);
             } else {
                 shader.setBool("hasBaseColorTexture", false);
@@ -353,7 +344,7 @@ pub const MeshPrimitive = struct {
 
             if (pbr.metallic_roughness_texture) |metallicRoughnessTexture| {
                 const texture = gltf_asset.loaded_textures.get(metallicRoughnessTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-                shader.bindTexture(1, "metallicRoughnessTexture", texture.gl_texture_id);
+                shader.bindTextureAuto("metallicRoughnessTexture", texture.gl_texture_id);
                 shader.setBool("hasMetallicRoughnessTexture", true);
             } else {
                 shader.setBool("hasMetallicRoughnessTexture", false);
@@ -365,7 +356,7 @@ pub const MeshPrimitive = struct {
 
         if (self.material.normal_texture) |normalTexture| {
             const texture = gltf_asset.loaded_textures.get(normalTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-            shader.bindTexture(2, "normalTexture", texture.gl_texture_id);
+            shader.bindTextureAuto("normalTexture", texture.gl_texture_id);
             shader.setBool("hasNormalTexture", true);
         } else {
             shader.setBool("hasNormalTexture", false);
@@ -373,7 +364,7 @@ pub const MeshPrimitive = struct {
 
         if (self.material.emissive_texture) |emissiveTexture| {
             const texture = gltf_asset.loaded_textures.get(emissiveTexture.index) orelse std.debug.panic("texture not loaded.", .{});
-            shader.bindTexture(3, "emissiveTexture", texture.gl_texture_id);
+            shader.bindTextureAuto("emissiveTexture", texture.gl_texture_id);
             shader.setBool("hasEmissiveTexture", true);
         } else {
             shader.setBool("hasEmissiveTexture", false);
@@ -382,7 +373,7 @@ pub const MeshPrimitive = struct {
         if (self.material.occlusion_texture) |occlusionTexture| {
             const texture = gltf_asset.loaded_textures.get(occlusionTexture.index) orelse std.debug.panic("texture not loaded.", .{});
             shader.setBool("hasOcclusionTexture", true);
-            shader.bindTexture(4, "occlusionTexture", texture.gl_texture_id);
+            shader.bindTextureAuto("occlusionTexture", texture.gl_texture_id);
         } else {
             shader.setBool("hasOcclusionTexture", false);
         }
@@ -393,8 +384,6 @@ pub const MeshPrimitive = struct {
         // Get the mesh name from this primitive
         const mesh_name = self.name orelse return;
 
-        var texture_unit: u32 = 10; // Start at high texture unit to avoid conflicts
-
         for (gltf_asset.custom_textures.items) |*custom_tex| {
             if (std.mem.eql(u8, custom_tex.mesh_name, mesh_name)) {
                 const texture = gltf_asset.loadCustomTexture(custom_tex) catch {
@@ -402,12 +391,7 @@ pub const MeshPrimitive = struct {
                     continue;
                 };
 
-                // Bind custom texture
-                gl.activeTexture(gl.TEXTURE0 + texture_unit);
-                gl.bindTexture(gl.TEXTURE_2D, texture.gl_texture_id);
-
-                // Set shader uniform using custom uniform name
-                shader.setInt(custom_tex.uniform_name, @intCast(texture_unit));
+                shader.bindTextureAuto(custom_tex.uniform_name, texture.gl_texture_id);
 
                 // Set a flag indicating this uniform has a texture
                 // This allows shaders to conditionally use textures
@@ -418,9 +402,7 @@ pub const MeshPrimitive = struct {
                 // Don't free - arena allocator will handle cleanup
                 shader.setBool(flag_name, true);
 
-                texture_unit += 1;
-
-                // std.debug.print("Applied custom texture: {s} -> {s} (unit {d})\n", .{ custom_tex.texture_path, custom_tex.uniform_name, texture_unit - 1 });
+                // std.debug.print("Applied custom texture: {s} -> {s}\n", .{ custom_tex.texture_path, custom_tex.uniform_name });
             }
         }
     }

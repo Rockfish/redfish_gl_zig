@@ -162,7 +162,7 @@ pub fn build(b: *std.Build) void {
     // extra check step for the game for better zls
     // See https://kristoff.it/blog/improving-your-zls-experience/
     const exe_check = b.addExecutable(.{
-        .name = "angry_monsters",
+        .name = "demo_app",
         .root_source_file = b.path("examples/demo_app/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -181,7 +181,6 @@ pub fn build(b: *std.Build) void {
     exe_check.linkLibrary(zstbi.artifact("zstbi"));
     exe_check.linkLibrary(miniaudio.artifact("miniaudio"));
     exe_check.linkLibrary(zglfw.artifact("glfw"));
-    // exe_check.linkLibrary(cglm.artifact("cglm")); // UNUSED
     exe_check.addIncludePath(b.path("src/include"));
     exe_check.addIncludePath(miniaudio.path("include"));
 
@@ -197,9 +196,7 @@ pub fn build(b: *std.Build) void {
 
     // Add required dependencies
     movement_tests.root_module.addImport("math", math);
-    // movement_tests.root_module.addImport("cglm", cglm.module("root")); // UNUSED
     movement_tests.addIncludePath(b.path("src/include"));
-    // movement_tests.linkLibrary(cglm.artifact("cglm")); // UNUSED
 
     const run_movement_tests = b.addRunArtifact(movement_tests);
     const test_step = b.step("test-movement", "Run movement tests");

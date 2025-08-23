@@ -19,6 +19,10 @@ const StringHashMap = std.StringHashMap;
 //     LinkError,
 // };
 
+// Texture unit auto-allocation
+var texture_unit_map: ?*StringHashMap(u32) = null;
+var next_available_unit: u32 = 1;
+
 pub const Shader = struct {
     id: u32,
     vert_file: []const u8,
@@ -57,6 +61,18 @@ pub const Shader = struct {
         self.debug_uniforms.deinit();
         self.allocator.destroy(self.debug_uniforms);
 
+        // Clean up texture unit map
+        if (texture_unit_map) |map| {
+            // Free all keys in the texture unit map
+            // var iterator3 = map.keyIterator();
+            // while (iterator3.next()) |key| {
+            //     self.allocator.free(key.*);
+            // }
+            map.deinit();
+            self.allocator.destroy(map);
+            texture_unit_map = null;
+        }
+
         self.allocator.destroy(self);
     }
 
@@ -70,6 +86,13 @@ pub const Shader = struct {
         frag_file_path: []const u8,
         optional_geom_file: ?[]const u8,
     ) !*Shader {
+
+        // Initialize texture unit map if not already done
+        if (texture_unit_map == null) {
+            texture_unit_map = try allocator.create(StringHashMap(u32));
+            texture_unit_map.?.* = StringHashMap(u32).init(allocator);
+        }
+
         const vert_file = std.fs.cwd().openFile(vert_file_path, .{}) catch |err| {
             std.debug.panic("Shader error: {any} file: {s}", .{ err, vert_file_path });
         };
@@ -131,7 +154,7 @@ pub const Shader = struct {
         }
         gl.linkProgram(shader_id);
 
-        checkCompileErrors(shader_id, "PROGRAM", "program");
+        checkCompileErrors(shader_id, "PROGRAM", frag_file_path);
 
         // delete the shaders as they're linked into our program now and no longer necessary
         gl.deleteShader(vertex_shader);
@@ -326,17 +349,51 @@ pub const Shader = struct {
         }
     }
 
-    pub fn setTextureUnit(self: *const Shader, texture_unit: u32, gl_texture_id: u32) void {
+    pub fn xsetTextureUnit(self: *const Shader, texture_unit: u32, gl_texture_id: u32) void {
         self.useShader();
         gl.activeTexture(gl.TEXTURE0 + texture_unit);
         gl.bindTexture(gl.TEXTURE_2D, gl_texture_id);
     }
 
-    pub fn bindTexture(self: *const Shader, texture_unit: i32, uniform_name: [:0]const u8, gl_texture_id: u32) void {
+    pub fn xbindTexture(self: *const Shader, texture_unit: i32, uniform_name: [:0]const u8, gl_texture_id: u32) void {
         self.useShader();
         gl.activeTexture(gl.TEXTURE0 + @as(c_uint, @intCast(texture_unit)));
         gl.bindTexture(gl.TEXTURE_2D, gl_texture_id);
         self.setInt(uniform_name, texture_unit);
+    }
+
+    // Texture unit auto-allocation methods
+    pub fn bindTextureAuto(self: *const Shader, uniform_name: [:0]const u8, gl_texture_id: u32) void {
+        self.useShader();
+        const unit = self.allocateTextureUnit(uniform_name);
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_2D, gl_texture_id);
+        self.setInt(uniform_name, @intCast(unit));
+    }
+
+    fn allocateTextureUnit(self: *const Shader, uniform_name: [:0]const u8) u32 {
+        // Cast to mutable to modify the texture unit map
+        // const mutable_self = @constCast(self);
+
+        // If already allocated, return existing unit
+        if (texture_unit_map) |map| {
+            if (map.get(uniform_name)) |existing_unit| {
+                return existing_unit;
+            }
+
+            // Find next available unit
+            const unit = next_available_unit;
+
+            // Store the mapping (we need to own the string key)
+            const owned_key = self.allocator.dupe(u8, uniform_name) catch @panic("Failed to allocate texture unit key");
+            map.put(owned_key, unit) catch @panic("Failed to store texture unit mapping");
+            next_available_unit += 1;
+
+            std.debug.print("Shader uniform: '{s}' texture unit {d}\n", .{ uniform_name, unit });
+
+            return unit;
+        }
+        return 0;
     }
 
     // Debug uniform collection functions
