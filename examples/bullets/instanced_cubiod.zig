@@ -85,4 +85,8 @@ pub const Cubeboid = struct {
 
         return shape.initGLBuffers(&builder);
     }
+
+    pub fn initGLBuffers(builder: *const ShapeBuilder) Shape {
+
+    }
 };

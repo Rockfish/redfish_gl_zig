@@ -23,7 +23,8 @@ const SoundEngine = core.SoundEngine;
 
 // Player
 pub const PLAYER_SPEED: f32 = 5.0;
-pub const FIRE_INTERVAL: f32 = 0.1;
+//pub const FIRE_INTERVAL: f32 = 0.1;
+pub const FIRE_INTERVAL: f32 = 0.5;
 pub const PLAYER_COLLISION_RADIUS: f32 = 0.35;
 pub const PLAYER_MODEL_SCALE: f32 = 0.0044;
 pub const PLAYER_MODEL_GUN_HEIGHT: f32 = 110.0;
@@ -39,10 +40,13 @@ pub const SPAWN_RADIUS: f32 = 10.0; // from player
 pub const ENEMY_COLLIDER: Capsule = Capsule{ .height = 0.4, .radius = 0.08 };
 
 // Bullets
-pub const SPREAD_AMOUNT: i32 = 20; // bullet spread
-pub const BULLET_SCALE: f32 = 0.3;
-pub const BULLET_LIFETIME: f32 = 1.0;
-pub const BULLET_SPEED: f32 = 15.0;
+//pub const SPREAD_AMOUNT: i32 = 20; // bullet spread
+pub const SPREAD_AMOUNT: i32 = 1; // bullet spread
+//pub const BULLET_SCALE: f32 = 0.3;
+pub const BULLET_SCALE: f32 = 2.0;
+pub const BULLET_LIFETIME: f32 = 10.0;
+//pub const BULLET_SPEED: f32 = 15.0;
+pub const BULLET_SPEED: f32 = 2.0;
 pub const ROTATION_PER_BULLET: f32 = 3.0; // in degrees
 pub const BURN_MARK_TIME: f32 = 5.0; // seconds
 pub const BULLET_COLLIDER: Capsule = Capsule{ .height = 0.3, .radius = 0.03 };
@@ -79,6 +83,7 @@ pub const Input = struct {
     mouse_left_button: bool = false,
     key_presses: EnumSet(glfw.Key),
     key_shift: bool = false,
+    key_alt: bool = false,
 };
 
 pub const State = struct {
@@ -114,7 +119,7 @@ pub const State = struct {
 var state: *State = undefined;
 
 pub fn updateCameras() void {
-    state.game_camera.movement.position = state.player.position.add(&camera_follow_vec);
+    // state.game_camera.movement.position = state.player.position.add(&camera_follow_vec);
 
     var pv: ProjectionView = undefined;
     switch (state.active_camera) {
@@ -212,6 +217,15 @@ pub fn processInput() void {
                 .d => state.game_camera.movement.processMovement(.Right, state.delta_time),
                 else => {},
             }
+        }
+        else if (state.input.key_alt) {
+                switch (key) {
+                    .w => state.game_camera.movement.processMovement(.CircleUp, state.delta_time),
+                    .s => state.game_camera.movement.processMovement(.CircleDown, state.delta_time),
+                    .a => state.game_camera.movement.processMovement(.CircleLeft, state.delta_time),
+                    .d => state.game_camera.movement.processMovement(.CircleRight, state.delta_time),
+                    else => {},
+                }
         } else {
             var direction_vec = Vec3.splat(0.0);
 
@@ -255,6 +269,7 @@ fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: glfw.A
     }
 
     state.input.key_shift = mods.shift;
+    state.input.key_alt = mods.control;
 
     // Handle keys that fire on press only
     switch (key) {

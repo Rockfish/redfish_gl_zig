@@ -15,7 +15,6 @@ const ArrayList = std.ArrayList;
 const SIZE_OF_U32 = @sizeOf(u32);
 const SIZE_OF_FLOAT = @sizeOf(f32);
 
-
 pub const Cylinder = struct {
     vao: u32,
     vbo: u32,

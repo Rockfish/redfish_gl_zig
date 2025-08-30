@@ -21,7 +21,7 @@ const CameraType = world.CameraType;
 const Player = @import("player.zig").Player;
 const Enemy = @import("enemy.zig").Enemy;
 const EnemySystem = @import("enemy.zig").EnemySystem;
-const BulletStore = @import("bullets.zig").BulletStore;
+const BulletStore = @import("bullets_matrix.zig").BulletStore;
 const BurnMarks = @import("burn_marks.zig").BurnMarks;
 const MuzzleFlash = @import("muzzle_flash.zig").MuzzleFlash;
 const Floor = @import("floor.zig").Floor;
@@ -95,10 +95,10 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         "games/angrybot/shaders/floor_shader.frag",
     );
 
-    // bullets, muzzle flash, burn marks
-    const instanced_texture_shader = try Shader.init(
+    // bullets, muzzle flash, burn marks - using matrix-based instanced shader
+    const instanced_matrix_shader = try Shader.init(
         alloc_arena,
-        "games/angrybot/shaders/instanced_texture_shader.vert",
+        "games/angrybot/shaders/instanced_matrix.vert",
         "games/angrybot/shaders/basic_texture_shader.frag",
     );
     const sprite_shader = try Shader.init(
@@ -142,7 +142,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     defer player_emissive_shader.deinit();
     defer enemy_shader.deinit();
     defer floor_shader.deinit();
-    defer instanced_texture_shader.deinit();
+    defer instanced_matrix_shader.deinit();
     defer sprite_shader.deinit();
     defer basic_texture_shader.deinit();
     defer blur_shader.deinit();
@@ -343,7 +343,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
         world.processInput();
 
-        gl.clearColor(0.0, 0.82, 0.25, 1.0);
+        // gl.clearColor(0.0, 0.82, 0.25, 1.0);
+        gl.clearColor(0.1, 0.1, 0.1, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.enable(gl.DEPTH_TEST);
 
@@ -389,8 +390,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         try bullet_store.updateBullets(&state);
 
         if (player.is_alive) {
-            try enemy_system.update(&state);
-            enemy_system.chasePlayer(&state);
+            // try enemy_system.update(&state);
+            // enemy_system.chasePlayer(&state);
         }
 
         try player.update(&state, aim_angle);
@@ -508,7 +509,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             // }
 
             // log.info("rendering bullet_store ", .{});
-            bullet_store.drawBullets(instanced_texture_shader, &state.projection_view);
+            bullet_store.drawBullets(instanced_matrix_shader, &state.projection_view);
 
             // const debug_emission = false;
             // if (debug_emission) {
@@ -591,7 +592,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         bullet_store.drawBulletImpacts(sprite_shader, &state.projection_view);
 
         if (!use_framebuffers) {
-            bullet_store.drawBullets(instanced_texture_shader, &state.projection_view);
+            bullet_store.drawBullets(instanced_matrix_shader, &state.projection_view);
         }
 
         if (use_framebuffers) {

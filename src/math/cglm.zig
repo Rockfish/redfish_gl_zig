@@ -1,4 +1,3 @@
-
 pub const CGLM = @cImport({
     @cInclude("cglm/cglm.h");
     @cInclude("cglm/call.h");
@@ -11,4 +10,3 @@ pub const CGLM = @cImport({
     @cInclude("cglm/call/clipspace/view_rh_no.h");
     // @cInclude("cglm/call/handed/euler_to_quat_rh.h");
 });
-

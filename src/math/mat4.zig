@@ -240,7 +240,37 @@ pub const Mat4 = extern struct {
         const sin_a = std.math.sin(angleRadians);
         const one_minus_cos = 1.0 - cos_a;
 
-        return Mat4{ .data = .{ .{ cos_a + x * x * one_minus_cos, y * x * one_minus_cos + z * sin_a, z * x * one_minus_cos - y * sin_a, 0.0 }, .{ x * y * one_minus_cos - z * sin_a, cos_a + y * y * one_minus_cos, z * y * one_minus_cos + x * sin_a, 0.0 }, .{ x * z * one_minus_cos + y * sin_a, y * z * one_minus_cos - x * sin_a, cos_a + z * z * one_minus_cos, 0.0 }, .{ 0.0, 0.0, 0.0, 1.0 } } };
+        return Mat4{ .data = .{
+            .{ cos_a + x * x * one_minus_cos, y * x * one_minus_cos + z * sin_a, z * x * one_minus_cos - y * sin_a, 0.0 },
+            .{ x * y * one_minus_cos - z * sin_a, cos_a + y * y * one_minus_cos, z * y * one_minus_cos + x * sin_a, 0.0 },
+            .{ x * z * one_minus_cos + y * sin_a, y * z * one_minus_cos - x * sin_a, cos_a + z * z * one_minus_cos, 0.0 },
+            .{ 0.0, 0.0, 0.0, 1.0 },
+        } };
+    }
+
+    pub fn fromQuat(q: *const Quat) Mat4 {
+        // Convert quaternion to 4x4 rotation matrix
+        const qx = q.data[0];
+        const qy = q.data[1];
+        const qz = q.data[2];
+        const qw = q.data[3];
+
+        const xx = qx * qx;
+        const yy = qy * qy;
+        const zz = qz * qz;
+        const xy = qx * qy;
+        const xz = qx * qz;
+        const yz = qy * qz;
+        const wx = qw * qx;
+        const wy = qw * qy;
+        const wz = qw * qz;
+
+        return Mat4{ .data = .{
+            .{ 1.0 - 2.0 * (yy + zz), 2.0 * (xy + wz), 2.0 * (xz - wy), 0.0 },
+            .{ 2.0 * (xy - wz), 1.0 - 2.0 * (xx + zz), 2.0 * (yz + wx), 0.0 },
+            .{ 2.0 * (xz + wy), 2.0 * (yz - wx), 1.0 - 2.0 * (xx + yy), 0.0 },
+            .{ 0.0, 0.0, 0.0, 1.0 },
+        } };
     }
 
     pub fn translate(self: *Self, translationVec3: *const Vec3) void {

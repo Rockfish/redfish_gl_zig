@@ -281,3 +281,4 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 - **playWeightAnimations()**: Handles complex character movement with weight-based mixing
 - **Quaternion Normalization**: Proper blending mathematics for smooth rotational transitions
 - **Game Integration**: Successfully integrated into angrybot character animation system
+- Zig std.debug.print always requires args, for example std.debug.print("hello", .{})

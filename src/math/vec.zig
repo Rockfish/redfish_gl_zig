@@ -354,7 +354,6 @@ pub const Vec4 = extern struct {
     pub fn asString(self: *const Vec4, buf: []u8) []u8 {
         return std.fmt.bufPrint(buf, "Vec4{{ {d}, {d}, {d}, {d} }}", .{ self.x, self.y, self.z, self.w }) catch |err| std.debug.panic("{any}", .{err});
     }
-
 };
 
 pub fn vec4(x: f32, y: f32, z: f32, w: f32) Vec4 {

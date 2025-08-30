@@ -148,7 +148,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     var sphere = try shapes.createSphere(allocator, 1.0, 20, 20);
     defer sphere.deinit();
 
-    var texture_diffuse = TextureConfig{
+    const texture_diffuse = TextureConfig{
         .filter = .Linear,
         .flip_v = false,
         .gamma_correction = false,
@@ -161,7 +161,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         texture_diffuse,
     );
 
-    texture_diffuse.wrap = .Repeat;
+  //   texture_diffuse.wrap = .Repeat;
 
     const surface_texture = try Texture.initFromFile(
         &texture_arena,
@@ -179,6 +179,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         "/Users/john/Dev/Repos/irrlicht/media/faerie.md2", // use skipModelTextures
         "/Users/john/Downloads/Robot2.fbx",
         "modular_characters/Individual Characters/glTF/Spacesuit.gltf",
+        "modular_characters/Individual Characters/glTF/Swat.gltf",
         "assets/Models/Spacesuit/Spacesuit_converted.gltf",
         // these are not loading
         "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/RiggedFigure/glTF-Binary/RiggedFigure.glb",

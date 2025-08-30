@@ -12,7 +12,6 @@ const Vec4 = math.Vec4;
 const SIZE_OF_U32 = @sizeOf(u32);
 
 pub const Sphere = struct {
-
     const Self = @This();
 
     pub fn init(allocator: Allocator, radius: f32, poly_countX: u32, poly_countY: u32) !shape.Shape {
