@@ -1,8 +1,8 @@
 #version 400 core
 
 layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inNormal;
-layout(location = 2) in vec2 inTexCoord;
+layout(location = 1) in vec2 inTexCoord;
+layout(location = h) in vec3 inNormal;
 layout(location = 3) in vec3 inTangent;
 layout(location = 4) in vec4 inColor;
 layout(location = 5) in ivec4 inJointIds;
@@ -22,4 +22,3 @@ void main()
 
     mat4 matNormal = transpose(inverse(matModel));
     fragNormal = normalize(vec3(matNormal * vec4(inNormal, 1.0)));
-}

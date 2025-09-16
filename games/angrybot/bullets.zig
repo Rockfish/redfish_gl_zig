@@ -290,15 +290,15 @@ pub const BulletStore = struct {
 
                     if (use_aabb) {
                         for (bullet_start..bullet_end) |bullet_index| {
-                            subgroup_bound_box.expand_to_include(self.all_bullet_positions.items[bullet_index]);
+                            subgroup_bound_box.expandWithVec3(self.all_bullet_positions.items[bullet_index]);
                         }
-                        subgroup_bound_box.expand_by(BULLET_ENEMY_MAX_COLLISION_DIST);
+                        subgroup_bound_box.expandBy(BULLET_ENEMY_MAX_COLLISION_DIST);
                     }
 
                     for (0..state.enemies.items.len) |i| {
                         const enemy = &state.enemies.items[i].?;
 
-                        if (use_aabb and !subgroup_bound_box.contains_point(enemy.position)) {
+                        if (use_aabb and !subgroup_bound_box.containsPoint(enemy.position)) {
                             continue;
                         }
                         for (bullet_start..bullet_end) |bullet_index| {
