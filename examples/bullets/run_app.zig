@@ -90,7 +90,6 @@ pub fn run_app(window: *glfw.Window, max_duration: ?f32) !void {
     // Screenshot system removed for simplicity
 
     var plane = try core.shapes.createCube(
-        allocator,
         .{
             .width = 100.0,
             .height = 2.0,
@@ -102,7 +101,7 @@ pub fn run_app(window: *glfw.Window, max_duration: ?f32) !void {
     );
     defer plane.deinit();
 
-    var floor = try Floor.init(&arena);
+    const floor = try Floor.init(&arena);
 
     // const texture_diffuse = core.texture.TextureConfig{
     //     .filter = .Linear,
@@ -144,6 +143,32 @@ pub fn run_app(window: *glfw.Window, max_duration: ?f32) !void {
 
     // Unit square used for bullet impacts
     const unit_square_vao = createUnitSquareVao();
+
+    const cubemap_texture = try core.texture.Texture.initFromFile(
+        &arena,
+        // "angrybots_assets/Textures/Bullet/bullet_texture_transparent.png",
+        // "assets/Textures/cubemap_template_3x2.png",
+        "assets/Textures/cubemap_template_2x3.png",
+        // "assets/Textures/grass_block_2.png",
+        // "assets/Textures/container.jpg",
+        .{
+            .flip_v = false,
+            .gamma_correction = false,
+            .filter = .Linear,
+            .wrap = .Clamp,
+        },
+    );
+
+    const config = core.shapes.CubeConfig{
+        .width = 1.0,
+        .height = 1.0,
+        .depth = 1.0,
+        .num_tiles_x = 1.0,
+        .num_tiles_y = 1.0,
+        .num_tiles_z = 1.0,
+        .texture_mapping = .Cubemap2x3,
+    };
+    const cube = try core.shapes.createCube(config);
 
     // Initialize bullet store
     var bullet_store = try BulletStore.init(&arena, unit_square_vao);
@@ -224,6 +249,9 @@ pub fn run_app(window: *glfw.Window, max_duration: ?f32) !void {
             bullet_store.updateBullets(&state);
         }
 
+        basic_texture_shader.bindTextureAuto("textureDiffuse", cubemap_texture.gl_texture_id);
+        cube.draw();
+
         // Update camera and projection
         state.view = state.camera.getViewMatrix();
         const projection_view = state.projection.mulMat4(&state.view);
@@ -244,7 +272,6 @@ pub fn run_app(window: *glfw.Window, max_duration: ?f32) !void {
         gl.disable(gl.BLEND);
         gl.enable(gl.CULL_FACE);
         // gl.depthMask(gl.TRUE);
-
 
         window.swapBuffers();
     }

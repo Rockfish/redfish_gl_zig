@@ -98,7 +98,7 @@ pub const BulletStore = struct {
     transforms_vbo: gl.Uint,
     bullet_texture: *Texture,
     unit_square_vao: c_uint,
-    instanced_cube: InstancedCube,
+    instanced_cube: core.shapes.Shape,
 
     const Self = @This();
 
@@ -113,18 +113,32 @@ pub const BulletStore = struct {
         const texture_config = TextureConfig{
             .flip_v = false,
             .gamma_correction = false,
-            .filter = .Nearest,
-            .wrap = .Repeat,
+            .filter = .Linear,
+            .wrap = .Clamp,
         };
 
         const bullet_texture = try Texture.initFromFile(
             arena,
             // "angrybots_assets/Textures/Bullet/bullet_texture_transparent.png",
-            "assets/Textures/container.jpg",
+            //"assets/Textures/cubemap_template_3x2.png",
+            "assets/Textures/grass_block.png",
+            // "assets/Textures/container.jpg",
             texture_config,
         );
 
-        const instanced_cube = InstancedCube.init();
+        const config = core.shapes.CubeConfig{
+            .width = 0.2,
+            .height = 0.2,
+            // .width = 1.0,
+            // .height = 1.0,
+            .depth = 1.0,
+            .num_tiles_x = 1.0,
+            .num_tiles_y = 1.0,
+            .num_tiles_z = 1.0,
+            .is_instanced = true,
+            .texture_mapping = .Cubemap2x3,
+        };
+        const cube = try core.shapes.createCube(config);
 
         var bullet_store: BulletStore = .{
             .bullet_groups = undefined,
@@ -132,7 +146,7 @@ pub const BulletStore = struct {
             .transforms_vbo = 1000,
             .bullet_texture = bullet_texture,
             .unit_square_vao = unit_square_vao,
-            .instanced_cube = instanced_cube,
+            .instanced_cube = cube,
         };
 
         Self.createShaderBuffers(&bullet_store);
@@ -180,8 +194,8 @@ pub const BulletStore = struct {
             const translation_matrix = math.Mat4.fromTranslation(&projectile_spawn_point);
             const scale_matrix = math.Mat4.fromScale(&SCALE_VEC);
 
-            const rotation_matrix_2 = math.Mat4.fromRotationY(math.atan(direction.x/direction.z));
-            _  = rotation_matrix_2;
+            const rotation_matrix_2 = math.Mat4.fromRotationY(math.atan(direction.x / direction.z));
+            _ = rotation_matrix_2;
 
             const transform = translation_matrix.mulMat4(&rotation_matrix).mulMat4(&scale_matrix);
 
@@ -219,7 +233,7 @@ pub const BulletStore = struct {
                 const look_quat = math.Quat.lookAtOrientation(spawn_point, direction, UP_VEC);
                 const rotation_matrix = math.Mat4.fromQuat(&look_quat);
 
-                const rotation_matrix_2 = math.Mat4.fromRotationY(math.atan(direction.x/direction.z));
+                const rotation_matrix_2 = math.Mat4.fromRotationY(math.atan(direction.x / direction.z));
                 _ = rotation_matrix_2;
 
                 const translation_matrix = math.Mat4.fromTranslation(&position);
@@ -315,7 +329,6 @@ pub const BulletStore = struct {
     }
 
     pub fn drawBullets(self: *Self, shader: *Shader, projection_view: *const Mat4) void {
-
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         // gl.depthMask(gl.FALSE);
@@ -355,8 +368,8 @@ pub const BulletStore = struct {
             //     null,
             //     @intCast(BULLET_GROUP_SIZE),
             // );
-            
-            self.instanced_cube.draw(&group.transforms, BULLET_GROUP_SIZE);
+
+            self.instanced_cube.drawInstanced(BULLET_GROUP_SIZE, &group.transforms);
         }
 
         gl.disable(gl.BLEND);

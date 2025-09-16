@@ -89,6 +89,9 @@ pub const Floor = struct {
             &FLOOR_VERTICES,
             gl.STATIC_DRAW,
         );
+
+        // position
+        gl.enableVertexAttribArray(0);
         gl.vertexAttribPointer(
             0,
             3,
@@ -97,7 +100,9 @@ pub const Floor = struct {
             (5 * SIZE_OF_FLOAT),
             null,
         );
-        gl.enableVertexAttribArray(0);
+
+        // texture coordinates
+        gl.enableVertexAttribArray(1);
         gl.vertexAttribPointer(
             1,
             2,
@@ -106,7 +111,6 @@ pub const Floor = struct {
             (5 * SIZE_OF_FLOAT),
             @ptrFromInt(3 * SIZE_OF_FLOAT),
         );
-        gl.enableVertexAttribArray(1);
 
         return .{
             .floor_vao = floor_vao,

@@ -3,18 +3,20 @@
 // Model data
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 inTexCoord;
+layout(location = 2) in vec3 inNormal;
 
 // Per instance transform matrix (4x4 matrix takes 4 attribute locations)
-layout(location = 2) in vec4 transformRow0;
-layout(location = 3) in vec4 transformRow1;
-layout(location = 4) in vec4 transformRow2;
-layout(location = 5) in vec4 transformRow3;
+layout(location = 3) in vec4 transformRow0;
+layout(location = 4) in vec4 transformRow1;
+layout(location = 5) in vec4 transformRow2;
+layout(location = 6) in vec4 transformRow3;
 
 // Transformation matrices
 uniform mat4 projectionView;
 
-out vec2 fragTexCoord;
 out vec4 fragColor;
+out vec2 fragTexCoord;
+out vec3 fragNormal;
 
 void main() {
     // Reconstruct the transform matrix from the 4 vec4 attributes
@@ -30,4 +32,5 @@ void main() {
 
     fragTexCoord = inTexCoord;
     fragColor = vec4(1.0);
+    fragNormal = inNormal;
 }

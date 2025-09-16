@@ -134,9 +134,6 @@ pub const InstancedCube = struct {
     }
 
     pub fn draw(self: *const Self, transforms: []Mat4, count: usize) void {
-        // gl.activeTexture(gl.TEXTURE0);
-        // gl.bindTexture(gl.TEXTURE_2D, texture_id);
-
         gl.bindVertexArray(self.vao);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, self.transforms_vbo);
