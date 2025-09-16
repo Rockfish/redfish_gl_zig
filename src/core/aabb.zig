@@ -30,9 +30,24 @@ pub const AABB = extern struct {
         };
     }
 
-    // pub fn from_mesh() void {}
+    pub fn initWithPositions(positions: []const [3]f32) Self {
+        var aabb = Self.init();
+        for (positions) |pos| {
+            aabb.expandWithPosition(pos[0], pos[1], pos[2]);
+        }
+        return aabb;
+    }
 
-    pub fn expand_to_include(self: *Self, v: Vec3) void {
+    pub fn expandWithPosition(self: *Self, x: f32, y: f32, z: f32) void {
+        self.min.x = @min(self.min.x, x);
+        self.min.y = @min(self.min.y, y);
+        self.min.z = @min(self.min.z, z);
+        self.max.x = @max(self.max.x, x);
+        self.max.y = @max(self.max.y, y);
+        self.max.z = @max(self.max.z, z);
+    }
+
+    pub fn expandWithVec3(self: *Self, v: Vec3) void {
         self.min.x = @min(self.min.x, v.x);
         self.min.y = @min(self.min.y, v.y);
         self.min.z = @min(self.min.z, v.z);
@@ -41,7 +56,7 @@ pub const AABB = extern struct {
         self.max.z = @max(self.max.z, v.z);
     }
 
-    pub fn expand_by(self: *Self, f: f32) void {
+    pub fn expandBy(self: *Self, f: f32) void {
         self.min.x -= f;
         self.max.x += f;
         self.min.y -= f;
@@ -50,8 +65,8 @@ pub const AABB = extern struct {
         self.max.z += f;
     }
 
-    /// check if AABB constains point
-    pub fn contains_point(self: *Self, point: Vec3) bool {
+    /// check if AABB contains point
+    pub fn containsPoint(self: *Self, point: Vec3) bool {
         // zig fmt: off
         return point.x >= self.min.x and point.x <= self.max.x
            and point.y >= self.min.y and point.y <= self.max.y
@@ -60,7 +75,7 @@ pub const AABB = extern struct {
     }
 
     /// check if two AABB intersects
-    pub fn aabb_intersects(a: *const Self, b: *const Self) bool {
+    pub fn aabbIntersects(a: *const Self, b: *const Self) bool {
         // zig fmt: off
         return a.min.x <= b.max.x and a.max.x >= b.min.x
            and a.min.y <= b.max.y and a.max.y >= b.min.y
@@ -71,14 +86,14 @@ pub const AABB = extern struct {
     /// old way: check if two AABB intersects
     // pub fn aabbs_intersect(a: *Self, b: *Self) bool {
     //     // zig fmt: off
-    //     return a.contains_point(vec3(b.min.x, b.min.y, b.min.z))
-    //         or a.contains_point(vec3(b.min.x, b.min.y, b.max.z))
-    //         or a.contains_point(vec3(b.min.x, b.max.y, b.min.z))
-    //         or a.contains_point(vec3(b.min.x, b.max.y, b.max.z))
-    //         or a.contains_point(vec3(b.max.x, b.min.y, b.min.z))
-    //         or a.contains_point(vec3(b.max.x, b.min.y, b.max.z))
-    //         or a.contains_point(vec3(b.max.x, b.max.y, b.min.z))
-    //         or a.contains_point(vec3(b.max.x, b.max.y, b.max.z));
+    //     return a.containsPoint(vec3(b.min.x, b.min.y, b.min.z))
+    //         or a.containsPoint(vec3(b.min.x, b.min.y, b.max.z))
+    //         or a.containsPoint(vec3(b.min.x, b.max.y, b.min.z))
+    //         or a.containsPoint(vec3(b.min.x, b.max.y, b.max.z))
+    //         or a.containsPoint(vec3(b.max.x, b.min.y, b.min.z))
+    //         or a.containsPoint(vec3(b.max.x, b.min.y, b.max.z))
+    //         or a.containsPoint(vec3(b.max.x, b.max.y, b.min.z))
+    //         or a.containsPoint(vec3(b.max.x, b.max.y, b.max.z));
     //     // zig fmt: on
     // }
 

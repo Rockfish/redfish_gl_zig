@@ -131,8 +131,13 @@ pub const MeshPrimitive = struct {
             mesh_primitive.vertex_count = @intCast(accessor.count);
         }
 
+        if (primitive.attributes.tex_coord_0) |accessor_id| {
+            mesh_primitive.vbo_texcoords = createGlArrayBuffer(gltf_asset, 1, accessor_id);
+            // std.debug.print("has_texcoords: accessor {d}, count {d}, component_type {d}\n", .{ accessor_id, accessor.count, @intFromEnum(accessor.component_type) });
+        }
+
         if (primitive.attributes.normal) |accessor_id| {
-            mesh_primitive.vbo_normals = createGlArrayBuffer(gltf_asset, 1, accessor_id);
+            mesh_primitive.vbo_normals = createGlArrayBuffer(gltf_asset, 2, accessor_id);
             mesh_primitive.has_normals = true;
         } else {
             // Check for pre-generated normals from asset loader
@@ -145,12 +150,7 @@ pub const MeshPrimitive = struct {
             }
         }
 
-        if (primitive.attributes.tex_coord_0) |accessor_id| {
-            mesh_primitive.vbo_texcoords = createGlArrayBuffer(gltf_asset, 2, accessor_id);
-            // std.debug.print("has_texcoords: accessor {d}, count {d}, component_type {d}\n", .{ accessor_id, accessor.count, @intFromEnum(accessor.component_type) });
-        }
-
-        if (primitive.attributes.tangent) |accessor_id| {
+       if (primitive.attributes.tangent) |accessor_id| {
             mesh_primitive.vbo_tangents = createGlArrayBuffer(gltf_asset, 3, accessor_id);
             // std.debug.print("has_tangents\n", .{});
         }
@@ -426,7 +426,7 @@ pub fn getAABB(gltf_asset: *GltfAsset, accessor_id: usize) AABB {
 
     var aabb = AABB.init();
     for (positions) |position| {
-        aabb.expand_to_include(position);
+        aabb.expandWithVec3(position);
     }
 
     return aabb;
@@ -566,9 +566,16 @@ fn createGlBufferFromNormals(normals: []Vec3) c_uint {
         gl.STATIC_DRAW,
     );
 
-    // Set up vertex attribute (location 1 for normals)
-    gl.enableVertexAttribArray(1);
-    gl.vertexAttribPointer(1, 3, gl.FLOAT, gl.FALSE, @sizeOf(Vec3), null);
+    // Set up vertex attribute (location 2 for normals)
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(
+        2,
+        3,
+        gl.FLOAT,
+        gl.FALSE,
+        @sizeOf(Vec3),
+        null,
+    );
 
     return vbo;
 }

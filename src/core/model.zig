@@ -209,7 +209,7 @@ pub const Model = struct {
 
                     for (corners) |corner| {
                         const transformed_pos = transform.mulVec4(&vec4(corner.x, corner.y, corner.z, 1.0)).toVec3();
-                        bbox.expand_to_include(transformed_pos);
+                        bbox.expandWithVec3(transformed_pos);
                     }
                 }
             }

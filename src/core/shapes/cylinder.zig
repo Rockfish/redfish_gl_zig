@@ -53,7 +53,7 @@ pub const Cylinder = struct {
         );
 
         for (builder.vertices.items) |v| {
-            builder.aabb.expand_to_include(v.position);
+            builder.aabb.expandWithVec3(v.position);
         }
 
         return shape.initGLBuffers(&builder);

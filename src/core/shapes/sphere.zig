@@ -186,7 +186,7 @@ pub const Sphere = struct {
         // mesh->recalculateBoundingBox();
 
         for (builder.vertices.items) |v| {
-            builder.aabb.expand_to_include(v.position);
+            builder.aabb.expandWithVec3(v.position);
         }
 
         return builder;

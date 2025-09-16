@@ -8,8 +8,8 @@ pub const Shape = @import("shape.zig").Shape;
 
 pub const CubeConfig = cubeboid.CubeConfig;
 
-pub fn createCube(allocator: std.mem.Allocator, config: cubeboid.CubeConfig) !Shape {
-    return try cubeboid.Cubeboid.init(allocator, config);
+pub fn createCube(config: cubeboid.CubeConfig) !Shape {
+    return try cubeboid.Cubeboid.init(config);
 }
 
 pub fn createCylinder(allocator: std.mem.Allocator, radius: f32, height: f32, sides: u32) !Shape {
