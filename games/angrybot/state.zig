@@ -3,6 +3,7 @@ const glfw = @import("zglfw");
 const gl = @import("zopengl").bindings;
 const core = @import("core");
 const math = @import("math");
+const containers = @import("containers");
 
 const Mat4 = math.Mat4;
 const Vec3 = math.Vec3;
@@ -98,7 +99,7 @@ pub const State = struct {
     active_camera: CameraType,
     player: *Player,
     burn_marks: *BurnMarks,
-    enemies: std.ArrayList(?Enemy),
+    enemies: containers.ManagedArrayList(?Enemy),
     sound_engine: SoundEngine(ClipName, ClipData),
     game_projection: math.Mat4,
     floating_projection: math.Mat4,
@@ -211,19 +212,19 @@ pub fn processInput() void {
     while (iterator.next()) |key| {
         if (state.input.key_shift) {
             switch (key) {
-                .w => state.game_camera.movement.processMovement(.Forward, state.delta_time),
-                .s => state.game_camera.movement.processMovement(.Backward, state.delta_time),
-                .a => state.game_camera.movement.processMovement(.Left, state.delta_time),
-                .d => state.game_camera.movement.processMovement(.Right, state.delta_time),
+                .w => state.game_camera.movement.processMovement(.forward, state.delta_time),
+                .s => state.game_camera.movement.processMovement(.backward, state.delta_time),
+                .a => state.game_camera.movement.processMovement(.left, state.delta_time),
+                .d => state.game_camera.movement.processMovement(.right, state.delta_time),
                 else => {},
             }
         }
         else if (state.input.key_alt) {
                 switch (key) {
-                    .w => state.game_camera.movement.processMovement(.CircleUp, state.delta_time),
-                    .s => state.game_camera.movement.processMovement(.CircleDown, state.delta_time),
-                    .a => state.game_camera.movement.processMovement(.CircleLeft, state.delta_time),
-                    .d => state.game_camera.movement.processMovement(.CircleRight, state.delta_time),
+                    .w => state.game_camera.movement.processMovement(.circle_up, state.delta_time),
+                    .s => state.game_camera.movement.processMovement(.circle_down, state.delta_time),
+                    .a => state.game_camera.movement.processMovement(.circle_left, state.delta_time),
+                    .d => state.game_camera.movement.processMovement(.circle_right, state.delta_time),
                     else => {},
                 }
         } else {
@@ -259,7 +260,7 @@ pub fn initStateHandlers(window: *glfw.Window, state_instance: *State) void {
     state = state_instance;
 }
 
-fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) callconv(.C) void {
+fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
     _ = scancode;
 
     switch (action) {
@@ -286,7 +287,7 @@ fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: glfw.A
     }
 }
 
-fn framebufferSizeHandler(window: *glfw.Window, width: i32, height: i32) callconv(.C) void {
+fn framebufferSizeHandler(window: *glfw.Window, width: i32, height: i32) callconv(.c) void {
     _ = window;
     gl.viewport(0, 0, width, height);
     setViewPort(width, height);
@@ -310,13 +311,13 @@ fn setViewPort(w: i32, h: i32) void {
     state.orthographic_projection = Mat4.orthographicRhGl(-ortho_width, ortho_width, -ortho_height, ortho_height, 0.1, 100.0);
 }
 
-fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) callconv(.C) void {
+fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) callconv(.c) void {
     _ = window;
     state.mouse_x = math.clamp(@as(f32, @floatCast(xposIn)), 0, state.viewport_width);
     state.mouse_y = math.clamp(@as(f32, @floatCast(yposIn)), 0, state.viewport_height);
 }
 
-fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.C) void {
+fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
     _ = window;
     _ = mods;
     switch (button) {
@@ -332,7 +333,7 @@ fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Act
     }
 }
 
-fn scrollHandler(window: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.C) void {
+fn scrollHandler(window: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.c) void {
     _ = window;
     _ = xoffset;
     state.game_camera.adjustFov(@floatCast(yoffset));

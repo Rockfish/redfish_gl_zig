@@ -55,25 +55,24 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const formats: []const u8 = "Obj,FBX,glTF,glTF2"; // B3D";
+    // const formats: []const u8 = "Obj,FBX,glTF,glTF2"; // B3D";
 
-    const assimp = b.dependency("assimp", .{
-        .target = target,
-        .optimize = optimize,
-        .formats = formats,
-    });
+    // const assimp = b.dependency("assimp", .{
+    //     .target = target,
+    //     .optimize = optimize,
+    //     .formats = formats,
+    // });
 
+    const containers = b.createModule(.{ .root_source_file = b.path("src/containers/main.zig") });
     const math = b.createModule(.{ .root_source_file = b.path("src/math/main.zig") });
-    math.addIncludePath(b.path("src/include"));
-
     const core = b.createModule(.{ .root_source_file = b.path("src/core/main.zig") });
 
     core.addImport("math", math);
+    core.addImport("containers", containers);
     core.addImport("zopengl", zopengl.module("root"));
     core.addImport("zgui", zgui.module("root"));
     core.addImport("zstbi", zstbi.module("root"));
     core.addImport("miniaudio", miniaudio.module("root"));
-    // core.addImport("cglm", cglm.module("root")); // UNUSED
 
     core.linkLibrary(zstbi.artifact("zstbi"));
 
@@ -85,15 +84,19 @@ pub fn build(b: *std.Build) void {
         .{ .name = "animation", .exe_name = "animation_example", .source = "examples/animation_example/main.zig" },
         .{ .name = "demo_app", .exe_name = "demo_app", .source = "examples/demo_app/main.zig" },
         .{ .name = "bullets", .exe_name = "bullets", .source = "examples/bullets/main.zig" },
-        .{ .name = "converter", .exe_name = "fbx_gltf_converter", .source = "converter/main.zig" },
+        // .{ .name = "converter", .exe_name = "fbx_gltf_converter", .source = "converter/main.zig" },
         .{ .name = "angrybot", .exe_name = "angrybot", .source = "games/angrybot/main.zig" },
         .{ .name = "level_01", .exe_name = "level_01", .source = "games/level_01/main.zig" },
     }) |app| {
-        const exe = b.addExecutable(.{
-            .name = app.exe_name,
+        const app_mod = b.addModule(app.name, .{
             .root_source_file = b.path(app.source),
             .target = target,
             .optimize = optimize,
+        });
+
+        const exe = b.addExecutable(.{
+            .name = app.exe_name,
+            .root_module = app_mod,
         });
 
         // exe.addCxxFlag("-std=c++14");
@@ -102,6 +105,7 @@ pub fn build(b: *std.Build) void {
             exe.root_module.strip = true;
         }
 
+        exe.root_module.addImport("containers", containers);
         exe.root_module.addImport("math", math);
         exe.root_module.addImport("core", core);
         // exe.root_module.addImport("cglm", cglm.module("root"));
@@ -112,12 +116,12 @@ pub fn build(b: *std.Build) void {
         exe.root_module.addImport("zstbi", zstbi.module("root")); // gui
         exe.root_module.addImport("build_options", build_options.createModule());
 
-        // Add ASSIMP support for converter app
-        if (std.mem.eql(u8, app.name, "converter")) {
-            exe.root_module.addImport("assimp", assimp.module("root"));
-            exe.linkLibrary(assimp.artifact("assimp"));
-            exe.addIncludePath(assimp.path("include"));
-        }
+        // // Add ASSIMP support for converter app
+        // if (std.mem.eql(u8, app.name, "converter")) {
+        //     exe.root_module.addImport("assimp", assimp.module("root"));
+        //     exe.linkLibrary(assimp.artifact("assimp"));
+        //     exe.addIncludePath(assimp.path("include"));
+        // }
 
         exe.addIncludePath(b.path("src/include"));
         exe.addIncludePath(miniaudio.path("include"));
@@ -156,11 +160,15 @@ pub fn build(b: *std.Build) void {
 
     // extra check step for the game for better zls
     // See https://kristoff.it/blog/improving-your-zls-experience/
-    const exe_check = b.addExecutable(.{
-        .name = "demo_app",
+    const app_mod = b.addModule("demo_app", .{
         .root_source_file = b.path("examples/demo_app/main.zig"),
         .target = target,
         .optimize = optimize,
+    });
+
+    const exe_check = b.addExecutable(.{
+        .name = "demo_app",
+        .root_module = app_mod,
     });
 
     exe_check.root_module.addImport("math", math);
@@ -183,10 +191,14 @@ pub fn build(b: *std.Build) void {
     check.dependOn(&exe_check.step);
 
     // Add test step for movement
-    const movement_tests = b.addTest(.{
+    const movement_test = b.addModule("movement_test", .{
         .root_source_file = b.path("src/core/movement.zig"),
         .target = target,
         .optimize = optimize,
+    });
+
+    const movement_tests = b.addTest(.{
+        .root_module = movement_test,
     });
 
     // Add required dependencies
@@ -198,11 +210,15 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_movement_tests.step);
 
     // Add GLB loading integration test
-    const glb_test = b.addExecutable(.{
-        .name = "glb_loading_test",
+    const glb_test_mod = b.addModule("glb_test", .{
         .root_source_file = b.path("tests/integration/glb_loading_test.zig"),
         .target = target,
         .optimize = optimize,
+    });
+
+    const glb_test = b.addExecutable(.{
+        .name = "glb_loading_test",
+        .root_module = glb_test_mod,
     });
 
     glb_test.root_module.addImport("math", math);

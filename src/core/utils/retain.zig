@@ -1,9 +1,10 @@
 const std = @import("std");
+const containers = @import("containers");
 const debug = std.debug;
 const testing = std.testing;
 
-pub fn retain(comptime TA: type, comptime TS: type, list: *std.ArrayList(?TA), filter: TS) void {
-    const length = list.items.len;
+pub fn retain(comptime TA: type, comptime TS: type, list: *containers.ManagedArrayList(?TA), filter: TS) void {
+    const length = list.list.items.len;
     var i: usize = 0;
     var f: usize = 0;
     var flag = true;
@@ -11,21 +12,21 @@ pub fn retain(comptime TA: type, comptime TS: type, list: *std.ArrayList(?TA), f
 
     while (true) {
         // test if false
-        if (i < length and (list.items[i] == null or !filter.predicate(list.items[i].?))) {
+        if (i < length and (list.list.items[i] == null or !filter.predicate(list.list.items[i].?))) {
             if (flag) {
                 f = i;
                 flag = false;
             }
 
-            while (i < length and (list.items[i] == null or !filter.predicate(list.items[i].?))) {
+            while (i < length and (list.list.items[i] == null or !filter.predicate(list.list.items[i].?))) {
                 i += 1;
             }
 
             // move true to here
             if (i < length) {
-                const delete = list.items[f];
-                list.items[f] = list.items[i];
-                list.items[i] = null;
+                const delete = list.list.items[f];
+                list.list.items[f] = list.list.items[i];
+                list.list.items[i] = null;
 
                 if (delete != null and @typeInfo(TA) == .pointer) {
                     delete.?.deinit();
@@ -37,9 +38,9 @@ pub fn retain(comptime TA: type, comptime TS: type, list: *std.ArrayList(?TA), f
             count += 1;
             // fill in gaps
             if (i < length and f < i and flag == false) {
-                const delete = list.items[f];
-                list.items[f] = list.items[i];
-                list.items[i] = null;
+                const delete = list.list.items[f];
+                list.list.items[f] = list.list.items[i];
+                list.list.items[i] = null;
 
                 if (delete != null and @typeInfo(TA) == .pointer) {
                     delete.?.deinit();
@@ -55,7 +56,7 @@ pub fn retain(comptime TA: type, comptime TS: type, list: *std.ArrayList(?TA), f
 
     // delete remainder
     if (count < length) {
-        for (list.items[count..length]) |d| {
+        for (list.list.items[count..length]) |d| {
             if (d != null and @typeInfo(TA) == .pointer) {
                 d.?.deinit();
             }
@@ -84,7 +85,7 @@ test "retain.retainObject" {
     };
 
     const items = a.create(std.ArrayList(?testItem)) catch unreachable;
-    items.* = std.ArrayList(?testItem).init(a);
+    items.* = containers.ManagedArrayList(?testItem).init(a);
 
     debug.print("items type = {s}\n", .{@typeName(@TypeOf(items))});
 
@@ -136,7 +137,7 @@ test "retain.retainPointerObject" {
         };
     };
 
-    const items = a.create(std.ArrayList(?*TestItemPtr)) catch unreachable;
+    const items = a.create(containers.ManagedArrayList(?*TestItemPtr)) catch unreachable;
     items.* = std.ArrayList(?*TestItemPtr).init(a);
 
     debug.print("items type = {s}\n", .{@typeName(@TypeOf(items))});
@@ -147,7 +148,7 @@ test "retain.retainPointerObject" {
         items.append(tv) catch unreachable;
     }
 
-    for (items.items, 0..) |item, c| {
+    for (items.list.items, 0..) |item, c| {
         debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
@@ -157,11 +158,11 @@ test "retain.retainPointerObject" {
 
     retain(*TestItemPtr, TestItemPtr.Tester, items, tester, a) catch unreachable;
 
-    for (items.items, 0..) |item, c| {
+    for (items.list.items, 0..) |item, c| {
         debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
-    for (items.items) |item| {
+    for (items.list.items) |item| {
         item.?.deinit();
     }
 

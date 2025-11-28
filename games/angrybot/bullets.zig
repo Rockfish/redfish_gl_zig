@@ -1,6 +1,7 @@
 const std = @import("std");
 const core = @import("core");
 const math = @import("math");
+const containers = @import("containers");
 //const aabb = @import("aabb.zig");
 const geom = @import("geom.zig");
 const sprites = @import("sprite_sheet.zig");
@@ -8,7 +9,7 @@ const world = @import("state.zig");
 const gl = @import("zopengl").bindings;
 const Enemy = @import("enemy.zig").Enemy;
 
-const ArrayList = std.ArrayList;
+const ManagedArrayList = containers.ManagedArrayList;
 
 const AABB = core.AABB;
 const State = world.State;
@@ -116,19 +117,19 @@ const VERTICES = BULLET_VERTICES_H_V;
 const INDICES = BULLET_INDICES_H_V;
 
 pub const BulletStore = struct {
-    all_bullet_positions: ArrayList(Vec3),
-    all_bullet_rotations: ArrayList(Quat),
-    all_bullet_directions: ArrayList(Vec3),
+    all_bullet_positions: ManagedArrayList(Vec3),
+    all_bullet_rotations: ManagedArrayList(Quat),
+    all_bullet_directions: ManagedArrayList(Vec3),
     // precalculated rotations
-    x_rotations: ArrayList(Quat),
-    y_rotations: ArrayList(Quat),
+    x_rotations: ManagedArrayList(Quat),
+    y_rotations: ManagedArrayList(Quat),
     bullet_vao: gl.Uint,
     rotations_vbo: gl.Uint,
     positions_vbo: gl.Uint,
-    bullet_groups: ArrayList(BulletGroup),
+    bullet_groups: ManagedArrayList(BulletGroup),
     bullet_texture: *Texture,
     bullet_impact_spritesheet: SpriteSheet,
-    bullet_impact_sprites: ArrayList(?SpriteSheetSprite),
+    bullet_impact_sprites: ManagedArrayList(?SpriteSheetSprite),
     unit_square_vao: c_uint,
 
     const Self = @This();
@@ -161,8 +162,8 @@ pub const BulletStore = struct {
         const bullet_impact_spritesheet = SpriteSheet.init(texture_impact_sprite_sheet, 11, 0.05);
 
         // Pre calculate the bullet spread rotations. Only needs to be done once.
-        var x_rotations = ArrayList(Quat).init(allocator);
-        var y_rotations = ArrayList(Quat).init(allocator);
+        var x_rotations = ManagedArrayList(Quat).init(allocator);
+        var y_rotations = ManagedArrayList(Quat).init(allocator);
 
         const rotation_per_bullet = world.ROTATION_PER_BULLET * math.pi / 180.0;
         const spread_amount_f32: f32 = @floatFromInt(world.SPREAD_AMOUNT);
@@ -184,13 +185,13 @@ pub const BulletStore = struct {
         }
 
         var bullet_store: BulletStore = .{
-            .all_bullet_positions = ArrayList(Vec3).init(allocator),
-            .all_bullet_rotations = ArrayList(Quat).init(allocator),
-            .all_bullet_directions = ArrayList(Vec3).init(allocator),
+            .all_bullet_positions = ManagedArrayList(Vec3).init(allocator),
+            .all_bullet_rotations = ManagedArrayList(Quat).init(allocator),
+            .all_bullet_directions = ManagedArrayList(Vec3).init(allocator),
             .x_rotations = x_rotations,
             .y_rotations = y_rotations,
-            .bullet_groups = ArrayList(BulletGroup).init(allocator),
-            .bullet_impact_sprites = ArrayList(?SpriteSheetSprite).init(allocator),
+            .bullet_groups = ManagedArrayList(BulletGroup).init(allocator),
+            .bullet_impact_sprites = ManagedArrayList(?SpriteSheetSprite).init(allocator),
             .bullet_vao = 1000, //bullet_vao,
             .rotations_vbo = 1000, //instance_rotation_vbo,
             .positions_vbo = 1000, //instance_position_vbo,

@@ -1,12 +1,13 @@
 const std = @import("std");
 const math = @import("math");
+const containers = @import("containers");
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 const Transform = @import("transform.zig").Transform;
 
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
-const ArrayList = std.ArrayList;
+const ManagedArrayList = containers.ManagedArrayList;
 
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
@@ -255,10 +256,10 @@ pub const Animator = struct {
     animations: []Animation,
 
     // Animation state - support multiple concurrent animations
-    active_animations: ArrayList(AnimationState),
+    active_animations: ManagedArrayList(AnimationState),
 
     // Weighted animations for blending multiple animations together
-    weight_animations: ArrayList(WeightedAnimation),
+    weight_animations: ManagedArrayList(WeightedAnimation),
 
     // Final matrices for rendering
     joint_matrices: [MAX_JOINTS]Mat4,
@@ -294,8 +295,8 @@ pub const Animator = struct {
             .gltf_asset = gltf_asset,
             .skin_index = skin_index,
             .joints = try joints.toOwnedSlice(),
-            .active_animations = ArrayList(AnimationState).init(allocator),
-            .weight_animations = ArrayList(WeightedAnimation).init(allocator),
+            .active_animations = ManagedArrayList(AnimationState).init(allocator),
+            .weight_animations = ManagedArrayList(WeightedAnimation).init(allocator),
             .root_nodes = try root_nodes_list.toOwnedSlice(),
             .nodes = initial_nodes,
             .animations = animations,
@@ -359,10 +360,10 @@ pub const Animator = struct {
     /// Play animation at specific time
     pub fn playTick(self: *Self, time: f32) !void {
         // Update time for ALL active animations
-        for (self.active_animations.items) |*anim_state| {
+        for (self.active_animations.list.items) |*anim_state| {
             anim_state.current_time = time;
         }
-        if (self.active_animations.items.len > 0) {
+        if (self.active_animations.list.items.len > 0) {
             try self.updateNodeTransformations();
             try self.calculateWorldTransforms();
             try self.setShaderMatrices();
@@ -408,10 +409,10 @@ pub const Animator = struct {
     }
 
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
-        for (self.active_animations.items) |*anim_state| {
+        for (self.active_animations.list.items) |*anim_state| {
             anim_state.update(delta_time);
         }
-        if (self.active_animations.items.len > 0) {
+        if (self.active_animations.list.items.len > 0) {
             self.resetNodeTransformations();
             self.updateNodeTransformations();
             self.calculateWorldTransforms();
@@ -435,7 +436,7 @@ pub const Animator = struct {
 
     /// Update node transformations from active animation states
     fn updateNodeTransformations(self: *Self) void {
-        for (self.active_animations.items) |anim_state| {
+        for (self.active_animations.list.items) |anim_state| {
             const node_anim_data = self.animations[anim_state.animation_index].node_data;
 
             for (node_anim_data) |anim_data| {
@@ -793,7 +794,7 @@ fn findKeyframeIndices(times: []const f32, current_time: f32) KeyframeInfo {
 fn readAccessorAsF32Slice(gltf_asset: *const GltfAsset, accessor_index: u32) []const f32 {
     const accessor = gltf_asset.gltf.accessors.?[accessor_index];
     const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
-    const buffer_data = gltf_asset.buffer_data.items[buffer_view.buffer];
+    const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
 
     const start = accessor.byte_offset + buffer_view.byte_offset;
     const data_size = @sizeOf(f32) * accessor.count;
@@ -807,7 +808,7 @@ fn readAccessorAsF32Slice(gltf_asset: *const GltfAsset, accessor_index: u32) []c
 fn readAccessorAsVec3Slice(gltf_asset: *const GltfAsset, accessor_index: u32) []const Vec3 {
     const accessor = gltf_asset.gltf.accessors.?[accessor_index];
     const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
-    const buffer_data = gltf_asset.buffer_data.items[buffer_view.buffer];
+    const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
 
     const start = accessor.byte_offset + buffer_view.byte_offset;
     const data_size = @sizeOf(Vec3) * accessor.count;
@@ -821,7 +822,7 @@ fn readAccessorAsVec3Slice(gltf_asset: *const GltfAsset, accessor_index: u32) []
 fn readAccessorAsQuatSlice(gltf_asset: *const GltfAsset, accessor_index: u32) []const Quat {
     const accessor = gltf_asset.gltf.accessors.?[accessor_index];
     const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
-    const buffer_data = gltf_asset.buffer_data.items[buffer_view.buffer];
+    const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
 
     const start = accessor.byte_offset + buffer_view.byte_offset;
     const data_size = @sizeOf(Quat) * accessor.count;
@@ -1090,8 +1091,8 @@ fn preprocessNodes(allocator: Allocator, gltf_asset: *const GltfAsset) []Node {
 }
 
 /// Preprocess joint data from glTF skin information
-fn preprocessJoints(allocator: Allocator, gltf_asset: *const GltfAsset, skin_index: ?u32) !ArrayList(Joint) {
-    var joints = ArrayList(Joint).init(allocator);
+fn preprocessJoints(allocator: Allocator, gltf_asset: *const GltfAsset, skin_index: ?u32) !ManagedArrayList(Joint) {
+    var joints = ManagedArrayList(Joint).init(allocator);
 
     if (skin_index) |skin_idx| {
         if (gltf_asset.gltf.skins) |skins| {
@@ -1103,7 +1104,7 @@ fn preprocessJoints(allocator: Allocator, gltf_asset: *const GltfAsset, skin_ind
                 // Read actual inverse bind matrices from accessor data
                 const accessor = gltf_asset.gltf.accessors.?[ibm_accessor_index];
                 const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
-                const buffer_data = gltf_asset.buffer_data.items[buffer_view.buffer];
+                const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
 
                 const start = accessor.byte_offset + buffer_view.byte_offset;
                 const data_size = @sizeOf(Mat4) * accessor.count;
@@ -1137,8 +1138,8 @@ fn preprocessJoints(allocator: Allocator, gltf_asset: *const GltfAsset, skin_ind
 }
 
 /// Preprocess root nodes by identifying nodes that are not children of other nodes
-fn preprocessRootNodes(allocator: Allocator, gltf_asset: *const GltfAsset) !ArrayList(u32) {
-    var root_nodes_list = ArrayList(u32).init(allocator);
+fn preprocessRootNodes(allocator: Allocator, gltf_asset: *const GltfAsset) !ManagedArrayList(u32) {
+    var root_nodes_list = ManagedArrayList(u32).init(allocator);
 
     if (gltf_asset.gltf.nodes) |nodes| {
         var is_child = try allocator.alloc(bool, nodes.len);

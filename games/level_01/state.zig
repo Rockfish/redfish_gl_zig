@@ -69,7 +69,7 @@ pub fn getPVMMatrix(projection: *const Mat4, view: *const Mat4, model_transform:
     return projection.mulMat4(&view.mulMat4(model_transform));
 }
 
-pub fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) callconv(.C) void {
+pub fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
     _ = scancode;
 
     switch (action) {
@@ -99,58 +99,58 @@ pub fn processKeys() void {
             .t => std.debug.print("time: {d}\n", .{state.delta_time}),
             .w => {
                 if (state.input.key_shift) {
-                    state.camera.movement.processMovement(.Forward, state.delta_time);
+                    state.camera.movement.processMovement(.forward, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.RadiusIn, state.delta_time);
+                    state.camera.movement.processMovement(.radius_in, state.delta_time);
                 }
             },
             .s => {
                 if (state.input.key_shift) {
-                    state.camera.movement.processMovement(.Backward, state.delta_time);
+                    state.camera.movement.processMovement(.backward, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.RadiusOut, state.delta_time);
+                    state.camera.movement.processMovement(.radius_out, state.delta_time);
                 }
             },
             .a => {
                 if (state.input.key_shift) {
-                    state.camera.movement.processMovement(.Left, state.delta_time);
+                    state.camera.movement.processMovement(.left, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.CircleLeft, state.delta_time);
+                    state.camera.movement.processMovement(.circle_left, state.delta_time);
                 }
             },
             .d => {
                 if (state.input.key_shift) {
-                    state.camera.movement.processMovement(.Right, state.delta_time);
+                    state.camera.movement.processMovement(.right, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.CircleRight, state.delta_time);
+                    state.camera.movement.processMovement(.circle_right, state.delta_time);
                 }
             },
             .left => {
                 if (state.input.key_shift) {
-                    state.camera.movement.processMovement(.Left, state.delta_time);
+                    state.camera.movement.processMovement(.left, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.CircleLeft, state.delta_time);
+                    state.camera.movement.processMovement(.circle_left, state.delta_time);
                 }
             },
             .right => {
                 if (state.input.key_shift) {
-                    state.camera.movement.processMovement(.Right, state.delta_time);
+                    state.camera.movement.processMovement(.right, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.CircleRight, state.delta_time);
+                    state.camera.movement.processMovement(.circle_right, state.delta_time);
                 }
             },
             .up => {
                 if (state.input.key_shift) {
-                    state.camera.movement.processMovement(.Up, state.delta_time);
+                    state.camera.movement.processMovement(.up, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.CircleUp, state.delta_time);
+                    state.camera.movement.processMovement(.circle_up, state.delta_time);
                 }
             },
             .down => {
                 if (state.input.key_shift) {
-                    state.camera.movement.processMovement(.Down, state.delta_time);
+                    state.camera.movement.processMovement(.down, state.delta_time);
                 } else {
-                    state.camera.movement.processMovement(.CircleDown, state.delta_time);
+                    state.camera.movement.processMovement(.circle_down, state.delta_time);
                 }
             },
             .one => {
@@ -201,7 +201,7 @@ pub fn processKeys() void {
     toggle.spin_is_set = state.input.key_presses.contains(.three);
 }
 
-pub fn framebufferSizeHandler(window: *glfw.Window, width: i32, height: i32) callconv(.C) void {
+pub fn framebufferSizeHandler(window: *glfw.Window, width: i32, height: i32) callconv(.c) void {
     _ = window;
     gl.viewport(0, 0, width, height);
     setViewPort(width, height);
@@ -232,7 +232,7 @@ pub fn setViewPort(w: i32, h: i32) void {
     }
 }
 
-pub fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.C) void {
+pub fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
     _ = window;
     _ = mods;
 
@@ -240,7 +240,7 @@ pub fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw
     state.input.mouse_right_button = action == .press and button == glfw.MouseButton.right;
 }
 
-pub fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) callconv(.C) void {
+pub fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) callconv(.c) void {
     _ = window;
     var xpos: f32 = @floatCast(xposIn);
     var ypos: f32 = @floatCast(yposIn);
@@ -265,7 +265,7 @@ pub fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) cal
     }
 }
 
-fn scrollHandler(window: *Window, xoffset: f64, yoffset: f64) callconv(.C) void {
+fn scrollHandler(window: *Window, xoffset: f64, yoffset: f64) callconv(.c) void {
     _ = window;
     _ = xoffset;
     state.camera.adjustFov(@floatCast(yoffset));

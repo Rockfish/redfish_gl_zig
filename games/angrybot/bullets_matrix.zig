@@ -1,13 +1,14 @@
 const std = @import("std");
 const core = @import("core");
 const math = @import("math");
+const containers = @import("containers");
 const geom = @import("geom.zig");
 const sprites = @import("sprite_sheet.zig");
 const world = @import("state.zig");
 const gl = @import("zopengl").bindings;
 const Enemy = @import("enemy.zig").Enemy;
 
-const ArrayList = std.ArrayList;
+const ManagedArrayList = containers.ManagedArrayList;
 
 const AABB = core.AABB;
 const State = world.State;
@@ -102,15 +103,15 @@ pub const BulletPattern = enum {
 };
 
 pub const BulletStore = struct {
-    all_bullet_positions: ArrayList(Vec3),
-    all_bullet_directions: ArrayList(Vec3),
-    all_bullet_transforms: ArrayList(Mat4),
+    all_bullet_positions: ManagedArrayList(Vec3),
+    all_bullet_directions: ManagedArrayList(Vec3),
+    all_bullet_transforms: ManagedArrayList(Mat4),
     bullet_vao: gl.Uint,
     transforms_vbo: gl.Uint,
-    bullet_groups: ArrayList(BulletGroup),
+    bullet_groups: ManagedArrayList(BulletGroup),
     bullet_texture: *Texture,
     bullet_impact_spritesheet: SpriteSheet,
-    bullet_impact_sprites: ArrayList(?SpriteSheetSprite),
+    bullet_impact_sprites: ManagedArrayList(?SpriteSheetSprite),
     unit_square_vao: c_uint,
 
     const Self = @This();
@@ -141,11 +142,11 @@ pub const BulletStore = struct {
         const bullet_impact_spritesheet = SpriteSheet.init(texture_impact_sprite_sheet, 11, 0.05);
 
         var bullet_store: BulletStore = .{
-            .all_bullet_positions = ArrayList(Vec3).init(allocator),
-            .all_bullet_directions = ArrayList(Vec3).init(allocator),
-            .all_bullet_transforms = ArrayList(Mat4).init(allocator),
-            .bullet_groups = ArrayList(BulletGroup).init(allocator),
-            .bullet_impact_sprites = ArrayList(?SpriteSheetSprite).init(allocator),
+            .all_bullet_positions = ManagedArrayList(Vec3).init(allocator),
+            .all_bullet_directions = ManagedArrayList(Vec3).init(allocator),
+            .all_bullet_transforms = ManagedArrayList(Mat4).init(allocator),
+            .bullet_groups = ManagedArrayList(BulletGroup).init(allocator),
+            .bullet_impact_sprites = ManagedArrayList(?SpriteSheetSprite).init(allocator),
             .bullet_vao = 1000,
             .transforms_vbo = 1000,
             .bullet_texture = bullet_texture,
@@ -175,7 +176,7 @@ pub const BulletStore = struct {
             .Custom => generateCustomPattern(aim_theta),
         };
 
-        const start_index = self.all_bullet_positions.items.len;
+        const start_index = self.all_bullet_positions.list.items.len;
         const bullet_group_size = bullet_directions.len;
 
         const bullet_group = BulletGroup.new(start_index, @intCast(bullet_group_size), world.BULLET_LIFETIME);
@@ -201,9 +202,9 @@ pub const BulletStore = struct {
             // Combine transforms: T * R * S
             const transform = translation_matrix.mulMat4(&rotation_matrix).mulMat4(&scale_matrix);
 
-            self.all_bullet_positions.items[index] = projectile_spawn_point;
-            self.all_bullet_directions.items[index] = direction;
-            self.all_bullet_transforms.items[index] = transform;
+            self.all_bullet_positions.list.items[index] = projectile_spawn_point;
+            self.all_bullet_directions.list.items[index] = direction;
+            self.all_bullet_transforms.list.items[index] = transform;
         }
 
         try self.bullet_groups.append(bullet_group);
@@ -211,18 +212,18 @@ pub const BulletStore = struct {
     }
 
     pub fn updateBullets(self: *Self, state: *State) !void {
-        if (self.all_bullet_positions.items.len == 0) {
+        if (self.all_bullet_positions.list.items.len == 0) {
             return;
         }
 
-        const use_aabb = state.enemies.items.len != 0;
+        const use_aabb = state.enemies.list.items.len != 0;
         const num_sub_groups: u32 = if (use_aabb) @as(u32, @intCast(9)) else @as(u32, @intCast(1));
 
         const delta_position_magnitude = state.delta_time * world.BULLET_SPEED;
 
         var first_live_bullet_group: usize = 0;
 
-        for (self.bullet_groups.items) |*group| {
+        for (self.bullet_groups.list.items) |*group| {
             group.time_to_live -= state.delta_time;
 
             if (group.time_to_live <= 0.0) {
@@ -244,12 +245,12 @@ pub const BulletStore = struct {
                     bullet_end += bullet_group_start_index;
 
                     for (bullet_start..bullet_end) |bullet_index| {
-                        var direction = self.all_bullet_directions.items[bullet_index];
+                        var direction = self.all_bullet_directions.list.items[bullet_index];
                         const change = direction.mulScalar(delta_position_magnitude);
 
-                        var position = self.all_bullet_positions.items[bullet_index];
+                        var position = self.all_bullet_positions.list.items[bullet_index];
                         position = position.sub(&change);
-                        self.all_bullet_positions.items[bullet_index] = position;
+                        self.all_bullet_positions.list.items[bullet_index] = position;
 
                         // Update transform matrix with new position
                         // Negate direction because bullets move in negative direction (position.sub(&change))
@@ -260,28 +261,28 @@ pub const BulletStore = struct {
                         const scale_matrix = math.Mat4.fromScale(&SCALE_VEC);
 
                         const transform = translation_matrix.mulMat4(&rotation_matrix).mulMat4(&scale_matrix);
-                        self.all_bullet_transforms.items[bullet_index] = transform;
+                        self.all_bullet_transforms.list.items[bullet_index] = transform;
                     }
 
                     var subgroup_bound_box = AABB.init();
 
                     if (use_aabb) {
                         for (bullet_start..bullet_end) |bullet_index| {
-                            subgroup_bound_box.expandWithVec3(self.all_bullet_positions.items[bullet_index]);
+                            subgroup_bound_box.expandWithVec3(self.all_bullet_positions.list.items[bullet_index]);
                         }
                         subgroup_bound_box.expandBy(BULLET_ENEMY_MAX_COLLISION_DIST);
                     }
 
-                    for (0..state.enemies.items.len) |i| {
-                        const enemy = &state.enemies.items[i].?;
+                    for (0..state.enemies.list.items.len) |i| {
+                        const enemy = &state.enemies.list.items[i].?;
 
                         if (use_aabb and !subgroup_bound_box.containsPoint(enemy.position)) {
                             continue;
                         }
                         for (bullet_start..bullet_end) |bullet_index| {
                             if (bulletCollidesWithEnemy(
-                                &self.all_bullet_positions.items[bullet_index],
-                                &self.all_bullet_directions.items[bullet_index],
+                                &self.all_bullet_positions.list.items[bullet_index],
+                                &self.all_bullet_directions.list.items[bullet_index],
                                 enemy,
                             )) {
                                 log.info("enemy killed", .{});
@@ -298,7 +299,7 @@ pub const BulletStore = struct {
 
         if (first_live_bullet_group != 0) {
             first_live_bullet =
-                self.bullet_groups.items[first_live_bullet_group - 1].start_index + self.bullet_groups.items[first_live_bullet_group - 1].group_size;
+                self.bullet_groups.list.items[first_live_bullet_group - 1].start_index + self.bullet_groups.list.items[first_live_bullet_group - 1].group_size;
             try core.utils.removeRange(BulletGroup, &self.bullet_groups, 0, first_live_bullet_group);
         }
 
@@ -307,14 +308,14 @@ pub const BulletStore = struct {
             try core.utils.removeRange(Vec3, &self.all_bullet_directions, 0, first_live_bullet);
             try core.utils.removeRange(Mat4, &self.all_bullet_transforms, 0, first_live_bullet);
 
-            for (self.bullet_groups.items) |*group| {
+            for (self.bullet_groups.list.items) |*group| {
                 group.start_index -= first_live_bullet;
             }
         }
 
-        if (self.bullet_impact_sprites.items.len != 0) {
-            for (0..self.bullet_impact_sprites.items.len) |i| {
-                self.bullet_impact_sprites.items[i].?.age = self.bullet_impact_sprites.items[i].?.age + state.delta_time;
+        if (self.bullet_impact_sprites.list.items.len != 0) {
+            for (0..self.bullet_impact_sprites.list.items.len) |i| {
+                self.bullet_impact_sprites.list.items[i].?.age = self.bullet_impact_sprites.list.items[i].?.age + state.delta_time;
             }
 
             const sprite_duration = self.bullet_impact_spritesheet.num_columns * self.bullet_impact_spritesheet.time_per_sprite;
@@ -329,7 +330,7 @@ pub const BulletStore = struct {
             );
         }
 
-        for (state.enemies.items) |enemy| {
+        for (state.enemies.list.items) |enemy| {
             if (!enemy.?.is_alive) {
                 const sprite_sheet_sprite = SpriteSheetSprite{ .age = 0.0, .world_position = enemy.?.position };
                 try self.bullet_impact_sprites.append(sprite_sheet_sprite);
@@ -438,7 +439,7 @@ pub const BulletStore = struct {
     }
 
     pub fn drawBullets(self: *Self, shader: *Shader, projection_view: *const Mat4) void {
-        if (self.all_bullet_positions.items.len == 0) {
+        if (self.all_bullet_positions.list.items.len == 0) {
             return;
         }
 
@@ -462,8 +463,8 @@ pub const BulletStore = struct {
         gl.bindBuffer(gl.ARRAY_BUFFER, self.transforms_vbo);
         gl.bufferData(
             gl.ARRAY_BUFFER,
-            @intCast(self.all_bullet_transforms.items.len * SIZE_OF_MAT4),
-            self.all_bullet_transforms.items.ptr,
+            @intCast(self.all_bullet_transforms.list.items.len * SIZE_OF_MAT4),
+            self.all_bullet_transforms.list.items.ptr,
             gl.STREAM_DRAW,
         );
 
@@ -473,7 +474,7 @@ pub const BulletStore = struct {
             INDICES.len,
             gl.UNSIGNED_INT,
             null,
-            @intCast(self.all_bullet_transforms.items.len),
+            @intCast(self.all_bullet_transforms.list.items.len),
         );
 
         gl.disable(gl.BLEND);
@@ -498,7 +499,7 @@ pub const BulletStore = struct {
 
         const scale: f32 = 2.0;
 
-        for (self.bullet_impact_sprites.items) |sprite| {
+        for (self.bullet_impact_sprites.list.items) |sprite| {
             var model = Mat4.fromTranslation(&sprite.?.world_position);
             model = model.mulMat4(&Mat4.fromRotationX(math.degreesToRadians(-90.0)));
             model = model.mulMat4(&Mat4.fromScale(&vec3(scale, scale, scale)));

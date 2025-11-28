@@ -1,5 +1,6 @@
 const std = @import("std");
 const math = @import("math");
+const containers = @import("containers");
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 const Shader = @import("shader.zig").Shader;
@@ -16,7 +17,7 @@ const vec4 = math.vec4;
 const animation = @import("animator.zig");
 
 const ArenaAllocator = std.heap.ArenaAllocator;
-const ArrayList = std.ArrayList;
+const ManagedArrayList = containers.ManagedArrayList;
 
 // const Animator = animation.Animator;
 // const WeightedAnimation = animation.WeightedAnimation;
@@ -27,7 +28,7 @@ pub const Model = struct {
     arena: *ArenaAllocator,
     name: []const u8,
     scene: usize,
-    meshes: *ArrayList(*Mesh),
+    meshes: *ManagedArrayList(*Mesh),
     animator: *Animator,
     single_mesh_select: i32 = -1,
     gltf_asset: *GltfAsset,
@@ -37,7 +38,7 @@ pub const Model = struct {
     pub fn init(
         arena: *ArenaAllocator,
         name: []const u8,
-        meshes: *ArrayList(*Mesh),
+        meshes: *ManagedArrayList(*Mesh),
         animator: *Animator,
         gltf_asset: *GltfAsset,
     ) !*Self {
@@ -58,7 +59,7 @@ pub const Model = struct {
     pub fn deinit(self: *Self) void {
 
         // Cleanup GL resources first
-        for (self.meshes.items) |mesh| {
+        for (self.meshes.list.items) |mesh| {
             mesh.deinit();
         }
 
@@ -128,7 +129,7 @@ pub const Model = struct {
             const transform = self.animator.nodes[node_index].calculated_transform.?;
             const local_matrix = transform.toMatrix();
             shader.setMat4("nodeTransform", &local_matrix);
-            const mesh = self.meshes.items[mesh_index];
+            const mesh = self.meshes.list.items[mesh_index];
             mesh.render(self.gltf_asset, shader);
         }
 
@@ -218,8 +219,8 @@ pub const Model = struct {
 
     pub fn getVertexCount(self: *Self) u32 {
         var total_vertices: u32 = 0;
-        for (self.meshes.items) |mesh| {
-            for (mesh.primitives.items) |primitive| {
+        for (self.meshes.list.items) |mesh| {
+            for (mesh.primitives.list.items) |primitive| {
                 total_vertices += primitive.vertex_count;
             }
         }
@@ -239,8 +240,8 @@ pub const Model = struct {
 
     pub fn getMeshPrimitiveCount(self: *Self) u32 {
         var total_primitives: u32 = 0;
-        for (self.meshes.items) |mesh| {
-            total_primitives += @intCast(mesh.primitives.items.len);
+        for (self.meshes.list.items) |mesh| {
+            total_primitives += @intCast(mesh.primitives.list.items.len);
         }
         return total_primitives;
     }

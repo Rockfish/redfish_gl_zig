@@ -2,6 +2,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 const math = @import("math");
 const core = @import("core");
+const containers = @import("containers");
 const Transform = @import("core").Transform;
 const Shader = @import("core").Shader;
 const State = @import("main.zig").State;
@@ -9,6 +10,7 @@ const Model = @import("core").Model;
 const AABB = @import("core").AABB;
 
 const Allocator = std.mem.Allocator;
+const ManagedArrayList = containers.ManagedArrayList;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
@@ -140,7 +142,7 @@ pub const Node = struct {
     transform: Transform,
     global_transform: Transform,
     parent: ?*Node,
-    children: std.ArrayList(*Node),
+    children: ManagedArrayList(*Node),
 
     pub fn init(allocator: Allocator, name: []const u8, object: Object) !*Node {
         const node = try allocator.create(Node);
@@ -151,7 +153,7 @@ pub const Node = struct {
             .transform = Transform.init(), // object.getTransform(),
             .global_transform = Transform.init(),
             .parent = null,
-            .children = std.ArrayList(*Node).init(allocator),
+            .children = ManagedArrayList(*Node).init(allocator),
         };
         return node;
     }
@@ -168,7 +170,7 @@ pub const Node = struct {
             if (p == self) return;
 
             // Leave old parent
-            for (p.children.items, 0..) |_c, idx| {
+            for (p.children.list.items, 0..) |_c, idx| {
                 if (_c == child) {
                     _ = p.children.swapRemove(idx);
                     break;
@@ -186,7 +188,7 @@ pub const Node = struct {
         if (child.parent) |p| {
             if (p != self) return;
 
-            for (self.children.items, 0..) |_c, idx| {
+            for (self.children.list.items, 0..) |_c, idx| {
                 if (_c == child) {
                     _ = self.children.swapRemove(idx);
                     break;
@@ -201,7 +203,7 @@ pub const Node = struct {
     pub fn removeSelf(self: *Node) void {
         if (self.parent) |p| {
             // Leave old parent
-            for (p.children.items, 0..) |c, idx| {
+            for (p.children.list.items, 0..) |c, idx| {
                 if (self == c) {
                     _ = p.children.swapRemove(idx);
                     break;
@@ -220,7 +222,7 @@ pub const Node = struct {
             self.global_transform = self.transform;
         }
 
-        for (self.children.items) |child| {
+        for (self.children.list.items) |child| {
             child.updateTransforms(&self.global_transform);
         }
     }
@@ -249,14 +251,14 @@ pub const Node = struct {
         const model_mat = self.global_transform.toMatrix();
         shader.setMat4("matModel", &model_mat);
         self.object.render(shader);
-        // for (self.children.items) |child| {
+        // for (self.children.list.items) |child| {
         //     child.render(shader);
         // }
     }
 
     pub fn updateAnimation(self: *Node, delta_time: f32) void {
         self.object.updateAnimation(delta_time);
-        //for (self.children.items) |child| {
+        //for (self.children.list.items) |child| {
             //child.updateAnimation(delta_time);
         //}
     }
@@ -270,7 +272,7 @@ pub const Node = struct {
 
 pub const NodeManager = struct {
     allocator: Allocator,
-    node_list: std.ArrayList(*Node),
+    node_list: ManagedArrayList(*Node),
 
     const Self = @This();
 
@@ -278,13 +280,13 @@ pub const NodeManager = struct {
         const manager = try allocator.create(Self);
         manager.* = .{
             .allocator = allocator,
-            .node_list = std.ArrayList(*Node).init(allocator),
+            .node_list = ManagedArrayList(*Node).init(allocator),
         };
         return manager;
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.node_list.items) |node| {
+        for (self.node_list.list.items) |node| {
             node.deinit();
         }
         self.node_list.deinit();

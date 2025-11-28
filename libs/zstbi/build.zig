@@ -4,20 +4,22 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
-    _ = b.addModule("root", .{
-        .root_source_file = b.path("src/zstbi.zig" ),
-    });
-
-    const zstbi_lib = b.addStaticLibrary(.{
-        .name = "zstbi",
+    const zstbi = b.addModule("root", .{
+        .root_source_file = b.path("src/zstbi.zig"),
         .target = target,
         .optimize = optimize,
     });
-    zstbi_lib.addIncludePath(b.path("libs/stbi" ));
+
+    const zstbi_lib = b.addLibrary(.{
+        .name = "zstbi",
+        .root_module = zstbi,
+    });
+
+    zstbi.addIncludePath(b.path("libs/stbi"));
     if (optimize == .Debug) {
         // TODO: Workaround for Zig bug.
-        zstbi_lib.addCSourceFile(.{
-            .file = b.path("src/zstbi.c" ),
+        zstbi.addCSourceFile(.{
+            .file = b.path("src/zstbi.c"),
             .flags = &.{
                 "-std=c99",
                 "-fno-sanitize=undefined",
@@ -26,26 +28,36 @@ pub fn build(b: *std.Build) void {
             },
         });
     } else {
-        zstbi_lib.addCSourceFile(.{
-            .file = b.path("src/zstbi.c" ),
+        zstbi.addCSourceFile(.{
+            .file = b.path("src/zstbi.c"),
             .flags = &.{
                 "-std=c99",
                 "-fno-sanitize=undefined",
             },
         });
     }
-    zstbi_lib.linkLibC();
+
+    if (target.result.os.tag == .emscripten) {
+        zstbi.addIncludePath(.{
+            .cwd_relative = b.pathJoin(&.{ b.sysroot.?, "/include" }),
+        });
+    } else {
+        zstbi.link_libc = true;
+    }
+
     b.installArtifact(zstbi_lib);
 
     const test_step = b.step("test", "Run zstbi tests");
 
     const tests = b.addTest(.{
         .name = "zstbi-tests",
-        .root_source_file = b.path("src/zstbi.zig" ),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/zstbi.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
-    tests.linkLibrary(zstbi_lib);
+    tests.root_module.addImport("zstbi", zstbi);
     b.installArtifact(tests);
 
     test_step.dependOn(&b.addRunArtifact(tests).step);

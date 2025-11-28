@@ -1,5 +1,6 @@
 const std = @import("std");
 const math = @import("math");
+const containers = @import("containers");
 const gl = @import("zopengl").bindings;
 const Shader = @import("shader.zig").Shader;
 const AABB = @import("aabb.zig").AABB;
@@ -8,7 +9,7 @@ const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 
 const ArenaAllocator = std.heap.ArenaAllocator;
-const ArrayList = std.ArrayList;
+const ManagedArrayList = containers.ManagedArrayList;
 
 const Vec3 = math.Vec3;
 
@@ -23,12 +24,12 @@ pub const RenderMode = enum {
 
 pub const Mesh = struct {
     name: ?[]const u8,
-    primitives: ArrayList(*MeshPrimitive),
+    primitives: ManagedArrayList(*MeshPrimitive),
 
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
-        for (self.primitives.items) |primitive| {
+        for (self.primitives.list.items) |primitive| {
             primitive.deleteGlObjects();
         }
     }
@@ -39,7 +40,7 @@ pub const Mesh = struct {
 
         mesh.* = Mesh{
             .name = gltf_mesh.name,
-            .primitives = ArrayList(*MeshPrimitive).init(allocator),
+            .primitives = ManagedArrayList(*MeshPrimitive).init(allocator),
         };
 
         for (gltf_mesh.primitives, 0..) |primitive, primitive_index| {
@@ -51,7 +52,7 @@ pub const Mesh = struct {
     }
 
     pub fn render(self: *Self, gltf_asset: *GltfAsset, shader: *const Shader) void {
-        for (self.primitives.items) |primitive| {
+        for (self.primitives.list.items) |primitive| {
             primitive.render(gltf_asset, shader);
             // primitive.renderPBR(gltf, shader);
         }
@@ -384,7 +385,7 @@ pub const MeshPrimitive = struct {
         // Get the mesh name from this primitive
         const mesh_name = self.name orelse return;
 
-        for (gltf_asset.custom_textures.items) |*custom_tex| {
+        for (gltf_asset.custom_textures.list.items) |*custom_tex| {
             if (std.mem.eql(u8, custom_tex.mesh_name, mesh_name)) {
                 const texture = gltf_asset.loadCustomTexture(custom_tex) catch {
                     std.debug.print("Failed to load custom texture: {s}\n", .{custom_tex.texture_path});
@@ -395,7 +396,7 @@ pub const MeshPrimitive = struct {
 
                 // Set a flag indicating this uniform has a texture
                 // This allows shaders to conditionally use textures
-                const flag_name = std.fmt.allocPrintZ(gltf_asset.arena.allocator(), "has_{s}", .{custom_tex.uniform_name}) catch {
+                const flag_name = std.fmt.allocPrintSentinel(gltf_asset.arena.allocator(), "has_{s}", .{custom_tex.uniform_name}, 0) catch {
                     std.debug.print("Failed to allocate flag name for {s}\n", .{custom_tex.uniform_name});
                     continue;
                 };
@@ -411,7 +412,7 @@ pub const MeshPrimitive = struct {
 pub fn getAABB(gltf_asset: *GltfAsset, accessor_id: usize) AABB {
     const accessor = gltf_asset.gltf.accessors.?[accessor_id];
     const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
-    const buffer_data = gltf_asset.buffer_data.items[buffer_view.buffer];
+    const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
 
     const data_size = getComponentSize(accessor.component_type) * getTypeSize(accessor.type_) * accessor.count;
     const start = accessor.byte_offset + buffer_view.byte_offset;
@@ -435,7 +436,7 @@ pub fn getAABB(gltf_asset: *GltfAsset, accessor_id: usize) AABB {
 pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: usize) c_uint {
     const accessor = gltf_asset.gltf.accessors.?[accessor_id];
     const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
-    const buffer_data = gltf_asset.buffer_data.items[buffer_view.buffer];
+    const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
 
     const element_size = getComponentSize(accessor.component_type) * getTypeSize(accessor.type_);
     const byte_stride: u32 = buffer_view.byte_stride orelse @intCast(element_size);
@@ -505,7 +506,7 @@ pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: u
 pub fn createGlElementBuffer(gltf_asset: *GltfAsset, accessor_id: usize) c_uint {
     const accessor = gltf_asset.gltf.accessors.?[accessor_id];
     const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
-    const buffer_data = gltf_asset.buffer_data.items[buffer_view.buffer];
+    const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
 
     const data_size = getComponentSize(accessor.component_type) * getTypeSize(accessor.type_) * accessor.count;
 

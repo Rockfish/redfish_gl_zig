@@ -1,5 +1,6 @@
 const std = @import("std");
 const math = @import("math");
+const containers = @import("containers");
 const gltf_types = @import("gltf/gltf.zig");
 const parser = @import("gltf/parser.zig");
 const texture = @import("texture.zig");
@@ -18,7 +19,7 @@ pub const NormalGenerationMode = enum {
 };
 
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ManagedArrayList = containers.ManagedArrayList;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Path = std.fs.path;
 
@@ -67,10 +68,10 @@ pub const GltfAsset = struct {
     gltf: GLTF,
 
     // Runtime support data
-    buffer_data: ArrayList([]align(4) const u8),
+    buffer_data: ManagedArrayList([]align(4) const u8),
     loaded_textures: std.AutoHashMap(u32, *texture.Texture),
     generated_normals: std.AutoHashMap(u64, []Vec3), // Key: mesh_index << 32 | primitive_index
-    custom_textures: ArrayList(CustomTexture), // Manual texture assignments
+    custom_textures: ManagedArrayList(CustomTexture), // Manual texture assignments
     directory: []const u8,
     name: []const u8,
     filepath: [:0]const u8,
@@ -96,10 +97,10 @@ pub const GltfAsset = struct {
         asset.* = GltfAsset{
             .arena = arena, // will be owned by the model
             .gltf = undefined, // Will be set during load
-            .buffer_data = ArrayList([]align(4) const u8).init(local_alloc),
+            .buffer_data = ManagedArrayList([]align(4) const u8).init(local_alloc),
             .loaded_textures = std.AutoHashMap(u32, *texture.Texture).init(local_alloc),
             .generated_normals = std.AutoHashMap(u64, []Vec3).init(local_alloc),
-            .custom_textures = ArrayList(CustomTexture).init(local_alloc),
+            .custom_textures = ManagedArrayList(CustomTexture).init(local_alloc),
             .directory = try local_alloc.dupe(u8, Path.dirname(path) orelse ""),
             .name = try local_alloc.dupe(u8, name),
             .filepath = try local_alloc.dupeZ(u8, path),
@@ -121,7 +122,7 @@ pub const GltfAsset = struct {
         }
 
         // Free custom textures
-        for (self.custom_textures.items) |*custom_tex| {
+        for (self.custom_textures.list.items) |*custom_tex| {
             if (custom_tex.texture) |tex| {
                 tex.deleteGlTexture();
             }
@@ -159,9 +160,9 @@ pub const GltfAsset = struct {
     // Get custom textures for a specific mesh
     pub fn getCustomTextures(self: *Self, mesh_name: []const u8) []CustomTexture {
         const allocator = self.arena.allocator();
-        var matching_textures = ArrayList(CustomTexture).init(allocator);
+        var matching_textures = ManagedArrayList(CustomTexture).init(allocator);
 
-        for (self.custom_textures.items) |*custom_tex| {
+        for (self.custom_textures.list.items) |*custom_tex| {
             if (std.mem.eql(u8, custom_tex.mesh_name, mesh_name)) {
                 matching_textures.append(custom_tex.*) catch continue;
             }
@@ -253,7 +254,7 @@ pub const GltfAsset = struct {
             self.filepath,
             500_000_000,
             null,
-            4,
+            .@"4",
             null,
         ) catch |err| std.debug.panic("Error reading file. error: '{any}'  file: '{s}'\n", .{ err, self.filepath });
 
@@ -265,7 +266,7 @@ pub const GltfAsset = struct {
             // Pre-populate buffer_data with GLB binary chunk if present
             if (glb_data.binary_data) |bin_data| {
                 // Create aligned copy of binary data
-                const aligned_data = try self.arena.allocator().alignedAlloc(u8, 4, bin_data.len);
+                const aligned_data = try self.arena.allocator().alignedAlloc(u8, .@"4", bin_data.len);
                 @memcpy(aligned_data, bin_data);
                 try self.buffer_data.append(aligned_data);
             }
@@ -285,8 +286,8 @@ pub const GltfAsset = struct {
         try self.generateMissingNormals();
 
         // Create meshes
-        const meshes = try allocator.create(ArrayList(*Mesh));
-        meshes.* = ArrayList(*Mesh).init(allocator);
+        const meshes = try allocator.create(ManagedArrayList(*Mesh));
+        meshes.* = ManagedArrayList(*Mesh).init(allocator);
 
         if (self.gltf.meshes) |gltf_meshes| {
             for (gltf_meshes, 0..) |gltf_mesh, mesh_index| {
@@ -362,7 +363,7 @@ pub const GltfAsset = struct {
                 if (isGlbFile(self.filepath) and buffer_index == 0 and buffer.uri == null) {
                     // GLB embedded buffer - should already be loaded in buffer_data
                     // Verify we have the binary data
-                    if (self.buffer_data.items.len == 0) {
+                    if (self.buffer_data.list.items.len == 0) {
                         std.debug.panic("GLB file missing binary chunk for buffer {d}\n", .{buffer_index});
                     }
                     continue; // Skip loading - already have the data
@@ -377,7 +378,7 @@ pub const GltfAsset = struct {
                             const decoded_length = decoder.calcSizeForSlice(uri[idx + 1 .. uri.len]) catch |err| {
                                 std.debug.panic("decoder calcSizeForSlice error: {any}\n", .{err});
                             };
-                            const decoded_buffer: []align(4) u8 = try alloc.allocWithOptions(u8, decoded_length, 4, null);
+                            const decoded_buffer: []align(4) u8 = try alloc.allocWithOptions(u8, decoded_length, .@"4", null);
                             decoder.decode(decoded_buffer, uri[idx + 1 .. uri.len]) catch |err| {
                                 std.debug.panic("decoder decode error: {any}\n", .{err});
                             };
@@ -393,7 +394,7 @@ pub const GltfAsset = struct {
                             path,
                             4_512_000,
                             null,
-                            4,
+                            .@"4",
                             null,
                         ) catch |err| {
                             std.debug.panic("readFile error: {any} path: {s}\n", .{ err, path });
@@ -549,7 +550,7 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
 
     const position_accessor = gltf_asset.gltf.accessors.?[position_accessor_id];
     const position_buffer_view = gltf_asset.gltf.buffer_views.?[position_accessor.buffer_view.?];
-    const position_buffer_data = gltf_asset.buffer_data.items[position_buffer_view.buffer];
+    const position_buffer_data = gltf_asset.buffer_data.list.items[position_buffer_view.buffer];
 
     const position_start = position_accessor.byte_offset + position_buffer_view.byte_offset;
     const position_data_size = getComponentSize(position_accessor.component_type) * getTypeSize(position_accessor.type_) * position_accessor.count;
@@ -569,7 +570,7 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
         // Indexed geometry - calculate normals from triangles
         const indices_accessor = gltf_asset.gltf.accessors.?[indices_accessor_id];
         const indices_buffer_view = gltf_asset.gltf.buffer_views.?[indices_accessor.buffer_view.?];
-        const indices_buffer_data = gltf_asset.buffer_data.items[indices_buffer_view.buffer];
+        const indices_buffer_data = gltf_asset.buffer_data.list.items[indices_buffer_view.buffer];
 
         const indices_start = indices_accessor.byte_offset + indices_buffer_view.byte_offset;
         const indices_data_size = getComponentSize(indices_accessor.component_type) * getTypeSize(indices_accessor.type_) * indices_accessor.count;

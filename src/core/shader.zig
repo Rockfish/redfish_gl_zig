@@ -1,4 +1,5 @@
 const std = @import("std");
+const containers = @import("containers");
 const gl = @import("zopengl").bindings;
 const math = @import("math");
 
@@ -45,16 +46,16 @@ pub const Shader = struct {
             self.allocator.free(self.geom_file.?);
         }
         gl.deleteShader(self.id);
-        var iterator = self.locations.keyIterator();
-        while (iterator.next()) |key| {
+        var loc_iter = self.locations.keyIterator();
+        while (loc_iter.next()) |key| {
             self.allocator.free(key.*);
         }
         self.locations.deinit();
         self.allocator.destroy(self.locations);
 
         // Clean up debug resources
-        var iterator2 = self.debug_uniforms.iterator();
-        while (iterator2.next()) |entry| {
+        var uni_iter = self.debug_uniforms.iterator();
+        while (uni_iter.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
             self.allocator.free(entry.value_ptr.*);
         }
@@ -64,10 +65,10 @@ pub const Shader = struct {
         // Clean up texture unit map
         if (texture_unit_map) |map| {
             // Free all keys in the texture unit map
-            // var iterator3 = map.keyIterator();
-            // while (iterator3.next()) |key| {
-            //     self.allocator.free(key.*);
-            // }
+            var map_iter = map.keyIterator();
+            while (map_iter.next()) |key| {
+                self.allocator.free(key.*);
+            }
             map.deinit();
             self.allocator.destroy(map);
             texture_unit_map = null;
@@ -531,7 +532,7 @@ pub const Shader = struct {
 
         // Collect and sort uniform keys for better readability
         const allocator = self.debug_uniforms.allocator;
-        var keys = std.ArrayList([]const u8).init(allocator);
+        var keys = containers.ManagedArrayList([]const u8).init(allocator);
         defer keys.deinit();
 
         var iterator = self.debug_uniforms.iterator();
@@ -539,7 +540,7 @@ pub const Shader = struct {
             try keys.append(entry.key_ptr.*);
         }
 
-        std.mem.sort([]const u8, keys.items, {}, struct {
+        std.mem.sort([]const u8, keys.list.items, {}, struct {
             fn lessThan(context: void, a: []const u8, b: []const u8) bool {
                 _ = context;
                 return std.mem.lessThan(u8, a, b);
@@ -547,7 +548,7 @@ pub const Shader = struct {
         }.lessThan);
 
         var first = true;
-        for (keys.items) |key| {
+        for (keys.list.items) |key| {
             if (!first) try writer.print(",\n", .{});
             const value = self.debug_uniforms.get(key).?;
             try writer.print("    \"{s}\": \"{s}\"", .{ key, value });

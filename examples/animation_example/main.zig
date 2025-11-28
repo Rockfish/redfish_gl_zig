@@ -4,6 +4,7 @@ const zopengl = @import("zopengl");
 const zstbi = @import("zstbi");
 const core = @import("core");
 const math = @import("math");
+const containers = @import("containers");
 
 const gl = zopengl.bindings;
 
@@ -410,7 +411,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
 
     std.debug.print(
         "animation state: active_animations={d}\n",
-        .{model.animator.active_animations.items.len},
+        .{model.animator.active_animations.list.items.len},
     );
 
     // --- event loop
@@ -493,7 +494,7 @@ fn keyHandler(
     scancode: i32,
     action: glfw.Action,
     mods: glfw.Mods,
-) callconv(.C) void {
+) callconv(.c) void {
     _ = scancode;
     _ = mods;
     switch (key) {
@@ -533,7 +534,7 @@ fn keyHandler(
     }
 }
 
-fn framebufferSizeHandler(window: *glfw.Window, width: i32, height: i32) callconv(.C) void {
+fn framebufferSizeHandler(window: *glfw.Window, width: i32, height: i32) callconv(.c) void {
     _ = window;
     gl.viewport(0, 0, width, height);
 }
@@ -543,14 +544,14 @@ fn mouseHander(
     button: glfw.MouseButton,
     action: glfw.Action,
     mods: glfw.Mods,
-) callconv(.C) void {
+) callconv(.c) void {
     _ = window;
     _ = button;
     _ = action;
     _ = mods;
 }
 
-fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) callconv(.C) void {
+fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) callconv(.c) void {
     _ = window;
     var xpos: f32 = @floatCast(xposIn);
     var ypos: f32 = @floatCast(yposIn);
@@ -573,7 +574,7 @@ fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) callcon
     // Mouse movement disabled for now
 }
 
-fn scrollHandler(window: *Window, xoffset: f64, yoffset: f64) callconv(.C) void {
+fn scrollHandler(window: *Window, xoffset: f64, yoffset: f64) callconv(.c) void {
     _ = window;
     _ = xoffset;
     state.camera.adjustFov(@floatCast(yoffset));

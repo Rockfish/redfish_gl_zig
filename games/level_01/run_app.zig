@@ -115,7 +115,6 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     defer model_shader.deinit();
 
     var cubeboid = try shapes.createCube(
-        allocator,
         .{
             .width = 1.0,
             .height = 1.0,
@@ -125,7 +124,6 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     defer cubeboid.deinit();
 
     var plane = try shapes.createCube(
-        allocator,
         .{
             .width = 100.0,
             .height = 2.0,
@@ -381,7 +379,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         plane.render();
 
         if (state.spin) {
-            state.camera.movement.processMovement(.CircleRight, state.delta_time * 1.0);
+            state.camera.movement.processMovement(.circle_right, state.delta_time * 1.0);
         }
 
         window.swapBuffers();

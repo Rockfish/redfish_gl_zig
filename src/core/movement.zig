@@ -6,28 +6,28 @@ pub const vec3 = math.vec3;
 pub const Quat = math.Quat;
 
 pub const MovementDirection = enum {
-    Forward,
-    Backward,
-    Left,
-    Right,
-    Up,
-    Down,
-    RotateRight,
-    RotateLeft,
-    RotateUp,
-    RotateDown,
-    RollRight,
-    RollLeft,
-    RadiusIn,
-    RadiusOut,
-    OrbitUp,
-    OrbitDown,
-    OrbitLeft,
-    OrbitRight,
-    CircleRight,
-    CircleLeft,
-    CircleUp, // always cross the pole
-    CircleDown,
+    forward,
+    backward,
+    left,
+    right,
+    up,
+    down,
+    rotate_right,
+    rotate_left,
+    rotate_up,
+    rotate_down,
+    roll_right,
+    roll_left,
+    radius_in,
+    radius_out,
+    orbit_up,
+    orbit_down,
+    orbit_left,
+    orbit_right,
+    circle_right,
+    circle_left,
+    circle_up, // always cross the pole
+    circle_down,
 };
 
 const world_up = Vec3.init(0.0, 1.0, 0.0);
@@ -45,7 +45,7 @@ pub const Movement = struct {
     translate_speed: f32 = 50.0,
     rotation_speed: f32 = 50.0,
     orbit_speed: f32 = 50.0,
-    direction: MovementDirection = .Forward,
+    direction: MovementDirection = .forward,
     frame_count: u32 = 0,
     period: u32 = 100,
 
@@ -125,65 +125,65 @@ pub const Movement = struct {
         const orbit_angle = math.degreesToRadians(self.orbit_speed * delta_time);
 
         switch (direction) {
-            .Forward => {
+            .forward => {
                 self.position = self.position.add(&self.forward.mulScalar(translation_velocity));
                 self.updateForward();
             },
-            .Backward => {
+            .backward => {
                 self.position = self.position.sub(&self.forward.mulScalar(translation_velocity));
                 self.updateForward();
             },
-            .Left => {
+            .left => {
                 self.position = self.position.sub(&self.right.mulScalar(translation_velocity));
                 self.updateForward();
             },
-            .Right => {
+            .right => {
                 self.position = self.position.add(&self.right.mulScalar(translation_velocity));
                 self.updateForward();
             },
-            .Up => {
+            .up => {
                 self.position = self.position.add(&self.up.mulScalar(translation_velocity));
                 self.updateForward();
             },
-            .Down => {
+            .down => {
                 self.position = self.position.sub(&self.up.mulScalar(translation_velocity));
                 self.updateForward();
             },
-            .RotateRight => {
+            .rotate_right => {
                 const rot = Quat.fromAxisAngle(&self.up, -rot_angle);
                 self.rotateTargetAroundPosition(rot);
                 self.right = rot.rotateVec(&self.right);
                 self.updateForward();
             },
-            .RotateLeft => {
+            .rotate_left => {
                 const rot = Quat.fromAxisAngle(&self.up, rot_angle);
                 self.rotateTargetAroundPosition(rot);
                 self.right = rot.rotateVec(&self.right);
                 self.updateForward();
             },
-            .RotateUp => {
+            .rotate_up => {
                 const rot = Quat.fromAxisAngle(&self.right, rot_angle);
                 self.rotateTargetAroundPosition(rot);
                 self.up = rot.rotateVec(&self.up);
                 self.updateForward();
             },
-            .RotateDown => {
+            .rotate_down => {
                 const rot = Quat.fromAxisAngle(&self.right, -rot_angle);
                 self.rotateTargetAroundPosition(rot);
                 self.up = rot.rotateVec(&self.up);
                 self.updateForward();
             },
-            .RollRight => {
+            .roll_right => {
                 const rot = Quat.fromAxisAngle(&self.forward, rot_angle);
                 self.up = rot.rotateVec(&self.up);
                 self.right = rot.rotateVec(&self.right);
             },
-            .RollLeft => {
+            .roll_left => {
                 const rot = Quat.fromAxisAngle(&self.forward, -rot_angle);
                 self.up = rot.rotateVec(&self.up);
                 self.right = rot.rotateVec(&self.right);
             },
-            .RadiusIn => {
+            .radius_in => {
                 const to_target = self.target.sub(&self.position);
                 const dist = to_target.length();
                 if (dist > POSITION_EPSILON) {
@@ -196,54 +196,54 @@ pub const Movement = struct {
                 }
                 self.updateForward();
             },
-            .RadiusOut => {
+            .radius_out => {
                 const dir = self.target.sub(&self.position).toNormalized();
                 self.position = self.position.sub(&dir.mulScalar(translation_velocity));
                 self.updateForward();
             },
-            .OrbitRight => {
+            .orbit_right => {
                 const rot = Quat.fromAxisAngle(&self.up, -orbit_angle);
                 self.rotatePositionAroundTarget(rot);
                 self.updateForward();
                 self.right = rot.rotateVec(&self.right);
                 self.up = self.right.crossNormalized(&self.forward);
             },
-            .OrbitLeft => {
+            .orbit_left => {
                 const rot = Quat.fromAxisAngle(&self.up, orbit_angle);
                 self.rotatePositionAroundTarget(rot);
                 self.updateForward();
                 self.right = rot.rotateVec(&self.right);
                 self.up = self.right.crossNormalized(&self.forward);
             },
-            .OrbitUp => {
+            .orbit_up => {
                 const rot = Quat.fromAxisAngle(&self.right, -orbit_angle);
                 self.rotatePositionAroundTarget(rot);
                 self.updateForward();
                 self.up = rot.rotateVec(&self.up);
                 self.right = self.forward.crossNormalized(&self.up);
             },
-            .OrbitDown => {
+            .orbit_down => {
                 const rot = Quat.fromAxisAngle(&self.right, orbit_angle);
                 self.rotatePositionAroundTarget(rot);
                 self.updateForward();
                 self.up = rot.rotateVec(&self.up);
                 self.right = self.forward.crossNormalized(&self.up);
             },
-            .CircleRight => {
+            .circle_right => {
                 const rot = Quat.fromAxisAngle(&self.world_up, orbit_angle);
                 self.rotatePositionAroundTarget(rot);
                 self.updateForward();
                 self.up = rot.rotateVec(&self.up);
                 self.right = self.forward.crossNormalized(&self.up);
             },
-            .CircleLeft => {
+            .circle_left => {
                 const rot = Quat.fromAxisAngle(&self.world_up, -orbit_angle);
                 self.rotatePositionAroundTarget(rot);
                 self.updateForward();
                 self.up = rot.rotateVec(&self.up);
                 self.right = self.forward.crossNormalized(&self.up);
             },
-            .CircleUp => {
+            .circle_up => {
                 // Choose rotation axis - use right vector, or fallback if at pole
                 var rotation_axis = self.right;
                 if (rotation_axis.lengthSquared() < AXIS_EPSILON) {
@@ -256,7 +256,7 @@ pub const Movement = struct {
                 self.up = rot.rotateVec(&self.up);
                 self.right = self.forward.crossNormalized(&self.up);
             },
-            .CircleDown => {
+            .circle_down => {
                 // Choose rotation axis - use right vector, or fallback if at pole
                 var rotation_axis = self.right;
                 if (rotation_axis.lengthSquared() < AXIS_EPSILON) {
@@ -311,7 +311,7 @@ test "orbit right full circle return" {
     const step_angle = math.degreesToRadians(5.0);
     const epsilon = 0.001;
     for (0..steps) |i| {
-        movement.update(step_angle, .OrbitRight);
+        movement.update(step_angle, .orbit_right);
         if (i % 18 == 0) {
             std.debug.print("\nStep {d}:\n", .{i});
             movement.printState();
@@ -337,7 +337,7 @@ test "rotate right motion" {
     const step_angle = math.degreesToRadians(30.0);
     const epsilon = 0.001;
     for (0..steps) |_| {
-        movement.update(step_angle, .RotateRight);
+        movement.update(step_angle, .rotate_right);
     }
     // After 360 degrees, target should return to start
     try std.testing.expectApproxEqAbs(movement.target.x, start_target.x, epsilon);
@@ -355,7 +355,7 @@ test "backward translation updates forward" {
     var movement = Movement.init(position, target);
 
     const dt: f32 = 0.1; // arbitrary
-    movement.processMovement(.Backward, dt);
+    movement.processMovement(.backward, dt);
 
     // forward should always equal normalized (target - position)
     const expected_forward = movement.target.sub(&movement.position).toNormalized();
@@ -371,7 +371,7 @@ test "radius in clamps near target" {
 
     // Choose dt large enough to overshoot without clamping
     const dt: f32 = 10.0;
-    movement.processMovement(.RadiusIn, dt);
+    movement.processMovement(.radius_in, dt);
 
     const dist = movement.position.sub(&target).length();
     // Expect we stop close to POSITION_EPSILON distance
@@ -392,7 +392,7 @@ test "circle up/down works near pole" {
 
     const start_pos_up = movement.position.clone();
     const step_angle = math.degreesToRadians(15.0);
-    movement.update(step_angle, .CircleUp);
+    movement.update(step_angle, .circle_up);
 
     // Should have moved and stayed on the same radius
     const new_radius_up = movement.position.sub(&target).length();
@@ -405,7 +405,7 @@ test "circle up/down works near pole" {
     // Now try circle down from top pole
     movement.reset(Vec3.init(0.0, radius, 0.0), target);
     const start_pos_down = movement.position.clone();
-    movement.update(step_angle, .CircleDown);
+    movement.update(step_angle, .circle_down);
     const new_radius_down = movement.position.sub(&target).length();
     try std.testing.expect(new_radius_down > 0.0);
     try std.testing.expect(new_radius_down <= radius + eps and new_radius_down >= radius - eps);

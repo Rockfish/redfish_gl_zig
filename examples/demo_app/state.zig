@@ -87,7 +87,7 @@ pub fn getPVMMatrix(projection: *const Mat4, view: *const Mat4, model_transform:
     return projection.mulMat4(&view.mulMat4(model_transform));
 }
 
-pub fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) callconv(.C) void {
+pub fn keyHandler(window: *glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
     _ = scancode;
 
     switch (action) {
@@ -409,7 +409,7 @@ pub fn getCurrentModel() assets_list.DemoModel {
     return assets_list.demo_models[state.current_model_index];
 }
 
-pub fn framebufferSizeHandler(window: *glfw.Window, width: i32, height: i32) callconv(.C) void {
+pub fn framebufferSizeHandler(window: *glfw.Window, width: i32, height: i32) callconv(.c) void {
     _ = window;
     gl.viewport(0, 0, width, height);
     setViewPort(width, height);
@@ -438,7 +438,7 @@ pub fn setViewPort(w: i32, h: i32) void {
     }
 }
 
-pub fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.C) void {
+pub fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
     _ = window;
     _ = mods;
 
@@ -446,7 +446,7 @@ pub fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw
     state.input.mouse_right_button = action == .press and button == glfw.MouseButton.right;
 }
 
-pub fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) callconv(.C) void {
+pub fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) callconv(.c) void {
     _ = window;
     var xpos: f32 = @floatCast(xposIn);
     var ypos: f32 = @floatCast(yposIn);
@@ -474,7 +474,7 @@ pub fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) cal
     // }
 }
 
-pub fn scrollHandler(window: *Window, xoffset: f64, yoffset: f64) callconv(.C) void {
+pub fn scrollHandler(window: *Window, xoffset: f64, yoffset: f64) callconv(.c) void {
     _ = window;
     _ = xoffset;
     state.camera.adjustFov(@floatCast(yoffset));

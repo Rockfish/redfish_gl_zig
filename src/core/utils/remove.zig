@@ -1,9 +1,10 @@
 const std = @import("std");
+const containers = @import("containers");
 const debug = std.debug;
 const testing = std.testing;
 
-pub fn removeRange(comptime T: type, list: *std.ArrayList(T), start: usize, end: usize) !void {
-    if (start >= end or end > list.items.len) {
+pub fn removeRange(comptime T: type, list: *containers.ManagedArrayList(T), start: usize, end: usize) !void {
+    if (start >= end or end > list.list.items.len) {
         return error.InvalidRange;
     }
     const count = end - start; // + 1;
@@ -11,17 +12,17 @@ pub fn removeRange(comptime T: type, list: *std.ArrayList(T), start: usize, end:
     // Call deinit on each item in the range if T is a pointer type
     if (@typeInfo(T) == .pointer) {
         for (start..end) |i| {
-            list.items[i].deinit();
+            list.list.items[i].deinit();
         }
     }
 
     // Move the items to fill the gap
-    for (end..list.items.len) |i| {
-        list.items[i - count] = list.items[i];
+    for (end..list.list.items.len) |i| {
+        list.list.items[i - count] = list.list.items[i];
     }
 
     // Update the length of the list
-    list.shrinkRetainingCapacity(list.items.len - count);
+    list.shrinkRetainingCapacity(list.list.items.len - count);
 }
 
 fn hasDeinit(comptime T: type) bool {
@@ -43,7 +44,7 @@ test "removeRange.removeVec" {
 
     const testVec3 = struct { x: usize, y: usize, z: usize };
 
-    const items = a.create(std.ArrayList(testVec3)) catch unreachable;
+    const items = a.create(containers.ManagedArrayList(testVec3)) catch unreachable;
     items.* = std.ArrayList(testVec3).init(a);
 
     debug.print("items type = {s}\n", .{@typeName(@TypeOf(items))});
@@ -53,7 +54,7 @@ test "removeRange.removeVec" {
         items.append(tv) catch unreachable;
     }
 
-    for (items.items, 0..) |item, c| {
+    for (items.list.items, 0..) |item, c| {
         debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
@@ -61,11 +62,11 @@ test "removeRange.removeVec" {
 
     removeRange(testVec3, items, 1, 10) catch unreachable;
 
-    for (items.items, 0..) |item, c| {
+    for (items.list.items, 0..) |item, c| {
         debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
-    debug.print("items.items.len = {d}\n", .{items.items.len});
+    debug.print("items.items.len = {d}\n", .{items.list.items.len});
 
     items.deinit();
     a.destroy(items);
@@ -88,7 +89,7 @@ test "removeRange.removePtrVec" {
 
     const a = testing.allocator;
 
-    const items = a.create(std.ArrayList(*testVec3Ptr)) catch unreachable;
+    const items = a.create(containers.ManagedArrayList(*testVec3Ptr)) catch unreachable;
     items.* = std.ArrayList(*testVec3Ptr).init(a);
 
     debug.print("items type = {s}\n", .{@typeName(@TypeOf(items))});
@@ -99,7 +100,7 @@ test "removeRange.removePtrVec" {
         items.append(tv) catch unreachable;
     }
 
-    for (items.items, 0..) |item, c| {
+    for (items.list.items, 0..) |item, c| {
         debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
@@ -107,13 +108,13 @@ test "removeRange.removePtrVec" {
 
     removeRange(*testVec3Ptr, items, 0, 10) catch unreachable;
 
-    for (items.items, 0..) |item, c| {
+    for (items.list.items, 0..) |item, c| {
         debug.print("{d} : item = {any}\n", .{ c, item });
     }
 
     debug.print("items.items.len = {d}\n", .{items.items.len});
 
-    for (items.items) |item| {
+    for (items.list.items) |item| {
         item.*.deinit();
     }
 

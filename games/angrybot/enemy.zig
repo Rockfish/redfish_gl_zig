@@ -105,8 +105,8 @@ pub const EnemySystem = struct {
         _ = self;
         const player_collision_position = vec3(state.player.position.x, world.MONSTER_Y, state.player.position.z);
 
-        for (0..state.enemies.items.len) |i| {
-            const enemy = &state.enemies.items[i].?;
+        for (0..state.enemies.list.items.len) |i| {
+            const enemy = &state.enemies.list.items[i].?;
             var dir = state.player.position.sub(&enemy.position);
             dir.y = 0.0;
             enemy.dir = dir.toNormalized();
@@ -131,7 +131,7 @@ pub const EnemySystem = struct {
         shader.setVec3("nosePos", &vec3(1.0, world.MONSTER_Y, -2.0));
         shader.setFloat("time", state.frame_time);
 
-        for (state.enemies.items) |e| {
+        for (state.enemies.list.items) |e| {
             const zero: f32 = 0.0;
             const val = if (e.?.dir.z < zero) zero else math.pi;
             const monster_theta = math.atan(e.?.dir.x / e.?.dir.z) + val;

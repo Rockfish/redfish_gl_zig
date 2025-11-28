@@ -3,9 +3,10 @@ const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
 const core = @import("core");
 const math = @import("math");
+const containers = @import("containers");
 const world = @import("state.zig");
 
-const ArrayList = std.ArrayList;
+const ManagedArrayList = containers.ManagedArrayList;
 const EnumSet = std.EnumSet;
 
 const gl = zopengl.bindings;
@@ -263,7 +264,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         .orthographic_projection = orthographic_projection,
         .projection_view = undefined,
         .player = player,
-        .enemies = ArrayList(?Enemy).init(alloc_arena),
+        .enemies = ManagedArrayList(?Enemy).init(alloc_arena),
         .light_postion = vec3(1.2, 1.0, 2.0),
         .delta_time = 0.0,
         .frame_time = 0.0,
@@ -399,7 +400,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         var use_point_light = false;
         var muzzle_world_position = Vec3.default();
 
-        if (muzzle_flash.muzzle_flash_sprites_age.items.len != 0) {
+        if (muzzle_flash.muzzle_flash_sprites_age.list.items.len != 0) {
             const min_age = muzzle_flash.getMinAge();
             const muzzle_world_position_vec4 = muzzle_transform.mulVec4(&vec4(0.0, 0.0, 0.0, 1.0));
 

@@ -157,7 +157,7 @@ pub fn loadImage(allocator: Allocator, gltf_asset: *GltfAsset, gltf_image: gltf_
                 const decoded_length = decoder.calcSizeForSlice(uri[idx..uri.len]) catch |err| {
                     std.debug.panic("Texture base64 decoder error: {any}\n", .{err});
                 };
-                const data_buffer: []align(4) u8 = allocator.allocWithOptions(u8, decoded_length, 4, null) catch |err| {
+                const data_buffer: []align(4) u8 = allocator.allocWithOptions(u8, decoded_length, .@"4", null) catch |err| {
                     std.debug.panic("Texture allocator error: {any}\n", .{err});
                 };
                 decoder.decode(data_buffer, uri[idx..uri.len]) catch |err| {
@@ -189,8 +189,8 @@ pub fn loadImage(allocator: Allocator, gltf_asset: *GltfAsset, gltf_image: gltf_
         const buffer_view = gltf_asset.gltf.buffer_views.?[buffer_view_id];
 
         // TODO: testing the length of the buffer should include the byte_offset:width:
-        // const data = gltf_asset.buffer_data.items[buffer_view.buffer][buffer_view.byte_offset..buffer_view.byte_length];
-        const data = gltf_asset.buffer_data.items[buffer_view.buffer][buffer_view.byte_offset .. buffer_view.byte_offset + buffer_view.byte_length];
+        // const data = gltf_asset.buffer_data.list.items[buffer_view.buffer][buffer_view.byte_offset..buffer_view.byte_length];
+        const data = gltf_asset.buffer_data.list.items[buffer_view.buffer][buffer_view.byte_offset .. buffer_view.byte_offset + buffer_view.byte_length];
 
         const image = zstbi.Image.loadFromMemory(data, 0) catch |err| {
             std.debug.print("Texture loadFromMemory error: {any}  bufferview: {any}\n", .{ err, buffer_view });

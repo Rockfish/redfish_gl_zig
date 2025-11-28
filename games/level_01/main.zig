@@ -42,12 +42,12 @@ pub fn main() !void {
     glfw.swapInterval(1);
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    // try run_app(allocator, window);
-    // try run_animation(allocator, window);
+    try run_app(allocator, window);
+    try run_animation(allocator, window);
 
     glfw.terminate();
 
-    testMovementMatrix();
+    // testMovementMatrix();
 }
 
 const Vec3 = math.Vec3;

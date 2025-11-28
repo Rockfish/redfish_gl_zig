@@ -1,12 +1,13 @@
 const std = @import("std");
 const core = @import("core");
 const math = @import("math");
+const containers = @import("containers");
 const gl = @import("zopengl").bindings;
 const world = @import("state.zig");
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ManagedArrayList = containers.ManagedArrayList;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
@@ -28,7 +29,7 @@ pub const BurnMark = struct {
 pub const BurnMarks = struct {
     unit_square_vao: c_uint,
     mark_texture: *Texture,
-    marks: ArrayList(?BurnMark),
+    marks: ManagedArrayList(?BurnMark),
 
     const Self = @This();
 
@@ -53,7 +54,7 @@ pub const BurnMarks = struct {
         burn_marks.* = .{
             .unit_square_vao = unit_square_vao,
             .mark_texture = mark_texture,
-            .marks = ArrayList(?BurnMark).init(allocator),
+            .marks = ManagedArrayList(?BurnMark).init(allocator),
             // .allocator = allocator,
         };
         return burn_marks;
@@ -68,7 +69,7 @@ pub const BurnMarks = struct {
     }
 
     pub fn drawMarks(self: *Self, shader: *Shader, projection_view: *const Mat4, delta_time: f32) void {
-        if (self.marks.items.len == 0) {
+        if (self.marks.list.items.len == 0) {
             return;
         }
 
@@ -84,7 +85,7 @@ pub const BurnMarks = struct {
 
         gl.bindVertexArray(self.unit_square_vao);
 
-        for (self.marks.items) |*mark| {
+        for (self.marks.list.items) |*mark| {
             const scale: f32 = 0.5 * mark.*.?.time_left;
             mark.*.?.time_left -= delta_time;
 

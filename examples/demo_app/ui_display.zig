@@ -154,7 +154,7 @@ pub const UIState = struct {
         if (zgui.begin("Model Info", .{ .flags = window_flags })) {
             // Use monospace font for structured info
             if (self.font_mono) |font| {
-                zgui.pushFont(font);
+                zgui.pushFont(font, 16);
             }
 
             // Model counter and name
@@ -212,7 +212,7 @@ pub const UIState = struct {
 
         if (zgui.begin("Performance", .{ .flags = window_flags })) {
             if (self.font_mono) |font| {
-                zgui.pushFont(font);
+                zgui.pushFont(font, 16);
             }
 
             // FPS and frame time
@@ -245,7 +245,7 @@ pub const UIState = struct {
 
         if (zgui.begin("Camera Info", .{ .flags = window_flags })) {
             if (self.font_mono) |font| {
-                zgui.pushFont(font);
+                zgui.pushFont(font, 16);
             }
 
             // Camera position

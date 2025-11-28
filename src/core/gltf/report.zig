@@ -1,4 +1,5 @@
 const std = @import("std");
+const containers = @import("containers");
 const GltfAsset = @import("../asset_loader.zig").GltfAsset;
 const gltf_types = @import("gltf.zig");
 
@@ -25,7 +26,7 @@ pub const GltfReport = struct {
 
     /// Generate detailed glTF report with animation keyframes and skin data
     pub fn generateDetailedReport(allocator: Allocator, gltf_asset: *const GltfAsset, animation_limit: ?u32, skin_limit: ?u32) ![]u8 {
-        var buffer = std.ArrayList(u8).init(allocator);
+        var buffer = containers.ManagedArrayList(u8).init(allocator);
         defer buffer.deinit();
 
         const writer = buffer.writer();
@@ -566,12 +567,11 @@ fn getAccessorData(allocator: Allocator, gltf_asset: *const GltfAsset, accessor_
         return null;
     }
 
-    // Use the correct buffer data access pattern - buffer_data.items instead of buffer.data
-    if (buffer_view.buffer >= gltf_asset.buffer_data.items.len) {
+    if (buffer_view.buffer >= gltf_asset.buffer_data.list.items.len) {
         return null;
     }
 
-    const buffer_data = gltf_asset.buffer_data.items[buffer_view.buffer];
+    const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
     if (buffer_data.len == 0) {
         return null;
     }
