@@ -1,9 +1,9 @@
 # [zopengl](https://github.com/zig-gamedev/zopengl)
 
-OpenGL loader, bindings and optional wrapper for Zig.
+OpenGL loader interface, bindings and optional type-safe wrapper for Zig.
 
 Supports:
-  * OpenGL Core Profile up to version 4.3
+  * OpenGL Core Profile up to version 4.6
   * OpenGL ES up to version 2.0
 
 ## Getting started
@@ -31,10 +31,10 @@ pub fn main() !void {
 
     const gl = zopengl.bindings; // or zopengl.wrapper (experimental)
 
-    gl.clearBufferfv(gl.COLOR, 0, &[_]f32{ 0.2, 0.4, 0.8, 1.0 });
+    gl.clearBufferfv(gl.COLOR, 0, &.{ 0.2, 0.4, 0.8, 1.0 });
 }
 
-fn getProcAddress(name: [:0]const u8) ?*const anyopaque {
+fn getProcAddress(name: [*:0]const u8) callconv(.c) ?*const anyopaque {
     // Load GL function pointer here
     // You could use `zsdl.gl.getProcAddress() or `zglfw.getProcAddress()`
 }

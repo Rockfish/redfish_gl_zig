@@ -9,20 +9,21 @@ pub fn build(b: *std.Build) void {
         "src/miniaudio.c",
     };
 
-    const lib = b.addStaticLibrary(.{
-        .name = "miniaudio",
+    const mod = b.addModule("root", .{
+        .root_source_file = b.path("src/miniaudio.zig"),
         .optimize = optimize,
         .target = target,
+    });
+
+    const lib = b.addLibrary(.{
+        .name = "miniaudio",
+        .root_module = mod,
     });
 
     lib.addCSourceFiles(.{
         .root = b.path(""),
         .files = sources,
         .flags = &.{"-fno-sanitize=undefined"},
-    });
-
-    const mod = b.addModule("root", .{
-        .root_source_file = b.path("src/miniaudio.zig"),
     });
 
     mod.addIncludePath(b.path("include"));

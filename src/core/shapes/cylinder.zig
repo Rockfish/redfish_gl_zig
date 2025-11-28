@@ -10,7 +10,6 @@ const Vec3 = math.Vec3;
 const vec3 = math.vec3;
 
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
 
 const SIZE_OF_U32 = @sizeOf(u32);
 const SIZE_OF_FLOAT = @sizeOf(f32);

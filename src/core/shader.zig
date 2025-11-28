@@ -1,4 +1,5 @@
 const std = @import("std");
+const containers = @import("containers");
 const gl = @import("zopengl").bindings;
 const math = @import("math");
 
@@ -531,7 +532,7 @@ pub const Shader = struct {
 
         // Collect and sort uniform keys for better readability
         const allocator = self.debug_uniforms.allocator;
-        var keys = std.ArrayList([]const u8).init(allocator);
+        var keys = containers.ManagedArrayList([]const u8).init(allocator);
         defer keys.deinit();
 
         var iterator = self.debug_uniforms.iterator();
@@ -539,7 +540,7 @@ pub const Shader = struct {
             try keys.append(entry.key_ptr.*);
         }
 
-        std.mem.sort([]const u8, keys.items, {}, struct {
+        std.mem.sort([]const u8, keys.items(), {}, struct {
             fn lessThan(context: void, a: []const u8, b: []const u8) bool {
                 _ = context;
                 return std.mem.lessThan(u8, a, b);
@@ -547,7 +548,7 @@ pub const Shader = struct {
         }.lessThan);
 
         var first = true;
-        for (keys.items) |key| {
+        for (keys.items()) |key| {
             if (!first) try writer.print(",\n", .{});
             const value = self.debug_uniforms.get(key).?;
             try writer.print("    \"{s}\": \"{s}\"", .{ key, value });

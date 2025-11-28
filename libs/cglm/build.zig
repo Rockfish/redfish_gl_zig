@@ -54,10 +54,15 @@ pub fn build(b: *std.Build) void {
         "src/vec4.c",
     };
 
-    const lib = b.addStaticLibrary(.{
-        .name = "cglm",
-        .optimize = optimize,
+    const mod = b.addModule("cglm_mod", .{
+        .root_source_file = b.path("src/cglm.zig"),
         .target = target,
+        .optimize = optimize,
+    });
+
+    const lib = b.addLibrary(.{
+        .name = "cglm",
+        .root_module = mod,
     });
 
     switch (target.result.os.tag) {
@@ -79,10 +84,6 @@ pub fn build(b: *std.Build) void {
         },
         else => {},
     }
-
-    _ = b.addModule("root", .{
-        .root_source_file = b.path("src/cglm.zig"),
-    });
 
     lib.installHeadersDirectory(b.path("include"), "", .{ .include_extensions = &.{
         ".h",

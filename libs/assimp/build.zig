@@ -1,4 +1,5 @@
 const std = @import("std");
+const Writer = std.Io.Writer;
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -76,9 +77,9 @@ pub fn build(b: *std.Build) !void {
 
     lib.root_module.addCMacro("RAPIDJSON_HAS_STDSTRING", "1");
 
-    var flags = std.ArrayList([]const u8).init(b.allocator);
-    defer flags.deinit();
-    try flags.appendSlice(&.{
+    var flags: std.ArrayList([]const u8) = .empty;
+    defer flags.deinit(b.allocator);
+    try flags.appendSlice(b.allocator, &.{
         "-std=c++17",
         //"-DRAPIDJSON_HAS_STDSTRING=1",
     });
@@ -158,8 +159,8 @@ pub fn build(b: *std.Build) !void {
                 .flags = &.{}, // "-std=c++14"},
             });
         } else {
-            const define_importer = b.fmt("ASSIMP_BUILD_NO_{}_IMPORTER", .{fmtUpperCase(format_files.name)});
-            const define_exporter = b.fmt("ASSIMP_BUILD_NO_{}_EXPORTER", .{fmtUpperCase(format_files.name)});
+            const define_importer = b.fmt("ASSIMP_BUILD_NO_{}_IMPORTER", .{upperCase(format_files.name)});
+            const define_exporter = b.fmt("ASSIMP_BUILD_NO_{}_EXPORTER", .{upperCase(format_files.name)});
 
             lib.root_module.addCMacro(define_importer, "1");
             lib.root_module.addCMacro(define_exporter, "1");
@@ -167,8 +168,8 @@ pub fn build(b: *std.Build) !void {
     }
 
     for (unsupported_formats) |unsupported_format| {
-        const define_importer = b.fmt("ASSIMP_BUILD_NO_{}_IMPORTER", .{fmtUpperCase(unsupported_format)});
-        const define_exporter = b.fmt("ASSIMP_BUILD_NO_{}_EXPORTER", .{fmtUpperCase(unsupported_format)});
+        const define_importer = b.fmt("ASSIMP_BUILD_NO_{}_IMPORTER", .{upperCase(unsupported_format)});
+        const define_exporter = b.fmt("ASSIMP_BUILD_NO_{}_EXPORTER", .{upperCase(unsupported_format)});
 
         lib.root_module.addCMacro(define_importer, "1");
         lib.root_module.addCMacro(define_exporter, "1");
@@ -651,24 +652,41 @@ const sources = struct {
     };
 };
 
-const UpperCaseFormatter = std.fmt.Formatter(struct {
-    pub fn format(
-        string: []const u8,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) @TypeOf(writer).Error!void {
-        _ = fmt;
-        _ = options;
+// const UpperCaseFormatter = std.fmt.Alt(struct {
+//     pub fn format(
+//         string: []const u8,
+//         comptime fmt: []const u8,
+//         options: std.fmt.FormatOptions,
+//         writer: anytype,
+//     ) @TypeOf(writer).Error!void {
+//         _ = fmt;
+//         _ = options;
+//
+//         var tmp: [256]u8 = undefined;
+//         var i: usize = 0;
+//         while (i < string.len) : (i += tmp.len) {
+//             try writer.writeAll(std.ascii.upperString(&tmp, string[i..@min(string.len, i + tmp.len)]));
+//         }
+//     }
+// }.format);
+//
+// fn fmtUpperCase(string: []const u8) UpperCaseFormatter {
+//     return UpperCaseFormatter{ .data = string };
+// }
 
+
+const UpperFormatter = struct {
+    string: []const u8,
+
+    pub fn formatUpper(string: []const u8, writer: *Writer) Writer.Error!void {
         var tmp: [256]u8 = undefined;
         var i: usize = 0;
         while (i < string.len) : (i += tmp.len) {
             try writer.writeAll(std.ascii.upperString(&tmp, string[i..@min(string.len, i + tmp.len)]));
         }
     }
-}.format);
+};
 
-fn fmtUpperCase(string: []const u8) UpperCaseFormatter {
-    return UpperCaseFormatter{ .data = string };
+fn upperCase(string: []const u8) UpperFormatter {
+    return UpperFormatter { .string = string };
 }

@@ -68,6 +68,7 @@ typedef khronos_uint8_t GLubyte;
 #define GL_SCISSOR_TEST                   0x0C11
 #define GL_UNPACK_ROW_LENGTH              0x0CF2
 #define GL_PACK_ALIGNMENT                 0x0D05
+#define GL_MAX_TEXTURE_SIZE               0x0D33
 #define GL_TEXTURE_2D                     0x0DE1
 #define GL_UNSIGNED_BYTE                  0x1401
 #define GL_UNSIGNED_SHORT                 0x1403
@@ -82,6 +83,9 @@ typedef khronos_uint8_t GLubyte;
 #define GL_LINEAR                         0x2601
 #define GL_TEXTURE_MAG_FILTER             0x2800
 #define GL_TEXTURE_MIN_FILTER             0x2801
+#define GL_TEXTURE_WRAP_S                 0x2802
+#define GL_TEXTURE_WRAP_T                 0x2803
+#define GL_REPEAT                         0x2901
 typedef void (APIENTRYP PFNGLPOLYGONMODEPROC) (GLenum face, GLenum mode);
 typedef void (APIENTRYP PFNGLSCISSORPROC) (GLint x, GLint y, GLsizei width, GLsizei height);
 typedef void (APIENTRYP PFNGLTEXPARAMETERIPROC) (GLenum target, GLenum pname, GLint param);
@@ -120,14 +124,19 @@ typedef khronos_float_t GLclampf;
 typedef double GLclampd;
 #define GL_TEXTURE_BINDING_2D             0x8069
 typedef void (APIENTRYP PFNGLDRAWELEMENTSPROC) (GLenum mode, GLsizei count, GLenum type, const void *indices);
+typedef void (APIENTRYP PFNGLTEXSUBIMAGE2DPROC) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels);
 typedef void (APIENTRYP PFNGLBINDTEXTUREPROC) (GLenum target, GLuint texture);
 typedef void (APIENTRYP PFNGLDELETETEXTURESPROC) (GLsizei n, const GLuint *textures);
 typedef void (APIENTRYP PFNGLGENTEXTURESPROC) (GLsizei n, GLuint *textures);
 GLAPI PFNGLDRAWELEMENTSPROC glDrawElements;
+GLAPI PFNGLTEXSUBIMAGE2DPROC glTexSubImage2D;
 GLAPI PFNGLBINDTEXTUREPROC glBindTexture;
 GLAPI PFNGLDELETETEXTURESPROC glDeleteTextures;
 GLAPI PFNGLGENTEXTURESPROC glGenTextures;
 #endif /* GL_VERSION_1_1 */
+#ifndef GL_VERSION_1_2
+#define GL_CLAMP_TO_EDGE                  0x812F
+#endif /* GL_VERSION_1_2 */
 #ifndef GL_VERSION_1_3
 #define GL_TEXTURE0                       0x84C0
 #define GL_ACTIVE_TEXTURE                 0x84E0
