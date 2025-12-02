@@ -262,13 +262,13 @@ pub const Cubeboid = struct {
             20, 21, 22, 22, 23, 20, // bottom
         };
 
-        const vertex_data = shape.VertexData{
-            .positions = &positions,
-            .texCoords = &texcoords,
-            .normals = &normals,
-            .indices = &indices,
-        };
-
-        return shape.initGLBuffers(&vertex_data, .Cube, config.is_instanced);
+        return shape.initGLBuffers(
+            .Cube,
+            &positions,
+            &texcoords,
+            &normals,
+            &indices,
+            config.is_instanced,
+        );
     }
 };

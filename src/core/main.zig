@@ -4,6 +4,7 @@ pub const texture = @import("texture.zig");
 pub const utils = @import("utils/main.zig");
 pub const asset_loader = @import("asset_loader.zig");
 pub const gltf_report = @import("gltf/report.zig");
+pub const constants = @import("constants.zig");
 
 pub const Camera = @import("camera.zig").Camera;
 pub const ProjectionType = @import("camera.zig").ProjectionType;

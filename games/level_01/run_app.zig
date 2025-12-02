@@ -293,7 +293,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         basic_shader.setVec3("ambientColor", &vec3(1.0, 0.6, 0.6));
         basic_shader.setVec3("lightColor", &vec3(0.35, 0.4, 0.5));
         basic_shader.setVec3("lightDirection", &vec3(3.0, 3.0, 3.0));
-        basic_shader.bindTexture(0, "textureDiffuse", cube_texture.gl_texture_id);
+        basic_shader.bindTextureAuto("textureDiffuse", cube_texture.gl_texture_id);
 
         model_shader.setMat4("matProjection", &state.projection);
         model_shader.setMat4("matView", &state.view);
@@ -345,7 +345,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             .distance = 10000.0,
         };
 
-        for (node_manager.node_list.items, 0..) |n, id| {
+        for (node_manager.node_list.list.items, 0..) |n, id| {
             if (n.object.getBoundingBox()) |aabb| {
                 const box = aabb.transform(&n.global_transform.toMatrix());
                 const distance = box.rayIntersects(ray);
@@ -363,7 +363,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             }
         }
 
-        for (node_manager.node_list.items, 0..) |n, id| {
+        for (node_manager.node_list.list.items, 0..) |n, id| {
             if (picked.id != null and picked.id == @as(u32, @intCast(id))) {
                 basic_shader.setVec4("hitColor", &vec4(1.0, 0.0, 0.0, 0.0));
             }
@@ -375,8 +375,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
         basic_shader.setMat4("matModel", &plane_transform);
         basic_shader.setBool("hasTexture", true);
-        basic_shader.bindTexture(0, "textureDiffuse", surface_texture.gl_texture_id);
-        plane.render();
+        basic_shader.bindTextureAuto("textureDiffuse", surface_texture.gl_texture_id);
+        plane.draw();
 
         if (state.spin) {
             state.camera.movement.processMovement(.circle_right, state.delta_time * 1.0);

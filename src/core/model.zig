@@ -8,6 +8,7 @@ const Mesh = @import("mesh.zig").Mesh;
 const Animator = @import("animator.zig").Animator;
 const Transform = @import("transform.zig").Transform;
 const AABB = @import("aabb.zig").AABB;
+const constants = @import("constants.zig");
 
 const Mat4 = math.Mat4;
 const Vec3 = math.Vec3;
@@ -22,7 +23,7 @@ const ManagedArrayList = containers.ManagedArrayList;
 // const Animator = animation.Animator;
 // const WeightedAnimation = animation.WeightedAnimation;
 
-const MAX_JOINTS = 100;
+const MAX_JOINTS: usize = constants.MAX_JOINTS;
 
 pub const Model = struct {
     arena: *ArenaAllocator,

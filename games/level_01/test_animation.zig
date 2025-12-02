@@ -4,6 +4,7 @@ const zopengl = @import("zopengl");
 const zstbi = @import("zstbi");
 const core = @import("core");
 const math = @import("math");
+const containers = @import("containers");
 
 //const Camera = @import("camera.zig").Camera;
 
@@ -107,7 +108,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     std.debug.print("Shader id: {d}\n", .{shader.id});
 
     const ambientColor: Vec3 = vec3(NON_BLUE * 0.7, NON_BLUE * 0.7, 0.7);
-    var texture_cache = std.ArrayList(*Texture).init(allocator);
+    var texture_cache = containers.ManagedArrayList(*Texture).init(allocator);
 
     //const model_path = "/Users/john/Dev/Assets/modular_characters/Individual Characters/FBX/Spacesuit.fbx";
     //const model_path = "/Users/john/Dev/Assets/modular_characters/Individual Characters/glTF/Spacesuit.gltf";

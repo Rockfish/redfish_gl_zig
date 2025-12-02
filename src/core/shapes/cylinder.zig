@@ -23,7 +23,7 @@ pub const Cylinder = struct {
     const Self = @This();
 
     pub fn init(allocator: Allocator, radius: f32, height: f32, sides: u32) !shape.Shape {
-        var builder = shape.ShapeBuilder.init(allocator, .Cylinder);
+        var builder = shape.ShapeBuilder.init(allocator, .Cylinder, false);
         defer builder.deinit();
 
         // Top of cylinder
@@ -51,25 +51,20 @@ pub const Cylinder = struct {
             sides,
         );
 
-        for (builder.vertices.items) |v| {
-            builder.aabb.expandWithVec3(v.position);
+        for (builder.positions.list.items) |position| {
+            builder.aabb.expandWithArray(position);
         }
 
-        return shape.initGLBuffers(&builder);
+        return builder.build();
     }
 
     fn addDiskMesh(builder: *shape.ShapeBuilder, position: Vec3, radius: f32, sides: u32) !void {
-        const intial_count: u32 = @intCast(builder.vertices.items.len);
+        const intial_count: u32 = @intCast(builder.positions.list.items.len);
+
         // Start with adding the center vertex in the center of the disk.
-        try builder.vertices.append(shape.Vertex{
-            .position = Vec3{
-                .x = position.x,
-                .y = position.y,
-                .z = position.z,
-            },
-            .normal = vec3(0.0, 1.0, 0.0),
-            .texcoords = Vec2{ .x = 0.5, .y = 0.5 },
-        });
+        try builder.positions.append(.{ position.x, position.y, position.z });
+        try builder.normals.append(.{ 0.0, 1.0, 0.0 });
+        try builder.texcoords.append(.{ 0.5, 0.5 });
 
         // Add vertices on the edge of the face. The disk is on the x,z plane. Y is up.
         for (0..sides) |i| {
@@ -79,19 +74,13 @@ pub const Cylinder = struct {
             // uv's are in percentages of the texture
             const u = 0.5 + 0.5 * cos;
             const v = 0.5 + 0.5 * sin;
-            try builder.vertices.append(shape.Vertex{
-                .position = Vec3{
-                    .x = position.x + radius * cos,
-                    .y = position.y,
-                    .z = position.z + radius * sin,
-                },
-                .normal = vec3(0.0, 1.0, 0.0),
-                .texcoords = Vec2{ .x = u, .y = v },
-            });
+            try builder.positions.append(.{ position.x + radius * cos, position.y, position.z + radius * sin });
+            try builder.normals.append(.{ 0.0, 1.0, 0.0 });
+            try builder.texcoords.append(.{ u, v });
         }
 
         // Tie three vertices together at a time to form triangle indices.
-        const num_vertices: u32 = @as(u32, @intCast(builder.vertices.items.len));
+        const num_vertices: u32 = @as(u32, @intCast(builder.positions.list.items.len));
 
         for ((intial_count + 1)..num_vertices - 1) |i| {
             try builder.indices.append(intial_count);
@@ -105,7 +94,7 @@ pub const Cylinder = struct {
     }
 
     pub fn addTubeMesh(builder: *shape.ShapeBuilder, position: Vec3, height: f32, radius: f32, sides: u32) !void {
-        const intial_count: u32 = @intCast(builder.vertices.items.len);
+        const intial_count: u32 = @intCast(builder.positions.list.items.len);
         //        const initial_indice_count: u32 = @intCast(builder.indices.items.len);
 
         // Set uv's to wrap texture around the tube
@@ -115,15 +104,9 @@ pub const Cylinder = struct {
             const cos = math.cos(angle);
             // uv's are percentages of the texture size
             const u: f32 = 1.0 - 1.0 / @as(f32, @floatFromInt(sides)) * @as(f32, @floatFromInt(i));
-            try builder.vertices.append(shape.Vertex{
-                .position = Vec3{
-                    .x = position.x + radius * cos,
-                    .y = position.y,
-                    .z = position.z + radius * sin,
-                },
-                .normal = vec3(cos, 0.0, sin),
-                .texcoords = Vec2{ .x = u, .y = 1.0 },
-            });
+            try builder.positions.append(.{ position.x + radius * cos, position.y, position.z + radius * sin });
+            try builder.normals.append(.{ cos, 0.0, sin });
+            try builder.texcoords.append(.{ u, 1.0 });
         }
 
         // Bottom ring of vertices
@@ -133,15 +116,9 @@ pub const Cylinder = struct {
             const cos = math.cos(angle);
             // uv's are percentages of the texture size
             const u: f32 = 1.0 - 1.0 / @as(f32, @floatFromInt(sides)) * @as(f32, @floatFromInt(i));
-            try builder.vertices.append(shape.Vertex{
-                .position = Vec3{
-                    .x = position.x + radius * cos,
-                    .y = position.y + height,
-                    .z = position.z + radius * sin,
-                },
-                .normal = vec3(cos, 0.0, sin),
-                .texcoords = Vec2{ .x = u, .y = 0.0 },
-            });
+            try builder.positions.append(.{ position.x + radius * cos, position.y + height, position.z + radius * sin });
+            try builder.normals.append(.{ cos, 0.0, sin });
+            try builder.texcoords.append(.{ u, 0.0 });
         }
 
         // Each side is a quad which is two triangles

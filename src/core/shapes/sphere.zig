@@ -17,11 +17,11 @@ pub const Sphere = struct {
     pub fn init(allocator: Allocator, radius: f32, poly_countX: u32, poly_countY: u32) !shape.Shape {
         var builder = try build(allocator, radius, poly_countX, poly_countY);
         defer builder.deinit();
-        return shape.initGLBuffers(&builder);
+        return builder.build();
     }
 
     fn build(allocator: Allocator, radius: f32, poly_countX: u32, poly_countY: u32) !shape.ShapeBuilder {
-        var builder = shape.ShapeBuilder.init(allocator, .Cylinder);
+        var builder = shape.ShapeBuilder.init(allocator, .Cylinder, false);
 
         // we are creating the sphere mesh here.
         var polyCountX = poly_countX;
@@ -116,7 +116,7 @@ pub const Sphere = struct {
         var ay: f32 = 0; //AngleY / 2;
 
         const size = (polyCountXPitch * polyCountY) + 2;
-        try builder.vertices.resize(size);
+        try builder.resize(size);
 
         for (0..polyCountY) |y| {
             //for (u32 y = 0; y < polyCountY; ++y) {
@@ -150,25 +150,39 @@ pub const Sphere = struct {
                         tu = 1 - tu;
                     }
                 } else {
-                    tu = builder.vertices.items[i - polyCountXPitch].texcoords.x;
+                    tu = builder.texcoords.list.items[i - polyCountXPitch][0];
                 }
 
-                builder.vertices.items[i] = shape.Vertex.init(pos.x, pos.y, pos.z, normal.x, normal.y, normal.z, tu, @floatCast(ay * math.reciprocal_pi));
+                // builder.vertices.items[i] = shape.Vertex.init(pos.x, pos.y, pos.z, normal.x, normal.y, normal.z, tu, @floatCast(ay * math.reciprocal_pi));
+                builder.positions.list.items[i] = pos.asArray();
+                builder.normals.list.items[i] = normal.asArray();
+                builder.texcoords.list.items[i] = .{tu, @floatCast(ay * math.reciprocal_pi)};
                 i += 1;
                 axz += AngleX;
             }
             // This is the doubled vertex on the initial position
-            builder.vertices.items[i] = builder.vertices.items[i - polyCountX].clone();
-            builder.vertices.items[i].texcoords.x = 1.0;
+            // builder.vertices.items[i] = builder.vertices.items[i - polyCountX].clone();
+            // builder.vertices.items[i].texcoords.x = 1.0;
+            builder.positions.list.items[i] = builder.positions.list.items[i - poly_countX];
+            builder.normals.list.items[i] = builder.normals.list.items[i - poly_countX];
+            builder.texcoords.list.items[i] = builder.texcoords.list.items[i - poly_countX];
+            builder.texcoords.list.items[i][0] = 1.0;
+            // builder.colors.list.items[i] = builder.colors.list.items[i - poly_countX];
             i += 1;
         }
 
         // the vertex at the top of the sphere
-        builder.vertices.items[i] = shape.Vertex.init(0.0, radius, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0);
+        // builder.vertices.items[i] = shape.Vertex.init(0.0, radius, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0);
+        builder.positions.list.items[i] = .{0.0, radius, 0.0};
+        builder.normals.list.items[i] = .{0.0, 1.0, 0.0};
+        builder.texcoords.list.items[i] = .{0.5, 0.0};
 
         // the vertex at the bottom of the sphere
         i += 1;
-        builder.vertices.items[i] = shape.Vertex.init(0.0, -radius, 0.0, 0.0, -1.0, 0.0, 0.5, 1.0);
+        // builder.vertices.items[i] = shape.Vertex.init(0.0, -radius, 0.0, 0.0, -1.0, 0.0, 0.5, 1.0);
+        builder.positions.list.items[i] = .{0.0, -radius, 0.0};
+        builder.normals.list.items[i] = .{0.0, -1.0, 0.0};
+        builder.texcoords.list.items[i] = .{0.5, 1.0};
 
         // recalculate bounding box
 
@@ -185,8 +199,8 @@ pub const Sphere = struct {
         // mesh->setHardwareMappingHint(EHM_STATIC);
         // mesh->recalculateBoundingBox();
 
-        for (builder.vertices.items) |v| {
-            builder.aabb.expandWithVec3(v.position);
+        for (builder.positions.list.items) |position| {
+            builder.aabb.expandWithArray(position);
         }
 
         return builder;

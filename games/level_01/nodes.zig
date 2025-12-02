@@ -57,8 +57,8 @@ pub const ShapeObj = struct {
     }
 
     pub fn render(self: *ShapeObj, shader: *Shader) void {
-        shader.bindTexture(0, "texture_diffuse", self.texture.gl_texture_id);
-        self.shape.render();
+        shader.bindTextureAuto("texture_diffuse", self.texture.gl_texture_id);
+        self.shape.draw();
     }
 };
 
@@ -172,7 +172,7 @@ pub const Node = struct {
             // Leave old parent
             for (p.children.list.items, 0..) |_c, idx| {
                 if (_c == child) {
-                    _ = p.children.swapRemove(idx);
+                    _ = p.children.list.swapRemove(idx);
                     break;
                 }
             } else unreachable;
@@ -190,7 +190,7 @@ pub const Node = struct {
 
             for (self.children.list.items, 0..) |_c, idx| {
                 if (_c == child) {
-                    _ = self.children.swapRemove(idx);
+                    _ = self.children.list.swapRemove(idx);
                     break;
                 }
             } else unreachable;
@@ -205,7 +205,7 @@ pub const Node = struct {
             // Leave old parent
             for (p.children.list.items, 0..) |c, idx| {
                 if (self == c) {
-                    _ = p.children.swapRemove(idx);
+                    _ = p.children.list.swapRemove(idx);
                     break;
                 }
             } else unreachable;

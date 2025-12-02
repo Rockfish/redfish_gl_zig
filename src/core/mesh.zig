@@ -4,6 +4,7 @@ const containers = @import("containers");
 const gl = @import("zopengl").bindings;
 const Shader = @import("shader.zig").Shader;
 const AABB = @import("aabb.zig").AABB;
+const constants = @import("constants.zig");
 
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
@@ -127,18 +128,18 @@ pub const MeshPrimitive = struct {
 
         // Handle vertex attributes using new GLTF structure
         if (primitive.attributes.position) |accessor_id| {
-            mesh_primitive.vbo_positions = createGlArrayBuffer(gltf_asset, 0, accessor_id);
+            mesh_primitive.vbo_positions = createGlArrayBuffer(gltf_asset, constants.VertexAttr.POSITION, accessor_id);
             const accessor = gltf_asset.gltf.accessors.?[accessor_id];
             mesh_primitive.vertex_count = @intCast(accessor.count);
         }
 
         if (primitive.attributes.tex_coord_0) |accessor_id| {
-            mesh_primitive.vbo_texcoords = createGlArrayBuffer(gltf_asset, 1, accessor_id);
+            mesh_primitive.vbo_texcoords = createGlArrayBuffer(gltf_asset, constants.VertexAttr.TEXCOORD, accessor_id);
             // std.debug.print("has_texcoords: accessor {d}, count {d}, component_type {d}\n", .{ accessor_id, accessor.count, @intFromEnum(accessor.component_type) });
         }
 
         if (primitive.attributes.normal) |accessor_id| {
-            mesh_primitive.vbo_normals = createGlArrayBuffer(gltf_asset, 2, accessor_id);
+            mesh_primitive.vbo_normals = createGlArrayBuffer(gltf_asset, constants.VertexAttr.NORMAL, accessor_id);
             mesh_primitive.has_normals = true;
         } else {
             // Check for pre-generated normals from asset loader
@@ -151,25 +152,25 @@ pub const MeshPrimitive = struct {
             }
         }
 
-       if (primitive.attributes.tangent) |accessor_id| {
-            mesh_primitive.vbo_tangents = createGlArrayBuffer(gltf_asset, 3, accessor_id);
+        if (primitive.attributes.tangent) |accessor_id| {
+            mesh_primitive.vbo_tangents = createGlArrayBuffer(gltf_asset, constants.VertexAttr.TANGENT, accessor_id);
             // std.debug.print("has_tangents\n", .{});
         }
 
         if (primitive.attributes.color_0) |accessor_id| {
-            mesh_primitive.vbo_colors = createGlArrayBuffer(gltf_asset, 4, accessor_id);
+            mesh_primitive.vbo_colors = createGlArrayBuffer(gltf_asset, constants.VertexAttr.COLOR, accessor_id);
             mesh_primitive.has_vertex_colors = true;
             // std.debug.print("has_colors\n", .{});
         }
 
         if (primitive.attributes.joints_0) |accessor_id| {
-            mesh_primitive.vbo_joints = createGlArrayBuffer(gltf_asset, 5, accessor_id);
+            mesh_primitive.vbo_joints = createGlArrayBuffer(gltf_asset, constants.VertexAttr.JOINTS, accessor_id);
             // const accessor = gltf_asset.gltf.accessors.?[accessor_id];
             // std.debug.print("has_joints: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
         }
 
         if (primitive.attributes.weights_0) |accessor_id| {
-            mesh_primitive.vbo_weights = createGlArrayBuffer(gltf_asset, 6, accessor_id);
+            mesh_primitive.vbo_weights = createGlArrayBuffer(gltf_asset, constants.VertexAttr.WEIGHTS, accessor_id);
             // const accessor = gltf_asset.gltf.accessors.?[accessor_id];
             // std.debug.print("has_weights: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
         }
@@ -482,7 +483,7 @@ pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: u
     };
 
     // Use integer attribute pointer for joint indices
-    if (gl_index == 5) { // joints_0 attribute
+    if (gl_index == constants.VertexAttr.JOINTS) {
         gl.vertexAttribIPointer(
             gl_index,
             @intCast(getTypeSize(accessor.type_)),
@@ -567,10 +568,10 @@ fn createGlBufferFromNormals(normals: []Vec3) c_uint {
         gl.STATIC_DRAW,
     );
 
-    // Set up vertex attribute (location 2 for normals)
-    gl.enableVertexAttribArray(2);
+    // Set up vertex attribute for normals
+    gl.enableVertexAttribArray(constants.VertexAttr.NORMAL);
     gl.vertexAttribPointer(
-        2,
+        constants.VertexAttr.NORMAL,
         3,
         gl.FLOAT,
         gl.FALSE,

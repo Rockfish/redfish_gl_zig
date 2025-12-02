@@ -56,6 +56,15 @@ pub const AABB = extern struct {
         self.max.z = @max(self.max.z, v.z);
     }
 
+    pub fn expandWithArray(self: *Self, pos: [3]f32) void {
+        self.min.x = @min(self.min.x, pos[0]);
+        self.min.y = @min(self.min.y, pos[1]);
+        self.min.z = @min(self.min.z, pos[2]);
+        self.max.x = @max(self.max.x, pos[0]);
+        self.max.y = @max(self.max.y, pos[1]);
+        self.max.z = @max(self.max.z, pos[2]);
+    }
+
     pub fn expandBy(self: *Self, f: f32) void {
         self.min.x -= f;
         self.max.x += f;

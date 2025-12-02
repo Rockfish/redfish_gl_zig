@@ -507,16 +507,16 @@ fn keyHandler(
             }
         },
         .w => {
-            state.camera.movement.processMovement(.Forward, state.delta_time);
+            state.camera.movement.processMovement(.forward, state.delta_time);
         },
         .s => {
-            state.camera.movement.processMovement(.Backward, state.delta_time);
+            state.camera.movement.processMovement(.backward, state.delta_time);
         },
         .a => {
-            state.camera.movement.processMovement(.CircleLeft, state.delta_time);
+            state.camera.movement.processMovement(.circle_left, state.delta_time);
         },
         .d => {
-            state.camera.movement.processMovement(.CircleRight, state.delta_time);
+            state.camera.movement.processMovement(.circle_right, state.delta_time);
         },
         .n => {
             if (action == glfw.Action.press) {

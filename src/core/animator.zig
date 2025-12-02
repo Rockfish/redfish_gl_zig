@@ -4,6 +4,7 @@ const containers = @import("containers");
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 const Transform = @import("transform.zig").Transform;
+const constants = @import("constants.zig");
 
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
@@ -15,7 +16,7 @@ const Mat4 = math.Mat4;
 const Quat = math.Quat;
 const quat = math.quat;
 
-pub const MAX_JOINTS: usize = 100;
+pub const MAX_JOINTS: usize = constants.MAX_JOINTS;
 pub const DEFAULT_ANIMATION_DURATION: f32 = 1.0;
 
 pub const AnimationRepeatMode = enum {
