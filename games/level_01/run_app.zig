@@ -47,7 +47,6 @@ const SIZE_OF_QUAT = @sizeOf(Quat);
 // pub var state: State = undefined;
 
 pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
-
     state_.initWindowHandlers(window);
 
     const window_scale = window.getContentScale();
@@ -68,16 +67,13 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     );
     defer camera.deinit();
 
-    state_.state = state_.State {
+    state_.state = state_.State{
         .viewport_width = viewport_width,
         .viewport_height = viewport_height,
         .scaled_width = scaled_width,
         .scaled_height = scaled_height,
         .window_scale = window_scale,
         .camera = camera,
-        .projection = camera.getProjectionMatrixWithType(.Perspective),
-        .projection_type = .Perspective,
-        .view_type = .LookAt,
         .light_postion = vec3(1.2, 1.0, 2.0),
         .delta_time = 0.0,
         .total_time = 0.0,
@@ -108,7 +104,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     );
     defer basic_shader.deinit();
 
-    const model_shader = try Shader.init(allocator, 
+    const model_shader = try Shader.init(
+        allocator,
         "games/level_01/shaders/animated_pbr.vert",
         "games/level_01/shaders/animated_pbr.frag",
     );
@@ -159,7 +156,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         texture_diffuse,
     );
 
-  //   texture_diffuse.wrap = .Repeat;
+    //   texture_diffuse.wrap = .Repeat;
 
     const surface_texture = try Texture.initFromFile(
         &texture_arena,
@@ -257,11 +254,6 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         state.delta_time = current_time - state.total_time;
         state.total_time = current_time;
 
-        state.view = switch (state.view_type) {
-            .LookAt => camera.getLookAtView(),
-            .LookTo => camera.getLookToView(),
-        };
-
         state_.processKeys();
 
         gl.clearColor(0.1, 0.3, 0.1, 1.0);
@@ -270,8 +262,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         const world_ray = math.getWorldRayFromMouse(
             state.scaled_width,
             state.scaled_height,
-            &state.projection,
-            &state.view,
+            &state.camera.getProjection(),
+            &state.camera.getView(),
             state.input.mouse_x,
             state.input.mouse_y,
         );
@@ -288,15 +280,15 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             .direction = world_ray,
         };
 
-        basic_shader.setMat4("matProjection", &state.projection);
-        basic_shader.setMat4("matView", &state.view);
+        basic_shader.setMat4("matProjection", &state.camera.getProjection());
+        basic_shader.setMat4("matView", &state.camera.getView());
         basic_shader.setVec3("ambientColor", &vec3(1.0, 0.6, 0.6));
         basic_shader.setVec3("lightColor", &vec3(0.35, 0.4, 0.5));
         basic_shader.setVec3("lightDirection", &vec3(3.0, 3.0, 3.0));
         basic_shader.bindTextureAuto("textureDiffuse", cube_texture.gl_texture_id);
 
-        model_shader.setMat4("matProjection", &state.projection);
-        model_shader.setMat4("matView", &state.view);
+        model_shader.setMat4("matProjection", &state.camera.getProjection());
+        model_shader.setMat4("matView", &state.camera.getView());
         model_shader.setVec3("ambient_color", &vec3(1.0, 0.6, 0.6));
         model_shader.setVec3("lightColor", &vec3(0.35, 0.4, 0.5));
         model_shader.setVec3("lightDirection", &vec3(3.0, 3.0, 3.0));

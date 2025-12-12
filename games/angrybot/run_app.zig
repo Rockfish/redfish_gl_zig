@@ -224,9 +224,9 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     defer floating_camera.deinit();
     defer ortho_camera.deinit();
 
-    const game_projection = game_camera.getProjectionMatrixWithType(.Perspective);
-    const floating_projection = floating_camera.getProjectionMatrixWithType(.Perspective);
-    const orthographic_projection = ortho_camera.getProjectionMatrixWithType(.Orthographic);
+    // const game_projection = game_camera.getProjectionMatrixWithType(.Perspective);
+    // const floating_projection = floating_camera.getProjectionMatrixWithType(.Perspective);
+    // const orthographic_projection = ortho_camera.getProjectionMatrixWithType(.Orthographic);
 
     log.info("camers loaded", .{});
 
@@ -258,11 +258,11 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         .game_camera = game_camera,
         .floating_camera = floating_camera,
         .ortho_camera = ortho_camera,
-        .active_camera = CameraType.Game,
-        .game_projection = game_projection,
-        .floating_projection = floating_projection,
-        .orthographic_projection = orthographic_projection,
-        .projection_view = undefined,
+        .active_camera = game_camera,
+        // .game_projection = game_projection,
+        // .floating_projection = floating_projection,
+        // .orthographic_projection = orthographic_projection,
+        // .projection_view = undefined,
         .player = player,
         .enemies = ManagedArrayList(?Enemy).init(alloc_arena),
         .light_postion = vec3(1.2, 1.0, 2.0),
@@ -358,15 +358,17 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             framebufferUpdate(viewport_width, viewport_height, use_framebuffers);
         }
 
-        world.updateCameras();
+        state.game_camera.movement.target = state.player.position;
+        state.active_camera.movement.target = state.player.position;
+        // world.updateCameras();
+//
+        // const game_view = Mat4.lookAtRhGl(
+            // &state.game_camera.movement.position,
+            // &state.player.position,
+            // &state.game_camera.movement.up,
+        // );
 
-        const game_view = Mat4.lookAtRhGl(
-            &state.game_camera.movement.position,
-            &state.player.position,
-            &state.game_camera.movement.up,
-        );
-
-        aim_angle = world.getMousePointAngle(&game_view, &state.player.position);
+        aim_angle = world.getMousePointAngle(&state.game_camera.getView(), &state.player.position);
         const aim_rotation_matrix = Mat4.fromAxisAngle(&vec3(0.0, 1.0, 0.0), aim_angle);
 
         var player_scale = Vec3.splat(world.PLAYER_MODEL_SCALE);
@@ -432,7 +434,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         // log.info("updating shaders", .{});
         player_shader.useShader();
 
-        player_shader.setMat4("projectionView", &state.projection_view);
+        player_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
         player_shader.setMat4("model", &player_transform);
         player_shader.setMat4("aimRot", &aim_rotation_matrix);
         player_shader.setVec3("viewPos", &state.game_camera.movement.position);
@@ -458,14 +460,14 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
         player_shader.useShader();
         player_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
-        player_shader.setMat4("projectionView", &state.projection_view);
+        player_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
         player_shader.setBool("depth_mode", true);
         player_shader.setBool("useLight", false);
 
         player.render(player_shader);
 
         enemy_shader.useShader();
-        enemy_shader.setMat4("projectionView", &state.projection_view);
+        enemy_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
         enemy_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
         enemy_shader.setBool("depth_mode", true);
 
@@ -484,7 +486,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
             player_emissive_shader.useShader();
-            player_emissive_shader.setMat4("projectionView", &state.projection_view);
+            player_emissive_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
             player_emissive_shader.setMat4("model", &player_transform);
 
             // log.info("rendering player with emissive shader", .{});
@@ -510,7 +512,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             // }
 
             // log.info("rendering bullet_store ", .{});
-            bullet_store.drawBullets(instanced_matrix_shader, &state.projection_view);
+            bullet_store.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
 
             // const debug_emission = false;
             // if (debug_emission) {
@@ -566,7 +568,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         floor_shader.setBool("useSpec", true);
 
         // log.info("rendering floor", .{});
-        floor.draw(floor_shader, &state.projection_view);
+        floor.draw(floor_shader, &state.active_camera.getProjectionView());
 
         player_shader.useShader();
         player_shader.setBool("useLight", true);
@@ -576,7 +578,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         // log.info("rendering player", .{});
         player.render(player_shader);
 
-        muzzle_flash.draw(sprite_shader, &state.projection_view, &muzzle_transform);
+        muzzle_flash.draw(sprite_shader, &state.active_camera.getProjectionView(), &muzzle_transform);
 
         enemy_shader.useShader();
         enemy_shader.setBool("useLight", true);
@@ -587,13 +589,13 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         enemy_system.drawEnemies(enemy_shader, &state);
 
         // log.debug("rendering burn_marks", .{});
-        state.burn_marks.drawMarks(basic_texture_shader, &state.projection_view, state.delta_time);
+        state.burn_marks.drawMarks(basic_texture_shader, &state.active_camera.getProjectionView(), state.delta_time);
 
         // log.info("rendering bullet_impacts", .{});
-        bullet_store.drawBulletImpacts(sprite_shader, &state.projection_view);
+        bullet_store.drawBulletImpacts(sprite_shader, &state.active_camera.getProjectionView());
 
         if (!use_framebuffers) {
-            bullet_store.drawBullets(instanced_matrix_shader, &state.projection_view);
+            bullet_store.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
         }
 
         if (use_framebuffers) {

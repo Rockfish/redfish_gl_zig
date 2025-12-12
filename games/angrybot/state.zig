@@ -96,15 +96,11 @@ pub const State = struct {
     game_camera: *Camera,
     floating_camera: *Camera,
     ortho_camera: *Camera,
-    active_camera: CameraType,
+    active_camera: *Camera,
     player: *Player,
     burn_marks: *BurnMarks,
     enemies: containers.ManagedArrayList(?Enemy),
     sound_engine: SoundEngine(ClipName, ClipData),
-    game_projection: math.Mat4,
-    floating_projection: math.Mat4,
-    orthographic_projection: math.Mat4,
-    projection_view: math.Mat4,
     input: Input,
     light_postion: math.Vec3,
     mouse_x: f32,
@@ -170,7 +166,7 @@ pub fn getMousePointAngle(view: *const Mat4, position: *Vec3) f32 {
     const world_ray = math.getWorldRayFromMouse(
         state.scaled_width,
         state.scaled_height,
-        &state.game_projection,
+        &state.game_camera.getProjection(),
         view,
         state.mouse_x + 0.0001,
         state.mouse_y,
@@ -218,15 +214,14 @@ pub fn processInput() void {
                 .d => state.game_camera.movement.processMovement(.right, state.delta_time),
                 else => {},
             }
-        }
-        else if (state.input.key_alt) {
-                switch (key) {
-                    .w => state.game_camera.movement.processMovement(.circle_up, state.delta_time),
-                    .s => state.game_camera.movement.processMovement(.circle_down, state.delta_time),
-                    .a => state.game_camera.movement.processMovement(.circle_left, state.delta_time),
-                    .d => state.game_camera.movement.processMovement(.circle_right, state.delta_time),
-                    else => {},
-                }
+        } else if (state.input.key_alt) {
+            switch (key) {
+                .w => state.game_camera.movement.processMovement(.circle_up, state.delta_time),
+                .s => state.game_camera.movement.processMovement(.circle_down, state.delta_time),
+                .a => state.game_camera.movement.processMovement(.circle_left, state.delta_time),
+                .d => state.game_camera.movement.processMovement(.circle_right, state.delta_time),
+                else => {},
+            }
         } else {
             var direction_vec = Vec3.splat(0.0);
 
@@ -235,10 +230,10 @@ pub fn processInput() void {
                 .d => direction_vec.addTo(&vec3(1.0, 0.0, 0.0)),
                 .s => direction_vec.addTo(&vec3(0.0, 0.0, 1.0)),
                 .w => direction_vec.addTo(&vec3(0.0, 0.0, -1.0)),
-                .one => state.active_camera = CameraType.Game,
-                .two => state.active_camera = CameraType.Floating,
-                .three => state.active_camera = CameraType.TopDown,
-                .four => state.active_camera = CameraType.Side,
+                .one => state.active_camera = state.game_camera,
+                .two => state.active_camera = state.floating_camera,
+                .three => state.active_camera = state.ortho_camera,
+                .four => state.active_camera = state.active_camera, // should be side camera
                 else => {},
             }
 
@@ -302,13 +297,9 @@ fn setViewPort(w: i32, h: i32) void {
     state.scaled_width = width / state.window_scale[0];
     state.scaled_height = height / state.window_scale[1];
 
-    const ortho_width = (state.viewport_width / 500);
-    const ortho_height = (state.viewport_height / 500);
-    const aspect_ratio = (state.viewport_width / state.viewport_height);
-
-    state.game_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.game_camera.fov), aspect_ratio, 0.1, 100.0);
-    state.floating_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.floating_camera.fov), aspect_ratio, 0.1, 100.0);
-    state.orthographic_projection = Mat4.orthographicRhGl(-ortho_width, ortho_width, -ortho_height, ortho_height, 0.1, 100.0);
+    state.game_camera.setScreenDimensions(state.viewport_width, state.viewport_height);
+    state.floating_camera.setScreenDimensions(state.viewport_width, state.viewport_height);
+    state.ortho_camera.setScreenDimensions(state.viewport_width, state.viewport_height);
 }
 
 fn cursorPositionHandler(window: *glfw.Window, xposIn: f64, yposIn: f64) callconv(.c) void {
@@ -337,7 +328,6 @@ fn scrollHandler(window: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.c) 
     _ = window;
     _ = xoffset;
     state.game_camera.adjustFov(@floatCast(yoffset));
-    const aspect_ratio = (state.viewport_width / state.viewport_height);
-    state.game_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.game_camera.fov), aspect_ratio, 0.1, 100.0);
-    state.floating_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.floating_camera.fov), aspect_ratio, 0.1, 100.0);
+    state.game_camera.setScreenDimensions(state.viewport_width, state.viewport_height);
+    state.floating_camera.setScreenDimensions(state.viewport_width, state.viewport_height);
 }

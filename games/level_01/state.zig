@@ -38,10 +38,6 @@ pub const State = struct {
     window_scale: [2]f32,
     input: Input,
     camera: *Camera,
-    projection: Mat4 = undefined,
-    projection_type: core.ProjectionType,
-    view: Mat4 = undefined,
-    view_type: core.ViewType,
     light_postion: Vec3,
     delta_time: f32,
     total_time: f32,
@@ -154,10 +150,10 @@ pub fn processKeys() void {
                 }
             },
             .one => {
-                state.view_type = .LookTo;
+                state.camera.setLookTo();
             },
             .two => {
-                state.view_type = .LookAt;
+                state.camera.setLookAt();
             },
             .three => {
                 if (!toggle.spin_is_set) {
@@ -165,14 +161,12 @@ pub fn processKeys() void {
                 }
             },
             .four => {
-                state.projection_type = .Perspective;
-                state.projection = state.camera.getProjectionMatrixWithType(.Perspective);
+                state.camera.setPerspective();
             },
             .five => {
-                state.projection_type = .Orthographic;
-                state.projection = state.camera.getProjectionMatrixWithType(.Orthographic);
+                state.camera.setOrthographic();
             },
-            .zero => { 
+            .zero => {
                 if (last_time + delay_time < state.total_time) {
                     last_time = state.total_time;
                     // state.single_mesh_id = -1;
@@ -221,15 +215,6 @@ pub fn setViewPort(w: i32, h: i32) void {
     const aspect_ratio = (state.scaled_width / state.scaled_height);
     state.camera.setAspect(aspect_ratio);
     state.camera.setScreenDimensions(state.scaled_width, state.scaled_height);
-
-    switch (state.projection_type) {
-        .Perspective => {
-            state.projection = state.camera.getProjectionMatrixWithType(.Perspective);
-        },
-        .Orthographic => {
-            state.projection = state.camera.getProjectionMatrixWithType(.Orthographic);
-        },
-    }
 }
 
 pub fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
@@ -269,7 +254,5 @@ fn scrollHandler(window: *Window, xoffset: f64, yoffset: f64) callconv(.c) void 
     _ = window;
     _ = xoffset;
     state.camera.adjustFov(@floatCast(yoffset));
-    const aspect_ratio = (state.viewport_width / state.viewport_height);
-    state.projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.camera.fov), aspect_ratio, 0.1, 100.0);
-    // state.floating_projection = Mat4.perspectiveRhGl(math.degreesToRadians(state.floating_camera.fov), aspect_ratio, 0.1, 100.0);
+    state.camera.setScreenDimensions(state.viewport_width, state.viewport_height);
 }

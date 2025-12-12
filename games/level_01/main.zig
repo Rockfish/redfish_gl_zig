@@ -86,7 +86,6 @@ fn testMovementMatrix() void {
 }
 
 fn testMultipleObjects() void {
-
     std.debug.print("\n=== Array-Based Approach for Multiple Objects ===\n", .{});
     // Multiple starting positions
     const start_positions = [_]math.Vec3{
@@ -191,7 +190,7 @@ fn testModelMovement() void {
             std.debug.print("    Direction: {s}\n", .{dir.asString(&buffer1)});
             std.debug.print("    Transform matrix: {s}\n", .{transform.asString(&buffer1)});
         }
-        
+
         std.debug.print("  Model {d} completed all movement frames\n", .{model_i});
     }
 

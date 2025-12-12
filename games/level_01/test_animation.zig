@@ -50,7 +50,6 @@ const state_ = @import("state.zig");
 const State = state_.State;
 
 pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
-
     std.debug.print("running test_animation\n", .{});
 
     const window_scale = window.getContentScale();
@@ -70,16 +69,13 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         },
     );
 
-    state_.state = state_.State {
+    state_.state = state_.State{
         .viewport_width = viewport_width,
         .viewport_height = viewport_height,
         .scaled_width = scaled_width,
         .scaled_height = scaled_height,
         .window_scale = window_scale,
         .camera = camera,
-        .projection = camera.getProjectionMatrix(),
-        .projection_type = .Perspective,
-        .view_type = .LookAt,
         .light_postion = vec3(1.2, 1.0, 2.0),
         .delta_time = 0.0,
         .total_time = 0.0,
@@ -100,7 +96,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
     const shader = try Shader.init(
         allocator,
-        "games/level_01/shaders/player_shader.vert", 
+        "games/level_01/shaders/player_shader.vert",
         //"games/level_01/shaders/player_shader.frag",
         "games/level_01/shaders/basic_model.frag",
     );
@@ -193,9 +189,9 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         // const debug_camera = try Camera.camera_vec3(allocator, vec3(0.0, 40.0, 120.0));
         // defer debug_camera.deinit();
 
-        shader.setMat4("matProjection", &state.projection);
-        shader.setMat4("matView", &state.camera.getLookAtView());
-  
+        shader.setMat4("matProjection", &state.camera.getProjection());
+        shader.setMat4("matView", &state.camera.getView());
+
         var model_transform = Mat4.identity();
         // model_transform.translate(&vec3(0.0, -10.4, -400.0));
         //model_transform.scale(&vec3(1.0, 1.0, 1.0));
@@ -231,7 +227,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     }
 
     // try core.dumpModelNodes(model);
-    // model.meshes.items[2].printMeshVertices(); 
+    // model.meshes.items[2].printMeshVertices();
 
     std.debug.print("\nRun completed.\n\n", .{});
 
@@ -243,5 +239,3 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     // }
     texture_cache.deinit();
 }
-
-

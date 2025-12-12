@@ -41,7 +41,7 @@ pub const ShapeObj = struct {
     texture: *core.texture.Texture,
     // transform: Transform,
     // global_transform: Transform,
- 
+
     pub fn init(shape: *core.shapes.Shape, name: []const u8, texture: *core.texture.Texture) ShapeObj {
         return .{
             .name = name,
@@ -95,25 +95,25 @@ pub const Object = union(enum) {
     model: *ModelObj,
 
     pub inline fn calcTransform(actor: Object, transform: Transform) Transform {
-        return switch(actor) {
+        return switch (actor) {
             inline else => |obj| obj.transform.mul_transform(transform),
         };
-    } 
+    }
 
     pub inline fn setTransform(actor: Object, transform: Transform) void {
-        return switch(actor) {
+        return switch (actor) {
             inline else => |obj| obj.transform = transform,
         };
     }
 
     pub inline fn getTransform(actor: Object) Transform {
-        return switch(actor) {
+        return switch (actor) {
             inline else => |obj| obj.transform,
         };
     }
 
     pub inline fn getBoundingBox(actor: Object) ?AABB {
-        return switch(actor) {
+        return switch (actor) {
             .basic => null,
             .model => null,
             inline else => |obj| obj.getBoundingBox(),
@@ -121,7 +121,7 @@ pub const Object = union(enum) {
     }
 
     pub inline fn render(actor: Object, shader: *Shader) void {
-        return switch(actor) {
+        return switch (actor) {
             .basic => {},
             inline else => |obj| obj.render(shader),
         };
@@ -150,8 +150,8 @@ pub const Node = struct {
             .allocator = allocator,
             .name = name,
             .object = object,
-            .transform = Transform.init(), // object.getTransform(),
-            .global_transform = Transform.init(),
+            .transform = Transform.identity(), // object.getTransform(),
+            .global_transform = Transform.identity(),
             .parent = null,
             .children = ManagedArrayList(*Node).init(allocator),
         };
@@ -259,7 +259,7 @@ pub const Node = struct {
     pub fn updateAnimation(self: *Node, delta_time: f32) void {
         self.object.updateAnimation(delta_time);
         //for (self.children.list.items) |child| {
-            //child.updateAnimation(delta_time);
+        //child.updateAnimation(delta_time);
         //}
     }
 
@@ -293,7 +293,7 @@ pub const NodeManager = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn create(self: *Self, name: []const u8, object: Object) !*Node { 
+    pub fn create(self: *Self, name: []const u8, object: Object) !*Node {
         const node = try Node.init(self.allocator, name, object);
         try self.node_list.append(node);
         return node;
