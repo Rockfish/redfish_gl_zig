@@ -52,36 +52,34 @@ pub const Mat4 = extern struct {
         } };
     }
 
-    pub fn fromAxes(axes: [3]Vec4) Self {
-        // axes[0]: right, axes[1]: up, axes[2]: forward
+    pub fn fromAxes(axes: [3]Vec3) Self {
         const right = axes[0];
         const up = axes[1];
         const forward = axes[2];
-
-        // Construct 4x4 matrix:
-        // [ right.x   up.x   forward.x   0 ]
-        // [ right.y   up.y   forward.y   0 ]
-        // [ right.z   up.z   forward.z   0 ]
-        // [    0       0        0        1 ]
         var result: [4][4]f32 = undefined;
+
+        // Column 0: right vector
         result[0][0] = right.x;
-        result[1][0] = right.y;
-        result[2][0] = right.z;
-        result[3][0] = 0.0;
-
-        result[0][1] = up.x;
-        result[1][1] = up.y;
-        result[2][1] = up.z;
-        result[3][1] = 0.0;
-
-        result[0][2] = forward.x;
-        result[1][2] = forward.y;
-        result[2][2] = forward.z;
-        result[3][2] = 0.0;
-
+        result[0][1] = right.y;
+        result[0][2] = right.z;
         result[0][3] = 0.0;
+
+        // Column 1: up vector
+        result[1][0] = up.x;
+        result[1][1] = up.y;
+        result[1][2] = up.z;
         result[1][3] = 0.0;
+
+        // Column 2: forward vector
+        result[2][0] = forward.x;
+        result[2][1] = forward.y;
+        result[2][2] = forward.z;
         result[2][3] = 0.0;
+
+        // Column 3: w-axis (no translation)
+        result[3][0] = 0.0;
+        result[3][1] = 0.0;
+        result[3][2] = 0.0;
         result[3][3] = 1.0;
 
         return .{ .data = result };
@@ -93,6 +91,30 @@ pub const Mat4 = extern struct {
 
     pub fn toArrayPtr(self: *const Self) *[16]f32 {
         return @as(*[16]f32, @ptrCast(@constCast(self)));
+    }
+
+    /// Returns the X-axis (first column) of the matrix as a Vec4.
+    /// For transformation matrices, this represents the right vector.
+    pub fn getXAxis(self: *const Self) Vec3 {
+        return Vec3.init(self.data[0][0], self.data[0][1], self.data[0][2]);
+    }
+
+    /// Returns the Y-axis (second column) of the matrix as a Vec4.
+    /// For transformation matrices, this represents the up vector.
+    pub fn getYAxis(self: *const Self) Vec3 {
+        return Vec3.init(self.data[1][0], self.data[1][1], self.data[1][2]);
+    }
+
+    /// Returns the Z-axis (third column) of the matrix as a Vec4.
+    /// For transformation matrices, this represents the forward vector.
+    pub fn getZAxis(self: *const Self) Vec3 {
+        return Vec3.init(self.data[2][0], self.data[2][1], self.data[2][2]);
+    }
+
+    /// Returns the W-axis (fourth column) of the matrix as a Vec4.
+    /// For transformation matrices, this represents the translation/position.
+    pub fn getWAxis(self: *const Self) Vec3 {
+        return Vec3.init(self.data[3][0], self.data[3][1], self.data[3][2]);
     }
 
     pub fn getTranspose(m: *const Mat4) Mat4 {
@@ -229,15 +251,15 @@ pub const Mat4 = extern struct {
         } };
     }
 
-    pub fn fromAxisAngle(axis: *const Vec3, angleRadians: f32) Mat4 {
+    pub fn fromAxisAngle(axis: *const Vec3, angle_radians: f32) Mat4 {
         // Rodrigues' rotation formula for creating rotation matrix from axis-angle
         const normalized_axis = axis.toNormalized();
         const x = normalized_axis.x;
         const y = normalized_axis.y;
         const z = normalized_axis.z;
 
-        const cos_a = std.math.cos(angleRadians);
-        const sin_a = std.math.sin(angleRadians);
+        const cos_a = std.math.cos(angle_radians);
+        const sin_a = std.math.sin(angle_radians);
         const one_minus_cos = 1.0 - cos_a;
 
         return Mat4{ .data = .{
@@ -271,6 +293,50 @@ pub const Mat4 = extern struct {
             .{ 2.0 * (xz + wy), 2.0 * (yz - wx), 1.0 - 2.0 * (xx + yy), 0.0 },
             .{ 0.0, 0.0, 0.0, 1.0 },
         } };
+    }
+
+    pub fn toQuat(self: *const Self) Quat {
+        // Convert 4x4 rotation matrix to quaternion using Shepperd's method
+        // NOTE: data is stored as data[col][row], so m[i][j] means column i, row j
+        const m = &self.data;
+
+        // Calculate trace
+        const trace = m[0][0] + m[1][1] + m[2][2];
+
+        if (trace > 0.0) {
+            // Standard case
+            const s = std.math.sqrt(trace + 1.0) * 2.0; // s = 4 * qw
+            const qw = 0.25 * s;
+            // Fixed: swapped indices to account for data[col][row] storage
+            const qx = (m[1][2] - m[2][1]) / s;
+            const qy = (m[2][0] - m[0][2]) / s;
+            const qz = (m[0][1] - m[1][0]) / s;
+            return Quat{ .data = .{ qx, qy, qz, qw } };
+        } else if (m[0][0] > m[1][1] and m[0][0] > m[2][2]) {
+            // m[0][0] is largest
+            const s = std.math.sqrt(1.0 + m[0][0] - m[1][1] - m[2][2]) * 2.0; // s = 4 * qx
+            const qw = (m[1][2] - m[2][1]) / s;
+            const qx = 0.25 * s;
+            const qy = (m[1][0] + m[0][1]) / s;
+            const qz = (m[2][0] + m[0][2]) / s;
+            return Quat{ .data = .{ qx, qy, qz, qw } };
+        } else if (m[1][1] > m[2][2]) {
+            // m[1][1] is largest
+            const s = std.math.sqrt(1.0 + m[1][1] - m[0][0] - m[2][2]) * 2.0; // s = 4 * qy
+            const qw = (m[2][0] - m[0][2]) / s;
+            const qx = (m[1][0] + m[0][1]) / s;
+            const qy = 0.25 * s;
+            const qz = (m[2][1] + m[1][2]) / s;
+            return Quat{ .data = .{ qx, qy, qz, qw } };
+        } else {
+            // m[2][2] is largest
+            const s = std.math.sqrt(1.0 + m[2][2] - m[0][0] - m[1][1]) * 2.0; // s = 4 * qz
+            const qw = (m[0][1] - m[1][0]) / s;
+            const qx = (m[2][0] + m[0][2]) / s;
+            const qy = (m[2][1] + m[1][2]) / s;
+            const qz = 0.25 * s;
+            return Quat{ .data = .{ qx, qy, qz, qw } };
+        }
     }
 
     pub fn translate(self: *Self, translationVec3: *const Vec3) void {
@@ -343,48 +409,6 @@ pub const Mat4 = extern struct {
         };
     }
 
-    pub fn toQuat(self: *const Self) Quat {
-        // Convert 4x4 rotation matrix to quaternion using Shepperd's method
-        const m = &self.data;
-
-        // Calculate trace
-        const trace = m[0][0] + m[1][1] + m[2][2];
-
-        if (trace > 0.0) {
-            // Standard case
-            const s = std.math.sqrt(trace + 1.0) * 2.0; // s = 4 * qw
-            const qw = 0.25 * s;
-            const qx = (m[2][1] - m[1][2]) / s;
-            const qy = (m[0][2] - m[2][0]) / s;
-            const qz = (m[1][0] - m[0][1]) / s;
-            return Quat{ .data = .{ qx, qy, qz, qw } };
-        } else if (m[0][0] > m[1][1] and m[0][0] > m[2][2]) {
-            // m[0][0] is largest
-            const s = std.math.sqrt(1.0 + m[0][0] - m[1][1] - m[2][2]) * 2.0; // s = 4 * qx
-            const qw = (m[2][1] - m[1][2]) / s;
-            const qx = 0.25 * s;
-            const qy = (m[0][1] + m[1][0]) / s;
-            const qz = (m[0][2] + m[2][0]) / s;
-            return Quat{ .data = .{ qx, qy, qz, qw } };
-        } else if (m[1][1] > m[2][2]) {
-            // m[1][1] is largest
-            const s = std.math.sqrt(1.0 + m[1][1] - m[0][0] - m[2][2]) * 2.0; // s = 4 * qy
-            const qw = (m[0][2] - m[2][0]) / s;
-            const qx = (m[0][1] + m[1][0]) / s;
-            const qy = 0.25 * s;
-            const qz = (m[1][2] + m[2][1]) / s;
-            return Quat{ .data = .{ qx, qy, qz, qw } };
-        } else {
-            // m[2][2] is largest
-            const s = std.math.sqrt(1.0 + m[2][2] - m[0][0] - m[1][1]) * 2.0; // s = 4 * qz
-            const qw = (m[1][0] - m[0][1]) / s;
-            const qx = (m[0][2] + m[2][0]) / s;
-            const qy = (m[1][2] + m[2][1]) / s;
-            const qz = 0.25 * s;
-            return Quat{ .data = .{ qx, qy, qz, qw } };
-        }
-    }
-
     pub fn perspectiveRhGl(fov: f32, aspect: f32, near: f32, far: f32) Self {
         // Right-handed perspective projection matrix for OpenGL (Z from -1 to 1)
         const f = 1.0 / std.math.tan(fov * 0.5);
@@ -418,18 +442,18 @@ pub const Mat4 = extern struct {
         const f = center.sub(eye).toNormalized();
 
         // Right vector: cross(forward, up) - note the order!
-        const s = f.crossNormalized(up);
+        const r = f.crossNormalized(up);
 
         // Up vector: cross(right, forward)
-        const u = s.crossNormalized(&f);
+        const u = r.crossNormalized(&f);
 
         // Direct matrix construction matching CGLM exactly
         return Mat4{
             .data = .{
-                .{ s.x, u.x, -f.x, 0.0 }, // Column 0: right.x, up.x, -forward.x
-                .{ s.y, u.y, -f.y, 0.0 }, // Column 1: right.y, up.y, -forward.y
-                .{ s.z, u.z, -f.z, 0.0 }, // Column 2: right.z, up.z, -forward.z
-                .{ -s.dot(eye), -u.dot(eye), f.dot(eye), 1.0 }, // Column 3: translation
+                .{ r.x, u.x, -f.x, 0.0 }, // Column 0: right.x, up.x, -forward.x
+                .{ r.y, u.y, -f.y, 0.0 }, // Column 1: right.y, up.y, -forward.y
+                .{ r.z, u.z, -f.z, 0.0 }, // Column 2: right.z, up.z, -forward.z
+                .{ -r.dot(eye), -u.dot(eye), f.dot(eye), 1.0 }, // Column 3: translation
             },
         };
     }

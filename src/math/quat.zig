@@ -19,36 +19,35 @@ pub const Quat = extern struct {
 
     const Self = @This();
 
-    pub fn identity() Self {
-        return Quat{ .data = .{ 0.0, 0.0, 0.0, 1.0 } };
-    }
-
-    pub fn default() Self {
-        return Quat{ .data = .{ 0.0, 0.0, 0.0, 1.0 } };
-    }
-
-    pub fn init(x: f32, y: f32, z: f32, w: f32) Self {
+    pub inline fn init(x: f32, y: f32, z: f32, w: f32) Self {
         return Quat{ .data = .{ x, y, z, w } };
     }
 
-    pub fn clone(self: *const Self) Quat {
+    pub inline fn identity() Self {
+        return init(0.0, 0.0, 0.0, 1.0);
+    }
+
+    pub inline fn default() Self {
+        return identity();
+    }
+
+    pub inline fn clone(self: *const Self) Quat {
         return Quat{ .data = self.data };
     }
 
-    pub fn fromArray(val: [4]f32) Self {
-        return Quat{ .data = .{ val[0], val[1], val[2], val[3] } };
+    pub inline fn fromArray(val: [4]f32) Self {
+        return init(val[0], val[1], val[2], val[3]);
     }
 
     pub fn fromMat4(mat4: Mat4) Quat {
-        // Use the Mat4.toQuat() method which we've already implemented
         return mat4.toQuat();
     }
 
-    pub fn fromAxisAngle(axis: *const Vec3, angle: f32) Quat {
-        // glam_assert!(axis.is_normalized());
+    /// angle in radians
+    pub inline fn fromAxisAngle(axis: *const Vec3, radians: f32) Quat {
         const normalized_axis = axis.toNormalized();
-        const s = std.math.sin(angle * 0.5);
-        const c = std.math.cos(angle * 0.5);
+        const s = std.math.sin(radians * 0.5);
+        const c = std.math.cos(radians * 0.5);
         const v = normalized_axis.mulScalar(s);
         return init(v.x, v.y, v.z, c);
     }
@@ -57,6 +56,7 @@ pub const Quat = extern struct {
         return @as(*[4]f32, @ptrCast(@constCast(self))).*;
     }
 
+    // for working with cglm
     pub inline fn asCPtrF32(q: *const Quat) [*c]f32 {
         return @as([*c]f32, @ptrCast(@constCast(q)));
     }
@@ -199,6 +199,16 @@ pub const Quat = extern struct {
         } };
     }
 
+    /// Converts a quaternion rotation to three orthonormal basis vectors.
+    ///
+    /// Returns an array of three Vec4 representing the coordinate axes:
+    /// - [0]: right vector (local X-axis)
+    /// - [1]: up vector (local Y-axis)
+    /// - [2]: forward vector (local Z-axis)
+    ///
+    /// The quaternion is automatically normalized before conversion.
+    /// The returned vectors form an orthonormal basis suitable for constructing
+    /// transformation matrices via Mat4.fromAxes().
     pub fn toAxes(rotation: *const Quat) [3]Vec4 {
         // glam_assert!(rotation.is_normalized());
         const normalized_rotation = rotation.toNormalized();

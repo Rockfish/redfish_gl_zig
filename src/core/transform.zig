@@ -6,6 +6,8 @@ const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
 
+/// Transform borrows heavily on Bevy's implementation.
+/// By openGL convention X is right, Y is up, Z is forward
 pub const Transform = struct {
     translation: Vec3,
     rotation: Quat,
@@ -13,23 +15,15 @@ pub const Transform = struct {
 
     const Self = @This();
 
-    pub fn init() Transform {
+    pub inline fn identity() Transform {
         return Transform{
-            .translation = vec3(0.0, 0.0, 0.0),
-            .rotation = Quat{ .data = [4]f32{ 0.0, 0.0, 0.0, 1.0 } },
-            .scale = vec3(1.0, 1.0, 1.0),
+            .translation = Vec3.zero(),
+            .rotation = Quat.identity(),
+            .scale = Vec3.one(),
         };
     }
 
-    pub fn identity() Transform {
-        return Transform{
-            .translation = vec3(0.0, 0.0, 0.0),
-            .rotation = Quat{ .data = [4]f32{ 0.0, 0.0, 0.0, 1.0 } },
-            .scale = vec3(1.0, 1.0, 1.0),
-        };
-    }
-
-    pub fn clone(self: *const Self) Transform {
+    pub inline fn clone(self: *const Self) Transform {
         return Transform{
             .translation = self.translation,
             .rotation = self.rotation,
@@ -37,42 +31,123 @@ pub const Transform = struct {
         };
     }
 
-    pub fn fromMatrix(m: *const Mat4) Transform {
-        return extractTransformFromMatrix(m);
+    pub inline fn clear(self: *Self) void {
+        self.translation = Vec3.zero();
+        self.rotation = Quat.identity();
+        self.scale = Vec3.one();
     }
 
-    fn extractTransformFromMatrix(matrix: *const Mat4) Transform {
-        // Extract translation (last column)
-        const translation = Vec3.init(matrix.data[3][0], matrix.data[3][1], matrix.data[3][2]);
+    /// Creates Transform at point x,y,z
+    pub inline fn fromXYZ(x: f32, y: f32, z: f32) Transform {
+        return Transform{
+            .translation = Vec3.init(x, y, z),
+            .rotation = Quat.identity(),
+            .scale = Vec3.one(),
+        };
+    }
 
-        // Extract scale (length of first three columns)
-        const scale_x = std.math.sqrt(matrix.data[0][0] * matrix.data[0][0] + matrix.data[1][0] * matrix.data[1][0] + matrix.data[2][0] * matrix.data[2][0]);
-        const scale_y = std.math.sqrt(matrix.data[0][1] * matrix.data[0][1] + matrix.data[1][1] * matrix.data[1][1] + matrix.data[2][1] * matrix.data[2][1]);
-        const scale_z = std.math.sqrt(matrix.data[0][2] * matrix.data[0][2] + matrix.data[1][2] * matrix.data[1][2] + matrix.data[2][2] * matrix.data[2][2]);
-        const extracted_scale = Vec3.init(scale_x, scale_y, scale_z);
+    pub inline fn fromTranslation(translation: Vec3) Transform {
+        return Transform{
+            .translation = translation,
+            .rotation = Quat.identity(),
+            .scale = Vec3.one(),
+        };
+    }
 
-        // Remove scale to get pure rotation matrix
+    pub inline fn fromRotaion(rotation: Quat) Transform {
+        return Transform{
+            .translation = Vec3.zero(),
+            .rotation = rotation,
+            .scale = Vec3.one(),
+        };
+    }
+
+    pub inline fn fromScale(scale: Vec3) Transform {
+        return Transform{
+            .translation = Vec3.zero(),
+            .rotation = Quat.identity(),
+            .scale = scale,
+        };
+    }
+
+    pub fn fromMatrix(matrix: *const Mat4) Transform {
+        const translation = matrix.getWAxis();
+
+        const x_axis = matrix.getXAxis();
+        const y_axis = matrix.getYAxis();
+        const z_axis = matrix.getZAxis();
+
+        const scale = Vec3.init(
+            x_axis.length(),
+            y_axis.length(),
+            z_axis.length(),
+        );
+
+        const inv_scale = scale.recip();
+
         const rotation_matrix = Mat4{ .data = .{
-            .{ matrix.data[0][0] / scale_x, matrix.data[0][1] / scale_y, matrix.data[0][2] / scale_z, 0.0 },
-            .{ matrix.data[1][0] / scale_x, matrix.data[1][1] / scale_y, matrix.data[1][2] / scale_z, 0.0 },
-            .{ matrix.data[2][0] / scale_x, matrix.data[2][1] / scale_y, matrix.data[2][2] / scale_z, 0.0 },
+            .{ x_axis.x * inv_scale.x, x_axis.y * inv_scale.x, x_axis.z * inv_scale.x, 0.0 },
+            .{ y_axis.x * inv_scale.y, y_axis.y * inv_scale.y, y_axis.z * inv_scale.y, 0.0 },
+            .{ z_axis.x * inv_scale.z, z_axis.y * inv_scale.z, z_axis.z * inv_scale.z, 0.0 },
             .{ 0.0, 0.0, 0.0, 1.0 },
         } };
 
-        // Convert rotation matrix to quaternion
         const rotation = rotation_matrix.toQuat();
 
         return Transform{
             .translation = translation,
             .rotation = rotation,
-            .scale = extracted_scale,
+            .scale = scale,
         };
     }
 
-    pub fn clear(self: *Self) void {
-        self.translation = Vec3.zero();
-        self.rotation = Quat.identity();
-        self.scale = Vec3.one();
+    pub fn toMatrix(self: *const Self) Mat4 {
+        return Mat4.fromTranslationRotationScale(
+            &self.translation,
+            &self.rotation,
+            &self.scale,
+        );
+    }
+
+    /// Returns the view matrix (inverse transform) for use as a camera view matrix.
+    /// This is equivalent to Mat4.lookAtRhGl() when the transform represents a camera.
+    /// The view matrix transforms world-space coordinates into camera-space coordinates.
+    pub fn toViewMatrix(self: *const Self) Mat4 {
+        const rot_mat = Mat4.fromQuat(&self.rotation);
+
+        // Extract basis vectors (columns of rotation matrix)
+        const right = rot_mat.getXAxis();
+        const up = rot_mat.getYAxis();
+        const back = rot_mat.getZAxis();
+
+        // View matrix: transpose of rotation (each column contains one component from all basis vectors)
+        // This matches lookAtRhGl format: data[col] = [right.col, up.col, -forward.col, 0]
+        // Since back = -forward, then -forward = back, so we use back directly
+        return Mat4{ .data = .{
+            .{ right.x, up.x, back.x, 0.0 },
+            .{ right.y, up.y, back.y, 0.0 },
+            .{ right.z, up.z, back.z, 0.0 },
+            .{
+                -right.dot(&self.translation),
+                -up.dot(&self.translation),
+                -back.dot(&self.translation),
+                1.0,
+            },
+        } };
+    }
+
+    pub fn equal(self: *const Self, other: Transform) bool {
+        // zig fmt: off
+        return self.translation.x == other.translation.x
+            and self.translation.y == other.translation.y
+            and self.translation.z == other.translation.z
+            and self.rotation.data[0] == other.rotation.data[0]
+            and self.rotation.data[1] == other.rotation.data[1]
+            and self.rotation.data[2] == other.rotation.data[2]
+            and self.rotation.data[3] == other.rotation.data[3]
+            and self.scale.x == self.scale.x
+            and self.scale.y == self.scale.y
+            and self.scale.z == self.scale.z;
     }
 
     /// Blends this transform with another `transform` based on the given `weight`.
@@ -109,8 +184,76 @@ pub const Transform = struct {
         return point;
     }
 
-    pub fn toMatrix(self: *const Self) Mat4 {
-        return Mat4.fromTranslationRotationScale(&self.translation, &self.rotation, &self.scale);
+    /// Rotates this Transform so that it looks in the given direction.
+    /// The forward direction (negative Z-axis in OpenGL convention) will point in the given direction.
+    /// The up vector determines the orientation around that direction.
+    ///
+    /// Fallback behavior (matching Bevy's implementation):
+    /// - If direction cannot be normalized (zero vector), uses (0, 0, -1) as default (NEG_Z)
+    /// - If up cannot be normalized, uses (0, 1, 0) as default (Y)
+    /// - If direction is parallel to up, finds an orthogonal vector for the right direction
+    pub fn lookTo(self: *Self, direction: Vec3, up: Vec3) void {
+        // Back is opposite of forward direction (Bevy uses NEG_Z as forward default)
+        const back_unnormalized = direction.mulScalar(-1.0);
+        const back = blk: {
+            const normalized = back_unnormalized.toNormalized();
+            // toNormalized returns zero vector if input is zero length
+            if (normalized.lengthSquared() == 0.0) {
+                break :blk Vec3.init(0.0, 0.0, -1.0); // NEG_Z default
+            }
+            break :blk normalized;
+        };
+
+        const up_norm = blk: {
+            const normalized = up.toNormalized();
+            if (normalized.lengthSquared() == 0.0) {
+                break :blk Vec3.init(0.0, 1.0, 0.0); // Y default
+            }
+            break :blk normalized;
+        };
+
+        // Compute right vector (perpendicular to both up and back)
+        const right_vec = up_norm.cross(&back);
+        const right = blk: {
+            const normalized = right_vec.toNormalized();
+            if (normalized.lengthSquared() == 0.0) {
+                // If up and back are parallel, find any orthonormal vector to up
+                // Strategy: use a vector that's not parallel to up_norm, cross it
+                const arbitrary = if (@abs(up_norm.y) < 0.9)
+                    Vec3.init(0.0, 1.0, 0.0)
+                else
+                    Vec3.init(1.0, 0.0, 0.0);
+                const ortho = up_norm.cross(&arbitrary);
+                break :blk ortho.toNormalized();
+            }
+            break :blk normalized;
+        };
+
+        // Recompute up to ensure orthogonality (back cross right)
+        const final_up = back.cross(&right);
+
+        // Create rotation matrix from basis vectors (column-major format)
+        // Columns are: right, up, back (matching Bevy's Mat3::from_cols)
+        const rotation_matrix = Mat4{ .data = .{
+            .{ right.x, right.y, right.z, 0.0 },
+            .{ final_up.x, final_up.y, final_up.z, 0.0 },
+            .{ back.x, back.y, back.z, 0.0 },
+            .{ 0.0, 0.0, 0.0, 1.0 },
+        } };
+
+        self.rotation = rotation_matrix.toQuat();
+    }
+
+    /// Rotates this Transform to look at the given target position.
+    /// The forward direction (negative Z-axis in OpenGL convention) will point towards the target.
+    /// The up vector determines the orientation around that direction.
+    ///
+    /// Fallback behavior:
+    /// - If target equals translation (zero direction), uses default forward direction
+    /// - Other fallbacks same as lookTo
+    pub fn lookAt(self: *Self, target: Vec3, up: Vec3) void {
+        const direction = target.sub(&self.translation);
+        self.lookTo(direction, up);
     }
 
     pub fn asString(self: *const Self, buf: []u8) [:0]u8 {
@@ -130,19 +273,5 @@ pub const Transform = struct {
                 self.scale.z,
             },
         ) catch @panic("bufPrintZ error.");
-    }
-
-    pub fn equal(self: *const Self, other: Transform) bool {
-        // zig fmt: off
-        return self.translation.x == other.translation.x
-            and self.translation.y == other.translation.y
-            and self.translation.z == other.translation.z
-            and self.rotation.data[0] == other.rotation.data[0]
-            and self.rotation.data[1] == other.rotation.data[1]
-            and self.rotation.data[2] == other.rotation.data[2]
-            and self.rotation.data[3] == other.rotation.data[3]
-            and self.scale.x == self.scale.x
-            and self.scale.y == self.scale.y
-            and self.scale.z == self.scale.z;
     }
 };
