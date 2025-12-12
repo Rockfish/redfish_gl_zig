@@ -111,7 +111,6 @@ pub fn initGLBuffers(
     var ebo: u32 = 0;
 
     gl.genVertexArrays(1, &vao);
-
     gl.bindVertexArray(vao);
 
     // attach buffer → fill buffer → describe layout → enable attribute.
@@ -192,7 +191,7 @@ pub fn initGLBuffers(
     );
 
     if (is_instanced) {
-        // Per instance transform matrix (locations 2, 3, 4, 5)
+        // Per instance transform matrix (4 locations)
         gl.genBuffers(1, &transforms_vbo);
         gl.bindBuffer(gl.ARRAY_BUFFER, transforms_vbo);
         // Mat4 is 4 Vec4s, so we need 4 attribute locations
@@ -226,10 +225,11 @@ pub fn initGLBuffers(
 }
 
 pub const ShapeType = enum {
-    Cube,
-    Cylinder,
-    Sphere,
-    Custom,
+    square,
+    cube,
+    cylinder,
+    sphere,
+    custom,
 };
 
 pub const Shape = struct {

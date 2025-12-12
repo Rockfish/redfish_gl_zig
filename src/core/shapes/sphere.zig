@@ -21,7 +21,7 @@ pub const Sphere = struct {
     }
 
     fn build(allocator: Allocator, radius: f32, poly_countX: u32, poly_countY: u32) !shape.ShapeBuilder {
-        var builder = shape.ShapeBuilder.init(allocator, .Cylinder, false);
+        var builder = shape.ShapeBuilder.init(allocator, .cylinder, false);
 
         // we are creating the sphere mesh here.
         var polyCountX = poly_countX;
@@ -156,7 +156,7 @@ pub const Sphere = struct {
                 // builder.vertices.items[i] = shape.Vertex.init(pos.x, pos.y, pos.z, normal.x, normal.y, normal.z, tu, @floatCast(ay * math.reciprocal_pi));
                 builder.positions.list.items[i] = pos.asArray();
                 builder.normals.list.items[i] = normal.asArray();
-                builder.texcoords.list.items[i] = .{tu, @floatCast(ay * math.reciprocal_pi)};
+                builder.texcoords.list.items[i] = .{ tu, @floatCast(ay * math.reciprocal_pi) };
                 i += 1;
                 axz += AngleX;
             }
@@ -173,16 +173,16 @@ pub const Sphere = struct {
 
         // the vertex at the top of the sphere
         // builder.vertices.items[i] = shape.Vertex.init(0.0, radius, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0);
-        builder.positions.list.items[i] = .{0.0, radius, 0.0};
-        builder.normals.list.items[i] = .{0.0, 1.0, 0.0};
-        builder.texcoords.list.items[i] = .{0.5, 0.0};
+        builder.positions.list.items[i] = .{ 0.0, radius, 0.0 };
+        builder.normals.list.items[i] = .{ 0.0, 1.0, 0.0 };
+        builder.texcoords.list.items[i] = .{ 0.5, 0.0 };
 
         // the vertex at the bottom of the sphere
         i += 1;
         // builder.vertices.items[i] = shape.Vertex.init(0.0, -radius, 0.0, 0.0, -1.0, 0.0, 0.5, 1.0);
-        builder.positions.list.items[i] = .{0.0, -radius, 0.0};
-        builder.normals.list.items[i] = .{0.0, -1.0, 0.0};
-        builder.texcoords.list.items[i] = .{0.5, 1.0};
+        builder.positions.list.items[i] = .{ 0.0, -radius, 0.0 };
+        builder.normals.list.items[i] = .{ 0.0, -1.0, 0.0 };
+        builder.texcoords.list.items[i] = .{ 0.5, 1.0 };
 
         // recalculate bounding box
 

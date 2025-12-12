@@ -3,11 +3,15 @@ const Cube = @import("cube.zig").Cube;
 const cubeboid = @import("cubeboid.zig");
 const Cylinder = @import("cylinder.zig").Cylinder;
 const Sphere = @import("sphere.zig").Sphere;
+const Square = @import("square.zig").Square;
 
 pub const Shape = @import("shape.zig").Shape;
 
-pub const CubeConfig = cubeboid.CubeConfig;
+pub fn createSquare() !Shape {
+    return try Square.init();
+}
 
+pub const CubeConfig = cubeboid.CubeConfig;
 pub fn createCube(config: cubeboid.CubeConfig) !Shape {
     return try cubeboid.Cubeboid.init(config);
 }

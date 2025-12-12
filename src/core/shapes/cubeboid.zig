@@ -263,7 +263,7 @@ pub const Cubeboid = struct {
         };
 
         return shape.initGLBuffers(
-            .Cube,
+            .cube,
             &positions,
             &texcoords,
             &normals,

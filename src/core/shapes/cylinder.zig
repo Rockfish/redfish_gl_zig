@@ -23,7 +23,7 @@ pub const Cylinder = struct {
     const Self = @This();
 
     pub fn init(allocator: Allocator, radius: f32, height: f32, sides: u32) !shape.Shape {
-        var builder = shape.ShapeBuilder.init(allocator, .Cylinder, false);
+        var builder = shape.ShapeBuilder.init(allocator, .cylinder, false);
         defer builder.deinit();
 
         // Top of cylinder
