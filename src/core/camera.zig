@@ -133,13 +133,16 @@ pub const Camera = struct {
     }
 
     pub fn getLookToView(self: *Self) Mat4 {
-        // std.debug.print("LookTo position: {any}  forward: {any}\n", .{self.movement.position, self.movement.forward});
-        return Mat4.lookToRhGl(&self.movement.position, &self.movement.forward, &self.movement.up);
+        const fwd = self.movement.transform.forward();
+        const up_vec = self.movement.transform.up();
+        // std.debug.print("LookTo position: {any}  forward: {any}\n", .{self.movement.transform.translation, fwd});
+        return Mat4.lookToRhGl(&self.movement.transform.translation, &fwd, &up_vec);
     }
 
     pub fn getLookAtView(self: *Self) Mat4 {
-        // std.debug.print("LookAt position: {any}  target: {any}\n", .{self.movement.position, self.movement.target});
-        return Mat4.lookAtRhGl(&self.movement.position, &self.movement.target, &self.movement.up);
+        const up_vec = self.movement.transform.up();
+        // std.debug.print("LookAt position: {any}  target: {any}\n", .{self.movement.transform.translation, self.movement.target});
+        return Mat4.lookAtRhGl(&self.movement.transform.translation, &self.movement.target, &up_vec);
     }
 
     pub fn getFov(self: *const Self) f32 {
@@ -199,6 +202,9 @@ pub const Camera = struct {
         var forward: [100]u8 = undefined;
         var right: [100]u8 = undefined;
         var up: [100]u8 = undefined;
+        const fwd = self.movement.transform.forward();
+        const right_vec = self.movement.transform.right();
+        const up_vec = self.movement.transform.up();
         return std.fmt.bufPrint(
             buf,
             "Camera:\n   view_type: {any}\n   direction: {any}\n   velocity: {d}\n   position: {s}\n   target: {s}\n   forward: {s}  angle: {d}\n   right: {s}\n   up: {s}\n",
@@ -206,12 +212,12 @@ pub const Camera = struct {
                 self.view_type,
                 self.movement.direction,
                 self.translation_speed,
-                self.movement.position.asString(&position),
+                self.movement.transform.translation.asString(&position),
                 self.movement.target.asString(&target),
-                self.movement.forward.asString(&forward),
-                math.radiansToDegrees(Vec3.angle(&z_direction, &math.vec3(self.movement.forward.x, 0.0, self.movement.forward.z))),
-                self.movement.right.asString(&right),
-                self.movement.up.asString(&up),
+                fwd.asString(&forward),
+                math.radiansToDegrees(Vec3.angle(&z_direction, &math.vec3(fwd.x, 0.0, fwd.z))),
+                right_vec.asString(&right),
+                up_vec.asString(&up),
             },
         ) catch |err| std.debug.panic("{any}", .{err});
     }

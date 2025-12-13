@@ -116,21 +116,21 @@ pub const Transform = struct {
         const rot_mat = Mat4.fromQuat(&self.rotation);
 
         // Extract basis vectors (columns of rotation matrix)
-        const right = rot_mat.getXAxis();
-        const up = rot_mat.getYAxis();
-        const back = rot_mat.getZAxis();
+        const right_vec = rot_mat.getXAxis();
+        const up_vec = rot_mat.getYAxis();
+        const back_vec = rot_mat.getZAxis();
 
         // View matrix: transpose of rotation (each column contains one component from all basis vectors)
         // This matches lookAtRhGl format: data[col] = [right.col, up.col, -forward.col, 0]
         // Since back = -forward, then -forward = back, so we use back directly
         return Mat4{ .data = .{
-            .{ right.x, up.x, back.x, 0.0 },
-            .{ right.y, up.y, back.y, 0.0 },
-            .{ right.z, up.z, back.z, 0.0 },
+            .{ right_vec.x, up_vec.x, back_vec.x, 0.0 },
+            .{ right_vec.y, up_vec.y, back_vec.y, 0.0 },
+            .{ right_vec.z, up_vec.z, back_vec.z, 0.0 },
             .{
-                -right.dot(&self.translation),
-                -up.dot(&self.translation),
-                -back.dot(&self.translation),
+                -right_vec.dot(&self.translation),
+                -up_vec.dot(&self.translation),
+                -back_vec.dot(&self.translation),
                 1.0,
             },
         } };
@@ -192,7 +192,7 @@ pub const Transform = struct {
     /// - If direction cannot be normalized (zero vector), uses (0, 0, -1) as default (NEG_Z)
     /// - If up cannot be normalized, uses (0, 1, 0) as default (Y)
     /// - If direction is parallel to up, finds an orthogonal vector for the right direction
-    pub fn lookTo(self: *Self, direction: Vec3, up: Vec3) void {
+    pub fn lookTo(self: *Self, direction: Vec3, up_dir: Vec3) void {
         // Back is opposite of forward direction (Bevy uses NEG_Z as forward default)
         const back_unnormalized = direction.mulScalar(-1.0);
         const back = blk: {
@@ -205,7 +205,7 @@ pub const Transform = struct {
         };
 
         const up_norm = blk: {
-            const normalized = up.toNormalized();
+            const normalized = up_dir.toNormalized();
             if (normalized.lengthSquared() == 0.0) {
                 break :blk Vec3.init(0.0, 1.0, 0.0); // Y default
             }
@@ -214,7 +214,7 @@ pub const Transform = struct {
 
         // Compute right vector (perpendicular to both up and back)
         const right_vec = up_norm.cross(&back);
-        const right = blk: {
+        const right_norm = blk: {
             const normalized = right_vec.toNormalized();
             if (normalized.lengthSquared() == 0.0) {
                 // If up and back are parallel, find any orthonormal vector to up
@@ -230,12 +230,12 @@ pub const Transform = struct {
         };
 
         // Recompute up to ensure orthogonality (back cross right)
-        const final_up = back.cross(&right);
+        const final_up = back.cross(&right_norm);
 
         // Create rotation matrix from basis vectors (column-major format)
         // Columns are: right, up, back (matching Bevy's Mat3::from_cols)
         const rotation_matrix = Mat4{ .data = .{
-            .{ right.x, right.y, right.z, 0.0 },
+            .{ right_norm.x, right_norm.y, right_norm.z, 0.0 },
             .{ final_up.x, final_up.y, final_up.z, 0.0 },
             .{ back.x, back.y, back.z, 0.0 },
             .{ 0.0, 0.0, 0.0, 1.0 },
@@ -251,9 +251,40 @@ pub const Transform = struct {
     /// Fallback behavior:
     /// - If target equals translation (zero direction), uses default forward direction
     /// - Other fallbacks same as lookTo
-    pub fn lookAt(self: *Self, target: Vec3, up: Vec3) void {
+    pub fn lookAt(self: *Self, target: Vec3, up_dir: Vec3) void {
         const direction = target.sub(&self.translation);
-        self.lookTo(direction, up);
+        self.lookTo(direction, up_dir);
+    }
+
+    /// Get the forward direction vector (negative Z-axis in OpenGL convention).
+    /// This is the direction the transform is "looking" towards.
+    pub fn forward(self: *const Self) Vec3 {
+        return self.rotation.rotateVec(&Vec3.init(0.0, 0.0, -1.0));
+    }
+
+    /// Get the up direction vector (positive Y-axis in OpenGL convention).
+    /// This represents the local "up" direction of the transform.
+    pub fn up(self: *const Self) Vec3 {
+        return self.rotation.rotateVec(&Vec3.init(0.0, 1.0, 0.0));
+    }
+
+    /// Get the right direction vector (positive X-axis in OpenGL convention).
+    /// This represents the local "right" direction of the transform.
+    pub fn right(self: *const Self) Vec3 {
+        return self.rotation.rotateVec(&Vec3.init(1.0, 0.0, 0.0));
+    }
+
+    /// Apply a rotation to this transform.
+    /// The rotation is applied in parent space (before the current rotation).
+    pub fn rotate(self: *Self, rotation: Quat) void {
+        self.rotation = Quat.mulQuat(&rotation, &self.rotation);
+    }
+
+    /// Rotate this transform around an arbitrary axis by the given angle (in radians).
+    /// The axis is in parent space (not local space).
+    pub fn rotateAxis(self: *Self, axis: Vec3, angle: f32) void {
+        const rot = Quat.fromAxisAngle(&axis, angle);
+        self.rotate(rot);
     }
 
     pub fn asString(self: *const Self, buf: []u8) [:0]u8 {
@@ -275,3 +306,146 @@ pub const Transform = struct {
         ) catch @panic("bufPrintZ error.");
     }
 };
+
+test "basis vectors for identity transform" {
+    const transform = Transform.identity();
+    const epsilon = 0.0001;
+
+    const fwd = transform.forward();
+    const up_vec = transform.up();
+    const right_vec = transform.right();
+
+    // Identity transform should have standard basis vectors
+    try std.testing.expectApproxEqAbs(fwd.x, 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.y, 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.z, -1.0, epsilon); // forward is -Z
+
+    try std.testing.expectApproxEqAbs(up_vec.x, 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(up_vec.y, 1.0, epsilon);
+    try std.testing.expectApproxEqAbs(up_vec.z, 0.0, epsilon); // up is +Y
+
+    try std.testing.expectApproxEqAbs(right_vec.x, 1.0, epsilon);
+    try std.testing.expectApproxEqAbs(right_vec.y, 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(right_vec.z, 0.0, epsilon); // right is +X
+}
+
+test "basis vectors after Y rotation" {
+    var transform = Transform.identity();
+    const epsilon = 0.0001;
+
+    // Rotate 90 degrees around Y axis (right-hand rule: counterclockwise when viewed from +Y)
+    const angle = math.pi / 2.0;
+    const rot = Quat.fromAxisAngle(&Vec3.init(0.0, 1.0, 0.0), angle);
+    transform.rotation = rot;
+
+    const fwd = transform.forward();
+    const right_vec = transform.right();
+
+    // After 90° Y rotation: forward (0,0,-1) rotates to (-1,0,0), right (1,0,0) rotates to (0,0,-1)
+    try std.testing.expectApproxEqAbs(fwd.x, -1.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.y, 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.z, 0.0, epsilon);
+
+    try std.testing.expectApproxEqAbs(right_vec.x, 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(right_vec.y, 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(right_vec.z, -1.0, epsilon);
+}
+
+test "rotate method applies rotation" {
+    var transform = Transform.identity();
+    const epsilon = 0.0001;
+
+    // Apply 90 degree rotation around Y axis
+    const angle = math.pi / 2.0;
+    const rot = Quat.fromAxisAngle(&Vec3.init(0.0, 1.0, 0.0), angle);
+    transform.rotate(rot);
+
+    const fwd = transform.forward();
+
+    // Forward (0,0,-1) after 90° Y rotation should point in -X direction (-1,0,0)
+    try std.testing.expectApproxEqAbs(fwd.x, -1.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.y, 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.z, 0.0, epsilon);
+}
+
+test "rotateAxis method" {
+    var transform = Transform.identity();
+    const epsilon = 0.0001;
+
+    // Rotate 90 degrees around Y axis using rotateAxis
+    const angle = math.pi / 2.0;
+    const axis = Vec3.init(0.0, 1.0, 0.0);
+    transform.rotateAxis(axis, angle);
+
+    const fwd = transform.forward();
+
+    // Forward (0,0,-1) after 90° Y rotation should point in -X direction (-1,0,0)
+    try std.testing.expectApproxEqAbs(fwd.x, -1.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.y, 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.z, 0.0, epsilon);
+}
+
+test "multiple rotations maintain orthonormality" {
+    var transform = Transform.identity();
+    const epsilon = 0.001;
+
+    // Apply multiple rotations
+    for (0..20) |_| {
+        transform.rotateAxis(Vec3.init(0.0, 1.0, 0.0), math.degreesToRadians(15.0));
+        transform.rotateAxis(Vec3.init(1.0, 0.0, 0.0), math.degreesToRadians(10.0));
+        transform.rotateAxis(Vec3.init(0.0, 0.0, 1.0), math.degreesToRadians(5.0));
+    }
+
+    const fwd = transform.forward();
+    const up_vec = transform.up();
+    const right_vec = transform.right();
+
+    // All basis vectors should remain unit length
+    try std.testing.expectApproxEqAbs(fwd.length(), 1.0, epsilon);
+    try std.testing.expectApproxEqAbs(up_vec.length(), 1.0, epsilon);
+    try std.testing.expectApproxEqAbs(right_vec.length(), 1.0, epsilon);
+
+    // Basis vectors should remain orthogonal
+    try std.testing.expectApproxEqAbs(fwd.dot(&up_vec), 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.dot(&right_vec), 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(up_vec.dot(&right_vec), 0.0, epsilon);
+}
+
+test "lookAt sets correct forward direction" {
+    var transform = Transform.fromTranslation(Vec3.init(0.0, 0.0, 10.0));
+    const target = Vec3.init(0.0, 0.0, 0.0);
+    const world_up = Vec3.init(0.0, 1.0, 0.0);
+
+    transform.lookAt(target, world_up);
+
+    const fwd = transform.forward();
+    const expected_fwd = Vec3.init(0.0, 0.0, -1.0); // Should point towards target
+    const epsilon = 0.0001;
+
+    try std.testing.expectApproxEqAbs(fwd.x, expected_fwd.x, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.y, expected_fwd.y, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.z, expected_fwd.z, epsilon);
+}
+
+test "basis vectors form right-handed coordinate system" {
+    var transform = Transform.identity();
+    const epsilon = 0.0001;
+
+    // Rotate to a non-trivial orientation
+    transform.rotateAxis(Vec3.init(1.0, 1.0, 1.0).toNormalized(), math.degreesToRadians(45.0));
+
+    const fwd = transform.forward();
+    const up_vec = transform.up();
+    const right_vec = transform.right();
+
+    // In a right-handed system: right = up × forward (or forward × up depending on convention)
+    // For OpenGL convention: right × up should give forward (or close to it)
+    const cross = right_vec.cross(&up_vec);
+
+    // The cross product should point in the forward direction (negative Z becomes positive after cross)
+    // Actually, right × up = -forward in our convention, so we negate
+    try std.testing.expectApproxEqAbs(cross.x, -fwd.x, epsilon);
+    try std.testing.expectApproxEqAbs(cross.y, -fwd.y, epsilon);
+    try std.testing.expectApproxEqAbs(cross.z, -fwd.z, epsilon);
+}
+
