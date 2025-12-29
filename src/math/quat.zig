@@ -201,15 +201,15 @@ pub const Quat = extern struct {
 
     /// Converts a quaternion rotation to three orthonormal basis vectors.
     ///
-    /// Returns an array of three Vec4 representing the coordinate axes:
-    /// - [0]: right vector (local X-axis)
-    /// - [1]: up vector (local Y-axis)
-    /// - [2]: forward vector (local Z-axis)
+    /// Returns a tuple of three Vec3 representing the coordinate axes:
+    /// - right: right vector (local X-axis, quat i axis)
+    /// - up: up vector (local Y-axis, quat j axis)
+    /// - forward: forward vector (local Z-axis, quat k axis)
     ///
     /// The quaternion is automatically normalized before conversion.
     /// The returned vectors form an orthonormal basis suitable for constructing
     /// transformation matrices via Mat4.fromAxes().
-    pub fn toAxes(rotation: *const Quat) [3]Vec4 {
+    pub fn toAxes(rotation: *const Quat) struct { right: Vec3, up: Vec3, forward: Vec3 } {
         // glam_assert!(rotation.is_normalized());
         const normalized_rotation = rotation.toNormalized();
         const x = normalized_rotation.data[0];
@@ -229,39 +229,122 @@ pub const Quat = extern struct {
         const wy = w * y2;
         const wz = w * z2;
 
-        const x_axis: Vec4 = Vec4.init(1.0 - (yy + zz), xy + wz, xz - wy, 0.0);
-        const y_axis: Vec4 = Vec4.init(xy - wz, 1.0 - (xx + zz), yz + wx, 0.0);
-        const z_axis: Vec4 = Vec4.init(xz + wy, yz - wx, 1.0 - (xx + yy), 0.0);
-        return .{ x_axis, y_axis, z_axis };
+        const right_vec: Vec3 = Vec3.init(1.0 - (yy + zz), xy + wz, xz - wy);
+        const up_vec: Vec3 = Vec3.init(xy - wz, 1.0 - (xx + zz), yz + wx);
+        const forward_vec: Vec3 = Vec3.init(xz + wy, yz - wx, 1.0 - (xx + yy));
+        return .{ .right = right_vec, .up = up_vec, .forward = forward_vec };
     }
 
-    pub fn lookAtOrientation(position: Vec3, target: Vec3, up: Vec3) Quat {
+    /// Get the right direction vector (rotated +X axis, quat i axis).
+    /// This represents the local right direction after applying this rotation.
+    pub fn right(self: *const Self) Vec3 {
+        return self.rotateVec(&Vec3.init(1.0, 0.0, 0.0));
+    }
+
+    /// Get the up direction vector (rotated +Y axis, quat j axis).
+    /// This represents the local up direction after applying this rotation.
+    pub fn up(self: *const Self) Vec3 {
+        return self.rotateVec(&Vec3.init(0.0, 1.0, 0.0));
+    }
+
+    /// Get the forward direction vector (rotated -Z axis, OpenGL convention).
+    /// This represents the local forward direction after applying this rotation.
+    /// In OpenGL convention, forward is the negative Z-axis.
+    pub fn forward(self: *const Self) Vec3 {
+        return self.rotateVec(&Vec3.init(0.0, 0.0, -1.0));
+    }
+
+    /// Get the back direction vector (rotated +Z axis, quat k axis).
+    /// This represents the local back direction after applying this rotation.
+    pub fn back(self: *const Self) Vec3 {
+        return self.rotateVec(&Vec3.init(0.0, 0.0, 1.0));
+    }
+
+    pub fn lookAtOrientation(position: Vec3, target: Vec3, up_dir: Vec3) Quat {
         // Calculate direction vector
-        var dir = target.sub(&position);
-        if (dir.lengthSquared() == 0.0) {
+        var forward_dir = target.sub(&position);
+        if (forward_dir.lengthSquared() == 0.0) {
             return Quat.identity();
         }
-        dir.normalize();
+        forward_dir.normalize();
 
         // Normalize up vector
-        var up_normalized = up;
+        var up_normalized = up_dir;
         up_normalized.normalize();
 
         // Calculate right vector (cross product of forward and up)
-        const right = dir.crossNormalized(&up_normalized);
+        const right_vec = forward_dir.crossNormalized(&up_normalized);
 
         // Recalculate up vector to ensure orthogonality
-        const new_up = right.crossNormalized(&dir);
+        const new_up = right_vec.crossNormalized(&forward_dir);
 
         // Create rotation matrix from basis vectors
         const rotation_matrix = Mat4{ .data = .{
-            .{ right.x, right.y, right.z, 0.0 },
+            .{ right_vec.x, right_vec.y, right_vec.z, 0.0 },
             .{ new_up.x, new_up.y, new_up.z, 0.0 },
-            .{ dir.x, dir.y, dir.z, 0.0 },
+            .{ forward_dir.x, forward_dir.y, forward_dir.z, 0.0 },
             .{ 0.0, 0.0, 0.0, 1.0 },
         } };
 
         // Convert rotation matrix to quaternion
         return rotation_matrix.toQuat();
+    }
+
+    /// Convert quaternion to Euler angles (yaw, pitch, roll) in radians
+    /// Returns Vec3 where:
+    /// - x = yaw (rotation around Y axis)
+    /// - y = pitch (rotation around X axis)
+    /// - z = roll (rotation around Z axis)
+    /// Uses ZYX rotation order (yaw-pitch-roll)
+    pub fn toEulerAngles(self: *const Self) Vec3 {
+        const x = self.data[0];
+        const y = self.data[1];
+        const z = self.data[2];
+        const w = self.data[3];
+
+        // Roll (z-axis rotation)
+        const sin_r_cp = 2.0 * (w * x + y * z);
+        const cos_r_cp = 1.0 - 2.0 * (x * x + y * y);
+        const roll = std.math.atan2(sin_r_cp, cos_r_cp);
+
+        // Pitch (y-axis rotation)
+        const sin_p = 2.0 * (w * y - z * x);
+        const pitch = if (@abs(sin_p) >= 1.0)
+            std.math.copysign(std.math.pi / 2.0, sin_p) // Use 90 degrees if out of range
+        else
+            std.math.asin(sin_p);
+
+        // Yaw (x-axis rotation)
+        const sin_y_cp = 2.0 * (w * z + x * y);
+        const cos_y_cp = 1.0 - 2.0 * (y * y + z * z);
+        const yaw = std.math.atan2(sin_y_cp, cos_y_cp);
+
+        return Vec3.init(yaw, pitch, roll);
+    }
+
+    /// Create quaternion from Euler angles (yaw, pitch, roll) in radians
+    /// Input Vec3 where:
+    /// - x = yaw (rotation around Y axis)
+    /// - y = pitch (rotation around X axis)
+    /// - z = roll (rotation around Z axis)
+    /// Uses ZYX rotation order (yaw-pitch-roll)
+    pub fn fromEulerAngles(euler: Vec3) Self {
+        const yaw = euler.x;
+        const pitch = euler.y;
+        const roll = euler.z;
+
+        const cy = @cos(yaw * 0.5);
+        const sy = @sin(yaw * 0.5);
+        const cp = @cos(pitch * 0.5);
+        const sp = @sin(pitch * 0.5);
+        const cr = @cos(roll * 0.5);
+        const sr = @sin(roll * 0.5);
+
+        const w = cr * cp * cy + sr * sp * sy;
+        const x = sr * cp * cy - cr * sp * sy;
+        const y = cr * sp * cy + sr * cp * sy;
+        const z = cr * cp * sy - sr * sp * cy;
+
+        return Self{ .data = .{ x, y, z, w } };
     }
 };

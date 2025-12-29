@@ -229,6 +229,7 @@ pub const ShapeType = enum {
     cube,
     cylinder,
     sphere,
+    skybox,
     custom,
 };
 
@@ -240,20 +241,20 @@ pub const Shape = struct {
     transforms_vbo: u32,
     num_indices: i32 = 0,
     aabb: AABB,
+    gl_texture_id: u32 = 0,  // Perhaps the original type should manage these and deinit them
 
     const Self = @This();
 
-    // pub fn init(vertex_data: *const VertexData, shape_type: ShapeType) !Shape {
-    //     return initGLBuffers(vertex_data, shape_type);
-    // }
-
     pub fn deinit(self: *Self) void {
+        // deinit should be delegated to original type. Use union?
         gl.deleteVertexArrays(1, &self.vao);
         gl.deleteBuffers(1, &self.vbo);
         gl.deleteBuffers(1, &self.ebo);
         gl.deleteBuffers(1, &self.transforms_vbo);
+        gl.deleteTextures(1, &self.gl_texture_id);
     }
 
+    // delegate?
     pub fn draw(self: *const Self) void {
         gl.bindVertexArray(self.vao);
         gl.drawElements(
@@ -265,7 +266,8 @@ pub const Shape = struct {
         gl.bindVertexArray(0);
     }
 
-    pub fn drawInstanced(self: *const Self, instance_count: i32, instanceTransforms: []Mat4) void {
+    // delegate?
+    pub fn drawInstanced(self: *const Self, instance_count: usize, instanceTransforms: []Mat4) void {
         gl.bindVertexArray(self.vao);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, self.transforms_vbo);
@@ -281,7 +283,7 @@ pub const Shape = struct {
             self.num_indices,
             gl.UNSIGNED_INT,
             null,
-            instance_count,
+            @intCast(instance_count),
         );
         gl.bindVertexArray(0);
     }

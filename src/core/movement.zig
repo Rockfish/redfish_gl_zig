@@ -8,34 +8,52 @@ pub const Quat = math.Quat;
 pub const Transform = @import("transform.zig").Transform;
 
 pub const MovementDirection = enum {
+    // Translation (affects transform.translation only)
     forward,
     backward,
     left,
     right,
     up,
     down,
+
+    // Rotation (affects transform.rotation only, independent of look direction)
     rotate_right,
     rotate_left,
     rotate_up,
     rotate_down,
     roll_right,
     roll_left,
-    radius_in,
-    radius_out,
-    orbit_up,
-    orbit_down,
+
+    // Orbit (moves transform around a point, requires external target management)
     orbit_left,
     orbit_right,
-    circle_right,
+    orbit_up,
+    orbit_down,
+
+    // Circle (orbit using world-up, allows pole crossing)
     circle_left,
-    circle_up, // always cross the pole
+    circle_right,
+    circle_up,
     circle_down,
+
+    // Radius (distance between transform and external target)
+    radius_in,
+    radius_out,
+};
+
+pub const LookMode = enum {
+    /// Use transform.forward() direction
+    transform,
+    /// Use look_direction converted to world space
+    look,
 };
 
 const world_up = Vec3.init(0.0, 1.0, 0.0);
 const half_pi = math.pi / 2.0;
 const POSITION_EPSILON: f32 = 0.0001;
 const AXIS_EPSILON: f32 = 1e-6;
+
+var buf: [250]u8 = undefined;
 
 /// Movement controller system with Transform-based orientation.
 ///
@@ -45,8 +63,8 @@ const AXIS_EPSILON: f32 = 1e-6;
 /// - Translation: forward/backward, left/right, up/down
 /// - Rotation: rotate target around position (first-person style)
 /// - Roll: rotate around forward axis
-/// - Orbit: rotate position around target (third-person style)
-/// - Circle: orbit using world-up axis, allowing pole crossing
+/// - Orbit: rotate position around target in the plane defined by the right vector
+/// - Circle: longitudinal and latitudinal around the world-up axis, allowing pole crossing
 /// - Radius: adjust distance to target
 ///
 /// Orientation is maintained by Transform's quaternion-based rotation,
@@ -54,12 +72,19 @@ const AXIS_EPSILON: f32 = 1e-6;
 /// The `update_tick` counter increments on any state change for tracking
 /// when updates occur.
 pub const Movement = struct {
+    /// Primary transform for position and orientation
     transform: Transform,
+
+    /// Target position for orbit, circle, and radius operations
     target: Vec3,
+
+    /// Movement parameters
     world_up: Vec3 = world_up,
-    translate_speed: f32 = 50.0,
-    rotation_speed: f32 = 50.0,
-    orbit_speed: f32 = 50.0,
+    translate_speed: f32 = 10,
+    rotation_speed: f32 = 50,
+    orbit_speed: f32 = 50,
+
+    /// State tracking
     direction: MovementDirection = .forward,
     update_tick: u64 = 0,
 
@@ -78,11 +103,6 @@ pub const Movement = struct {
         self.transform.translation = position;
         self.transform.lookAt(target, self.world_up);
         self.target = target;
-        self.update_tick +%= 1;
-    }
-
-    pub fn translate(self: *Self, offset: Vec3) void {
-        self.transform.translation = self.transform.translation.add(&offset);
         self.update_tick +%= 1;
     }
 
@@ -116,21 +136,78 @@ pub const Movement = struct {
         return self.transform.toMatrix();
     }
 
+    /// Set the target position for orbit, circle, and radius operations
+    pub fn setTarget(self: *Self, target: Vec3) void {
+        self.target = target;
+        self.update_tick +%= 1;
+    }
+
+    // /// Get the world-space look direction based on mode
+    // pub fn getWorldLookDirection(self: *const Self, mode: LookMode) Vec3 {
+    //     return switch (mode) {
+    //         .transform => self.transform.forward(),
+    //         .look => self.transform.rotation.rotateVec(&self.look_direction),
+    //     };
+    // }
+
+    // /// Set look direction to point toward a world position
+    // pub fn setLookTarget(self: *Self, world_pos: Vec3) void {
+    //     const world_direction = world_pos.sub(&self.transform.translation).toNormalized();
+    //     // Convert world direction to local space
+    //     const inv_rotation = self.transform.rotation.conjugate();
+    //     self.look_direction = inv_rotation.rotateVec(&world_direction);
+    //     self.update_tick +%= 1;
+    // }
+
+    pub fn translate(self: *Self, offset: Vec3) void {
+        self.transform.translation = self.transform.translation.add(&offset);
+        self.update_tick +%= 1;
+    }
+
+    /// Calculate world-space right vector orthogonal to world_up and direction to target
+    /// Useful for creating horizontal coordinate systems aligned with a target
+    pub fn getWorldRight(self: *const Self) Vec3 {
+        const direction_to_target = self.target.sub(&self.transform.translation).toNormalized();
+
+        // // Check if looking straight up or down
+        // const dot_with_up = @abs(direction_to_target.dot(&self.world_up));
+        // if (dot_with_up > 0.99) {
+        //     // Use world X-axis as fallback when looking straight up/down
+        //     return Vec3.init(1.0, 0.0, 0.0);
+        // }
+
+        // Right = direction_to_target × world_up (cross product)
+        // This gives us a vector perpendicular to both direction and world_up
+        return direction_to_target.cross(&self.world_up).toNormalized();
+    }
+
+    fn circleAxis(self: *Self, axis: *const Vec3, angle_radians: f32) void {
+        const rot = Quat.fromAxisAngle(axis, angle_radians);
+        self.rotatePosition(rot);
+        self.transform.lookAt(self.target, self.world_up);
+    }
+
+    fn orbitAxis(self: *Self, axis: *const Vec3, angle_radians: f32) void {
+        const rot = Quat.fromAxisAngle(axis, angle_radians);
+        self.rotatePosition(rot);
+        self.transform.rotate(rot);
+    }
+
     /// Rotate position around target, preserving exact radius
-    fn rotatePositionAroundTarget(self: *Self, rotation: Quat) void {
+    fn rotatePosition(self: *Self, rotation: Quat) void {
         const radius_vec = self.transform.translation.sub(&self.target);
         const target_radius = radius_vec.length();
-        const rotated_position = rotation.rotateVec(&radius_vec);
-        self.transform.translation = self.target.add(&rotated_position.toNormalized().mulScalar(target_radius));
+        const rotated_position = rotation.rotateVec(&radius_vec).toNormalized();
+        self.transform.translation = self.target.add(&rotated_position.mulScalar(target_radius));
         self.update_tick +%= 1;
     }
 
     /// Rotate target around position, preserving exact distance
-    fn rotateTargetAroundPosition(self: *Self, rotation: Quat) void {
+    fn rotateTarget(self: *Self, rotation: Quat) void {
         const target_vec = self.target.sub(&self.transform.translation);
         const target_distance = target_vec.length();
-        const rotated_target = rotation.rotateVec(&target_vec);
-        self.target = self.transform.translation.add(&rotated_target.toNormalized().mulScalar(target_distance));
+        const rotated_target = rotation.rotateVec(&target_vec).toNormalized();
+        self.target = self.transform.translation.add(&rotated_target.mulScalar(target_distance));
         self.update_tick +%= 1;
     }
 
@@ -177,25 +254,29 @@ pub const Movement = struct {
                 const up_vec = self.transform.up();
                 const rot = Quat.fromAxisAngle(&up_vec, -rot_angle);
                 self.transform.rotate(rot);
-                self.rotateTargetAroundPosition(rot);
+                // self.rotateTarget(rot);
+                // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
             },
             .rotate_left => {
                 const up_vec = self.transform.up();
                 const rot = Quat.fromAxisAngle(&up_vec, rot_angle);
                 self.transform.rotate(rot);
-                self.rotateTargetAroundPosition(rot);
+                // self.rotateTarget(rot);
+                // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
             },
             .rotate_up => {
                 const right_vec = self.transform.right();
                 const rot = Quat.fromAxisAngle(&right_vec, rot_angle);
                 self.transform.rotate(rot);
-                self.rotateTargetAroundPosition(rot);
+                // self.rotateTarget(rot);
+                // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
             },
             .rotate_down => {
                 const right_vec = self.transform.right();
                 const rot = Quat.fromAxisAngle(&right_vec, -rot_angle);
                 self.transform.rotate(rot);
-                self.rotateTargetAroundPosition(rot);
+                // self.rotateTarget(rot);
+                // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
             },
             .roll_right => {
                 const fwd = self.transform.forward();
@@ -224,60 +305,30 @@ pub const Movement = struct {
                 self.transform.translation = self.transform.translation.sub(&dir.mulScalar(translation_velocity));
             },
             .orbit_right => {
-                const up_vec = self.transform.up();
-                const rot = Quat.fromAxisAngle(&up_vec, orbit_angle);
-                self.rotatePositionAroundTarget(rot);
-                self.transform.rotate(rot);
+                self.orbitAxis(&self.transform.up(), orbit_angle);
             },
             .orbit_left => {
-                const up_vec = self.transform.up();
-                const rot = Quat.fromAxisAngle(&up_vec, -orbit_angle);
-                self.rotatePositionAroundTarget(rot);
-                self.transform.rotate(rot);
+                self.orbitAxis(&self.transform.up(), -orbit_angle);
             },
             .orbit_up => {
-                const right_vec = self.transform.right();
-                const rot = Quat.fromAxisAngle(&right_vec, -orbit_angle);
-                self.rotatePositionAroundTarget(rot);
-                self.transform.rotate(rot);
+                self.orbitAxis(&self.transform.right(), -orbit_angle);
             },
             .orbit_down => {
-                const right_vec = self.transform.right();
-                const rot = Quat.fromAxisAngle(&right_vec, orbit_angle);
-                self.rotatePositionAroundTarget(rot);
-                self.transform.rotate(rot);
+                self.orbitAxis(&self.transform.right(), orbit_angle);
             },
             .circle_right => {
-                const rot = Quat.fromAxisAngle(&self.world_up, orbit_angle);
-                self.rotatePositionAroundTarget(rot);
-                self.transform.lookAt(self.target, self.world_up);
+                self.circleAxis(&self.world_up, orbit_angle);
             },
             .circle_left => {
-                const rot = Quat.fromAxisAngle(&self.world_up, -orbit_angle);
-                self.rotatePositionAroundTarget(rot);
-                self.transform.lookAt(self.target, self.world_up);
+                self.circleAxis(&self.world_up, -orbit_angle);
             },
             .circle_up => {
-                // Choose rotation axis - use right vector, or fallback if at pole
-                var rotation_axis = self.transform.right();
-                if (rotation_axis.lengthSquared() < AXIS_EPSILON) {
-                    // At pole: use a stable horizontal axis
-                    rotation_axis = vec3(1.0, 0.0, 0.0);
-                }
-                const rot = Quat.fromAxisAngle(&rotation_axis, -orbit_angle);
-                self.rotatePositionAroundTarget(rot);
-                self.transform.lookAt(self.target, self.world_up);
+                var rotation_axis = self.getWorldRight();
+                self.circleAxis(&rotation_axis, -orbit_angle);
             },
             .circle_down => {
-                // Choose rotation axis - use right vector, or fallback if at pole
-                var rotation_axis = self.transform.right();
-                if (rotation_axis.lengthSquared() < AXIS_EPSILON) {
-                    // At pole: use a stable horizontal axis
-                    rotation_axis = vec3(1.0, 0.0, 0.0);
-                }
-                const rot = Quat.fromAxisAngle(&rotation_axis, orbit_angle);
-                self.rotatePositionAroundTarget(rot);
-                self.transform.lookAt(self.target, self.world_up);
+                var rotation_axis = self.getWorldRight();
+                self.circleAxis(&rotation_axis, orbit_angle);
             },
         }
     }

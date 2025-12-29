@@ -2,9 +2,11 @@ const std = @import("std");
 
 const retain_ = @import("retain.zig");
 const remove_ = @import("remove.zig");
+const image_utils_ = @import("image_utils.zig");
 
 pub const retain = retain_.retain;
 pub const removeRange = remove_.removeRange;
+pub const flipImageHorizontal = image_utils_.flipImageHorizontal;
 
 /// Create a c_str using a local buffer avoiding allocation
 pub fn bufCopyZ(buf: []u8, source: []const u8) [:0]const u8 {

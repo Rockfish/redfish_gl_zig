@@ -259,19 +259,19 @@ pub const Transform = struct {
     /// Get the forward direction vector (negative Z-axis in OpenGL convention).
     /// This is the direction the transform is "looking" towards.
     pub fn forward(self: *const Self) Vec3 {
-        return self.rotation.rotateVec(&Vec3.init(0.0, 0.0, -1.0));
+        return self.rotation.forward();
     }
 
     /// Get the up direction vector (positive Y-axis in OpenGL convention).
     /// This represents the local "up" direction of the transform.
     pub fn up(self: *const Self) Vec3 {
-        return self.rotation.rotateVec(&Vec3.init(0.0, 1.0, 0.0));
+        return self.rotation.up();
     }
 
     /// Get the right direction vector (positive X-axis in OpenGL convention).
     /// This represents the local "right" direction of the transform.
     pub fn right(self: *const Self) Vec3 {
-        return self.rotation.rotateVec(&Vec3.init(1.0, 0.0, 0.0));
+        return self.rotation.right();
     }
 
     /// Apply a rotation to this transform.

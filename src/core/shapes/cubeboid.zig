@@ -12,7 +12,7 @@ const SIZE_OF_U32 = @sizeOf(u32);
 const SIZE_OF_FLOAT = @sizeOf(f32);
 
 pub const TextureMapping = enum {
-    Repeating, // Current method - same texture repeated on all faces
+    Repeating, // Default method - same texture repeated on all faces
     Cubemap3x2, // Six-panel texture layout 3 by 2 grid
     Cubemap2x3, // Six-panel texture layout 2 by 3 grid
 };

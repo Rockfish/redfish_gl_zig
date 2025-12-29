@@ -7,8 +7,8 @@ pub const gltf_report = @import("gltf/report.zig");
 pub const constants = @import("constants.zig");
 
 pub const Camera = @import("camera.zig").Camera;
+pub const CameraGimbal = @import("camera_gimbal.zig").Camera;
 pub const ProjectionType = @import("camera.zig").ProjectionType;
-pub const ViewType = @import("camera.zig").ViewType;
 pub const Shader = @import("shader.zig").Shader;
 pub const FrameCounter = @import("frame_counter.zig").FrameCounter;
 pub const Random = @import("random.zig").Random;
@@ -16,6 +16,7 @@ pub const Transform = @import("transform.zig").Transform;
 pub const SoundEngine = @import("sound_engine.zig").SoundEngine;
 pub const String = @import("string.zig").String;
 
+pub const Input = @import("input.zig").Input;
 pub const Movement = @import("movement.zig").Movement;
 pub const MovementDirection = @import("movement.zig").MovementDirection;
 

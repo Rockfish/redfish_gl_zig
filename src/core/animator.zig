@@ -507,7 +507,7 @@ pub const Animator = struct {
 
         // Calculate world transforms by traversing the scene hierarchy
         for (self.root_nodes) |root_node_index| {
-            self.calculateWorldTransformRecursive(root_node_index, Transform.init());
+            self.calculateWorldTransformRecursive(root_node_index, Transform.identity());
         }
     }
 

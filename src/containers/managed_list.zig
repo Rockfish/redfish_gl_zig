@@ -70,5 +70,14 @@ pub fn ManagedArrayList(comptime T: type) type {
         pub fn ensureTotalCapacity(self: *Self, new_capacity: usize) !void {
             try self.list.ensureTotalCapacity(self.allocator, new_capacity);
         }
+
+        // Accessor methods for ArrayList fields
+        pub inline fn items(self: *Self) []T {
+            return self.list.items;
+        }
+
+        pub inline fn capacity(self: *const Self) usize {
+            return self.list.capacity;
+        }
     };
 }

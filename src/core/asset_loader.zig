@@ -342,7 +342,7 @@ pub const GltfAsset = struct {
         }
 
         // Load texture on demand
-        const tex = try texture.Texture.init(
+        const tex = try texture.Texture.initFromGltf(
             self.arena,
             self,
             self.directory,

@@ -474,13 +474,16 @@ pub const Mat4 = extern struct {
     }
 
     pub fn fromTranslationRotationScale(tran: *const Vec3, rota: *const Quat, scal: *const Vec3) Mat4 {
-        const axis = Quat.toAxes(rota);
+        const axes = Quat.toAxes(rota);
+        const right_scaled = axes.right.mulScalar(scal.x);
+        const up_scaled = axes.up.mulScalar(scal.y);
+        const forward_scaled = axes.forward.mulScalar(scal.z);
 
         const mat = Mat4{
             .data = .{
-                axis[0].scale(scal.x).asArray(),
-                axis[1].scale(scal.y).asArray(),
-                axis[2].scale(scal.z).asArray(),
+                .{ right_scaled.x, right_scaled.y, right_scaled.z, 0.0 },
+                .{ up_scaled.x, up_scaled.y, up_scaled.z, 0.0 },
+                .{ forward_scaled.x, forward_scaled.y, forward_scaled.z, 0.0 },
                 .{ tran.x, tran.y, tran.z, 1.0 },
             },
         };

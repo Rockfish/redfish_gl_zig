@@ -38,7 +38,7 @@ pub const Texture = struct {
     }
 
     // Initialize from glTF texture reference
-    pub fn init(
+    pub fn initFromGltf(
         arena: *ArenaAllocator,
         gltf_asset: *GltfAsset,
         directory: []const u8,
