@@ -1,5 +1,392 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="BuildScanner">
+    <option name="projects">
+      <list><![CDATA[{
+  "name": null,
+  "version": null,
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "animation",
+      "description": "Build 'animation' app",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "animation-run",
+      "description": "Run 'animation' app",
+      "kind": "run"
+    },
+    {
+      "name": "demo_app",
+      "description": "Build 'demo_app' app",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "demo_app-run",
+      "description": "Run 'demo_app' app",
+      "kind": "run"
+    },
+    {
+      "name": "bullets",
+      "description": "Build 'bullets' app",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "bullets-run",
+      "description": "Run 'bullets' app",
+      "kind": "run"
+    },
+    {
+      "name": "angrybot",
+      "description": "Build 'angrybot' app",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "angrybot-run",
+      "description": "Run 'angrybot' app",
+      "kind": "run"
+    },
+    {
+      "name": "level_01",
+      "description": "Build 'level_01' app",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "level_01-run",
+      "description": "Run 'level_01' app",
+      "kind": "run"
+    },
+    {
+      "name": "check",
+      "description": "Check if game compiles",
+      "kind": "compile"
+    },
+    {
+      "name": "test-movement",
+      "description": "Run movement tests",
+      "kind": "run"
+    },
+    {
+      "name": "test-glb",
+      "description": "Run GLB loading integration test",
+      "kind": "run"
+    }
+  ],
+  "modules": [
+    {
+      "root": "examples/animation_example/main.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "src/core/movement.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "tests/integration/glb_loading_test.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "src/miniaudio.zig",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "examples/animation_example/main.zig",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "examples/demo_app/main.zig",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "examples/bullets/main.zig",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "games/angrybot/main.zig",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "games/level_01/main.zig",
+      "public": false,
+      "imports": []
+    }
+  ],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": null,
+  "version": null,
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/assimp",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/assimp.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "<null>",
+      "public": false,
+      "imports": []
+    }
+  ],
+  "dependencies": [
+    {
+      "project": 2,
+      "lazy": false
+    }
+  ]
+}]]><![CDATA[{
+  "name": null,
+  "version": null,
+  "path": "/Users/john/.cache/zig/p/N-V-__8AAAJ5kA56p5bMNoeLrMKx3VwAq6WYAC2_x7in3PU7",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    }
+  ],
+  "modules": [],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": null,
+  "version": null,
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/cglm",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/cglm.zig",
+      "public": true,
+      "imports": []
+    }
+  ],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": null,
+  "version": null,
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/miniaudio",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/miniaudio.zig",
+      "public": true,
+      "imports": []
+    }
+  ],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": null,
+  "version": null,
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/system-sdk",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    }
+  ],
+  "modules": [],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": null,
+  "version": null,
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/zglfw",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "test",
+      "description": "Run zglfw tests",
+      "kind": "run"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/zglfw.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "<null>",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "src/zglfw.zig",
+      "public": false,
+      "imports": []
+    }
+  ],
+  "dependencies": [
+    {
+      "project": 7,
+      "lazy": false
+    }
+  ]
+}]]><![CDATA[{
+  "name": null,
+  "version": null,
+  "path": "/Users/john/.cache/zig/p/system_sdk-0.3.0-dev-alwUNnYaaAJAtIdE2fg4NQfDqEKs7QCXy_qYukAOBfmF",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    }
+  ],
+  "modules": [],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": null,
+  "version": null,
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/zopengl",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "test",
+      "description": "Run zopengl tests",
+      "kind": "run"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/zopengl.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "src/zopengl.zig",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "src/zopengl.zig",
+      "public": false,
+      "imports": []
+    }
+  ],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": null,
+  "version": null,
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/zstbi",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "test",
+      "description": "Run zstbi tests",
+      "kind": "run"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/zstbi.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "src/zstbi.zig",
+      "public": false,
+      "imports": []
+    }
+  ],
+  "dependencies": []
+}]]></list>
+    </option>
+  </component>
   <component name="ZLSSettings">
     <option name="zlsPath" value="$USER_HOME$/zig/bin/zls" />
   </component>

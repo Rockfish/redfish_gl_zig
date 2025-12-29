@@ -168,55 +168,30 @@ This applies to scenarios where referencing nested fields directly in function c
 
 ## Build & Development
 
-### Building
+### Building and Running
 
-#### Recommended Workflow (using just)
 ```bash
-# Development with auto-rebuild
-just dev
-
-# Quick build and run
-just run
-
-# Build specific game projects
+# Build and run specific game projects
 zig build angrybot-run
 zig build level_01-run
 
-# Run all tests
-just test
+# Build without running
+zig build angrybot
+zig build level_01
 
-# Check compilation
-just check
-```
-
-#### Direct Zig Commands
-```bash
-# Build main example
-zig build demo_app
-
-# Run main example  
+# Build and run examples
+zig build bullets-run
 zig build demo_app-run
 
-# Check compilation
+# Check compilation (fast check without full build)
 zig build check
 
 # Run tests
+zig build test
 zig build test-movement
-```
 
-#### Development Tools
-```bash
-# Project statistics
-just stats
-
-# Performance benchmarks
-just bench-build
-
-# Validate shaders
-just validate-shaders
-
-# Environment check
-just doctor
+# Format code
+zig fmt src/
 ```
 
 ### Dependencies
@@ -252,7 +227,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 - **Math Library**: Pure Zig implementation in `src/math/` - add missing functions here
 - **Asset Loading**: Use `GltfAsset` from `src/core/asset_loader.zig` for all model loading
 - **glTF Analysis**: Use `core.gltf_report.GltfReport` for model inspection and debugging
-- **Development Workflow**: Use `just dev` for auto-rebuild, specific game builds for focused development
+- **Development Workflow**: Use `zig build <target>-run` for direct builds, or watch scripts for auto-rebuild
 - **Complete Guide**: See `DEVELOPMENT.md` for comprehensive workflow documentation
 - **Watch Scripts**: Use `./scripts/watch-*.sh` for specialized development modes
 
