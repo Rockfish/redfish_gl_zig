@@ -20,16 +20,6 @@ const vec4 = math.vec4;
 const SIZE_OF_U32 = @sizeOf(u32);
 const SIZE_OF_FLOAT = @sizeOf(f32);
 
-// pub const Vertex = struct {
-//     positions: [3]f32,
-//     texcoords: [2]f32,
-//     normals: [3]f32,
-//     tangent: [3]f32,
-//     color: [4]f32,
-// };
-
-// const indices: []const u32 = undefined;
-
 pub const ShapeBuilder = struct {
     shape_type: ShapeType,
     positions: ManagedArrayList([3]f32),
@@ -226,6 +216,7 @@ pub fn initGLBuffers(
 
 pub const ShapeType = enum {
     square,
+    plane,
     cube,
     cylinder,
     sphere,
@@ -241,7 +232,28 @@ pub const Shape = struct {
     transforms_vbo: u32,
     num_indices: i32 = 0,
     aabb: AABB,
-    gl_texture_id: u32 = 0,  // Perhaps the original type should manage these and deinit them
+    gl_texture_id: u32 = 0, // Perhaps the original type should manage these and deinit them
+
+    /// Skip rendering entirely. Use for temporarily hiding objects.
+    is_visible: bool = true,
+
+    /// Enable alpha blending. Set true for glass, particles, transparent materials.
+    /// Note: Typically pair with is_depth_write = false for proper transparency.
+    is_transparent: bool = false,
+
+    /// Render as wireframe. Use for debugging geometry or stylized rendering.
+    is_wireframe: bool = false,
+
+    /// Disable face culling to render both sides. Use for planes, foliage, cloth.
+    is_double_sided: bool = false,
+
+    /// Write to depth buffer. Set false for transparent objects that shouldn't occlude.
+    /// Default true for normal opaque rendering.
+    is_depth_write: bool = true,
+
+    /// Test against depth buffer. Set false for skyboxes, UI overlays, debug gizmos.
+    /// Default true for normal 3D objects.
+    is_depth_test: bool = true,
 
     const Self = @This();
 
@@ -254,8 +266,22 @@ pub const Shape = struct {
         gl.deleteTextures(1, &self.gl_texture_id);
     }
 
-    // delegate?
     pub fn draw(self: *const Self) void {
+        if (!self.is_visible) return;
+
+        if (self.is_depth_test) gl.enable(gl.DEPTH_TEST) else gl.disable(gl.DEPTH_TEST);
+        if (!self.is_depth_write) gl.depthMask(gl.FALSE);
+        if (self.is_double_sided) gl.disable(gl.CULL_FACE);
+
+        if (self.is_transparent) {
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        }
+
+        if (self.is_wireframe) gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
+
+        gl.disable(gl.CULL_FACE);
+
         gl.bindVertexArray(self.vao);
         gl.drawElements(
             gl.TRIANGLES,
@@ -264,10 +290,27 @@ pub const Shape = struct {
             null,
         );
         gl.bindVertexArray(0);
+
+        if (self.is_wireframe) gl.polygonMode(gl.FRONT_AND_BACK, gl.FILL);
+        if (self.is_transparent) gl.disable(gl.BLEND);
+        if (self.is_double_sided) gl.enable(gl.CULL_FACE);
+        if (!self.is_depth_write) gl.depthMask(gl.TRUE);
     }
 
-    // delegate?
     pub fn drawInstanced(self: *const Self, instance_count: usize, instanceTransforms: []Mat4) void {
+        if (!self.is_visible) return;
+
+        if (self.is_depth_test) gl.enable(gl.DEPTH_TEST) else gl.disable(gl.DEPTH_TEST);
+        if (!self.is_depth_write) gl.depthMask(gl.FALSE);
+        if (self.is_double_sided) gl.disable(gl.CULL_FACE);
+
+        if (self.is_transparent) {
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        }
+
+        if (self.is_wireframe) gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
+
         gl.bindVertexArray(self.vao);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, self.transforms_vbo);
@@ -286,5 +329,10 @@ pub const Shape = struct {
             @intCast(instance_count),
         );
         gl.bindVertexArray(0);
+
+        if (self.is_wireframe) gl.polygonMode(gl.FRONT_AND_BACK, gl.FILL);
+        if (self.is_transparent) gl.disable(gl.BLEND);
+        if (self.is_double_sided) gl.enable(gl.CULL_FACE);
+        if (!self.is_depth_write) gl.depthMask(gl.TRUE);
     }
 };

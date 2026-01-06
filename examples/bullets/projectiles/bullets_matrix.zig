@@ -3,7 +3,6 @@ const core = @import("core");
 const math = @import("math");
 const sprites = @import("sprite_sheet.zig");
 const world = @import("state.zig");
-const InstancedCube = @import("instanced_cube.zig").InstancedCube;
 const gl = @import("zopengl").bindings;
 
 const ArrayList = std.ArrayList;
@@ -50,26 +49,41 @@ const BULLET_ENEMY_MAX_COLLISION_DIST: f32 = world.BULLET_COLLIDER.height / 2.0 
 // Trim off margin around the bullet image
 const TEXTURE_MARGIN: f32 = 0.1;
 
-const BULLET_VERTICES_H_V: [40]f32 = .{
-    // Positions                                        // Tex Coords
-    world.BULLET_SCALE * (-0.243), 0.0,                           world.BULLET_SCALE * (-1.0), 1.0 - TEXTURE_MARGIN, 0.0 + TEXTURE_MARGIN,
-    world.BULLET_SCALE * (-0.243), 0.0,                           world.BULLET_SCALE * 0.0,    0.0 + TEXTURE_MARGIN, 0.0 + TEXTURE_MARGIN,
-    world.BULLET_SCALE * 0.243,    0.0,                           world.BULLET_SCALE * 0.0,    0.0 + TEXTURE_MARGIN, 1.0 - TEXTURE_MARGIN,
-    world.BULLET_SCALE * 0.243,    0.0,                           world.BULLET_SCALE * (-1.0), 1.0 - TEXTURE_MARGIN, 1.0 - TEXTURE_MARGIN,
-    0.0,                           world.BULLET_SCALE * (-0.243), world.BULLET_SCALE * (-1.0), 1.0 - TEXTURE_MARGIN, 0.0 + TEXTURE_MARGIN,
-    0.0,                           world.BULLET_SCALE * (-0.243), world.BULLET_SCALE * 0.0,    0.0 + TEXTURE_MARGIN, 0.0 + TEXTURE_MARGIN,
-    0.0,                           world.BULLET_SCALE * 0.243,    world.BULLET_SCALE * 0.0,    0.0 + TEXTURE_MARGIN, 1.0 - TEXTURE_MARGIN,
-    0.0,                           world.BULLET_SCALE * 0.243,    world.BULLET_SCALE * (-1.0), 1.0 - TEXTURE_MARGIN, 1.0 - TEXTURE_MARGIN,
+// Bullet is two intersecting planes.
+// An easy way to give it the appearance of volume visible from different directions.
+const BULLET_POSITIONS_H_V = [_]f32{
+    // Positions
+    world.BULLET_SCALE * (-0.243), 0.0,                           world.BULLET_SCALE * (-1.0),
+    world.BULLET_SCALE * (-0.243), 0.0,                           world.BULLET_SCALE * 0.0,
+    world.BULLET_SCALE * 0.243,    0.0,                           world.BULLET_SCALE * 0.0,
+    world.BULLET_SCALE * 0.243,    0.0,                           world.BULLET_SCALE * (-1.0),
+    0.0,                           world.BULLET_SCALE * (-0.243), world.BULLET_SCALE * (-1.0),
+    0.0,                           world.BULLET_SCALE * (-0.243), world.BULLET_SCALE * 0.0,
+    0.0,                           world.BULLET_SCALE * 0.243,    world.BULLET_SCALE * 0.0,
+    0.0,                           world.BULLET_SCALE * 0.243,    world.BULLET_SCALE * (-1.0),
 };
 
-const BULLET_INDICES_H_V: [12]u32 = .{
+const BULLET_TEXCOORDS_H_V = [_]f32{
+    // Texcoords
+    1.0 - TEXTURE_MARGIN, 0.0 + TEXTURE_MARGIN,
+    0.0 + TEXTURE_MARGIN, 0.0 + TEXTURE_MARGIN,
+    0.0 + TEXTURE_MARGIN, 1.0 - TEXTURE_MARGIN,
+    1.0 - TEXTURE_MARGIN, 1.0 - TEXTURE_MARGIN,
+    1.0 - TEXTURE_MARGIN, 0.0 + TEXTURE_MARGIN,
+    0.0 + TEXTURE_MARGIN, 0.0 + TEXTURE_MARGIN,
+    0.0 + TEXTURE_MARGIN, 1.0 - TEXTURE_MARGIN,
+    1.0 - TEXTURE_MARGIN, 1.0 - TEXTURE_MARGIN,
+};
+
+const BULLET_INDICES_H_V = [_]u32{
     0, 1, 2,
     0, 2, 3,
     4, 5, 6,
     4, 6, 7,
 };
 
-const VERTICES = BULLET_VERTICES_H_V;
+const POSITIONS = BULLET_POSITIONS_H_V;
+const TEXCOORDS = BULLET_TEXCOORDS_H_V;
 const INDICES = BULLET_INDICES_H_V;
 
 pub const BulletPattern = enum {
@@ -94,10 +108,10 @@ pub const BulletGroup = struct {
 pub const BulletStore = struct {
     bullet_groups: [NUMBER_OF_BULLET_GROUPS]BulletGroup,
     next_group_index: usize = 0,
-    bullet_vao: gl.Uint,
-    transforms_vbo: gl.Uint,
+    // bullet_vao: gl.Uint,
+    // transforms_vbo: gl.Uint,
     bullet_texture: *Texture,
-    unit_square_vao: c_uint,
+    unit_square: core.shapes.Shape,
     instanced_cube: core.shapes.Shape,
 
     const Self = @This();
@@ -106,7 +120,7 @@ pub const BulletStore = struct {
         self.bullet_texture.deleteGlTexture();
     }
 
-    pub fn init(arena: *ArenaAllocator, unit_square_vao: c_uint) !Self {
+    pub fn init(arena: *ArenaAllocator) !Self {
         const allocator = arena.allocator();
         _ = allocator;
 
@@ -126,7 +140,7 @@ pub const BulletStore = struct {
             texture_config,
         );
 
-        const config = core.shapes.CubeConfig{
+        const cube = try core.shapes.createCube(.{
             .width = 0.2,
             .height = 0.2,
             // .width = 1.0,
@@ -137,19 +151,18 @@ pub const BulletStore = struct {
             .num_tiles_z = 1.0,
             .is_instanced = true,
             .texture_mapping = .Cubemap2x3,
-        };
-        const cube = try core.shapes.createCube(config);
+        });
 
-        var bullet_store: BulletStore = .{
+        const unit_square = try core.shapes.createSquare();
+
+        const bullet_store: BulletStore = .{
             .bullet_groups = undefined,
-            .bullet_vao = 1000,
-            .transforms_vbo = 1000,
             .bullet_texture = bullet_texture,
-            .unit_square_vao = unit_square_vao,
+            .unit_square = unit_square,
             .instanced_cube = cube,
         };
 
-        Self.createShaderBuffers(&bullet_store);
+        // Self.createShaderBuffers(&bullet_store);
         log.info("bullet_store created (matrix-based)", .{});
 
         return bullet_store;
@@ -252,82 +265,6 @@ pub const BulletStore = struct {
         }
     };
 
-    fn createShaderBuffers(self: *Self) void {
-        var bullet_vao: gl.Uint = 0;
-        var bullet_vertices_vbo: gl.Uint = 0;
-        var bullet_indices_ebo: gl.Uint = 0;
-        var transforms_vbo: gl.Uint = 0;
-
-        gl.genVertexArrays(1, &bullet_vao);
-        gl.genBuffers(1, &bullet_vertices_vbo);
-        gl.genBuffers(1, &bullet_indices_ebo);
-
-        gl.bindVertexArray(bullet_vao);
-
-        // vertices data
-        gl.bindBuffer(gl.ARRAY_BUFFER, bullet_vertices_vbo);
-        gl.bufferData(
-            gl.ARRAY_BUFFER,
-            (VERTICES.len * SIZE_OF_FLOAT),
-            &VERTICES,
-            gl.STATIC_DRAW,
-        );
-
-        // indices data
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bullet_indices_ebo);
-        gl.bufferData(
-            gl.ELEMENT_ARRAY_BUFFER,
-            (INDICES.len * SIZE_OF_U32),
-            &INDICES,
-            gl.STATIC_DRAW,
-        );
-
-        // location 0: vertex positions
-        gl.enableVertexAttribArray(0);
-        gl.vertexAttribPointer(
-            0,
-            3,
-            gl.FLOAT,
-            gl.FALSE,
-            (5 * SIZE_OF_FLOAT),
-            null,
-        );
-
-        // location 1: texture coordinates
-        gl.enableVertexAttribArray(1);
-        gl.vertexAttribPointer(
-            1,
-            2,
-            gl.FLOAT,
-            gl.FALSE,
-            (5 * SIZE_OF_FLOAT),
-            @ptrFromInt(3 * SIZE_OF_FLOAT),
-        );
-
-        // Per instance transform matrix (locations 2, 3, 4, 5)
-        gl.genBuffers(1, &transforms_vbo);
-        gl.bindBuffer(gl.ARRAY_BUFFER, transforms_vbo);
-
-        // Mat4 is 4 Vec4s, so we need 4 attribute locations
-        for (0..4) |i| {
-            const location: c_uint = @intCast(2 + i);
-            gl.enableVertexAttribArray(location);
-            gl.vertexAttribPointer(
-                location,
-                4,
-                gl.FLOAT,
-                gl.FALSE,
-                SIZE_OF_MAT4,
-                @ptrFromInt(i * SIZE_OF_VEC4),
-            );
-            // one matrix per bullet instance
-            gl.vertexAttribDivisor(location, 1);
-        }
-
-        self.bullet_vao = bullet_vao;
-        self.transforms_vbo = transforms_vbo;
-    }
-
     pub fn drawBullets(self: *Self, shader: *Shader, projection_view: *const Mat4) void {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -347,27 +284,6 @@ pub const BulletStore = struct {
 
             shader.bindTextureAuto("texture_diffuse", self.bullet_texture.gl_texture_id);
             shader.bindTextureAuto("texture_normal", self.bullet_texture.gl_texture_id);
-
-            // bind bullet vertices and indices
-            // gl.bindVertexArray(self.bullet_vao);
-            //
-            // // bind and load bullet transform matrices
-            // gl.bindBuffer(gl.ARRAY_BUFFER, self.transforms_vbo);
-            // gl.bufferData(
-            //     gl.ARRAY_BUFFER,
-            //     @intCast(BULLET_GROUP_SIZE * SIZE_OF_MAT4),
-            //     &group.transforms,
-            //     gl.STREAM_DRAW,
-            // );
-            //
-            // // draw all bullet instances
-            // gl.drawElementsInstanced(
-            //     gl.TRIANGLES,
-            //     INDICES.len,
-            //     gl.UNSIGNED_INT,
-            //     null,
-            //     @intCast(BULLET_GROUP_SIZE),
-            // );
 
             self.instanced_cube.drawInstanced(BULLET_GROUP_SIZE, &group.transforms);
         }

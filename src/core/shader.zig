@@ -37,7 +37,7 @@ pub const Shader = struct {
     debug_uniforms: *StringHashMap([]const u8),
 
     const Self = @This();
-    var current_shader: ?*const Shader = null;
+    var current_shader_id: ?u32 = null;
 
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.vert_file);
@@ -191,9 +191,9 @@ pub const Shader = struct {
     }
 
     pub fn useShader(self: *const Shader) void {
-        if (Shader.current_shader != self) {
+        if (Shader.current_shader_id != self.id) {
             gl.useProgram(self.id);
-            Shader.current_shader = self;
+            Shader.current_shader_id = self.id;
         }
     }
 
@@ -373,12 +373,13 @@ pub const Shader = struct {
     }
 
     fn allocateTextureUnit(self: *const Shader, uniform_name: [:0]const u8) u32 {
-        // Cast to mutable to modify the texture unit map
-        // const mutable_self = @constCast(self);
+        // Create composite key: shader_id:uniform_name to avoid collisions between shader instances
+        var key_buffer: [256]u8 = undefined;
+        const composite_key = std.fmt.bufPrint(&key_buffer, "{d}:{s}", .{ self.id, uniform_name }) catch @panic("Composite key buffer too small");
 
         // If already allocated, return existing unit
         if (texture_unit_map) |map| {
-            if (map.get(uniform_name)) |existing_unit| {
+            if (map.get(composite_key)) |existing_unit| {
                 return existing_unit;
             }
 
@@ -386,11 +387,11 @@ pub const Shader = struct {
             const unit = next_available_unit;
 
             // Store the mapping (we need to own the string key)
-            const owned_key = self.allocator.dupe(u8, uniform_name) catch @panic("Failed to allocate texture unit key");
+            const owned_key = self.allocator.dupe(u8, composite_key) catch @panic("Failed to allocate texture unit key");
             map.put(owned_key, unit) catch @panic("Failed to store texture unit mapping");
             next_available_unit += 1;
 
-            std.debug.print("Shader uniform: '{s}' texture unit {d}\n", .{ uniform_name, unit });
+            std.debug.print("Shader {d} uniform: '{s}' -> texture unit {d}\n", .{ self.id, uniform_name, unit });
 
             return unit;
         }

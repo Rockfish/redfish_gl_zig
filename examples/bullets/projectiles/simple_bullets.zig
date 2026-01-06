@@ -2,10 +2,11 @@
 const std = @import("std");
 const core = @import("core");
 const math = @import("math");
+const containers = @import("containers");
 const state_mod = @import("state.zig");
 const gl = @import("zopengl").bindings;
 
-const ArrayList = std.ArrayList;
+const ManagedArrayList = containers.ManagedArrayList;
 const Shader = core.Shader;
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
@@ -40,7 +41,7 @@ pub const Bullet = struct {
 };
 
 pub const SimpleBulletStore = struct {
-    bullets: ArrayList(Bullet),
+    bullets: ManagedArrayList(Bullet),
     vao: gl.Uint,
     vbo: gl.Uint,
 
@@ -50,12 +51,26 @@ pub const SimpleBulletStore = struct {
         var vao: gl.Uint = 0;
         var vbo: gl.Uint = 0;
 
+        vao = 0;
+        vbo = 0;
+
         // Create simple point rendering
         gl.genVertexArrays(1, &vao);
         gl.genBuffers(1, &vbo);
 
+        gl.bindVertexArray(vao);
+        gl.vertexAttribPointer(
+            0,
+            3,
+            gl.FLOAT,
+            gl.FALSE,
+            3 * @sizeOf(f32),
+            null,
+        );
+        gl.enableVertexAttribArray(0);
+
         return .{
-            .bullets = ArrayList(Bullet).init(allocator),
+            .bullets = ManagedArrayList(Bullet).init(allocator),
             .vao = vao,
             .vbo = vbo,
         };
@@ -80,16 +95,16 @@ pub const SimpleBulletStore = struct {
 
     pub fn update(self: *Self, delta_time: f32) void {
         // Update all bullets
-        for (self.bullets.items) |*bullet| {
+        for (self.bullets.list.items) |*bullet| {
             bullet.update(delta_time);
         }
 
         // Remove dead bullets (simplified - normally would use retain)
         var alive_count: usize = 0;
-        for (self.bullets.items) |bullet| {
+        for (self.bullets.list.items) |bullet| {
             if (bullet.isAlive()) {
-                if (alive_count != self.bullets.items.len) {
-                    self.bullets.items[alive_count] = bullet;
+                if (alive_count != self.bullets.list.items.len) {
+                    self.bullets.list.items[alive_count] = bullet;
                 }
                 alive_count += 1;
             }
@@ -98,17 +113,17 @@ pub const SimpleBulletStore = struct {
     }
 
     pub fn render(self: *Self, shader: *Shader, projection_view: *const Mat4) void {
-        if (self.bullets.items.len == 0) return;
+        if (self.bullets.list.items.len == 0) return;
 
         shader.useShader();
         shader.setMat4("projectionView", projection_view);
         shader.setVec3("color", &vec3(1.0, 1.0, 0.0)); // Yellow bullets
 
         // Upload bullet positions
-        var positions = std.ArrayList(f32).init(self.bullets.allocator);
+        var positions = ManagedArrayList(f32).init(self.bullets.allocator);
         defer positions.deinit();
 
-        for (self.bullets.items) |bullet| {
+        for (self.bullets.list.items) |bullet| {
             positions.append(bullet.position.x) catch {};
             positions.append(bullet.position.y) catch {};
             positions.append(bullet.position.z) catch {};
@@ -116,12 +131,25 @@ pub const SimpleBulletStore = struct {
 
         gl.bindVertexArray(self.vao);
         gl.bindBuffer(gl.ARRAY_BUFFER, self.vbo);
-        gl.bufferData(gl.ARRAY_BUFFER, @intCast(positions.items.len * @sizeOf(f32)), positions.items.ptr, gl.DYNAMIC_DRAW);
+        gl.bufferData(
+            gl.ARRAY_BUFFER,
+            @intCast(positions.list.items.len * @sizeOf(f32)),
+            positions.list.items.ptr,
+            gl.DYNAMIC_DRAW,
+        );
 
+        gl.vertexAttribPointer(
+            0,
+            3,
+            gl.FLOAT,
+            gl.FALSE,
+            3 * @sizeOf(f32),
+            null,
+        );
         gl.enableVertexAttribArray(0);
-        gl.vertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 3 * @sizeOf(f32), null);
 
-        gl.pointSize(5.0);
-        gl.drawArrays(gl.POINTS, 0, @intCast(self.bullets.items.len));
+        gl.pointSize(25.0);
+        gl.drawArrays(gl.POINTS, 0, @intCast(self.bullets.list.items.len));
+        gl.bindVertexArray(0);
     }
 };

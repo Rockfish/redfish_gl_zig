@@ -6,6 +6,10 @@ pub const Sphere = @import("sphere.zig").Sphere;
 pub const Square = @import("square.zig").Square;
 pub const Skybox = @import("skybox.zig").Skybox;
 pub const SkyboxFaces = @import("skybox.zig").SkyboxFaces;
+pub const Lines = @import("lines.zig").Lines;
+pub const SimpleLines = @import("lines.zig").SimpleLines;
+pub const LineSegment = @import("lines.zig").LineSegment;
+pub const Plane = @import("plane.zig").Plane;
 
 pub const Shape = @import("shape.zig").Shape;
 

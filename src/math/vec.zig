@@ -63,10 +63,10 @@ pub const Vec3 = extern struct {
     pub const Z: Vec3 = .{ .x = 0.0, .y = 0.0, .z = 1.0 };
     pub const ZERO: Vec3 = .{ .x = 0.0, .y = 0.0, .z = 0.0 };
     pub const ONE: Vec3 = .{ .x = 1.0, .y = 1.0, .z = 1.0 };
-    pub const WORLD_RIGHT: Vec3 = .{ .x = 1, .y= 0, .z= 0 };
-    pub const WORLD_UP: Vec3 = .{.x =  0,.y=  1, .z= 0 };
-    pub const WORLD_FORWARD: Vec3 = .{.x =  0,.y=  0, .z= -1 };
-    pub const WORLD_BACK: Vec3 = .{ .x = 0,.y=  0, .z= 1 };
+    pub const WORLD_RIGHT: Vec3 = .{ .x = 1, .y = 0, .z = 0 };
+    pub const WORLD_UP: Vec3 = .{ .x = 0, .y = 1, .z = 0 };
+    pub const WORLD_FORWARD: Vec3 = .{ .x = 0, .y = 0, .z = -1 };
+    pub const WORLD_BACK: Vec3 = .{ .x = 0, .y = 0, .z = 1 };
 
     const Self = @This();
 

@@ -92,6 +92,7 @@ pub const Skybox = struct {
         gl.depthFunc(gl.LEQUAL);
         gl.bindVertexArray(self.vao);
         gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, self.gl_texture_id);
         gl.drawArrays(gl.TRIANGLES, 0, 36);
         gl.bindVertexArray(0);
         // set depth function back to default

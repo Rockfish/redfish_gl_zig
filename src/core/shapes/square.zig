@@ -19,7 +19,7 @@ pub const Square = struct {
 
         const normals = [_][3]f32{};
 
-        const indices = [_]u32{ 1, 2, 3, 3, 4, 1 };
+        const indices = [_]u32{ 0, 2, 1, 0, 3, 2 };
 
         return shape.initGLBuffers(
             .square,

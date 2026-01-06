@@ -136,7 +136,7 @@ pub const Camera = struct {
     }
 
     // Projection matrix methods
-    pub fn getProjectionWithType(self: *Camera, projection_type: ProjectionType) Mat4 {
+    pub fn getProjectionWithType(self: *const Camera, projection_type: ProjectionType) Mat4 {
         switch (projection_type) {
             .Perspective => {
                 return Mat4.perspectiveRhGl(

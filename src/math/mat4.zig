@@ -409,6 +409,26 @@ pub const Mat4 = extern struct {
         };
     }
 
+    /// Transform a position (w = 1.0) - includes translation
+    /// Use this for points in space that should be affected by the matrix's translation component
+    pub fn mulVec3AsPoint(self: *const Self, vec: *const Vec3) Vec3 {
+        return Vec3{
+            .x = self.data[0][0] * vec.x + self.data[1][0] * vec.y + self.data[2][0] * vec.z + self.data[3][0],
+            .y = self.data[0][1] * vec.x + self.data[1][1] * vec.y + self.data[2][1] * vec.z + self.data[3][1],
+            .z = self.data[0][2] * vec.x + self.data[1][2] * vec.y + self.data[2][2] * vec.z + self.data[3][2],
+        };
+    }
+
+    /// Transform a direction (w = 0.0) - ignores translation
+    /// Use this for vectors/directions that should only be affected by rotation and scale
+    pub fn mulVec3AsDirection(self: *const Self, vec: *const Vec3) Vec3 {
+        return Vec3{
+            .x = self.data[0][0] * vec.x + self.data[1][0] * vec.y + self.data[2][0] * vec.z,
+            .y = self.data[0][1] * vec.x + self.data[1][1] * vec.y + self.data[2][1] * vec.z,
+            .z = self.data[0][2] * vec.x + self.data[1][2] * vec.y + self.data[2][2] * vec.z,
+        };
+    }
+
     pub fn perspectiveRhGl(fov: f32, aspect: f32, near: f32, far: f32) Self {
         // Right-handed perspective projection matrix for OpenGL (Z from -1 to 1)
         const f = 1.0 / std.math.tan(fov * 0.5);

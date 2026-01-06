@@ -193,7 +193,7 @@ pub const GltfAsset = struct {
 
         // Load texture manually (similar to ASSIMP system)
         const tex = try texture.Texture.initFromFile(
-            self.arena,
+            allocator,
             full_path,
             config,
         );

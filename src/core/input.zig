@@ -3,7 +3,6 @@ const zglfw = @import("zglfw");
 
 const EnumSet = std.EnumSet;
 
-
 pub const Input = struct {
     first_mouse: bool = false,
     mouse_x: f32 = 0.0,
@@ -17,11 +16,11 @@ pub const Input = struct {
 
     const Self = @This();
 
-    pub fn init(mouse_x: f32, mouse_y: f32) Self {
+    pub fn init(scr_width: f32, scr_height: f32) Self {
         return .{
             .first_mouse = true,
-            .mouse_x = mouse_x,
-            .mouse_y = mouse_y,
+            .mouse_x = scr_width * 0.5,
+            .mouse_y = scr_height * 0.5,
             .mouse_right_button = false,
             .mouse_left_button = false,
             .key_presses = EnumSet(zglfw.Key).initEmpty(),

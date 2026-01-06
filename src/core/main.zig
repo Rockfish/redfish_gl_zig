@@ -32,3 +32,4 @@ pub const AnimationRepeatMode = @import("animator.zig").AnimationRepeatMode;
 pub const WeightedAnimation = @import("animator.zig").WeightedAnimation;
 
 pub const shapes = @import("shapes/main.zig");
+pub const Color = @import("colors.zig").Color;

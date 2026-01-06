@@ -84,12 +84,10 @@ pub const Texture = struct {
 
     // Initialize from custom file path with configuration (for manual texture assignment)
     pub fn initFromFile(
-        arena: *ArenaAllocator,
+        allocator: Allocator,
         file_path: [:0]const u8,
         config: TextureConfig,
     ) !*Texture {
-        const allocator = arena.allocator();
-
         zstbi.init(allocator);
         defer zstbi.deinit();
 
