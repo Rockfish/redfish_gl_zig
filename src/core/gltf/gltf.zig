@@ -294,7 +294,7 @@ pub const MeshPrimitive = struct {
     /// Optional. Index of the material to apply.
     material: ?u32,
 
-    /// Rendering mode. Default is TRIANGLES.
+    /// Drawing mode. Default is TRIANGLES.
     mode: Mode,
 
     /// Optional. Array of morph target attribute changes.

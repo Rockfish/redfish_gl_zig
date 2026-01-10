@@ -102,7 +102,7 @@ pub const Model = struct {
         try self.animator.playAnimations(animation_indices);
     }
 
-    pub fn render(self: *Self, shader: *const Shader) void {
+    pub fn draw(self: *Self, shader: *const Shader) void {
         shader.useShader();
         var buf: [256:0]u8 = undefined;
         for (0..MAX_JOINTS) |i| {
@@ -116,7 +116,7 @@ pub const Model = struct {
         if (scene.nodes) |nodes| {
             for (nodes) |node_index| {
                 const node = self.gltf_asset.gltf.nodes.?[node_index];
-                self.renderNodes(shader, node, node_index);
+                self.drawNodes(shader, node, node_index);
             }
         }
     }
@@ -125,19 +125,19 @@ pub const Model = struct {
         debugPrintModelNodeStructure(self);
     }
 
-    fn renderNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, node_index: usize) void {
+    fn drawNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, node_index: usize) void {
         if (node.mesh) |mesh_index| {
             const transform = self.animator.nodes[node_index].calculated_transform.?;
             const local_matrix = transform.toMatrix();
             shader.setMat4("nodeTransform", &local_matrix);
             const mesh = self.meshes.list.items[mesh_index];
-            mesh.render(self.gltf_asset, shader);
+            mesh.draw(self.gltf_asset, shader);
         }
 
         if (node.children) |children| {
             for (children) |child_node_index| {
                 const child = self.gltf_asset.gltf.nodes.?[child_node_index];
-                self.renderNodes(shader, child, child_node_index);
+                self.drawNodes(shader, child, child_node_index);
             }
         }
     }

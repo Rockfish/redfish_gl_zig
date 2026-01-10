@@ -18,7 +18,7 @@ pub const MeshPrimitiveError = error{
     AccessorError,
 };
 
-pub const RenderMode = enum {
+pub const DrawMode = enum {
     basic,
     pbr,
 };
@@ -52,9 +52,9 @@ pub const Mesh = struct {
         return mesh;
     }
 
-    pub fn render(self: *Self, gltf_asset: *GltfAsset, shader: *const Shader) void {
+    pub fn draw(self: *Self, gltf_asset: *GltfAsset, shader: *const Shader) void {
         for (self.primitives.list.items) |primitive| {
-            primitive.render(gltf_asset, shader);
+            primitive.draw(gltf_asset, shader);
             // primitive.renderPBR(gltf, shader);
         }
     }
@@ -64,7 +64,7 @@ pub const MeshPrimitive = struct {
     id: usize,
     name: ?[]const u8 = null,
     material: gltf_types.Material = undefined,
-    render_mode: RenderMode = .basic,
+    draw_mode: DrawMode = .basic,
     indices_count: u32,
     vertex_count: u32 = 0,
     index_type: gltf_types.ComponentType = .unsigned_short,
@@ -191,9 +191,9 @@ pub const MeshPrimitive = struct {
             mesh_primitive.material = material;
             // std.debug.print("has_material: {any}\n", .{material});
 
-            // Set render mode to PBR if material has PBR properties
+            // Set draw mode to PBR if material has PBR properties
             if (material.pbr_metallic_roughness != null) {
-                mesh_primitive.render_mode = .pbr;
+                mesh_primitive.draw_mode = .pbr;
             }
 
             if (material.pbr_metallic_roughness) |pbr| {
@@ -242,17 +242,17 @@ pub const MeshPrimitive = struct {
                 .alpha_cutoff = 0.5,
                 .double_sided = false,
             };
-            mesh_primitive.render_mode = .pbr;
+            mesh_primitive.draw_mode = .pbr;
         }
 
         return mesh_primitive;
     }
 
-    pub fn render(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
+    pub fn draw(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
         // First, apply custom textures (these override material textures)
         self.setCustomTextures(gltf_asset, shader);
 
-        switch (self.render_mode) {
+        switch (self.draw_mode) {
             .basic => self.setBasicMaterial(gltf_asset, shader),
             .pbr => self.setPBRMaterial(gltf_asset, shader),
         }
@@ -290,7 +290,7 @@ pub const MeshPrimitive = struct {
         gl.bindVertexArray(0);
 
         // Reset basic shader flags if in basic mode
-        if (self.render_mode == .basic) {
+        if (self.draw_mode == .basic) {
             shader.setBool("hasTexture", false);
             shader.setBool("hasColor", false);
         }

@@ -241,10 +241,10 @@ pub const Shape = struct {
     /// Note: Typically pair with is_depth_write = false for proper transparency.
     is_transparent: bool = false,
 
-    /// Render as wireframe. Use for debugging geometry or stylized rendering.
+    /// Draw as wireframe. Use for debugging geometry or stylized rendering.
     is_wireframe: bool = false,
 
-    /// Disable face culling to render both sides. Use for planes, foliage, cloth.
+    /// Disable face culling to draw both sides. Use for planes, foliage, cloth.
     is_double_sided: bool = false,
 
     /// Write to depth buffer. Set false for transparent objects that shouldn't occlude.
