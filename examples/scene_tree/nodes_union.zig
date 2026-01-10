@@ -1,0 +1,268 @@
+const std = @import("std");
+const assert = std.debug.assert;
+const math = @import("math");
+const core = @import("core");
+const containers = @import("containers");
+const Transform = @import("core").Transform;
+const Shader = @import("core").Shader;
+const State = @import("main.zig").State;
+const Model = @import("core").Model;
+const AABB = @import("core").AABB;
+
+const Allocator = std.mem.Allocator;
+const ManagedArrayList = containers.ManagedArrayList;
+
+const Vec2 = math.Vec2;
+const Vec3 = math.Vec3;
+const Vec4 = math.Vec4;
+const vec2 = math.vec2;
+const vec3 = math.vec3;
+const vec4 = math.vec4;
+const Mat4 = math.Mat4;
+const Quat = math.Quat;
+
+pub const BasicObj = struct {
+    name: []const u8,
+    // transform: Transform,
+    // global_transform: Transform,
+
+    pub fn init(name: []const u8) BasicObj {
+        return .{
+            .name = name,
+            // .transform = Transform.default(),
+            // .global_transform = Transform.default(),
+        };
+    }
+};
+
+pub const ShapeObj = struct {
+    name: []const u8,
+    shape: *core.shapes.Shape,
+    texture: *core.texture.Texture,
+    // transform: Transform,
+    // global_transform: Transform,
+
+    pub fn init(shape: *core.shapes.Shape, name: []const u8, texture: *core.texture.Texture) ShapeObj {
+        return .{
+            .name = name,
+            .shape = shape,
+            .texture = texture,
+            // .transform = Transform.default(),
+            // .global_transform = Transform.default(),
+        };
+    }
+
+    pub fn getBoundingBox(self: *ShapeObj) AABB {
+        return self.shape.aabb;
+    }
+
+    pub fn draw(self: *ShapeObj, shader: *Shader) void {
+        shader.bindTextureAuto("texture_diffuse", self.texture.gl_texture_id);
+        self.shape.draw();
+    }
+};
+
+pub const ModelObj = struct {
+    name: []const u8,
+    model: *Model,
+    // transform: Transform,
+    // global_transform: Transform,
+
+    pub fn init(model: *Model, name: []const u8) ModelObj {
+        return .{
+            .name = name,
+            .model = model,
+            // .transform = Transform.default(),
+            // .global_transform = Transform.default(),
+        };
+    }
+
+    // pub fn getBoundingBox(self: *ModelObj) AABB {
+    //     return self.model.aabb;
+    // }
+
+    pub fn draw(self: *ModelObj, shader: *Shader) void {
+        self.model.draw(shader);
+    }
+};
+
+pub const Object = union(enum) {
+    basic: *BasicObj,
+    shape: *ShapeObj,
+    model: *ModelObj,
+
+    pub inline fn calcTransform(actor: Object, transform: Transform) Transform {
+        return switch (actor) {
+            inline else => |obj| obj.transform.mul_transform(transform),
+        };
+    }
+
+    pub inline fn setTransform(actor: Object, transform: Transform) void {
+        return switch (actor) {
+            inline else => |obj| obj.transform = transform,
+        };
+    }
+
+    pub inline fn getTransform(actor: Object) Transform {
+        return switch (actor) {
+            inline else => |obj| obj.transform,
+        };
+    }
+
+    pub inline fn getBoundingBox(actor: Object) ?AABB {
+        return switch (actor) {
+            .basic => null,
+            .model => null,
+            inline else => |obj| obj.getBoundingBox(),
+        };
+    }
+
+    pub inline fn draw(actor: Object, shader: *Shader) void {
+        return switch (actor) {
+            .basic => {},
+            inline else => |obj| obj.draw(shader),
+        };
+    }
+
+    pub inline fn updateAnimation(actor: Object, delta_time: f32) void {
+        switch (actor) {
+            .model => |obj| obj.updateAnimation(delta_time),
+            else => {},
+        }
+    }
+};
+
+pub const Node = struct {
+    allocator: Allocator,
+    name: []const u8,
+    object: Object,
+    transform: Transform,
+    global_transform: Transform,
+    parent: ?*Node,
+    children: ManagedArrayList(*Node),
+
+    pub fn init(allocator: Allocator, name: []const u8, object: Object) !*Node {
+        const node = try allocator.create(Node);
+        node.* = .{
+            .allocator = allocator,
+            .name = name,
+            .object = object,
+            .transform = Transform.identity(), // object.getTransform(),
+            .global_transform = Transform.identity(),
+            .parent = null,
+            .children = ManagedArrayList(*Node).init(allocator),
+        };
+        return node;
+    }
+
+    pub fn deinit(self: *Node) void {
+        self.children.deinit();
+        self.allocator.destroy(self);
+    }
+
+    /// Add child
+    pub fn addChild(self: *Node, child: *Node) !void {
+        assert(self != child);
+        if (child.parent) |p| {
+            if (p == self) return;
+
+            // Leave old parent
+            for (p.children.list.items, 0..) |_c, idx| {
+                if (_c == child) {
+                    _ = p.children.list.swapRemove(idx);
+                    break;
+                }
+            } else unreachable;
+        }
+
+        child.parent = self;
+        try self.children.append(child);
+        //child.updateTransforms();
+    }
+
+    /// Remove child
+    pub fn removeChild(self: *Node, child: *Node) void {
+        if (child.parent) |p| {
+            if (p != self) return;
+
+            for (self.children.list.items, 0..) |_c, idx| {
+                if (_c == child) {
+                    _ = self.children.list.swapRemove(idx);
+                    break;
+                }
+            } else unreachable;
+
+            child.parent = null;
+        }
+    }
+
+    /// Remove itself from scene
+    pub fn removeSelf(self: *Node) void {
+        if (self.parent) |p| {
+            // Leave old parent
+            for (p.children.list.items, 0..) |c, idx| {
+                if (self == c) {
+                    _ = p.children.list.swapRemove(idx);
+                    break;
+                }
+            } else unreachable;
+
+            self.parent = null;
+        }
+    }
+
+    /// Update all objects' transform matrix in tree
+    pub fn updateTransforms(self: *Node, parent_transform: ?*Transform) void {
+        if (parent_transform) |transform| {
+            self.global_transform = transform.composeTransforms(self.transform);
+        } else {
+            self.global_transform = self.transform;
+        }
+
+        for (self.children.list.items) |child| {
+            child.updateTransforms(&self.global_transform);
+        }
+    }
+
+    pub fn setTransform(self: *Node, transform: Transform) void {
+        self.transform = transform;
+        self.updateTransforms(null);
+    }
+
+    pub fn setTranslation(self: *Node, translation: Vec3) void {
+        self.transform.translation = translation;
+        self.updateTransforms(null);
+    }
+
+    pub fn setRotation(self: *Node, rotation: Quat) void {
+        self.transform.rotation = rotation;
+        self.updateTransforms(null);
+    }
+
+    pub fn setScale(self: *Node, scale: Vec3) void {
+        self.transform.scale = scale;
+        self.updateTransforms(null);
+    }
+
+    pub fn draw(self: *Node, shader: *Shader) void {
+        const model_mat = self.global_transform.toMatrix();
+        shader.setMat4("matModel", &model_mat);
+        self.object.draw(shader);
+        // for (self.children.items) |child| {
+        //     child.draw(shader);
+        // }
+    }
+
+    pub fn updateAnimation(self: *Node, delta_time: f32) void {
+        self.object.updateAnimation(delta_time);
+        for (self.children.list.items) |child| {
+            child.updateAnimation(delta_time);
+        }
+    }
+
+    // example of how to get the type from a union(enum)
+    pub fn getModel(self: *Node) !Model {
+        if (self.object != .model) return error.TypeMismatch;
+        return self.object.model;
+    }
+};
