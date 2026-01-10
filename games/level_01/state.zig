@@ -150,10 +150,10 @@ pub fn processKeys() void {
                 }
             },
             .one => {
-                state.camera.setLookTo();
+                // state.camera.setLookTo();
             },
             .two => {
-                state.camera.setLookAt();
+                // state.camera.setLookAt();
             },
             .three => {
                 if (!toggle.spin_is_set) {

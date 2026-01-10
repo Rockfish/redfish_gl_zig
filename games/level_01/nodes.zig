@@ -56,7 +56,7 @@ pub const ShapeObj = struct {
         return self.shape.aabb;
     }
 
-    pub fn render(self: *ShapeObj, shader: *Shader) void {
+    pub fn draw(self: *ShapeObj, shader: *Shader) void {
         shader.bindTextureAuto("texture_diffuse", self.texture.gl_texture_id);
         self.shape.draw();
     }
@@ -84,8 +84,8 @@ pub const ModelObj = struct {
         self.model.updateAnimation(delta_time) catch {};
     }
 
-    pub fn render(self: *ModelObj, shader: *Shader) void {
-        self.model.render(shader);
+    pub fn draw(self: *ModelObj, shader: *Shader) void {
+        self.model.draw(shader);
     }
 };
 
@@ -120,10 +120,10 @@ pub const Object = union(enum) {
         };
     }
 
-    pub inline fn render(actor: Object, shader: *Shader) void {
+    pub inline fn draw(actor: Object, shader: *Shader) void {
         return switch (actor) {
             .basic => {},
-            inline else => |obj| obj.render(shader),
+            inline else => |obj| obj.draw(shader),
         };
     }
 
@@ -143,6 +143,7 @@ pub const Node = struct {
     global_transform: Transform,
     parent: ?*Node,
     children: ManagedArrayList(*Node),
+    is_visible: bool = true,
 
     pub fn init(allocator: Allocator, name: []const u8, object: Object) !*Node {
         const node = try allocator.create(Node);
@@ -247,12 +248,12 @@ pub const Node = struct {
         self.updateTransforms(null);
     }
 
-    pub fn render(self: *Node, shader: *Shader) void {
+    pub fn draw(self: *Node, shader: *Shader) void {
         const model_mat = self.global_transform.toMatrix();
         shader.setMat4("matModel", &model_mat);
-        self.object.render(shader);
+        self.object.draw(shader);
         // for (self.children.list.items) |child| {
-        //     child.render(shader);
+        //     child.draw(shader);
         // }
     }
 

@@ -49,7 +49,14 @@ const content_dir = "assets";
 const state_ = @import("state.zig");
 const State = state_.State;
 
-pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
+pub fn run(window: *glfw.Window) !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
     std.debug.print("running test_animation\n", .{});
 
     const window_scale = window.getContentScale();
@@ -108,7 +115,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
     //const model_path = "/Users/john/Dev/Assets/modular_characters/Individual Characters/FBX/Spacesuit.fbx";
     //const model_path = "/Users/john/Dev/Assets/modular_characters/Individual Characters/glTF/Spacesuit.gltf";
-    // const model_path = "/Users/john/Dev/Assets/droid_d-0/droid_d-0/scene.gltf"; // only partially renders
+    // const model_path = "/Users/john/Dev/Assets/droid_d-0/droid_d-0/scene.gltf"; // only partially draws
     //const model_path = "/Users/john/Dev/Assets/bit.bot.2/scene.gltf";
 
     // const model_path = "/Users/john/Dev/Assets/modular_characters/Individual Characters/glTF/Adventurer.gltf";
@@ -218,7 +225,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             try model.animator.playAnimationById(@intCast(state.animation_id));
             last_animation = state.animation_id;
         }
-        model.render(shader);
+        model.draw(shader);
 
         //try core.dumpModelNodes(model);
         window.swapBuffers();

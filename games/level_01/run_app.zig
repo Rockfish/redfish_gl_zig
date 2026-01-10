@@ -46,7 +46,14 @@ const SIZE_OF_QUAT = @sizeOf(Quat);
 
 // pub var state: State = undefined;
 
-pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
+pub fn run(window: *glfw.Window) !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
     state_.initWindowHandlers(window);
 
     const window_scale = window.getContentScale();
@@ -151,7 +158,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     };
 
     const cube_texture = try Texture.initFromFile(
-        &texture_arena,
+        allocator,
         "assets/textures/container.jpg",
         texture_diffuse,
     );
@@ -159,7 +166,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     //   texture_diffuse.wrap = .Repeat;
 
     const surface_texture = try Texture.initFromFile(
-        &texture_arena,
+        allocator,
         "angrybots_assets/Textures/Floor/Floor D.png",
         //"assets/texturest/IMGP5487_seamless.jpg",
         texture_diffuse,
@@ -247,7 +254,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
     gl.enable(gl.DEPTH_TEST);
 
-    // render loop
+    // draw loop
     // -----------
     while (!window.shouldClose()) {
         const current_time: f32 = @floatCast(glfw.getTime());
@@ -269,14 +276,14 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         );
 
         state.world_point = math.getRayPlaneIntersection(
-            &state.camera.movement.position,
+            &state.camera.movement.transform.translation,
             &world_ray, // direction
             &xz_plane_point,
             &xz_plane_normal,
         );
 
         const ray = Ray{
-            .origin = state.camera.movement.position,
+            .origin = state.camera.movement.transform.translation,
             .direction = world_ray,
         };
 
@@ -319,8 +326,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         }
 
         model_node.updateAnimation(state.delta_time);
-        model_node.render(model_shader);
-        //model_node.render(basic_shader);
+        model_node.draw(model_shader);
+        //model_node.draw(basic_shader);
 
         root_node.setTranslation(state.current_position);
 
@@ -359,7 +366,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             if (picked.id != null and picked.id == @as(u32, @intCast(id))) {
                 basic_shader.setVec4("hitColor", &vec4(1.0, 0.0, 0.0, 0.0));
             }
-            n.render(basic_shader);
+            n.draw(basic_shader);
             basic_shader.setVec4("hitColor", &vec4(0.0, 0.0, 0.0, 0.0));
         }
 
