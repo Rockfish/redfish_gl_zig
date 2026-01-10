@@ -4,6 +4,7 @@ const math = @import("math");
 const containers = @import("containers");
 const constants = @import("../constants.zig");
 const AABB = @import("../aabb.zig").AABB;
+const Shader = @import("../shader.zig").Shader;
 
 const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
@@ -266,8 +267,10 @@ pub const Shape = struct {
         gl.deleteTextures(1, &self.gl_texture_id);
     }
 
-    pub fn draw(self: *const Self) void {
+    pub fn draw(self: *const Self, shader: *Shader) void {
         if (!self.is_visible) return;
+
+        shader.useShader();
 
         if (self.is_depth_test) gl.enable(gl.DEPTH_TEST) else gl.disable(gl.DEPTH_TEST);
         if (!self.is_depth_write) gl.depthMask(gl.FALSE);
