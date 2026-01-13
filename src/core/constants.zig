@@ -31,3 +31,50 @@ pub const VertexAttr = struct {
     pub const WEIGHTS: u32 = 6;
     pub const INSTANCE_MATRIX: u32 = 7;
 };
+
+/// Standard uniform names used across shaders
+/// Must match `uniform` declarations in all shader files
+/// IMPORTANT: If you change these values, update the corresponding shaders
+pub const Uniforms = struct {
+    // Core transformation matrices
+    pub const Mat_Projection: [:0]const u8 = "matProjection";
+    pub const Mat_View: [:0]const u8 = "matView";
+    pub const Mat_Model: [:0]const u8 = "matModel";
+    pub const Projection_View: [:0]const u8 = "projectionView";
+
+    // Animation system (glTF native)
+    pub const Joint_Matrices: [:0]const u8 = "jointMatrices";
+    pub const Node_Transform: [:0]const u8 = "nodeTransform";
+    pub const Has_Skin: [:0]const u8 = "hasSkin";
+
+    // Lighting and shadow mapping
+    pub const Mat_Light_Space: [:0]const u8 = "matLightSpace";
+    pub const Light_Space_Matrix: [:0]const u8 = "lightSpaceMatrix";
+
+    // Legacy animation (ASSIMP - being phased out)
+    pub const Final_Bones_Matrices: [:0]const u8 = "finalBonesMatrices";
+
+    // Specialized uniforms (used in specific shaders)
+    pub const Aim_Rot: [:0]const u8 = "aimRot";
+    pub const Depth_Mode: [:0]const u8 = "depth_mode";
+    pub const Time: [:0]const u8 = "time";
+    pub const Nose_Pos: [:0]const u8 = "nosePos";
+
+    // Picker shaders
+    pub const Model: [:0]const u8 = "model";
+    pub const View: [:0]const u8 = "view";
+    pub const Projection: [:0]const u8 = "projection";
+    pub const Model_Transform: [:0]const u8 = "model_transform";
+    pub const Projection_View_Alt: [:0]const u8 = "projection_view";
+
+    // Lighting uniforms
+    pub const Ambient_Color: [:0]const u8 = "ambientColor";
+    pub const Light_Color: [:0]const u8 = "lightColor";
+    pub const Light_Direction: [:0]const u8 = "lightDirection";
+
+    // Texture uniforms
+    pub const Texture_Diffuse: [:0]const u8 = "textureDiffuse";
+    pub const Texture_Normal: [:0]const u8 = "textureNormal";
+    pub const Texture_Spec: [:0]const u8 = "textureSpec";
+    pub const Has_Texture: [:0]const u8 = "hasTexture";
+};

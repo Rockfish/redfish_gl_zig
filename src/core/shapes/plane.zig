@@ -1,8 +1,10 @@
 const std = @import("std");
 const math = @import("math");
 const shape = @import("shape.zig");
+const constants = @import("../constants.zig");
 
 const Mat4 = math.Mat4;
+const uniforms = constants.Uniforms;
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
@@ -109,13 +111,13 @@ pub const Plane = struct {
     }
 
     pub fn draw(self: *Self, shader: *Shader, projection: *const Mat4, view: *const Mat4) void {
-        shader.setMat4("matProjection", projection);
-        shader.setMat4("matView", view);
-        shader.setMat4("matModel", &Mat4.identity());
-        shader.bindTextureAuto("textureDiffuse", self.texture_diffuse.gl_texture_id);
-        shader.bindTextureAuto("textureNormal", self.texture_normal.gl_texture_id);
-        shader.bindTextureAuto("textureSpec", self.texture_spec.gl_texture_id);
+        shader.setMat4(uniforms.Mat_Projection, projection);
+        shader.setMat4(uniforms.Mat_View, view);
+        shader.setMat4(uniforms.Mat_Model, &Mat4.identity());
+        shader.bindTextureAuto(uniforms.Texture_Diffuse, self.texture_diffuse.gl_texture_id);
+        shader.bindTextureAuto(uniforms.Texture_Normal, self.texture_normal.gl_texture_id);
+        shader.bindTextureAuto(uniforms.Texture_Spec, self.texture_spec.gl_texture_id);
 
-        self.shape.draw();
+        self.shape.draw(shader);
     }
 };

@@ -1,8 +1,11 @@
 const std = @import("std");
 const gl = @import("zopengl").bindings;
 const math = @import("math");
+const constants = @import("../constants.zig");
 const Shader = @import("../shader.zig").Shader;
 const Color = @import("../colors.zig").Color;
+
+const uniforms = constants.Uniforms;
 
 const Allocator = std.mem.Allocator;
 
@@ -121,8 +124,8 @@ pub const Lines = struct {
 
         // Draw lines
         self.shader.useShader();
-        self.shader.setMat4("projection", projection);
-        self.shader.setMat4("view", view);
+        self.shader.setMat4(uniforms.Mat_Projection, projection);
+        self.shader.setMat4(uniforms.Mat_View, view);
 
         gl.bindVertexArray(self.vao);
         gl.drawArrays(gl.LINES, 0, @intCast(num_lines * 2));
@@ -203,7 +206,7 @@ pub const SimpleLines = struct {
             rgb[0],  rgb[1],  rgb[2],
             alpha,
             // End vertex
-              end.x,   end.y,
+            end.x,   end.y,
             end.z,   rgb[0],  rgb[1],
             rgb[2],  alpha,
         };
@@ -218,8 +221,8 @@ pub const SimpleLines = struct {
 
         // Draw line
         self.shader.useShader();
-        self.shader.setMat4("projection", projection);
-        self.shader.setMat4("view", view);
+        self.shader.setMat4(uniforms.Mat_Projection, projection);
+        self.shader.setMat4(uniforms.Mat_View, view);
 
         gl.bindVertexArray(self.vao);
         gl.drawArrays(gl.LINES, 0, 2);
