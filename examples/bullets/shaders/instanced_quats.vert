@@ -3,57 +3,47 @@
 // model data
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 inTexCoord;
+layout(location = 2) in vec3 inNormal;
 
 // Per instance data
-layout(location = 2) in vec4 rotationQuat;
-layout(location = 3) in vec3 positionOffset;
+layout(location = 8) in vec4 rotationQuat;
+layout(location = 9) in vec3 positionOffset;
 
-// Transformation matrices
-uniform mat4 projectionView;
+uniform mat4 matView;
+uniform mat4 matProjection;
 
+out vec4 fragColor;
 out vec2 fragTexCoord;
+out vec3 fragNormal;
 
-vec4 hamiltonProduct(vec4 q1, const vec4 q2) {
-    return vec4(
-        q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y,
-        q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x,
-        q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w,
-        q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z
-    );
-}
+vec3 rotateVec(vec3 v, vec4 q) {
+    float qx = q.x;
+    float qy = q.y;
+    float qz = q.z;
+    float qw = q.w;
+    float vx = v.x;
+    float vy = v.y;
+    float vz = v.z;
 
-vec4 multiplyQuaternions(vec4 q1, vec4 q2) {
-    return vec4(
-        q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y, // w
-        q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x, // x
-        q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w, // y
-        q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z // z
-    );
-}
+    // First cross product: cross(q.xyz, v) + q.w * v
+    float cx1 = qy * vz - qz * vy + qw * vx;
+    float cy1 = qz * vx - qx * vz + qw * vy;
+    float cz1 = qx * vy - qy * vx + qw * vz;
 
-// glm stores quat as { w, x, y, z }
-// glam stores quat as { x, y, z, w }
-vec4 flip(vec4 glam) {
-    vec4 glm = vec4(glam.w, glam.x, glam.y, glam.z);
-    return glm;
-}
+    // Second cross product: cross(q.xyz, cross(q.xyz, v) + q.w * v)
+    float cx2 = qy * cz1 - qz * cy1;
+    float cy2 = qz * cx1 - qx * cz1;
+    float cz2 = qx * cy1 - qy * cx1;
 
-vec3 rotateByQuat(vec3 v, vec4 q_orig) {
-    vec4 q = flip(q_orig); // flip convention;
-
-    vec4 qPrime = vec4(-q.x, -q.y, -q.z, q.w);
-
-    vec4 first = hamiltonProduct(q, vec4(v.x, v.y, v.z, 0.0));
-    vec4 vPrime = hamiltonProduct(first, qPrime);
-
-    return vec3(vPrime.x, vPrime.y, vPrime.z);
+    // Final result: v + 2 * cross(q.xyz, cross(q.xyz, v) + q.w * v)
+    return vec3(vx + 2.0 * cx2, vy + 2.0 * cy2, vz + 2.0 * cz2);
 }
 
 void main() {
-    // rotate bullet sprite to face in the direction of travel
-    vec3 rotatedInPos = rotateByQuat(inPosition, rotationQuat);
-
-    gl_Position = projectionView * vec4(rotatedInPos + positionOffset, 1.0);
+    vec3 rotatedPos = rotateVec(inPosition, rotationQuat);
+    gl_Position = matProjection * matView * vec4(rotatedPos + positionOffset, 1.0);
 
     fragTexCoord = inTexCoord;
+    fragColor = vec4(1.0);
+    fragNormal = inNormal;
 }

@@ -8,7 +8,6 @@ const Vec3 = math.Vec3;
 
 const Texture = core.texture.Texture;
 const TextureConfig = core.texture.TextureConfig;
-const TextureType = core.texture.TextureType;
 const TextureWrap = core.texture.TextureWrap;
 const TextureFilter = core.texture.TextureFilter;
 

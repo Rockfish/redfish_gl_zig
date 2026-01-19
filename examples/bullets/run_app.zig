@@ -6,7 +6,6 @@ const math = @import("math");
 const state_mod = @import("state.zig");
 const input_handler = @import("scene/input_handler.zig");
 
-const BulletSystem = @import("projectiles/bullet.zig").BulletSystem;
 const Scene = @import("scene/scene.zig").Scene;
 
 const Vec3 = math.Vec3;
@@ -27,7 +26,7 @@ const State = state_mod.State;
 
 const log = std.log.scoped(.BulletsApp);
 
-pub fn run_simple(window: *glfw.Window, max_duration: ?f32) !void {
+pub fn run_app(window: *glfw.Window, max_duration: ?f32) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
@@ -50,14 +49,12 @@ pub fn run_simple(window: *glfw.Window, max_duration: ?f32) !void {
         .scaled_width = scaled_width,
         .scaled_height = scaled_height,
         .window_scale = window_scale,
-        .scene = try Scene.init(&arena, scaled_width, scaled_height),
-        .light_position = vec3(10.0, 10.0, -30.0),
+        // .light_position = vec3(10.0, 10.0, -30.0),
         .delta_time = 0.0,
         .total_time = 0.0,
         .world_point = null,
-        // .camera_initial_position = vec3(0.0, 0.0, 15.0),
-        // .camera_initial_target = vec3(0.0, 0.0, 0.0),
         .input = Input.init(scaled_width, scaled_height),
+        .scene = try Scene.init(&arena, scaled_width, scaled_height),
     };
 
     input_handler._state = &state;
@@ -90,7 +87,7 @@ pub fn run_simple(window: *glfw.Window, max_duration: ?f32) !void {
         input_handler.processInput();
 
         if (state.reset == true) {
-            scene.bullet_system.resetBullets(
+            try scene.bullet_system.resetBullets(
                 vec3(0.0, 0.0, 0.0),
                 vec3(0.0, 1.0, 0.0),
                 1.0,
@@ -110,13 +107,13 @@ pub fn run_simple(window: *glfw.Window, max_duration: ?f32) !void {
 
         clearWindow();
 
-        scene.drawCube(&projection, &view);
+        // scene.drawCube(&projection, &view);
 
         scene.drawAxis(&projection, &view);
 
         scene.drawBullets(&projection, &view);
 
-        scene.drawSkybox(&projection, &view);
+        // scene.drawSkybox(&projection, &view);
 
         scene.drawFloor(&projection, &view);
 
@@ -127,7 +124,7 @@ pub fn run_simple(window: *glfw.Window, max_duration: ?f32) !void {
 }
 
 pub fn clearWindow() void {
-    gl.clearColor(0.2, 0.2, 0.2, 1.0);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.disable(gl.BLEND);
     gl.enable(gl.CULL_FACE);
