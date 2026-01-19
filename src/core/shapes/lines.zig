@@ -206,7 +206,7 @@ pub const SimpleLines = struct {
             rgb[0],  rgb[1],  rgb[2],
             alpha,
             // End vertex
-            end.x,   end.y,
+              end.x,   end.y,
             end.z,   rgb[0],  rgb[1],
             rgb[2],  alpha,
         };

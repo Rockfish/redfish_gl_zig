@@ -76,6 +76,10 @@ pub fn ManagedArrayList(comptime T: type) type {
             return self.list.items;
         }
 
+        pub inline fn itemsConst(self: *const Self) []const T {
+            return self.list.items;
+        }
+
         pub inline fn capacity(self: *const Self) usize {
             return self.list.capacity;
         }

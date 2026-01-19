@@ -16,8 +16,8 @@ pub const Vec2 = extern struct {
         return @as(*Vec2, @ptrCast(@constCast(&value))).*;
     }
 
-    pub fn asArray(self: *const Vec2) [2]f32 {
-        return @as(*[2]f32, @ptrCast(@constCast(self))).*;
+    pub fn asArray(self: Vec2) [2]f32 {
+        return @as(*const [2]f32, @ptrCast(&self)).*;
     }
 
     pub fn asArrayPtr(self: *const Vec2) *[2]f32 {
@@ -28,19 +28,19 @@ pub const Vec2 = extern struct {
         return @as([*c]f32, @ptrCast(@constCast(v)));
     }
 
-    pub fn lengthSquared(v: *const Vec2) f32 {
+    pub fn lengthSquared(v: Vec2) f32 {
         return v.dot(v);
     }
 
-    pub fn dot(lhs: *const Vec2, rhs: *const Vec2) f32 {
+    pub fn dot(lhs: Vec2, rhs: Vec2) f32 {
         return (lhs.x * rhs.x) + (lhs.y * rhs.y);
     }
 
-    pub fn asString(self: *const Vec2, buf: []u8) []u8 {
+    pub fn asString(self: Vec2, buf: []u8) []u8 {
         return std.fmt.bufPrint(buf, "Vec2{{ {d}, {d} }}", .{ self.x, self.y }) catch |err| std.debug.panic("{any}", .{err});
     }
 
-    pub fn clone(self: *const Vec2) Vec2 {
+    pub fn clone(self: Vec2) Vec2 {
         return .{ .x = self.x, .y = self.y };
     }
 };
@@ -61,29 +61,17 @@ pub const Vec3 = extern struct {
     pub const X: Vec3 = .{ .x = 1.0, .y = 0.0, .z = 0.0 };
     pub const Y: Vec3 = .{ .x = 0.0, .y = 1.0, .z = 0.0 };
     pub const Z: Vec3 = .{ .x = 0.0, .y = 0.0, .z = 1.0 };
-    pub const ZERO: Vec3 = .{ .x = 0.0, .y = 0.0, .z = 0.0 };
-    pub const ONE: Vec3 = .{ .x = 1.0, .y = 1.0, .z = 1.0 };
-    pub const WORLD_RIGHT: Vec3 = .{ .x = 1, .y = 0, .z = 0 };
-    pub const WORLD_UP: Vec3 = .{ .x = 0, .y = 1, .z = 0 };
-    pub const WORLD_FORWARD: Vec3 = .{ .x = 0, .y = 0, .z = -1 };
-    pub const WORLD_BACK: Vec3 = .{ .x = 0, .y = 0, .z = 1 };
+    pub const Zero: Vec3 = .{ .x = 0.0, .y = 0.0, .z = 0.0 };
+    pub const One: Vec3 = .{ .x = 1.0, .y = 1.0, .z = 1.0 };
+    pub const World_Right: Vec3 = .{ .x = 1, .y = 0, .z = 0 };
+    pub const World_Up: Vec3 = .{ .x = 0, .y = 1, .z = 0 };
+    pub const World_Forward: Vec3 = .{ .x = 0, .y = 0, .z = -1 };
+    pub const World_Back: Vec3 = .{ .x = 0, .y = 0, .z = 1 };
 
     const Self = @This();
 
     pub inline fn init(x: f32, y: f32, z: f32) Vec3 {
         return .{ .x = x, .y = y, .z = z };
-    }
-
-    pub inline fn default() Vec3 {
-        return .{ .x = 0.0, .y = 0.0, .z = 0.0 };
-    }
-
-    pub inline fn zero() Vec3 {
-        return .{ .x = 0.0, .y = 0.0, .z = 0.0 };
-    }
-
-    pub inline fn one() Vec3 {
-        return .{ .x = 1.0, .y = 1.0, .z = 1.0 };
     }
 
     pub inline fn splat(v: f32) Vec3 {
@@ -98,25 +86,25 @@ pub const Vec3 = extern struct {
         return @as(*Vec3, @ptrCast(@constCast(value))).*;
     }
 
-    pub inline fn asArray(self: *const Vec3) [3]f32 {
-        return @as(*[3]f32, @ptrCast(@constCast(self))).*;
+    pub inline fn asArray(self: Vec3) [3]f32 {
+        return @as(*const [3]f32, @ptrCast(&self)).*;
     }
 
     pub inline fn asArrayPtr(self: *const Vec3) *[3]f32 {
         return @as(*[3]f32, @ptrCast(@constCast(self)));
     }
 
-    pub inline fn add(a: *const Vec3, b: *const Vec3) Vec3 {
+    pub inline fn add(a: Vec3, b: Vec3) Vec3 {
         return .{ .x = a.x + b.x, .y = a.y + b.y, .z = a.z + b.z };
     }
 
-    pub inline fn addTo(a: *Vec3, b: *const Vec3) void {
+    pub inline fn addTo(a: *Vec3, b: Vec3) void {
         a.x = a.x + b.x;
         a.y = a.y + b.y;
         a.z = a.z + b.z;
     }
 
-    pub inline fn sub(a: *const Vec3, b: *const Vec3) Vec3 {
+    pub inline fn sub(a: Vec3, b: Vec3) Vec3 {
         return .{
             .x = a.x - b.x,
             .y = a.y - b.y,
@@ -124,11 +112,11 @@ pub const Vec3 = extern struct {
         };
     }
 
-    pub inline fn mul(a: *const Vec3, b: *const Vec3) Vec3 {
+    pub inline fn mul(a: Vec3, b: Vec3) Vec3 {
         return .{ .x = a.x * b.x, .y = a.y * b.y, .z = a.z * b.z };
     }
 
-    pub inline fn recip(v: *const Vec3) Vec3 {
+    pub inline fn recip(v: Vec3) Vec3 {
         return .{
             .x = 1.0 / v.x,
             .y = 1.0 / v.y,
@@ -148,7 +136,7 @@ pub const Vec3 = extern struct {
         v.z = v.z / magnitude;
     }
 
-    pub fn toNormalized(v: *const Vec3) Vec3 {
+    pub fn toNormalized(v: Vec3) Vec3 {
         var result: Vec3 = .{ .x = 0.0, .y = 0.0, .z = 0.0 };
 
         const length_squared = v.lengthSquared();
@@ -164,23 +152,23 @@ pub const Vec3 = extern struct {
         return result;
     }
 
-    pub inline fn addScalar(a: *const Vec3, b: f32) Vec3 {
+    pub inline fn addScalar(a: Vec3, b: f32) Vec3 {
         return .{ .x = a.x + b, .y = a.y + b, .z = a.z + b };
     }
 
-    pub inline fn mulScalar(a: *const Vec3, b: f32) Vec3 {
+    pub inline fn mulScalar(a: Vec3, b: f32) Vec3 {
         return .{ .x = a.x * b, .y = a.y * b, .z = a.z * b };
     }
 
-    pub inline fn divScalar(a: *const Vec3, b: f32) Vec3 {
+    pub inline fn divScalar(a: Vec3, b: f32) Vec3 {
         return .{ .x = a.x / b, .y = a.y / b, .z = a.z / b };
     }
 
-    pub inline fn dot(lhs: *const Vec3, rhs: *const Vec3) f32 {
+    pub inline fn dot(lhs: Vec3, rhs: Vec3) f32 {
         return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z);
     }
 
-    pub inline fn cross(a: *const Vec3, b: *const Vec3) Vec3 {
+    pub inline fn cross(a: Vec3, b: Vec3) Vec3 {
         return Vec3{
             .x = a.y * b.z - a.z * b.y,
             .y = a.z * b.x - a.x * b.z,
@@ -188,7 +176,7 @@ pub const Vec3 = extern struct {
         };
     }
 
-    pub inline fn crossNormalized(a: *const Vec3, b: *const Vec3) Vec3 {
+    pub inline fn crossNormalized(a: Vec3, b: Vec3) Vec3 {
         var v = Vec3{
             .x = a.y * b.z - a.z * b.y,
             .y = a.z * b.x - a.x * b.z,
@@ -208,19 +196,19 @@ pub const Vec3 = extern struct {
         return v;
     }
 
-    pub inline fn lengthSquared(v: *const Vec3) f32 {
+    pub inline fn lengthSquared(v: Vec3) f32 {
         return v.dot(v);
     }
 
-    pub inline fn length(v: *const Vec3) f32 {
+    pub inline fn length(v: Vec3) f32 {
         return std.math.sqrt(v.dot(v));
     }
 
-    pub inline fn distance(self: *Vec3, rhs: *Vec3) f32 {
+    pub inline fn distance(self: Vec3, rhs: Vec3) f32 {
         return self.sub(rhs).length();
     }
 
-    pub fn lerp(from: *const Vec3, to: *const Vec3, t: f32) Vec3 {
+    pub fn lerp(from: Vec3, to: Vec3, t: f32) Vec3 {
         const clamped_t = @max(0.0, @min(1.0, t));
         return Vec3{
             .x = from.x + clamped_t * (to.x - from.x),
@@ -244,7 +232,7 @@ pub const Vec3 = extern struct {
     }
 
     /// angle in radians between two vectors
-    pub fn angle(a: *const Vec3, b: *const Vec3) f32 {
+    pub fn angle(a: Vec3, b: Vec3) f32 {
         const dot_product = a.dot(b);
         const magnitude_a = a.length();
         const magnitude_b = b.length();
@@ -263,11 +251,11 @@ pub const Vec3 = extern struct {
         return @as([*c]f32, @ptrCast(@constCast(v)));
     }
 
-    pub inline fn clone(self: *const Vec3) Vec3 {
+    pub inline fn clone(self: Vec3) Vec3 {
         return .{ .x = self.x, .y = self.y, .z = self.z };
     }
 
-    pub fn asString(self: *const Self, buf: []u8) []u8 {
+    pub fn asString(self: Vec3, buf: []u8) []u8 {
         return std.fmt.bufPrint(buf, "Vec3{{ {d}, {d}, {d} }}", .{ self.x, self.y, self.z }) catch |err| std.debug.panic("{any}", .{err});
     }
 };
@@ -282,6 +270,9 @@ pub const Vec4 = extern struct {
     z: f32,
     w: f32,
 
+    pub const Zero: Vec4 = .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 };
+    pub const One: Vec4 = .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 1.0 };
+
     pub inline fn init(x: f32, y: f32, z: f32, w: f32) Vec4 {
         return .{ .x = x, .y = y, .z = z, .w = w };
     }
@@ -290,8 +281,8 @@ pub const Vec4 = extern struct {
         return @as(*Vec4, @ptrCast(@constCast(&value))).*;
     }
 
-    pub inline fn asArray(self: *const Vec4) [4]f32 {
-        return @as(*[4]f32, @ptrCast(@constCast(self))).*;
+    pub inline fn asArray(self: Vec4) [4]f32 {
+        return @as(*const [4]f32, @ptrCast(&self)).*;
     }
 
     pub inline fn asArrayPtr(self: *const Vec4) *[4]f32 {
@@ -306,33 +297,33 @@ pub const Vec4 = extern struct {
         return .{ .x = v, .y = v, .z = v, .w = v };
     }
 
-    pub inline fn xyz(self: *const Vec4) Vec3 {
+    pub inline fn xyz(self: Vec4) Vec3 {
         return .{ .x = self.x, .y = self.y, .z = self.z };
     }
 
-    pub inline fn scale(v: *const Vec4, s: f32) Vec4 {
+    pub inline fn scale(v: Vec4, s: f32) Vec4 {
         return .{ .x = v.x * s, .y = v.y * s, .z = v.z * s, .w = v.w * s };
     }
 
-    pub inline fn dot(lhs: *const Vec4, rhs: *const Vec4) f32 {
+    pub inline fn dot(lhs: Vec4, rhs: Vec4) f32 {
         return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z) + (lhs.w * rhs.w);
     }
 
-    pub inline fn lengthSquared(v: *const Vec4) f32 {
+    pub inline fn lengthSquared(v: Vec4) f32 {
         return v.dot(v);
     }
 
-    pub inline fn length(v: *const Vec4) f32 {
+    pub inline fn length(v: Vec4) f32 {
         return std.math.sqrt(v.lengthSquared());
     }
 
     /// Returns the length of the Vec4 treating it as a 3D vector (ignoring w component).
     /// Useful for extracting scale from transformation matrix columns.
-    pub inline fn length3(v: *const Vec4) f32 {
+    pub inline fn length3(v: Vec4) f32 {
         return std.math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     }
 
-    pub fn lerp(from: *const Vec4, to: *const Vec4, t: f32) Vec4 {
+    pub fn lerp(from: Vec4, to: Vec4, t: f32) Vec4 {
         const clamped_t = @max(0.0, @min(1.0, t));
         return Vec4{
             .x = from.x + clamped_t * (to.x - from.x),
@@ -354,7 +345,7 @@ pub const Vec4 = extern struct {
         v.w = v.w / magnitude;
     }
 
-    pub fn toNormalized(v: *const Vec4) Vec4 {
+    pub fn toNormalized(v: Vec4) Vec4 {
         var result = Vec4{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 };
 
         const length_squared = v.lengthSquared();
@@ -371,15 +362,15 @@ pub const Vec4 = extern struct {
         return result;
     }
 
-    pub fn clone(self: *const Vec4) Vec4 {
+    pub fn clone(self: Vec4) Vec4 {
         return .{ .x = self.x, .y = self.y, .z = self.z, .w = self.w };
     }
 
-    pub fn toVec3(self: *const Vec4) Vec3 {
+    pub fn toVec3(self: Vec4) Vec3 {
         return .{ .x = self.x, .y = self.y, .z = self.z };
     }
 
-    pub fn asString(self: *const Vec4, buf: []u8) []u8 {
+    pub fn asString(self: Vec4, buf: []u8) []u8 {
         return std.fmt.bufPrint(buf, "Vec4{{ {d}, {d}, {d}, {d} }}", .{ self.x, self.y, self.z, self.w }) catch |err| std.debug.panic("{any}", .{err});
     }
 };

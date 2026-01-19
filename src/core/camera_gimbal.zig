@@ -109,7 +109,7 @@ pub const Camera = struct {
             .far = 2000.0,
             .ortho_scale = 40.0,
             .projection_type = .Perspective,
-            .translation_speed = 100.0,
+            .translation_speed = 20.0,
             .rotation_speed = 100.0,
             .orbit_speed = 200.0,
             .gimbal_speed = 120.0,
@@ -227,7 +227,7 @@ pub const Camera = struct {
         const base_target = self.base_movement.getTarget();
 
         // Calculate horizontal direction from base to target (world x-z plane)
-        const base_to_target = base_target.sub(&base_transform.translation);
+        const base_to_target = base_target.sub(base_transform.translation);
         const horizontal_direction = Vec3.init(base_to_target.x, 0.0, base_to_target.z).toNormalized();
 
         // Create world-level right vector (perpendicular to horizontal direction in x-z plane)
@@ -255,24 +255,23 @@ pub const Camera = struct {
         const base_target = self.base_movement.getTarget();
 
         // Calculate horizontal direction from base position to target
-        const base_to_target = base_target.sub(&base_transform.translation);
+        const base_to_target = base_target.sub(base_transform.translation);
         const horizontal_direction = Vec3.init(base_to_target.x, 0.0, base_to_target.z).toNormalized();
 
         // Calculate what the gimbal target should be to look in horizontal direction
         // Convert world horizontal direction to gimbal's local space
-        const world_up = Vec3.init(0.0, 1.0, 0.0);
 
         // Create a temporary world-level transform for the base
         var world_level_transform = Transform.identity();
         world_level_transform.translation = base_transform.translation;
-        world_level_transform.lookTo(horizontal_direction, world_up);
+        world_level_transform.lookTo(horizontal_direction, Vec3.World_Up);
 
         // The gimbal should look forward relative to this world-level base orientation
-        const gimbal_target = self.gimbal_movement.getPosition().add(&Vec3.init(0.0, 0.0, -1.0));
+        const gimbal_target = self.gimbal_movement.getPosition().add(Vec3.World_Forward);
         self.gimbal_movement.setTarget(gimbal_target);
 
         // Reset gimbal to look forward (horizontal direction is handled by the base orientation)
-        self.gimbal_movement.reset(Vec3.init(0.0, 0.0, 0.0), Vec3.init(0.0, 0.0, -1.0));
+        self.gimbal_movement.reset(Vec3.Zero, Vec3.World_Forward);
     }
 
     pub fn getProjectionView(self: *Self) Mat4 {

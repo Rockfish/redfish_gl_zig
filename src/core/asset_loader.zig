@@ -592,14 +592,14 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
                         const v2 = positions[idx2];
 
                         // Calculate face normal using cross product
-                        const edge1 = v1.sub(&v0);
-                        const edge2 = v2.sub(&v0);
-                        const face_normal = edge1.crossNormalized(&edge2);
+                        const edge1 = v1.sub(v0);
+                        const edge2 = v2.sub(v0);
+                        const face_normal = edge1.crossNormalized(edge2);
 
                         // Add to vertex normals
-                        normals[idx0] = normals[idx0].add(&face_normal);
-                        normals[idx1] = normals[idx1].add(&face_normal);
-                        normals[idx2] = normals[idx2].add(&face_normal);
+                        normals[idx0] = normals[idx0].add(face_normal);
+                        normals[idx1] = normals[idx1].add(face_normal);
+                        normals[idx2] = normals[idx2].add(face_normal);
                     }
                 }
             },
@@ -617,14 +617,14 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
                         const v2 = positions[idx2];
 
                         // Calculate face normal using cross product
-                        const edge1 = v1.sub(&v0);
-                        const edge2 = v2.sub(&v0);
-                        const face_normal = edge1.crossNormalized(&edge2);
+                        const edge1 = v1.sub(v0);
+                        const edge2 = v2.sub(v0);
+                        const face_normal = edge1.crossNormalized(edge2);
 
                         // Add to vertex normals
-                        normals[idx0] = normals[idx0].add(&face_normal);
-                        normals[idx1] = normals[idx1].add(&face_normal);
-                        normals[idx2] = normals[idx2].add(&face_normal);
+                        normals[idx0] = normals[idx0].add(face_normal);
+                        normals[idx1] = normals[idx1].add(face_normal);
+                        normals[idx2] = normals[idx2].add(face_normal);
                     }
                 }
             },
@@ -645,9 +645,9 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
             const v2 = positions[i + 2];
 
             // Calculate face normal using cross product
-            const edge1 = v1.sub(&v0);
-            const edge2 = v2.sub(&v0);
-            const face_normal = edge1.crossNormalized(&edge2);
+            const edge1 = v1.sub(v0);
+            const edge2 = v2.sub(v0);
+            const face_normal = edge1.crossNormalized(edge2);
 
             // Set vertex normals to face normal
             normals[i] = face_normal;

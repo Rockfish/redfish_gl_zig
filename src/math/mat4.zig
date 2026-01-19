@@ -25,23 +25,19 @@ pub const Mat4 = extern struct {
 
     const Self = @This();
 
-    pub fn identity() Self {
-        return Mat4{ .data = .{
-            .{ 1.0, 0.0, 0.0, 0.0 },
-            .{ 0.0, 1.0, 0.0, 0.0 },
-            .{ 0.0, 0.0, 1.0, 0.0 },
-            .{ 0.0, 0.0, 0.0, 1.0 },
-        } };
-    }
+    pub const Identity = Mat4{ .data = .{
+        .{ 1.0, 0.0, 0.0, 0.0 },
+        .{ 0.0, 1.0, 0.0, 0.0 },
+        .{ 0.0, 0.0, 1.0, 0.0 },
+        .{ 0.0, 0.0, 0.0, 1.0 },
+    } };
 
-    pub fn zero() Self {
-        return Mat4{ .data = .{
-            .{ 0.0, 0.0, 0.0, 0.0 },
-            .{ 0.0, 0.0, 0.0, 0.0 },
-            .{ 0.0, 0.0, 0.0, 0.0 },
-            .{ 0.0, 0.0, 0.0, 0.0 },
-        } };
-    }
+    pub const Zero = Mat4{ .data = .{
+        .{ 0.0, 0.0, 0.0, 0.0 },
+        .{ 0.0, 0.0, 0.0, 0.0 },
+        .{ 0.0, 0.0, 0.0, 0.0 },
+        .{ 0.0, 0.0, 0.0, 0.0 },
+    } };
 
     pub fn fromColumns(x_axis: Vec4, y_axis: Vec4, z_axis: Vec4, w_axis: Vec4) Self {
         return Mat4{ .data = .{
@@ -165,7 +161,7 @@ pub const Mat4 = extern struct {
         // Check for singular matrix
         if (@abs(det) < 1e-8) {
             // Return identity matrix for singular matrices
-            return Mat4.identity();
+            return Mat4.Identity;
         }
 
         const inv_det = 1.0 / det;
@@ -194,7 +190,7 @@ pub const Mat4 = extern struct {
         } };
     }
 
-    pub fn fromTranslation(t: *const Vec3) Self {
+    pub fn fromTranslation(t: Vec3) Self {
         return Mat4{ .data = .{
             .{ 1.0, 0.0, 0.0, 0.0 },
             .{ 0.0, 1.0, 0.0, 0.0 },
@@ -203,7 +199,7 @@ pub const Mat4 = extern struct {
         } };
     }
 
-    pub fn fromScale(s: *const Vec3) Self {
+    pub fn fromScale(s: Vec3) Self {
         return Mat4{ .data = .{
             .{ s.x, 0.0, 0.0, 0.0 },
             .{ 0.0, s.y, 0.0, 0.0 },
@@ -251,7 +247,7 @@ pub const Mat4 = extern struct {
         } };
     }
 
-    pub fn fromAxisAngle(axis: *const Vec3, angle_radians: f32) Mat4 {
+    pub fn fromAxisAngle(axis: Vec3, angle_radians: f32) Mat4 {
         // Rodrigues' rotation formula for creating rotation matrix from axis-angle
         const normalized_axis = axis.toNormalized();
         const x = normalized_axis.x;
@@ -270,7 +266,7 @@ pub const Mat4 = extern struct {
         } };
     }
 
-    pub fn fromQuat(q: *const Quat) Mat4 {
+    pub fn fromQuat(q: Quat) Mat4 {
         // Convert quaternion to 4x4 rotation matrix
         const qx = q.data[0];
         const qy = q.data[1];
@@ -339,17 +335,17 @@ pub const Mat4 = extern struct {
         }
     }
 
-    pub fn translate(self: *Self, translationVec3: *const Vec3) void {
+    pub fn translate(self: *Self, translationVec3: Vec3) void {
         const translation_matrix = Mat4.fromTranslation(translationVec3);
         self.mulByMat4(&translation_matrix);
     }
 
-    pub fn scale(self: *Self, scaleVec3: *const Vec3) void {
+    pub fn scale(self: *Self, scaleVec3: Vec3) void {
         const scale_matrix = Mat4.fromScale(scaleVec3);
         self.mulByMat4(&scale_matrix);
     }
 
-    pub fn rotateByDegrees(self: *Self, axis: *const Vec3, angleDegrees: f32) void {
+    pub fn rotateByDegrees(self: *Self, axis: Vec3, angleDegrees: f32) void {
         const angleRadians = std.math.degreesToRadians(angleDegrees);
         const rotation_matrix = Mat4.fromAxisAngle(axis, angleRadians);
         self.mulByMat4(&rotation_matrix);
@@ -397,7 +393,7 @@ pub const Mat4 = extern struct {
         self.data = temp.data;
     }
 
-    pub fn mulVec4(self: *const Self, vec: *const Vec4) Vec4 {
+    pub fn mulVec4(self: *const Self, vec: Vec4) Vec4 {
         // Column-major matrix-vector multiplication following cglm convention
         // Matches glm_mat4_mulv implementation in cglm/mat4.h
         // result[i] = Σ(matrix[j][i] * vec[j]) - sum across columns
@@ -411,7 +407,7 @@ pub const Mat4 = extern struct {
 
     /// Transform a position (w = 1.0) - includes translation
     /// Use this for points in space that should be affected by the matrix's translation component
-    pub fn mulVec3AsPoint(self: *const Self, vec: *const Vec3) Vec3 {
+    pub fn mulVec3AsPoint(self: *const Self, vec: Vec3) Vec3 {
         return Vec3{
             .x = self.data[0][0] * vec.x + self.data[1][0] * vec.y + self.data[2][0] * vec.z + self.data[3][0],
             .y = self.data[0][1] * vec.x + self.data[1][1] * vec.y + self.data[2][1] * vec.z + self.data[3][1],
@@ -421,7 +417,7 @@ pub const Mat4 = extern struct {
 
     /// Transform a direction (w = 0.0) - ignores translation
     /// Use this for vectors/directions that should only be affected by rotation and scale
-    pub fn mulVec3AsDirection(self: *const Self, vec: *const Vec3) Vec3 {
+    pub fn mulVec3AsDirection(self: *const Self, vec: Vec3) Vec3 {
         return Vec3{
             .x = self.data[0][0] * vec.x + self.data[1][0] * vec.y + self.data[2][0] * vec.z,
             .y = self.data[0][1] * vec.x + self.data[1][1] * vec.y + self.data[2][1] * vec.z,
@@ -456,7 +452,7 @@ pub const Mat4 = extern struct {
         } };
     }
 
-    pub fn lookAtRhGl(eye: *const Vec3, center: *const Vec3, up: *const Vec3) Self {
+    pub fn lookAtRhGl(eye: Vec3, center: Vec3, up: Vec3) Self {
         // CGLM-compatible right-handed look-at implementation
         // Forward vector: center - eye (direction from eye TO center)
         const f = center.sub(eye).toNormalized();
@@ -465,7 +461,7 @@ pub const Mat4 = extern struct {
         const r = f.crossNormalized(up);
 
         // Up vector: cross(right, forward)
-        const u = r.crossNormalized(&f);
+        const u = r.crossNormalized(f);
 
         // Direct matrix construction matching CGLM exactly
         return Mat4{
@@ -478,10 +474,10 @@ pub const Mat4 = extern struct {
         };
     }
 
-    pub fn lookToRhGl(eye: *const Vec3, direction: *const Vec3, up: *const Vec3) Self {
+    pub fn lookToRhGl(eye: Vec3, direction: Vec3, up: Vec3) Self {
         // CGLM-compatible: target = eye + direction, then use lookAt
         const target = eye.add(direction);
-        return lookAtRhGl(eye, &target, up);
+        return lookAtRhGl(eye, target, up);
     }
 
     pub fn removeTranslation(self: *const Self) Mat4 {
@@ -493,7 +489,7 @@ pub const Mat4 = extern struct {
         } };
     }
 
-    pub fn fromTranslationRotationScale(tran: *const Vec3, rota: *const Quat, scal: *const Vec3) Mat4 {
+    pub fn fromTranslationRotationScale(tran: Vec3, rota: Quat, scal: Vec3) Mat4 {
         const axes = Quat.toAxes(rota);
         const right_scaled = axes.right.mulScalar(scal.x);
         const up_scaled = axes.up.mulScalar(scal.y);

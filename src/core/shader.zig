@@ -280,11 +280,12 @@ pub const Shader = struct {
         }
     }
 
-    pub fn setVec2(self: *const Shader, uniform: [:0]const u8, value: *const Vec2) void {
+    pub fn setVec2(self: *const Shader, uniform: [:0]const u8, value: Vec2) void {
         self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
-            gl.uniform2fv(location, 1, value.asArrayPtr());
+            const arr = value.asArray();
+            gl.uniform2fv(location, 1, &arr);
         }
     }
 
@@ -296,11 +297,12 @@ pub const Shader = struct {
         }
     }
 
-    pub fn setVec3(self: *const Shader, uniform: [:0]const u8, value: *const Vec3) void {
+    pub fn setVec3(self: *const Shader, uniform: [:0]const u8, value: Vec3) void {
         self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
-            gl.uniform3fv(location, 1, value.asArrayPtr());
+            const arr = value.asArray();
+            gl.uniform3fv(location, 1, &arr);
         }
     }
 
@@ -312,11 +314,12 @@ pub const Shader = struct {
         }
     }
 
-    pub fn setVec4(self: *const Shader, uniform: [:0]const u8, value: *const Vec4) void {
+    pub fn setVec4(self: *const Shader, uniform: [:0]const u8, value: Vec4) void {
         self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
-            gl.uniform4fv(location, 1, value.asArrayPtr());
+            const arr = value.asArray();
+            gl.uniform4fv(location, 1, &arr);
         }
     }
 
@@ -444,9 +447,9 @@ pub const Shader = struct {
             i32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
             u32 => std.fmt.bufPrint(&buf, "{d}", .{value}) catch return,
             f32 => std.fmt.bufPrint(&buf, "{d:.3}", .{value}) catch return,
-            *const Vec2 => value.asString(&buf),
-            *const Vec3 => value.asString(&buf),
-            *const Vec4 => value.asString(&buf),
+            Vec2 => value.asString(&buf),
+            Vec3 => value.asString(&buf),
+            Vec4 => value.asString(&buf),
             *const Mat3 => value.asString(&buf),
             *const Mat4 => value.asString(&buf),
             *const [2]f32 => std.fmt.bufPrint(&buf, "[{d:.3}, {d:.3}]", .{ value[0], value[1] }) catch return,

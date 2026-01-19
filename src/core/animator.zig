@@ -301,7 +301,7 @@ pub const Animator = struct {
             .root_nodes = try root_nodes_list.toOwnedSlice(),
             .nodes = initial_nodes,
             .animations = animations,
-            .joint_matrices = [_]Mat4{Mat4.identity()} ** MAX_JOINTS,
+            .joint_matrices = [_]Mat4{Mat4.Identity} ** MAX_JOINTS,
         };
 
         return animator;
@@ -535,13 +535,13 @@ pub const Animator = struct {
                 const node_matrix = self.nodes[joint.node_index].calculated_transform.?.toMatrix();
                 self.joint_matrices[i] = node_matrix.mulMat4(&joint.inverse_bind_matrix);
             } else {
-                self.joint_matrices[i] = Mat4.identity();
+                self.joint_matrices[i] = Mat4.Identity;
             }
         }
 
         // Fill remaining slots with identity matrices
         for (self.joints.len..MAX_JOINTS) |i| {
-            self.joint_matrices[i] = Mat4.identity();
+            self.joint_matrices[i] = Mat4.Identity;
         }
     }
 };
@@ -611,7 +611,7 @@ fn interpolateVec3Linear(data: Vec3LinearData, current_time: f32) Vec3 {
     const end_value = if (keyframe_info.end_index < data.values.len) data.values[keyframe_info.end_index] else start_value;
 
     return switch (data.interpolation) {
-        .linear => Vec3.lerp(&start_value, &end_value, keyframe_info.factor),
+        .linear => Vec3.lerp(start_value, end_value, keyframe_info.factor),
         .step => start_value,
     };
 }
@@ -626,7 +626,7 @@ fn interpolateQuatLinear(data: QuatLinearData, current_time: f32) Quat {
     const end_value = if (keyframe_info.end_index < data.values.len) data.values[keyframe_info.end_index] else start_value;
 
     return switch (data.interpolation) {
-        .linear => start_value.slerp(&end_value, keyframe_info.factor),
+        .linear => start_value.slerp(end_value, keyframe_info.factor),
         .step => start_value,
     };
 }
@@ -675,9 +675,9 @@ fn interpolateVec3Cubic(data: Vec3CubicData, current_time: f32) Vec3 {
 
     // hermite(out, a, b, c, d, t) where a=v0, b=out_tangent, c=in_tangent, d=v1
     return v0.mulScalar(factor1)
-        .add(&b.mulScalar(factor2))
-        .add(&a.mulScalar(factor3))
-        .add(&v1.mulScalar(factor4));
+        .add(b.mulScalar(factor2))
+        .add(a.mulScalar(factor3))
+        .add(v1.mulScalar(factor4));
 }
 
 /// Cubic spline interpolation for Quat - component-wise Hermite + normalization
@@ -1065,9 +1065,9 @@ fn preprocessNodes(allocator: Allocator, gltf_asset: *const GltfAsset) []Node {
                 transform = Transform.fromMatrix(&matrix);
             } else {
                 transform = Transform{
-                    .translation = gltf_node.translation orelse Vec3.zero(),
-                    .rotation = gltf_node.rotation orelse Quat.identity(),
-                    .scale = gltf_node.scale orelse Vec3.one(),
+                    .translation = gltf_node.translation orelse Vec3.Zero,
+                    .rotation = gltf_node.rotation orelse Quat.Identity,
+                    .scale = gltf_node.scale orelse Vec3.One,
                 };
             }
 
@@ -1120,7 +1120,7 @@ fn preprocessJoints(allocator: Allocator, gltf_asset: *const GltfAsset, skin_ind
                 // Fallback to identity matrices if no inverse bind matrices provided
                 inverse_bind_matrices = try allocator.alloc(Mat4, skin.joints.len);
                 for (0..skin.joints.len) |i| {
-                    inverse_bind_matrices[i] = Mat4.identity();
+                    inverse_bind_matrices[i] = Mat4.Identity;
                 }
             }
 
@@ -1128,7 +1128,7 @@ fn preprocessJoints(allocator: Allocator, gltf_asset: *const GltfAsset, skin_ind
             for (0..skin.joints.len) |i| {
                 const joint = Joint{
                     .node_index = skin.joints[i],
-                    .inverse_bind_matrix = if (inverse_bind_matrices.len > i) inverse_bind_matrices[i] else Mat4.identity(),
+                    .inverse_bind_matrix = if (inverse_bind_matrices.len > i) inverse_bind_matrices[i] else Mat4.Identity,
                 };
                 try joints.append(joint);
             }

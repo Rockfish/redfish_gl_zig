@@ -151,7 +151,7 @@ pub const Camera = struct {
         //const look_dir = self.movement.getWorldLookDirection(look_mode);
         const look_dir = self.movement.getTransform().forward();
         const up_vec = self.movement.getTransform().up();
-        return Mat4.lookToRhGl(&self.movement.getPosition(), &look_dir, &up_vec);
+        return Mat4.lookToRhGl(self.movement.getPosition(), look_dir, up_vec);
     }
 
     pub fn getProjectionView(self: *Self) Mat4 {

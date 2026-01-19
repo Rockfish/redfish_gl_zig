@@ -107,7 +107,7 @@ pub const Model = struct {
         var buf: [256:0]u8 = undefined;
         for (0..MAX_JOINTS) |i| {
             const joint_transform = self.animator.joint_matrices[i];
-            const uniform = std.fmt.bufPrintZ(&buf, "jointMatrices[{d}]", .{i}) catch @panic("bufPrintZ error");
+            const uniform = std.fmt.bufPrintZ(&buf, "{s}[{d}]", .{ constants.Uniforms.Joint_Matrices, i }) catch @panic("bufPrintZ error");
             shader.setMat4(uniform, &joint_transform);
         }
 
@@ -129,7 +129,7 @@ pub const Model = struct {
         if (node.mesh) |mesh_index| {
             const transform = self.animator.nodes[node_index].calculated_transform.?;
             const local_matrix = transform.toMatrix();
-            shader.setMat4("nodeTransform", &local_matrix);
+            shader.setMat4(constants.Uniforms.Node_Transform, &local_matrix);
             const mesh = self.meshes.list.items[mesh_index];
             mesh.draw(self.gltf_asset, shader);
         }

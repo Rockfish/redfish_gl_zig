@@ -17,9 +17,9 @@ pub const Transform = struct {
 
     pub inline fn identity() Transform {
         return Transform{
-            .translation = Vec3.zero(),
-            .rotation = Quat.identity(),
-            .scale = Vec3.one(),
+            .translation = Vec3.Zero,
+            .rotation = Quat.Identity,
+            .scale = Vec3.One,
         };
     }
 
@@ -32,40 +32,40 @@ pub const Transform = struct {
     }
 
     pub inline fn clear(self: *Self) void {
-        self.translation = Vec3.zero();
-        self.rotation = Quat.identity();
-        self.scale = Vec3.one();
+        self.translation = Vec3.Zero;
+        self.rotation = Quat.Identity;
+        self.scale = Vec3.One;
     }
 
     /// Creates Transform at point x,y,z
     pub inline fn fromXYZ(x: f32, y: f32, z: f32) Transform {
         return Transform{
             .translation = Vec3.init(x, y, z),
-            .rotation = Quat.identity(),
-            .scale = Vec3.one(),
+            .rotation = Quat.Identity,
+            .scale = Vec3.One,
         };
     }
 
     pub inline fn fromTranslation(translation: Vec3) Transform {
         return Transform{
             .translation = translation,
-            .rotation = Quat.identity(),
-            .scale = Vec3.one(),
+            .rotation = Quat.Identity,
+            .scale = Vec3.One,
         };
     }
 
     pub inline fn fromRotaion(rotation: Quat) Transform {
         return Transform{
-            .translation = Vec3.zero(),
+            .translation = Vec3.Zero,
             .rotation = rotation,
-            .scale = Vec3.one(),
+            .scale = Vec3.One,
         };
     }
 
     pub inline fn fromScale(scale: Vec3) Transform {
         return Transform{
-            .translation = Vec3.zero(),
-            .rotation = Quat.identity(),
+            .translation = Vec3.Zero,
+            .rotation = Quat.Identity,
             .scale = scale,
         };
     }
@@ -103,9 +103,9 @@ pub const Transform = struct {
 
     pub fn toMatrix(self: *const Self) Mat4 {
         return Mat4.fromTranslationRotationScale(
-            &self.translation,
-            &self.rotation,
-            &self.scale,
+            self.translation,
+            self.rotation,
+            self.scale,
         );
     }
 
@@ -113,7 +113,7 @@ pub const Transform = struct {
     /// This is equivalent to Mat4.lookAtRhGl() when the transform represents a camera.
     /// The view matrix transforms world-space coordinates into camera-space coordinates.
     pub fn toViewMatrix(self: *const Self) Mat4 {
-        const rot_mat = Mat4.fromQuat(&self.rotation);
+        const rot_mat = Mat4.fromQuat(self.rotation);
 
         // Extract basis vectors (columns of rotation matrix)
         const right_vec = rot_mat.getXAxis();
@@ -128,9 +128,9 @@ pub const Transform = struct {
             .{ right_vec.y, up_vec.y, back_vec.y, 0.0 },
             .{ right_vec.z, up_vec.z, back_vec.z, 0.0 },
             .{
-                -right_vec.dot(&self.translation),
-                -up_vec.dot(&self.translation),
-                -back_vec.dot(&self.translation),
+                -right_vec.dot(self.translation),
+                -up_vec.dot(self.translation),
+                -back_vec.dot(self.translation),
                 1.0,
             },
         } };
@@ -154,9 +154,9 @@ pub const Transform = struct {
     /// The `weight` should be in the range [0.0, 1.0], where 0.0 means no influence from the other transform,
     /// and 1.0 means full influence from the other transform.
     pub fn blendTransforms(self: *const Transform, transform: Transform, weight: f32) Transform {
-        const translation = self.translation.lerp(&transform.translation, weight);
-        const rotation = self.rotation.slerp(&transform.rotation, weight);
-        const scale = self.scale.lerp(&transform.scale, weight);
+        const translation = self.translation.lerp(transform.translation, weight);
+        const rotation = self.rotation.slerp(transform.rotation, weight);
+        const scale = self.scale.lerp(transform.scale, weight);
         return Transform{
             .translation = translation,
             .rotation = rotation,
@@ -167,8 +167,8 @@ pub const Transform = struct {
     /// Composes or multiply this transform with another transform.
     pub fn composeTransforms(self: *const Transform, transform: Transform) Transform {
         const translation = self.transformPoint(transform.translation);
-        const rotation = Quat.mulQuat(&self.rotation, &transform.rotation);
-        const scale = self.scale.mul(&transform.scale);
+        const rotation = Quat.mulQuat(self.rotation, transform.rotation);
+        const scale = self.scale.mul(transform.scale);
         return Transform{
             .translation = translation,
             .rotation = rotation,
@@ -178,9 +178,9 @@ pub const Transform = struct {
 
     /// Transforms the given `point`, applying scale, rotation and translation.
     pub fn transformPoint(self: *const Self, in_point: Vec3) Vec3 {
-        var point = self.scale.mul(&in_point);
-        point = self.rotation.rotateVec(&point);
-        point = self.translation.add(&point);
+        var point = self.scale.mul(in_point);
+        point = self.rotation.rotateVec(point);
+        point = self.translation.add(point);
         return point;
     }
 
@@ -213,7 +213,7 @@ pub const Transform = struct {
         };
 
         // Compute right vector (perpendicular to both up and back)
-        const right_vec = up_norm.cross(&back);
+        const right_vec = up_norm.cross(back);
         const right_norm = blk: {
             const normalized = right_vec.toNormalized();
             if (normalized.lengthSquared() == 0.0) {
@@ -223,14 +223,14 @@ pub const Transform = struct {
                     Vec3.init(0.0, 1.0, 0.0)
                 else
                     Vec3.init(1.0, 0.0, 0.0);
-                const ortho = up_norm.cross(&arbitrary);
+                const ortho = up_norm.cross(arbitrary);
                 break :blk ortho.toNormalized();
             }
             break :blk normalized;
         };
 
         // Recompute up to ensure orthogonality (back cross right)
-        const final_up = back.cross(&right_norm);
+        const final_up = back.cross(right_norm);
 
         // Create rotation matrix from basis vectors (column-major format)
         // Columns are: right, up, back (matching Bevy's Mat3::from_cols)
@@ -252,7 +252,7 @@ pub const Transform = struct {
     /// - If target equals translation (zero direction), uses default forward direction
     /// - Other fallbacks same as lookTo
     pub fn lookAt(self: *Self, target: Vec3, up_dir: Vec3) void {
-        const direction = target.sub(&self.translation);
+        const direction = target.sub(self.translation);
         self.lookTo(direction, up_dir);
     }
 
@@ -277,13 +277,13 @@ pub const Transform = struct {
     /// Apply a rotation to this transform.
     /// The rotation is applied in parent space (before the current rotation).
     pub fn rotate(self: *Self, rotation: Quat) void {
-        self.rotation = Quat.mulQuat(&rotation, &self.rotation);
+        self.rotation = Quat.mulQuat(rotation, self.rotation);
     }
 
     /// Rotate this transform around an arbitrary axis by the given angle (in radians).
     /// The axis is in parent space (not local space).
     pub fn rotateAxis(self: *Self, axis: Vec3, angle: f32) void {
-        const rot = Quat.fromAxisAngle(&axis, angle);
+        const rot = Quat.fromAxisAngle(axis, angle);
         self.rotate(rot);
     }
 
@@ -308,7 +308,7 @@ pub const Transform = struct {
 };
 
 test "basis vectors for identity transform" {
-    const transform = Transform.identity();
+    const transform = Transform.Identity;
     const epsilon = 0.0001;
 
     const fwd = transform.forward();
@@ -330,7 +330,7 @@ test "basis vectors for identity transform" {
 }
 
 test "basis vectors after Y rotation" {
-    var transform = Transform.identity();
+    var transform = Transform.Identity;
     const epsilon = 0.0001;
 
     // Rotate 90 degrees around Y axis (right-hand rule: counterclockwise when viewed from +Y)
@@ -352,7 +352,7 @@ test "basis vectors after Y rotation" {
 }
 
 test "rotate method applies rotation" {
-    var transform = Transform.identity();
+    var transform = Transform.Identity;
     const epsilon = 0.0001;
 
     // Apply 90 degree rotation around Y axis
@@ -369,7 +369,7 @@ test "rotate method applies rotation" {
 }
 
 test "rotateAxis method" {
-    var transform = Transform.identity();
+    var transform = Transform.Identity;
     const epsilon = 0.0001;
 
     // Rotate 90 degrees around Y axis using rotateAxis
@@ -386,7 +386,7 @@ test "rotateAxis method" {
 }
 
 test "multiple rotations maintain orthonormality" {
-    var transform = Transform.identity();
+    var transform = Transform.Identity;
     const epsilon = 0.001;
 
     // Apply multiple rotations
@@ -428,7 +428,7 @@ test "lookAt sets correct forward direction" {
 }
 
 test "basis vectors form right-handed coordinate system" {
-    var transform = Transform.identity();
+    var transform = Transform.Identity;
     const epsilon = 0.0001;
 
     // Rotate to a non-trivial orientation

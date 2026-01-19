@@ -19,19 +19,13 @@ pub const Quat = extern struct {
 
     const Self = @This();
 
+    pub const Identity = Quat{ .data = .{ 0.0, 0.0, 0.0, 1.0 } };
+
     pub inline fn init(x: f32, y: f32, z: f32, w: f32) Self {
         return Quat{ .data = .{ x, y, z, w } };
     }
 
-    pub inline fn identity() Self {
-        return init(0.0, 0.0, 0.0, 1.0);
-    }
-
-    pub inline fn default() Self {
-        return identity();
-    }
-
-    pub inline fn clone(self: *const Self) Quat {
+    pub inline fn clone(self: Self) Quat {
         return Quat{ .data = self.data };
     }
 
@@ -44,7 +38,7 @@ pub const Quat = extern struct {
     }
 
     /// angle in radians
-    pub inline fn fromAxisAngle(axis: *const Vec3, radians: f32) Quat {
+    pub inline fn fromAxisAngle(axis: Vec3, radians: f32) Quat {
         const normalized_axis = axis.toNormalized();
         const s = std.math.sin(radians * 0.5);
         const c = std.math.cos(radians * 0.5);
@@ -52,8 +46,8 @@ pub const Quat = extern struct {
         return init(v.x, v.y, v.z, c);
     }
 
-    pub fn asArray(self: *const Quat) [4]f32 {
-        return @as(*[4]f32, @ptrCast(@constCast(self))).*;
+    pub fn asArray(self: Quat) [4]f32 {
+        return self.data;
     }
 
     // for working with cglm
@@ -77,7 +71,7 @@ pub const Quat = extern struct {
         self.data[3] *= inv_length;
     }
 
-    pub fn toNormalized(q: *const Quat) Quat {
+    pub fn toNormalized(q: Quat) Quat {
         const length_squared = q.data[0] * q.data[0] + q.data[1] * q.data[1] + q.data[2] * q.data[2] + q.data[3] * q.data[3];
 
         if (length_squared == 0.0) {
@@ -94,7 +88,7 @@ pub const Quat = extern struct {
         } };
     }
 
-    pub fn mulQuat(p: *const Quat, q: *const Quat) Quat {
+    pub fn mulQuat(p: Quat, q: Quat) Quat {
         // Quaternion multiplication: (p * q)
         // Formula: result = [pw*qx + px*qw + py*qz - pz*qy,
         //                   pw*qy - px*qz + py*qw + pz*qx,
@@ -120,12 +114,12 @@ pub const Quat = extern struct {
         };
     }
 
-    pub fn mulByQuat(self: *Self, other: *const Quat) void {
-        const temp = self.mulQuat(other);
+    pub fn mulByQuat(self: *Self, other: Quat) void {
+        const temp = self.*.mulQuat(other);
         self.data = temp.data;
     }
 
-    pub fn rotateVec(self: *const Self, v: *const Vec3) Vec3 {
+    pub fn rotateVec(self: Quat, v: Vec3) Vec3 {
         // Rotate vector v by quaternion self using the formula:
         // v' = q * (0, v) * q^-1
         // Optimized version: v' = v + 2 * cross(q.xyz, cross(q.xyz, v) + q.w * v)
@@ -155,14 +149,14 @@ pub const Quat = extern struct {
         };
     }
 
-    pub fn slerp(self: *const Self, rot: *const Quat, t: f32) Quat {
+    pub fn slerp(self: Quat, rot: Quat, t: f32) Quat {
         const clamped_t = @max(0.0, @min(1.0, t));
 
         // Compute dot product
         var dot = self.data[0] * rot.data[0] + self.data[1] * rot.data[1] + self.data[2] * rot.data[2] + self.data[3] * rot.data[3];
 
         // Take the shorter path by flipping one quaternion if dot product is negative
-        var q2 = rot.*;
+        var q2 = rot;
         if (dot < 0.0) {
             q2.data[0] = -q2.data[0];
             q2.data[1] = -q2.data[1];
@@ -209,7 +203,7 @@ pub const Quat = extern struct {
     /// The quaternion is automatically normalized before conversion.
     /// The returned vectors form an orthonormal basis suitable for constructing
     /// transformation matrices via Mat4.fromAxes().
-    pub fn toAxes(rotation: *const Quat) struct { right: Vec3, up: Vec3, forward: Vec3 } {
+    pub fn toAxes(rotation: Quat) struct { right: Vec3, up: Vec3, forward: Vec3 } {
         // glam_assert!(rotation.is_normalized());
         const normalized_rotation = rotation.toNormalized();
         const x = normalized_rotation.data[0];
@@ -237,32 +231,32 @@ pub const Quat = extern struct {
 
     /// Get the right direction vector (rotated +X axis, quat i axis).
     /// This represents the local right direction after applying this rotation.
-    pub fn right(self: *const Self) Vec3 {
-        return self.rotateVec(&Vec3.init(1.0, 0.0, 0.0));
+    pub fn right(self: Quat) Vec3 {
+        return self.rotateVec(Vec3.init(1.0, 0.0, 0.0));
     }
 
     /// Get the up direction vector (rotated +Y axis, quat j axis).
     /// This represents the local up direction after applying this rotation.
-    pub fn up(self: *const Self) Vec3 {
-        return self.rotateVec(&Vec3.init(0.0, 1.0, 0.0));
+    pub fn up(self: Quat) Vec3 {
+        return self.rotateVec(Vec3.init(0.0, 1.0, 0.0));
     }
 
     /// Get the forward direction vector (rotated -Z axis, OpenGL convention).
     /// This represents the local forward direction after applying this rotation.
     /// In OpenGL convention, forward is the negative Z-axis.
-    pub fn forward(self: *const Self) Vec3 {
-        return self.rotateVec(&Vec3.init(0.0, 0.0, -1.0));
+    pub fn forward(self: Quat) Vec3 {
+        return self.rotateVec(Vec3.init(0.0, 0.0, -1.0));
     }
 
     /// Get the back direction vector (rotated +Z axis, quat k axis).
     /// This represents the local back direction after applying this rotation.
-    pub fn back(self: *const Self) Vec3 {
-        return self.rotateVec(&Vec3.init(0.0, 0.0, 1.0));
+    pub fn back(self: Quat) Vec3 {
+        return self.rotateVec(Vec3.init(0.0, 0.0, 1.0));
     }
 
     pub fn lookAtOrientation(position: Vec3, target: Vec3, up_dir: Vec3) Quat {
         // Calculate direction vector
-        var forward_dir = target.sub(&position);
+        var forward_dir = target.sub(position);
         if (forward_dir.lengthSquared() == 0.0) {
             return Quat.identity();
         }
@@ -273,10 +267,10 @@ pub const Quat = extern struct {
         up_normalized.normalize();
 
         // Calculate right vector (cross product of forward and up)
-        const right_vec = forward_dir.crossNormalized(&up_normalized);
+        const right_vec = forward_dir.crossNormalized(up_normalized);
 
         // Recalculate up vector to ensure orthogonality
-        const new_up = right_vec.crossNormalized(&forward_dir);
+        const new_up = right_vec.crossNormalized(forward_dir);
 
         // Create rotation matrix from basis vectors
         const rotation_matrix = Mat4{ .data = .{
@@ -296,7 +290,7 @@ pub const Quat = extern struct {
     /// - y = pitch (rotation around X axis)
     /// - z = roll (rotation around Z axis)
     /// Uses ZYX rotation order (yaw-pitch-roll)
-    pub fn toEulerAngles(self: *const Self) Vec3 {
+    pub fn toEulerAngles(self: Quat) Vec3 {
         const x = self.data[0];
         const y = self.data[1];
         const z = self.data[2];

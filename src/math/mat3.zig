@@ -31,7 +31,7 @@ pub const Mat3 = extern struct {
         const x_axis = Vec3.fromArray(self.data[0]);
         const y_axis = Vec3.fromArray(self.data[1]);
         const z_axis = Vec3.fromArray(self.data[2]);
-        return z_axis.dot(&x_axis.cross(&y_axis));
+        return z_axis.dot(x_axis.cross(y_axis));
     }
 
     pub fn asString(self: *const Self, buf: []u8) []u8 {

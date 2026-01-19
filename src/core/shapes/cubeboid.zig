@@ -112,30 +112,30 @@ pub const Cubeboid = struct {
                 .{ wraps_x, wraps_y },
                 .{ 0.0, wraps_y },
                 // Back
-                .{ 0.0, 0.0 },
                 .{ wraps_x, 0.0 },
-                .{ wraps_x, wraps_y },
+                .{ 0.0, 0.0 },
                 .{ 0.0, wraps_y },
+                .{ wraps_x, wraps_y },
                 // Right
                 .{ 0.0, 0.0 },
-                .{ wraps_x, 0.0 },
-                .{ wraps_x, wraps_y },
-                .{ 0.0, wraps_y },
+                .{ wraps_y, 0.0 },
+                .{ wraps_y, wraps_z },
+                .{ 0.0, wraps_z },
                 // Left
+                .{ wraps_y, 0.0 },
                 .{ 0.0, 0.0 },
-                .{ wraps_x, 0.0 },
-                .{ wraps_x, wraps_y },
-                .{ 0.0, wraps_y },
+                .{ 0.0, wraps_z },
+                .{ wraps_y, wraps_z },
                 // Top
-                .{ 0.0, 0.0 },
                 .{ wraps_x, 0.0 },
-                .{ wraps_x, wraps_y },
-                .{ 0.0, wraps_y },
+                .{ 0.0, 0.0 },
+                .{ 0.0, wraps_z },
+                .{ wraps_x, wraps_z },
                 // Bottom
                 .{ 0.0, 0.0 },
                 .{ wraps_x, 0.0 },
-                .{ wraps_x, wraps_y },
-                .{ 0.0, wraps_y },
+                .{ wraps_x, wraps_z },
+                .{ 0.0, wraps_z },
             },
             .Cubemap3x2 => blk: {
                 // Godot cubemap layout: 3x2 grid

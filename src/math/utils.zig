@@ -65,11 +65,11 @@ pub fn getWorldRayFromMouse(
     const view_inverse = view_matrix.getInverse();
 
     // eye space
-    var ray_eye = projection_inverse.mulVec4(&ndc);
+    var ray_eye = projection_inverse.mulVec4(ndc);
     ray_eye = vec4(ray_eye.x, ray_eye.y, -1.0, 0.0);
 
     // world space
-    const ray_world = (view_inverse.mulVec4(&ray_eye)).xyz();
+    const ray_world = (view_inverse.mulVec4(ray_eye)).xyz();
 
     // ray from camera
     const ray_normalized = ray_world.toNormalized();
@@ -78,17 +78,17 @@ pub fn getWorldRayFromMouse(
 }
 
 pub fn getRayPlaneIntersection(
-    ray_origin: *const Vec3,
-    ray_direction: *const Vec3,
-    plane_point: *const Vec3,
-    plane_normal: *const Vec3,
+    ray_origin: Vec3,
+    ray_direction: Vec3,
+    plane_point: Vec3,
+    plane_normal: Vec3,
 ) ?Vec3 {
     const denom = plane_normal.dot(ray_direction);
     if (@abs(denom) > epsilon) {
         const p0l0 = plane_point.sub(ray_origin);
         const t = p0l0.dot(plane_normal) / denom;
         if (t >= 0.0) {
-            return ray_origin.add(&ray_direction.mulScalar(t));
+            return ray_origin.add(ray_direction.mulScalar(t));
         }
     }
     return null;

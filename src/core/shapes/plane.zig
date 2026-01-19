@@ -113,7 +113,7 @@ pub const Plane = struct {
     pub fn draw(self: *Self, shader: *Shader, projection: *const Mat4, view: *const Mat4) void {
         shader.setMat4(uniforms.Mat_Projection, projection);
         shader.setMat4(uniforms.Mat_View, view);
-        shader.setMat4(uniforms.Mat_Model, &Mat4.identity());
+        shader.setMat4(uniforms.Mat_Model, &Mat4.Identity);
         shader.bindTextureAuto(uniforms.Texture_Diffuse, self.texture_diffuse.gl_texture_id);
         shader.bindTextureAuto(uniforms.Texture_Normal, self.texture_normal.gl_texture_id);
         shader.bindTextureAuto(uniforms.Texture_Spec, self.texture_spec.gl_texture_id);

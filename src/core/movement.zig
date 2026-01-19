@@ -167,7 +167,7 @@ pub const Movement = struct {
     /// Calculate world-space right vector orthogonal to world_up and direction to target
     /// Useful for creating horizontal coordinate systems aligned with a target
     pub fn getWorldRight(self: *const Self) Vec3 {
-        const direction_to_target = self.target.sub(&self.transform.translation).toNormalized();
+        const direction_to_target = self.target.sub(self.transform.translation).toNormalized();
 
         // // Check if looking straight up or down
         // const dot_with_up = @abs(direction_to_target.dot(&self.world_up));
@@ -178,16 +178,16 @@ pub const Movement = struct {
 
         // Right = direction_to_target × world_up (cross product)
         // This gives us a vector perpendicular to both direction and world_up
-        return direction_to_target.cross(&self.world_up).toNormalized();
+        return direction_to_target.cross(self.world_up).toNormalized();
     }
 
-    fn circleAxis(self: *Self, axis: *const Vec3, angle_radians: f32) void {
+    fn circleAxis(self: *Self, axis: Vec3, angle_radians: f32) void {
         const rot = Quat.fromAxisAngle(axis, angle_radians);
         self.rotatePosition(rot);
         self.transform.lookAt(self.target, self.world_up);
     }
 
-    fn orbitAxis(self: *Self, axis: *const Vec3, angle_radians: f32) void {
+    fn orbitAxis(self: *Self, axis: Vec3, angle_radians: f32) void {
         const rot = Quat.fromAxisAngle(axis, angle_radians);
         self.rotatePosition(rot);
         self.transform.rotate(rot);
@@ -195,19 +195,19 @@ pub const Movement = struct {
 
     /// Rotate position around target, preserving exact radius
     fn rotatePosition(self: *Self, rotation: Quat) void {
-        const radius_vec = self.transform.translation.sub(&self.target);
+        const radius_vec = self.transform.translation.sub(self.target);
         const target_radius = radius_vec.length();
-        const rotated_position = rotation.rotateVec(&radius_vec).toNormalized();
-        self.transform.translation = self.target.add(&rotated_position.mulScalar(target_radius));
+        const rotated_position = rotation.rotateVec(radius_vec).toNormalized();
+        self.transform.translation = self.target.add(rotated_position.mulScalar(target_radius));
         self.update_tick +%= 1;
     }
 
     /// Rotate target around position, preserving exact distance
     fn rotateTarget(self: *Self, rotation: Quat) void {
-        const target_vec = self.target.sub(&self.transform.translation);
+        const target_vec = self.target.sub(self.transform.translation);
         const target_distance = target_vec.length();
-        const rotated_target = rotation.rotateVec(&target_vec).toNormalized();
-        self.target = self.transform.translation.add(&rotated_target.mulScalar(target_distance));
+        const rotated_target = rotation.rotateVec(target_vec).toNormalized();
+        self.target = self.transform.translation.add(rotated_target.mulScalar(target_distance));
         self.update_tick +%= 1;
     }
 
@@ -228,107 +228,107 @@ pub const Movement = struct {
         switch (direction) {
             .forward => {
                 const fwd = self.transform.forward();
-                self.transform.translation = self.transform.translation.add(&fwd.mulScalar(translation_velocity));
+                self.transform.translation = self.transform.translation.add(fwd.mulScalar(translation_velocity));
             },
             .backward => {
                 const fwd = self.transform.forward();
-                self.transform.translation = self.transform.translation.sub(&fwd.mulScalar(translation_velocity));
+                self.transform.translation = self.transform.translation.sub(fwd.mulScalar(translation_velocity));
             },
             .left => {
                 const right_vec = self.transform.right();
-                self.transform.translation = self.transform.translation.sub(&right_vec.mulScalar(translation_velocity));
+                self.transform.translation = self.transform.translation.sub(right_vec.mulScalar(translation_velocity));
             },
             .right => {
                 const right_vec = self.transform.right();
-                self.transform.translation = self.transform.translation.add(&right_vec.mulScalar(translation_velocity));
+                self.transform.translation = self.transform.translation.add(right_vec.mulScalar(translation_velocity));
             },
             .up => {
                 const up_vec = self.transform.up();
-                self.transform.translation = self.transform.translation.add(&up_vec.mulScalar(translation_velocity));
+                self.transform.translation = self.transform.translation.add(up_vec.mulScalar(translation_velocity));
             },
             .down => {
                 const up_vec = self.transform.up();
-                self.transform.translation = self.transform.translation.sub(&up_vec.mulScalar(translation_velocity));
+                self.transform.translation = self.transform.translation.sub(up_vec.mulScalar(translation_velocity));
             },
             .rotate_right => {
                 const up_vec = self.transform.up();
-                const rot = Quat.fromAxisAngle(&up_vec, -rot_angle);
+                const rot = Quat.fromAxisAngle(up_vec, -rot_angle);
                 self.transform.rotate(rot);
                 // self.rotateTarget(rot);
                 // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
             },
             .rotate_left => {
                 const up_vec = self.transform.up();
-                const rot = Quat.fromAxisAngle(&up_vec, rot_angle);
+                const rot = Quat.fromAxisAngle(up_vec, rot_angle);
                 self.transform.rotate(rot);
                 // self.rotateTarget(rot);
                 // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
             },
             .rotate_up => {
                 const right_vec = self.transform.right();
-                const rot = Quat.fromAxisAngle(&right_vec, rot_angle);
+                const rot = Quat.fromAxisAngle(right_vec, rot_angle);
                 self.transform.rotate(rot);
                 // self.rotateTarget(rot);
                 // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
             },
             .rotate_down => {
                 const right_vec = self.transform.right();
-                const rot = Quat.fromAxisAngle(&right_vec, -rot_angle);
+                const rot = Quat.fromAxisAngle(right_vec, -rot_angle);
                 self.transform.rotate(rot);
                 // self.rotateTarget(rot);
                 // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
             },
             .roll_right => {
                 const fwd = self.transform.forward();
-                const rot = Quat.fromAxisAngle(&fwd, rot_angle);
+                const rot = Quat.fromAxisAngle(fwd, rot_angle);
                 self.transform.rotate(rot);
             },
             .roll_left => {
                 const fwd = self.transform.forward();
-                const rot = Quat.fromAxisAngle(&fwd, -rot_angle);
+                const rot = Quat.fromAxisAngle(fwd, -rot_angle);
                 self.transform.rotate(rot);
             },
             .radius_in => {
-                const to_target = self.target.sub(&self.transform.translation);
+                const to_target = self.target.sub(self.transform.translation);
                 const dist = to_target.length();
                 if (dist > POSITION_EPSILON) {
                     const max_step = dist - POSITION_EPSILON;
                     const step = @min(translation_velocity, max_step);
                     if (step > 0.0) {
                         const dir = to_target.mulScalar(1.0 / dist);
-                        self.transform.translation = self.transform.translation.add(&dir.mulScalar(step));
+                        self.transform.translation = self.transform.translation.add(dir.mulScalar(step));
                     }
                 }
             },
             .radius_out => {
-                const dir = self.target.sub(&self.transform.translation).toNormalized();
-                self.transform.translation = self.transform.translation.sub(&dir.mulScalar(translation_velocity));
+                const dir = self.target.sub(self.transform.translation).toNormalized();
+                self.transform.translation = self.transform.translation.sub(dir.mulScalar(translation_velocity));
             },
             .orbit_right => {
-                self.orbitAxis(&self.transform.up(), orbit_angle);
+                self.orbitAxis(self.transform.up(), orbit_angle);
             },
             .orbit_left => {
-                self.orbitAxis(&self.transform.up(), -orbit_angle);
+                self.orbitAxis(self.transform.up(), -orbit_angle);
             },
             .orbit_up => {
-                self.orbitAxis(&self.transform.right(), -orbit_angle);
+                self.orbitAxis(self.transform.right(), -orbit_angle);
             },
             .orbit_down => {
-                self.orbitAxis(&self.transform.right(), orbit_angle);
+                self.orbitAxis(self.transform.right(), orbit_angle);
             },
             .circle_right => {
-                self.circleAxis(&self.world_up, orbit_angle);
+                self.circleAxis(self.world_up, orbit_angle);
             },
             .circle_left => {
-                self.circleAxis(&self.world_up, -orbit_angle);
+                self.circleAxis(self.world_up, -orbit_angle);
             },
             .circle_up => {
-                var rotation_axis = self.getWorldRight();
-                self.circleAxis(&rotation_axis, -orbit_angle);
+                const rotation_axis = self.getWorldRight();
+                self.circleAxis(rotation_axis, -orbit_angle);
             },
             .circle_down => {
-                var rotation_axis = self.getWorldRight();
-                self.circleAxis(&rotation_axis, orbit_angle);
+                const rotation_axis = self.getWorldRight();
+                self.circleAxis(rotation_axis, orbit_angle);
             },
         }
     }
