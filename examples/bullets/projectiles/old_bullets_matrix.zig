@@ -31,6 +31,7 @@ const AnimationClip = Animation.AnimationClip;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 const log = std.log.scoped(.BulletsMatrix);
+const uniforms = core.constants.Uniforms;
 
 const SIZE_OF_U32 = @sizeOf(u32);
 const SIZE_OF_FLOAT = @sizeOf(f32);
@@ -279,7 +280,7 @@ pub const BulletStore = struct {
             }
 
             shader.useShader();
-            shader.setMat4("projectionView", projection_view);
+            shader.setMat4(uniforms.Projection_View, projection_view);
             shader.setBool("useLight", false);
 
             shader.bindTextureAuto("texture_diffuse", self.bullet_texture.gl_texture_id);
@@ -295,7 +296,7 @@ pub const BulletStore = struct {
 
     pub fn drawBulletImpacts(self: *const Self, sprite_shader: *Shader, projection_view: *const Mat4) void {
         sprite_shader.useShader();
-        sprite_shader.setMat4("projectionView", projection_view);
+        sprite_shader.setMat4(uniforms.Projection_View, projection_view);
 
         sprite_shader.setInt("numCols", @intFromFloat(self.bullet_impact_spritesheet.num_columns));
         sprite_shader.setFloat("timePerSprite", self.bullet_impact_spritesheet.time_per_sprite);

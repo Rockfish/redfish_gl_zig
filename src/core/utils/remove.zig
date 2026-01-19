@@ -16,9 +16,12 @@ pub fn removeRange(comptime T: type, list: *containers.ManagedArrayList(T), star
         }
     }
 
-    // Move the items to fill the gap
-    for (end..list.list.items.len) |i| {
-        list.list.items[i - count] = list.list.items[i];
+    // Move the items to fill the gap using bulk memory copy
+    // Use copyForwards since we're moving data to lower addresses (overlapping memory)
+    if (end < list.list.items.len) {
+        const src = list.list.items[end..];
+        const dest = list.list.items[start..];
+        std.mem.copyForwards(T, dest, src);
     }
 
     // Update the length of the list
