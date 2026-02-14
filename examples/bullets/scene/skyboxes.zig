@@ -2,8 +2,6 @@ const std = @import("std");
 const core = @import("core");
 const math = @import("math");
 
-const Scene = @import("scene.zig");
-
 const Allocator = std.mem.Allocator;
 
 const Vec3 = math.Vec3;
@@ -14,9 +12,10 @@ const Shader = core.Shader;
 const Shape = core.shapes.Shape;
 const uniforms = core.constants.Uniforms;
 
-pub const SkyBoxColors = struct {
+pub const SkyBoxDirections = struct {
     skybox: core.shapes.Skybox,
     shader: *core.Shader,
+    is_visible: bool = true,
 
     const Self = @This();
 
@@ -44,6 +43,7 @@ pub const SkyBoxColors = struct {
     }
 
     pub fn draw(self: *Self, projection: *const Mat4, view: *const Mat4) void {
+        if (!self.is_visible) return;
         self.shader.setMat4(uniforms.Mat_Projection, projection);
         self.shader.setMat4(uniforms.Mat_View, &view.removeTranslation());
         self.skybox.draw();

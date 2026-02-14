@@ -20,7 +20,7 @@ pub fn createCameraOne(allocator: Allocator, scr_width: f32, scr_height: f32) !*
         allocator,
         .{
             .base_target = vec3(0.0, 0.0, 0.0),
-            .base_position = vec3(0.0, 0.0, 5.0),
+            .base_position = vec3(0.0, 0.0, 20.0),
             .scr_width = scr_width,
             .scr_height = scr_height,
             .view_mode = .base,

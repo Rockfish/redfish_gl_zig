@@ -30,36 +30,35 @@ pub const Spread_Degrees: f32 = 10.0;
 
 const Forward_Dir: Vec3 = vec3(0.0, 0.0, -1.0);
 
-// const axis_x = vec3(1.0, 0.0, 0.0);
-// const axis_y = vec3(0.0, 0.0, 1.0);
-
-pub const Bullet = struct {
-    position: Vec3,
-    direction: Vec3, // initial direction, seems it must constant
-    speed: f32,
-    rotation_mat: Mat4,
-    lifetime: f32 = 10.0,
-};
+// pub const Bullet = struct {
+//     position: Vec3,
+//     direction: Vec3, // initial direction, seems it must constant
+//     speed: f32,
+//     rotation_mat: Mat4,
+//     lifetime: f32 = 10.0,
+// };
 
 var buf: [500]u8 = undefined;
-
 pub const BulletSystem = struct {
     allocator: Allocator,
     shader: *Shader,
-    aim_transform: Transform = Transform.identity(),
+    gravity: f32 = 0.2,
     x_rotations: ManagedArrayList(Quat),
     y_rotations: ManagedArrayList(Quat),
     bullet_positions: ManagedArrayList(Vec3),
     bullet_rotations: ManagedArrayList(Quat),
+    bullet_rotations_initial: ManagedArrayList(Quat),
     bullet_directions: ManagedArrayList(Vec3),
+    bullet_velocities: ManagedArrayList(Vec3),
+    bullet_right_vectors: ManagedArrayList(Vec3),
     bullet_cube: core.shapes.Shape,
     rotations_vbo: gl.Uint = 0,
     positions_vbo: gl.Uint = 0,
     line_shader: *Shader,
     lines: Lines,
+    is_lines_visible: bool = false,
     plain_cube: core.shapes.Shape,
     plain_cube_shader: *Shader,
-    cube_positions: [24][3]f32 = undefined,
 
     const Self = @This();
 
@@ -97,8 +96,6 @@ pub const BulletSystem = struct {
             const x_rot = Quat.fromAxisAngle(vec3(1.0, 0.0, 0.0), angle);
             try x_rotations.append(x_rot);
             try y_rotations.append(y_rot);
-            std.debug.print("x_rot = {any}\n", .{x_rot});
-            std.debug.print("y_rot = {any}\n", .{y_rot});
         }
 
         const cube_config: core.shapes.CubeConfig = .{
@@ -114,7 +111,6 @@ pub const BulletSystem = struct {
 
         const bullet_cube = core.shapes.createCube(cube_config) catch {};
         const plain_cube = core.shapes.createCube(cube_config) catch {};
-        const cube_positions = cubePostions(cube_config);
 
         const plain_cube_shader = try Shader.init(
             allocator,
@@ -139,17 +135,18 @@ pub const BulletSystem = struct {
             .y_rotations = y_rotations,
             .bullet_positions = ManagedArrayList(Vec3).init(allocator),
             .bullet_rotations = ManagedArrayList(Quat).init(allocator),
+            .bullet_rotations_initial = ManagedArrayList(Quat).init(allocator),
             .bullet_directions = ManagedArrayList(Vec3).init(allocator),
+            .bullet_velocities = ManagedArrayList(Vec3).init(allocator),
+            .bullet_right_vectors = ManagedArrayList(Vec3).init(allocator),
             .bullet_cube = bullet_cube,
             .line_shader = lines_shader,
             .lines = lines,
             .plain_cube = plain_cube,
             .plain_cube_shader = plain_cube_shader,
-            .cube_positions = cube_positions,
         };
 
         bullet_system.createRotationsBuffers();
-        try bullet_system.createBullets();
 
         return bullet_system;
     }
@@ -158,22 +155,16 @@ pub const BulletSystem = struct {
         self.bullet_cube.deinit();
     }
 
-    pub fn createBullets(self: *Self) !void {
-        const initial_position = self.aim_transform.translation;
-        var aim_rot = self.aim_transform.rotation;
-
-        const up_rot = Quat.fromAxisAngle(Vec3.World_Up, math.degreesToRadians(45.0));
-        const right_rot = Quat.fromAxisAngle(Vec3.World_Right, math.degreesToRadians(45.0));
-        const aim_change = up_rot.mulQuat(right_rot);
-
-        aim_rot = aim_rot.mulQuat(aim_change);
-
+    pub fn createBullets(self: *Self, aim_transform: Transform) !void {
         const start_index = 0;
         const bullet_group_size = Bullets_Per_Side * Bullets_Per_Side;
 
         try self.bullet_positions.resize(start_index + bullet_group_size);
         try self.bullet_rotations.resize(start_index + bullet_group_size);
+        try self.bullet_rotations_initial.resize(start_index + bullet_group_size);
         try self.bullet_directions.resize(start_index + bullet_group_size);
+        try self.bullet_velocities.resize(start_index + bullet_group_size);
+        try self.bullet_right_vectors.resize(start_index + bullet_group_size);
 
         const start: usize = start_index;
         const end = start + bullet_group_size;
@@ -187,25 +178,37 @@ pub const BulletSystem = struct {
             const x_rot = self.x_rotations.items()[j];
             const x_y_rot = x_rot.mulQuat(y_rot);
 
-            const rotation = aim_rot.mulQuat(x_y_rot);
+            const rotation = aim_transform.rotation.mulQuat(x_y_rot);
             const direction = rotation.rotateVec(Forward_Dir);
 
-            self.bullet_positions.items()[index] = initial_position;
+            self.bullet_positions.items()[index] = aim_transform.translation;
             self.bullet_rotations.items()[index] = rotation;
+            self.bullet_rotations_initial.items()[index] = rotation;
             self.bullet_directions.items()[index] = direction;
+
+            const velocity = direction.mulScalar(Bullet_Speed);
+            self.bullet_velocities.items()[index] = velocity;
+
+            const down = vec3(0.0, -1.0, 0.0);
+            const right = blk: {
+                const r = direction.cross(down).toNormalized();
+                // Handle edge case: firing straight up or down
+                if (r.lengthSquared() < 0.001) {
+                    break :blk vec3(1.0, 0.0, 0.0); // Arbitrary right for vertical shots
+                }
+                break :blk r;
+            };
+            _ = right;
+            //self.bullet_right_vectors.items()[index] = right;
+            self.bullet_right_vectors.items()[index] = self.bullet_rotations.items()[index].right();
         }
     }
 
-    pub fn resetBullets(self: *Self, position: Vec3, direction: Vec3, speed: f32, x_angle: f32, y_angle: f32) !void {
-        _ = position;
-        _ = direction;
-        _ = speed;
-        _ = x_angle;
-        _ = y_angle;
-        try self.createBullets();
+    pub fn resetBullets(self: *Self, aim_transform: Transform) !void {
+        try self.createBullets(aim_transform);
     }
 
-    pub fn update(self: *Self, delta_time: f32) void {
+    pub fn update_x(self: *Self, delta_time: f32) void {
         const delta = delta_time * Bullet_Speed;
 
         const start: usize = 0;
@@ -220,48 +223,25 @@ pub const BulletSystem = struct {
         }
     }
 
-    pub fn drawCube(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        self.plain_cube_shader.useShader();
-        self.plain_cube_shader.setMat4(uniforms.Mat_Projection, projection);
-        self.plain_cube_shader.setMat4(uniforms.Mat_View, view);
-        self.plain_cube_shader.setMat4(uniforms.Mat_Model, &Mat4.Identity);
-        self.plain_cube.draw(self.plain_cube_shader);
-    }
+    pub fn update(self: *Self, delta_time: f32) void {
+        const gravity_vec = vec3(0.0, -self.gravity, 0.0);
+        const gravity_delta = gravity_vec.mulScalar(delta_time);
 
-    pub fn drawRotatedCube(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        self.plain_cube_shader.useShader();
-        self.plain_cube_shader.setMat4(uniforms.Mat_Projection, projection);
-        self.plain_cube_shader.setMat4(uniforms.Mat_View, view);
-        self.plain_cube_shader.setMat4(uniforms.Mat_Model, &Mat4.Identity);
+        for (0..self.bullet_positions.items().len) |i| {
+            var velocity = self.bullet_velocities.items()[i];
+            const position = self.bullet_positions.items()[i];
 
-        const start: usize = 0;
-        const end: usize = self.bullet_rotations.items().len;
+            velocity = velocity.add(gravity_delta);
 
-        var rotated: [24][3]f32 = undefined;
+            self.bullet_velocities.items()[i] = velocity;
+            self.bullet_positions.items()[i] = position.add(velocity.mulScalar(delta_time));
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, self.plain_cube.vbo);
+            const forward = velocity.toNormalized();
 
-        // Rotate cube vertices - matches shader logic: rotate first, then add position offset
-        for (start..end) |i| {
-            const rotation = self.bullet_rotations.items()[i];
-            const position_offset = self.bullet_positions.items()[i];
-
-            for (0..24) |p| {
-                const vertex_pos = Vec3.fromArray(self.cube_positions[p]);
-                const rotated_pos = rotation.rotateVec(vertex_pos);
-                const final_pos = rotated_pos.add(position_offset);
-                rotated[p] = final_pos.asArray();
+            if (forward.lengthSquared() > 0.001) {
+                const right = self.bullet_right_vectors.items()[i];
+                self.bullet_rotations.items()[i] = Quat.fromDirectionWithRight(forward, right);
             }
-
-            // Load buffer with rotated vertices
-            gl.bufferData(
-                gl.ARRAY_BUFFER,
-                @intCast(24 * @sizeOf([3]f32)),
-                &rotated,
-                gl.STATIC_DRAW,
-            );
-
-            self.plain_cube.draw(self.plain_cube_shader);
         }
     }
 
@@ -271,10 +251,10 @@ pub const BulletSystem = struct {
 
         var transformed: [Bullets_Per_Side * Bullets_Per_Side]LineSegment = undefined;
         const start: usize = 0;
-        const end: usize = self.bullet_rotations.items().len;
+        const end: usize = self.bullet_rotations_initial.items().len;
 
         for (start..end) |i| {
-            const rotation = self.bullet_rotations.items()[i];
+            const rotation = self.bullet_rotations_initial.items()[i];
             const line_dir = rotation.rotateVec(Forward_Dir);
             // const line_dir = self.bullet_directions.items()[i];
             transformed[i] = .{
@@ -295,12 +275,6 @@ pub const BulletSystem = struct {
         self.shader.useShader();
         self.shader.setMat4(uniforms.Mat_Projection, projection);
         self.shader.setMat4(uniforms.Mat_View, view);
-
-        // gl.enable(gl.BLEND);
-        // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-        // gl.depthMask(gl.FALSE);
-        // gl.disable(gl.CULL_FACE);
 
         gl.bindVertexArray(self.bullet_cube.vao);
 
@@ -329,16 +303,10 @@ pub const BulletSystem = struct {
             null,
             @intCast(self.bullet_positions.items().len),
         );
-
-        // gl.disable(gl.BLEND);
-        // gl.enable(gl.CULL_FACE);
-        // gl.depthMask(gl.TRUE);
     }
 
     pub fn draw(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        self.drawLines(projection, view);
-        self.drawCube(projection, view);
-        // self.drawRotatedCube(projection, view);
+        if (self.is_lines_visible) self.drawLines(projection, view);
         self.drawBullets(projection, view);
     }
 
@@ -386,43 +354,3 @@ pub const BulletSystem = struct {
         self.positions_vbo = positions_vbo;
     }
 };
-
-fn cubePostions(config: core.shapes.CubeConfig) [24][3]f32 {
-    const max = vec3(config.width / 2.0, config.height / 2.0, config.depth / 2.0);
-    const min = max.mulScalar(-1.0);
-
-    const positions = [_][3]f32{
-        // Front
-        .{ min.x, min.y, max.z },
-        .{ max.x, min.y, max.z },
-        .{ max.x, max.y, max.z },
-        .{ min.x, max.y, max.z },
-        // Back,
-        .{ min.x, max.y, min.z },
-        .{ max.x, max.y, min.z },
-        .{ max.x, min.y, min.z },
-        .{ min.x, min.y, min.z },
-        // Right,
-        .{ max.x, min.y, min.z },
-        .{ max.x, max.y, min.z },
-        .{ max.x, max.y, max.z },
-        .{ max.x, min.y, max.z },
-        // Left,
-        .{ min.x, min.y, max.z },
-        .{ min.x, max.y, max.z },
-        .{ min.x, max.y, min.z },
-        .{ min.x, min.y, min.z },
-        // Top,
-        .{ max.x, max.y, min.z },
-        .{ min.x, max.y, min.z },
-        .{ min.x, max.y, max.z },
-        .{ max.x, max.y, max.z },
-        // Bottom,
-        .{ max.x, min.y, max.z },
-        .{ min.x, min.y, max.z },
-        .{ min.x, min.y, min.z },
-        .{ max.x, min.y, min.z },
-    };
-
-    return positions;
-}
