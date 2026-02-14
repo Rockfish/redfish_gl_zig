@@ -50,17 +50,10 @@ pub const Camera = struct {
     ortho_scale: f32,
     projection_type: ProjectionType,
 
-    // Movement settings
-    translation_speed: f32,
-    rotation_speed: f32,
-    orbit_speed: f32,
-    gimbal_speed: f32,
-
     // Caching
     cached_base_tick: u64,
     cached_gimbal_tick: u64,
     cached_view_mode: ViewMode,
-    projection_tick: u64,
     cached_view: Mat4,
     cached_projection: Mat4,
     view_cache_valid: bool,
@@ -89,15 +82,20 @@ pub const Camera = struct {
     }
 
     pub fn init(allocator: Allocator, config: Config) !*Camera {
-        const camera = try allocator.create(Camera);
-
         // Initialize base movement (handles spatial movement)
-        const base_movement = Movement.init(config.base_position, config.base_target);
+        var base_movement = Movement.init(config.base_position, config.base_target);
+        base_movement.translate_speed = 20.0;
+        base_movement.rotation_speed = 100.0;
+        base_movement.orbit_speed = 200.0;
 
         // Initialize gimbal movement (handles camera orientation)
         // Gimbal starts at origin relative to base, looking forward
-        const gimbal_movement = Movement.init(config.gimbal_position, config.gimbal_target);
+        var gimbal_movement = Movement.init(config.gimbal_position, config.gimbal_target);
+        gimbal_movement.translate_speed = 0.0; // Gimbal doesn't translate
+        gimbal_movement.rotation_speed = 120.0;
+        gimbal_movement.orbit_speed = 120.0;
 
+        const camera = try allocator.create(Camera);
         camera.* = Camera{
             .allocator = allocator,
             .base_movement = base_movement,
@@ -107,30 +105,16 @@ pub const Camera = struct {
             .aspect = config.scr_width / config.scr_height,
             .near = 0.01,
             .far = 2000.0,
-            .ortho_scale = 40.0,
+            .ortho_scale = 30.0,
             .projection_type = .Perspective,
-            .translation_speed = 20.0,
-            .rotation_speed = 100.0,
-            .orbit_speed = 200.0,
-            .gimbal_speed = 120.0,
             .cached_base_tick = 0,
             .cached_gimbal_tick = 0,
             .cached_view_mode = config.view_mode,
-            .projection_tick = 0,
             .cached_view = undefined,
             .cached_projection = undefined,
             .view_cache_valid = false,
             .projection_cache_valid = false,
         };
-
-        // Sync movement speeds
-        camera.base_movement.translate_speed = camera.translation_speed;
-        camera.base_movement.rotation_speed = camera.rotation_speed;
-        camera.base_movement.orbit_speed = camera.orbit_speed;
-
-        camera.gimbal_movement.translate_speed = 0.0; // Gimbal doesn't translate
-        camera.gimbal_movement.rotation_speed = camera.gimbal_speed;
-        camera.gimbal_movement.orbit_speed = camera.gimbal_speed;
 
         return camera;
     }
@@ -290,27 +274,17 @@ pub const Camera = struct {
 
     // Base movement control (spatial movement - position, orbit, etc.)
     pub fn processBaseMovement(self: *Self, direction: MovementDirection, delta_time: f32) void {
-        // Sync speeds
-        self.base_movement.translate_speed = self.translation_speed;
-        self.base_movement.rotation_speed = self.rotation_speed;
-        self.base_movement.orbit_speed = self.orbit_speed;
-
         self.base_movement.processMovement(direction, delta_time);
     }
 
     // Gimbal movement control (camera orientation relative to base)
     pub fn processGimbalMovement(self: *Self, direction: MovementDirection, delta_time: f32) void {
-        // Sync speeds
-        self.gimbal_movement.rotation_speed = self.gimbal_speed;
-
         // Gimbal only handles rotation commands
         switch (direction) {
             .rotate_left, .rotate_right, .rotate_up, .rotate_down, .roll_left, .roll_right => {
                 self.gimbal_movement.processMovement(direction, delta_time);
             },
-            else => {
-                // Ignore non-rotation commands for gimbal
-            },
+            else => {},
         }
     }
 
@@ -347,32 +321,26 @@ pub const Camera = struct {
         }
     }
 
-    // Convenience methods for common camera operations
+    // Convenience methods that pass pre-computed angles via applyMovement
     pub fn orbitTarget(self: *Self, yaw_delta: f32, pitch_delta: f32) void {
         if (yaw_delta != 0.0) {
-            const dt = @abs(yaw_delta) / math.degreesToRadians(self.orbit_speed);
             const direction: MovementDirection = if (yaw_delta > 0) .orbit_right else .orbit_left;
-            self.processBaseMovement(direction, dt);
+            self.base_movement.applyMovement(direction, 0, 0, @abs(yaw_delta));
         }
-
         if (pitch_delta != 0.0) {
-            const dt = @abs(pitch_delta) / math.degreesToRadians(self.orbit_speed);
             const direction: MovementDirection = if (pitch_delta > 0) .orbit_up else .orbit_down;
-            self.processBaseMovement(direction, dt);
+            self.base_movement.applyMovement(direction, 0, 0, @abs(pitch_delta));
         }
     }
 
     pub fn aimGimbal(self: *Self, yaw_delta: f32, pitch_delta: f32) void {
         if (yaw_delta != 0.0) {
-            const dt = @abs(yaw_delta) / math.degreesToRadians(self.gimbal_speed);
             const direction: MovementDirection = if (yaw_delta > 0) .rotate_right else .rotate_left;
-            self.processGimbalMovement(direction, dt);
+            self.gimbal_movement.applyMovement(direction, 0, @abs(yaw_delta), 0);
         }
-
         if (pitch_delta != 0.0) {
-            const dt = @abs(pitch_delta) / math.degreesToRadians(self.gimbal_speed);
             const direction: MovementDirection = if (pitch_delta > 0) .rotate_up else .rotate_down;
-            self.processGimbalMovement(direction, dt);
+            self.gimbal_movement.applyMovement(direction, 0, @abs(pitch_delta), 0);
         }
     }
 

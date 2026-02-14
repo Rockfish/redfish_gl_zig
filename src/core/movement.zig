@@ -211,19 +211,30 @@ pub const Movement = struct {
         self.update_tick +%= 1;
     }
 
+    /// High-level movement: computes velocity/angles from speeds and delta_time.
     pub fn processMovement(
         self: *Self,
         direction: MovementDirection,
         delta_time: f32,
     ) void {
-        self.update_tick +%= 1;
-        // if (self.direction != direction) {
-        //     std.debug.print("direction: {any}\n", .{direction});
-        // }
-        self.direction = direction;
         const translation_velocity = self.translate_speed * delta_time;
         const rot_angle = math.degreesToRadians(self.rotation_speed * delta_time);
         const orbit_angle = math.degreesToRadians(self.orbit_speed * delta_time);
+        self.applyMovement(direction, translation_velocity, rot_angle, orbit_angle);
+    }
+
+    /// Low-level movement: takes pre-computed velocity and angles directly.
+    /// Use this when you already have the amounts (e.g., camera convenience
+    /// methods that pass angles, scripted animations).
+    pub fn applyMovement(
+        self: *Self,
+        direction: MovementDirection,
+        translation_velocity: f32,
+        rot_angle: f32,
+        orbit_angle: f32,
+    ) void {
+        self.update_tick +%= 1;
+        self.direction = direction;
 
         switch (direction) {
             .forward => {
