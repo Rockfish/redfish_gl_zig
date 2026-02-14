@@ -6,6 +6,8 @@ const core = @import("core");
 const math = @import("math");
 const containers = @import("containers");
 
+const uniforms = core.constants.Uniforms;
+
 //const Camera = @import("camera.zig").Camera;
 
 const gl = zopengl.bindings;
@@ -196,8 +198,8 @@ pub fn run(window: *glfw.Window) !void {
         // const debug_camera = try Camera.camera_vec3(allocator, vec3(0.0, 40.0, 120.0));
         // defer debug_camera.deinit();
 
-        shader.setMat4("matProjection", &state.camera.getProjection());
-        shader.setMat4("matView", &state.camera.getView());
+        shader.setMat4(uniforms.Mat_Projection, &state.camera.getProjection());
+        shader.setMat4(uniforms.Mat_View, &state.camera.getView());
 
         var model_transform = Mat4.identity();
         // model_transform.translate(&vec3(0.0, -10.4, -400.0));
@@ -206,7 +208,7 @@ pub fn run(window: *glfw.Window) !void {
         model_transform.rotateByDegrees(&vec3(1.0, 0.0, 0.0), -90.0);
         model_transform.scale(&vec3(3.0, 3.0, 3.0));
         // model_transform.scale(&vec3(0.02, 0.02, 0.02));
-        shader.setMat4("matModel", &model_transform);
+        shader.setMat4(uniforms.Mat_Model, &model_transform);
 
         shader.setBool("useLight", true);
         shader.setVec3("ambient", &ambientColor);
@@ -215,8 +217,8 @@ pub fn run(window: *glfw.Window) !void {
         shader.setVec3("light_dir", &vec3(10.0, 10.0, 2.0));
 
         const identity = Mat4.identity();
-        shader.setMat4("aimRot", &identity);
-        shader.setMat4("lightSpaceMatrix", &identity);
+        shader.setMat4(uniforms.Aim_Rot, &identity);
+        shader.setMat4(uniforms.Light_Space_Matrix, &identity);
 
         try model.updateAnimation(state.delta_time);
         //try model.playTick(1.0);

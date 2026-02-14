@@ -37,7 +37,7 @@ pub fn main() !void {
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
     try run_app(window);
-    try run_animation(window);
+    // try run_animation(window);
 
     glfw.terminate();
 

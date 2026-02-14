@@ -7,6 +7,8 @@ const math = @import("math");
 const nodes = @import("nodes.zig");
 const shapes = core.shapes;
 
+const uniforms = core.constants.Uniforms;
+
 const state_ = @import("state.zig");
 const State = state_.State;
 
@@ -17,6 +19,7 @@ const vec4 = math.vec4;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
 const Ray = core.Ray;
+const AABB = core.AABB;
 
 const Allocator = std.mem.Allocator;
 const EnumSet = std.EnumSet;
@@ -43,6 +46,40 @@ const SIZE_OF_FLOAT = @sizeOf(f32);
 const SIZE_OF_VEC3 = @sizeOf(Vec3);
 const SIZE_OF_VEC4 = @sizeOf(Vec4);
 const SIZE_OF_QUAT = @sizeOf(Quat);
+
+// Wrapper types for objects that implement the Node interface
+const EmptyObject = struct {
+    pub fn draw(self: *EmptyObject, shader: *Shader) void {
+        _ = self;
+        _ = shader;
+    }
+};
+
+const ShapeWithTexture = struct {
+    shape: *shapes.Shape,
+    texture: *Texture,
+
+    pub fn draw(self: *ShapeWithTexture, shader: *Shader) void {
+        shader.bindTextureAuto("texture_diffuse", self.texture.gl_texture_id);
+        self.shape.draw(shader);
+    }
+
+    pub fn getBoundingBox(self: *ShapeWithTexture) AABB {
+        return self.shape.aabb;
+    }
+};
+
+const ModelWrapper = struct {
+    model: *core.Model,
+
+    pub fn draw(self: *ModelWrapper, shader: *Shader) void {
+        self.model.draw(shader);
+    }
+
+    pub fn updateAnimation(self: *ModelWrapper, delta_time: f32) !void {
+        try self.model.updateAnimation(delta_time);
+    }
+};
 
 // pub var state: State = undefined;
 
@@ -100,10 +137,6 @@ pub fn run(window: *glfw.Window) !void {
     var node_manager = try nodes.NodeManager.init(allocator);
     defer node_manager.deinit();
 
-    // Create temporary arena for standalone textures
-    var texture_arena = std.heap.ArenaAllocator.init(allocator);
-    defer texture_arena.deinit();
-
     const basic_shader = try Shader.init(
         allocator,
         "games/level_01/shaders/basic_model.vert",
@@ -127,7 +160,7 @@ pub fn run(window: *glfw.Window) !void {
     );
     defer cubeboid.deinit();
 
-    var plane = try shapes.createCube(
+    var floor = try shapes.createCube(
         .{
             .width = 100.0,
             .height = 2.0,
@@ -137,7 +170,7 @@ pub fn run(window: *glfw.Window) !void {
             .num_tiles_z = 50.0,
         },
     );
-    defer plane.deinit();
+    defer floor.deinit();
 
     var cylinder = try shapes.createCylinder(
         allocator,
@@ -150,7 +183,7 @@ pub fn run(window: *glfw.Window) !void {
     var sphere = try shapes.createSphere(allocator, 1.0, 20, 20);
     defer sphere.deinit();
 
-    const texture_diffuse = TextureConfig{
+    var texture_config = TextureConfig{
         .filter = .Linear,
         .flip_v = false,
         .gamma_correction = false,
@@ -160,16 +193,15 @@ pub fn run(window: *glfw.Window) !void {
     const cube_texture = try Texture.initFromFile(
         allocator,
         "assets/textures/container.jpg",
-        texture_diffuse,
+        texture_config,
     );
 
-    //   texture_diffuse.wrap = .Repeat;
+    texture_config.wrap = .Repeat;
 
     const surface_texture = try Texture.initFromFile(
         allocator,
-        "angrybots_assets/Textures/Floor/Floor D.png",
-        //"assets/texturest/IMGP5487_seamless.jpg",
-        texture_diffuse,
+        "assets/Textures/Floor/Floor D.png",
+        texture_config,
     );
 
     const model_paths = [_][]const u8{
@@ -180,8 +212,8 @@ pub fn run(window: *glfw.Window) !void {
         "/Users/john/Dev/Assets/glTF-Sample-Models/1.0/RiggedFigure/glTF/RiggedFigure.gltf",
         "/Users/john/Dev/Repos/irrlicht/media/faerie.md2", // use skipModelTextures
         "/Users/john/Downloads/Robot2.fbx",
-        "modular_characters/Individual Characters/glTF/Spacesuit.gltf",
-        "modular_characters/Individual Characters/glTF/Swat.gltf",
+        "assets/modular_characters/Individual Characters/glTF/Spacesuit.gltf",
+        "assets/modular_characters/Individual Characters/glTF/Swat.gltf",
         "assets/Models/Spacesuit/Spacesuit_converted.gltf",
         // these are not loading
         "/Users/john/Dev/Assets/glTF-Sample-Models/2.0/RiggedFigure/glTF-Binary/RiggedFigure.glb",
@@ -196,29 +228,27 @@ pub fn run(window: *glfw.Window) !void {
     var model = try gltf_asset.buildModel();
     defer model.deinit();
 
-    var basic_obj = nodes.BasicObj.init("basic");
+    var empty_obj = EmptyObject{};
 
-    var cube_obj = nodes.ShapeObj.init(&cubeboid, "cubeShape", cube_texture);
-    var cylinder_obj = nodes.ShapeObj.init(&cylinder, "cylinderShape", cube_texture);
-    var sphere_obj = nodes.ShapeObj.init(&sphere, "SphereShape", cube_texture);
-    var model_obj = nodes.ModelObj.init(model, "Bot_Model");
+    var cube_obj = ShapeWithTexture{ .shape = &cubeboid, .texture = cube_texture };
+    var cylinder_obj = ShapeWithTexture{ .shape = &cylinder, .texture = cube_texture };
+    var sphere_obj = ShapeWithTexture{ .shape = &sphere, .texture = cube_texture };
+    // var model_obj = ModelWrapper{ .model = model };
 
-    const root_node = try node_manager.create("root_node", .{ .basic = &basic_obj });
-    const model_node = try nodes.Node.init(allocator, "robot", .{ .model = &model_obj });
+    const root_node = try node_manager.create("root_node", &empty_obj);
+
+    const model_node = try nodes.Node.init(allocator, "robot", model);
     defer model_node.deinit();
 
     try model.animator.playAnimationById(23); // 23 is wave, 4 is idle
     model_node.setTranslation(vec3(5.0, 0.0, 5.0));
-    // model_node.setRotation(Quat.fromAxisAngle(&vec3(1.0, 0.0, 0.0), math.degreesToRadians(-90.0)));
     model_node.setScale(vec3(2.0, 2.0, 2.0));
-    // model_node.updateTransforms(null);
 
-    const node_cylinder = try node_manager.create("shape_cylinder", .{ .shape = &cylinder_obj });
-    const node_sphere = try node_manager.create("shpere_shape", .{ .shape = &sphere_obj });
+    const node_cylinder = try node_manager.create("shape_cylinder", &cylinder_obj);
+    const node_sphere = try node_manager.create("shpere_shape", &sphere_obj);
 
     node_sphere.setTranslation(vec3(-3.0, 1.0, 3.0));
 
-    //try root_node.addChild(node_model);
     try root_node.addChild(node_cylinder);
 
     const cube_positions = [_]Vec3{
@@ -230,15 +260,15 @@ pub fn run(window: *glfw.Window) !void {
     };
 
     for (cube_positions) |position| {
-        const cube = try node_manager.create("cube_shape", .{ .shape = &cube_obj });
+        const cube = try node_manager.create("cube_shape", &cube_obj);
         cube.setTranslation(position);
         try root_node.addChild(cube);
 
-        const fix_cube = try node_manager.create("cube_shape", .{ .shape = &cube_obj });
+        const fix_cube = try node_manager.create("cube_shape", &cube_obj);
         fix_cube.setTranslation(position);
     }
 
-    const node_cube_spin = try node_manager.create("spin_cube", .{ .shape = &cube_obj });
+    const node_cube_spin = try node_manager.create("spin_cube", &cube_obj);
 
     node_cube_spin.setTranslation(vec3(0.0, 6.0, 0.0));
     try node_cylinder.addChild(node_cube_spin);
@@ -276,10 +306,10 @@ pub fn run(window: *glfw.Window) !void {
         );
 
         state.world_point = math.getRayPlaneIntersection(
-            &state.camera.movement.transform.translation,
-            &world_ray, // direction
-            &xz_plane_point,
-            &xz_plane_normal,
+            state.camera.movement.transform.translation,
+            world_ray, // direction
+            xz_plane_point,
+            xz_plane_normal,
         );
 
         const ray = Ray{
@@ -287,18 +317,18 @@ pub fn run(window: *glfw.Window) !void {
             .direction = world_ray,
         };
 
-        basic_shader.setMat4("matProjection", &state.camera.getProjection());
-        basic_shader.setMat4("matView", &state.camera.getView());
-        basic_shader.setVec3("ambientColor", &vec3(1.0, 0.6, 0.6));
-        basic_shader.setVec3("lightColor", &vec3(0.35, 0.4, 0.5));
-        basic_shader.setVec3("lightDirection", &vec3(3.0, 3.0, 3.0));
+        basic_shader.setMat4(uniforms.Mat_Projection, &state.camera.getProjection());
+        basic_shader.setMat4(uniforms.Mat_View, &state.camera.getView());
+        basic_shader.setVec3("ambientColor", vec3(1.0, 0.6, 0.6));
+        basic_shader.setVec3("lightColor", vec3(0.35, 0.4, 0.5));
+        basic_shader.setVec3("lightDirection", vec3(3.0, 3.0, 3.0));
         basic_shader.bindTextureAuto("textureDiffuse", cube_texture.gl_texture_id);
 
-        model_shader.setMat4("matProjection", &state.camera.getProjection());
-        model_shader.setMat4("matView", &state.camera.getView());
-        model_shader.setVec3("ambient_color", &vec3(1.0, 0.6, 0.6));
-        model_shader.setVec3("lightColor", &vec3(0.35, 0.4, 0.5));
-        model_shader.setVec3("lightDirection", &vec3(3.0, 3.0, 3.0));
+        model_shader.setMat4(uniforms.Mat_Projection, &state.camera.getProjection());
+        model_shader.setMat4(uniforms.Mat_View, &state.camera.getView());
+        model_shader.setVec3("ambient_color", vec3(1.0, 0.6, 0.6));
+        model_shader.setVec3("lightColor", vec3(0.35, 0.4, 0.5));
+        model_shader.setVec3("lightDirection", vec3(3.0, 3.0, 3.0));
 
         if (state.input.mouse_left_button and state.world_point != null) {
             state.target_position = state.world_point.?;
@@ -306,7 +336,7 @@ pub fn run(window: *glfw.Window) !void {
         }
 
         if (moving) {
-            var direction = state.target_position.sub(&state.current_position);
+            var direction = state.target_position.sub(state.current_position);
             const distance = direction.length();
 
             if (distance < 0.1) {
@@ -320,14 +350,13 @@ pub fn run(window: *glfw.Window) !void {
                     state.current_position = state.target_position;
                     moving = false;
                 } else {
-                    state.current_position = state.current_position.add(&direction.mulScalar(moveDistance));
+                    state.current_position = state.current_position.add(direction.mulScalar(moveDistance));
                 }
             }
         }
 
         model_node.updateAnimation(state.delta_time);
         model_node.draw(model_shader);
-        //model_node.draw(basic_shader);
 
         root_node.setTranslation(state.current_position);
 
@@ -345,7 +374,7 @@ pub fn run(window: *glfw.Window) !void {
         };
 
         for (node_manager.node_list.list.items, 0..) |n, id| {
-            if (n.object.getBoundingBox()) |aabb| {
+            if (n.getBoundingBox()) |aabb| {
                 const box = aabb.transform(&n.global_transform.toMatrix());
                 const distance = box.rayIntersects(ray);
                 if (distance) |d| {
@@ -364,18 +393,18 @@ pub fn run(window: *glfw.Window) !void {
 
         for (node_manager.node_list.list.items, 0..) |n, id| {
             if (picked.id != null and picked.id == @as(u32, @intCast(id))) {
-                basic_shader.setVec4("hitColor", &vec4(1.0, 0.0, 0.0, 0.0));
+                basic_shader.setVec4("hitColor", vec4(1.0, 0.0, 0.0, 0.0));
             }
             n.draw(basic_shader);
-            basic_shader.setVec4("hitColor", &vec4(0.0, 0.0, 0.0, 0.0));
+            basic_shader.setVec4("hitColor", vec4(0.0, 0.0, 0.0, 0.0));
         }
 
-        const plane_transform = Mat4.fromTranslation(&vec3(0.0, -1.0, 0.0));
+        const plane_transform = Mat4.fromTranslation(vec3(0.0, -1.0, 0.0));
 
-        basic_shader.setMat4("matModel", &plane_transform);
+        basic_shader.setMat4(uniforms.Mat_Model, &plane_transform);
         basic_shader.setBool("hasTexture", true);
         basic_shader.bindTextureAuto("textureDiffuse", surface_texture.gl_texture_id);
-        plane.draw();
+        floor.draw(basic_shader);
 
         if (state.spin) {
             state.camera.movement.processMovement(.circle_right, state.delta_time * 1.0);
@@ -388,14 +417,14 @@ pub fn run(window: *glfw.Window) !void {
     //glfw.terminate();
 }
 
-// updatefn
 pub fn updateSpin(node: *nodes.Node, st: *const State) void {
     const up = vec3(0.0, 1.0, 0.0);
     const velocity: f32 = 5.0 * st.delta_time;
     const angle = math.degreesToRadians(velocity);
-    const turn_rotation = Quat.fromAxisAngle(&up, angle);
-    node.transform.rotation = node.transform.rotation.mulQuat(&turn_rotation);
+    const turn_rotation = Quat.fromAxisAngle(up, angle);
+    node.transform.rotation = node.transform.rotation.mulQuat(turn_rotation);
 }
+
 // Exponential decay function
 pub fn exponentialDecay(a: f32, b: f32, decay: f32, dt: f32) f32 {
     return b + (a - b) * std.math.expm1(-decay * dt);

@@ -5,161 +5,83 @@ const core = @import("core");
 const containers = @import("containers");
 const Transform = @import("core").Transform;
 const Shader = @import("core").Shader;
-const State = @import("main.zig").State;
-const Model = @import("core").Model;
 const AABB = @import("core").AABB;
+
+const uniforms = core.constants.Uniforms;
 
 const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
 
-const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
-const vec2 = math.vec2;
-const vec3 = math.vec3;
-const vec4 = math.vec4;
-const Mat4 = math.Mat4;
 const Quat = math.Quat;
-
-pub const BasicObj = struct {
-    name: []const u8,
-    // transform: Transform,
-    // global_transform: Transform,
-
-    pub fn init(name: []const u8) BasicObj {
-        return .{
-            .name = name,
-            // .transform = Transform.default(),
-            // .global_transform = Transform.default(),
-        };
-    }
-};
-
-pub const ShapeObj = struct {
-    name: []const u8,
-    shape: *core.shapes.Shape,
-    texture: *core.texture.Texture,
-    // transform: Transform,
-    // global_transform: Transform,
-
-    pub fn init(shape: *core.shapes.Shape, name: []const u8, texture: *core.texture.Texture) ShapeObj {
-        return .{
-            .name = name,
-            .shape = shape,
-            .texture = texture,
-            // .transform = Transform.default(),
-            // .global_transform = Transform.default(),
-        };
-    }
-
-    pub fn getBoundingBox(self: *ShapeObj) AABB {
-        return self.shape.aabb;
-    }
-
-    pub fn draw(self: *ShapeObj, shader: *Shader) void {
-        shader.bindTextureAuto("texture_diffuse", self.texture.gl_texture_id);
-        self.shape.draw();
-    }
-};
-
-pub const ModelObj = struct {
-    name: []const u8,
-    model: *Model,
-    // transform: Transform,
-    // global_transform: Transform,
-
-    pub fn init(model: *Model, name: []const u8) ModelObj {
-        return .{
-            .name = name,
-            .model = model,
-            // .transform = Transform.default(),
-            // .global_transform = Transform.default(),
-        };
-    }
-
-    // pub fn getBoundingBox(self: *ModelObj) AABB {
-    //     return self.model.aabb;
-    // }
-    fn updateAnimation(self: *ModelObj, delta_time: f32) void {
-        self.model.updateAnimation(delta_time) catch {};
-    }
-
-    pub fn draw(self: *ModelObj, shader: *Shader) void {
-        self.model.draw(shader);
-    }
-};
-
-pub const Object = union(enum) {
-    basic: *BasicObj,
-    shape: *ShapeObj,
-    model: *ModelObj,
-
-    pub inline fn calcTransform(actor: Object, transform: Transform) Transform {
-        return switch (actor) {
-            inline else => |obj| obj.transform.mul_transform(transform),
-        };
-    }
-
-    pub inline fn setTransform(actor: Object, transform: Transform) void {
-        return switch (actor) {
-            inline else => |obj| obj.transform = transform,
-        };
-    }
-
-    pub inline fn getTransform(actor: Object) Transform {
-        return switch (actor) {
-            inline else => |obj| obj.transform,
-        };
-    }
-
-    pub inline fn getBoundingBox(actor: Object) ?AABB {
-        return switch (actor) {
-            .basic => null,
-            .model => null,
-            inline else => |obj| obj.getBoundingBox(),
-        };
-    }
-
-    pub inline fn draw(actor: Object, shader: *Shader) void {
-        return switch (actor) {
-            .basic => {},
-            inline else => |obj| obj.draw(shader),
-        };
-    }
-
-    pub inline fn updateAnimation(actor: Object, delta_time: f32) void {
-        switch (actor) {
-            .model => |obj| obj.updateAnimation(delta_time),
-            else => {},
-        }
-    }
-};
 
 pub const Node = struct {
     allocator: Allocator,
     name: []const u8,
-    object: Object,
-    transform: Transform,
-    global_transform: Transform,
+    dispatch: Dispatch,
     parent: ?*Node,
     children: ManagedArrayList(*Node),
+    transform: Transform,
+    global_transform: Transform,
     is_visible: bool = true,
 
-    pub fn init(allocator: Allocator, name: []const u8, object: Object) !*Node {
+    const Self = @This();
+
+    const Dispatch = struct {
+        obj_ptr: *anyopaque,
+        type_id: usize,
+        draw_fn: *const fn (ptr: *anyopaque, shader: *Shader) void,
+        update_animation_fn: *const fn (ptr: *anyopaque, delta_time: f32) void,
+        get_bounding_box_fn: *const fn (ptr: *anyopaque) ?AABB,
+    };
+
+    pub fn init(allocator: Allocator, name: []const u8, object_ptr: anytype) !*Node {
+        const gen = struct {
+            const ObjectType = @TypeOf(object_ptr);
+
+            pub fn drawFn(obj_ptr: *anyopaque, shader: *Shader) void {
+                const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
+                if (std.meta.hasMethod(ObjectType, "draw")) {
+                    return obj.draw(shader);
+                }
+            }
+
+            pub fn updateAnimationFn(obj_ptr: *anyopaque, delta_time: f32) void {
+                const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
+                if (std.meta.hasMethod(ObjectType, "updateAnimation")) {
+                    obj.updateAnimation(delta_time) catch {};
+                }
+            }
+
+            pub fn getBoundingBoxFn(obj_ptr: *anyopaque) ?AABB {
+                const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
+                if (std.meta.hasMethod(ObjectType, "getBoundingBox")) {
+                    return obj.getBoundingBox();
+                }
+                return null;
+            }
+        };
+
         const node = try allocator.create(Node);
-        node.* = .{
+        node.* = Node{
             .allocator = allocator,
             .name = name,
-            .object = object,
-            .transform = Transform.identity(), // object.getTransform(),
-            .global_transform = Transform.identity(),
             .parent = null,
             .children = ManagedArrayList(*Node).init(allocator),
+            .transform = Transform.identity(),
+            .global_transform = Transform.identity(),
+            .dispatch = .{
+                .obj_ptr = object_ptr,
+                .type_id = typeId(@TypeOf(object_ptr)),
+                .draw_fn = gen.drawFn,
+                .update_animation_fn = gen.updateAnimationFn,
+                .get_bounding_box_fn = gen.getBoundingBoxFn,
+            },
         };
         return node;
     }
 
-    pub fn deinit(self: *Node) void {
+    pub fn deinit(self: *Self) void {
         self.children.deinit();
         self.allocator.destroy(self);
     }
@@ -181,7 +103,6 @@ pub const Node = struct {
 
         child.parent = self;
         try self.children.append(child);
-        //child.updateTransforms();
     }
 
     /// Remove child
@@ -195,9 +116,9 @@ pub const Node = struct {
                     break;
                 }
             } else unreachable;
-
-            child.parent = null;
         }
+
+        child.parent = null;
     }
 
     /// Remove itself from scene
@@ -250,24 +171,29 @@ pub const Node = struct {
 
     pub fn draw(self: *Node, shader: *Shader) void {
         const model_mat = self.global_transform.toMatrix();
-        shader.setMat4("matModel", &model_mat);
-        self.object.draw(shader);
-        // for (self.children.list.items) |child| {
-        //     child.draw(shader);
-        // }
+        shader.setMat4(uniforms.Mat_Model, &model_mat);
+        self.dispatch.draw_fn(self.dispatch.obj_ptr, shader);
     }
 
     pub fn updateAnimation(self: *Node, delta_time: f32) void {
-        self.object.updateAnimation(delta_time);
-        //for (self.children.list.items) |child| {
-        //child.updateAnimation(delta_time);
-        //}
+        self.dispatch.update_animation_fn(self.dispatch.obj_ptr, delta_time);
     }
 
-    // example of how to get the type from a union(enum)
-    pub fn getModel(self: *Node) !Model {
-        if (self.object != .model) return error.TypeMismatch;
-        return self.object.model;
+    pub fn getBoundingBox(self: *Node) ?AABB {
+        return self.dispatch.get_bounding_box_fn(self.dispatch.obj_ptr);
+    }
+
+    pub fn castTo(self: *Self, comptime T: type) ?T {
+        if (self.dispatch.type_id != typeId(T)) return null;
+        return @as(T, @ptrCast(@alignCast(self.dispatch.obj_ptr)));
+    }
+
+    fn typeId(comptime T: type) usize {
+        _ = T;
+        const H = struct {
+            var id: u8 = 0;
+        };
+        return @intFromPtr(&H.id);
     }
 };
 
@@ -294,8 +220,8 @@ pub const NodeManager = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn create(self: *Self, name: []const u8, object: Object) !*Node {
-        const node = try Node.init(self.allocator, name, object);
+    pub fn create(self: *Self, name: []const u8, object_ptr: anytype) !*Node {
+        const node = try Node.init(self.allocator, name, object_ptr);
         try self.node_list.append(node);
         return node;
     }
