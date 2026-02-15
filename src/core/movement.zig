@@ -16,6 +16,10 @@ pub const MovementDirection = enum {
     up,
     down,
 
+    // Rotation around world up
+    turn_right,
+    turn_left,
+
     // Rotation (affects transform.rotation only, independent of look direction)
     rotate_right,
     rotate_left,
@@ -261,44 +265,14 @@ pub const Movement = struct {
                 const up_vec = self.transform.up();
                 self.transform.translation = self.transform.translation.sub(up_vec.mulScalar(translation_velocity));
             },
-            .rotate_right => {
-                const up_vec = self.transform.up();
-                const rot = Quat.fromAxisAngle(up_vec, -rot_angle);
-                self.transform.rotate(rot);
-                // self.rotateTarget(rot);
-                // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
-            },
-            .rotate_left => {
-                const up_vec = self.transform.up();
-                const rot = Quat.fromAxisAngle(up_vec, rot_angle);
-                self.transform.rotate(rot);
-                // self.rotateTarget(rot);
-                // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
-            },
-            .rotate_up => {
-                const right_vec = self.transform.right();
-                const rot = Quat.fromAxisAngle(right_vec, rot_angle);
-                self.transform.rotate(rot);
-                // self.rotateTarget(rot);
-                // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
-            },
-            .rotate_down => {
-                const right_vec = self.transform.right();
-                const rot = Quat.fromAxisAngle(right_vec, -rot_angle);
-                self.transform.rotate(rot);
-                // self.rotateTarget(rot);
-                // std.debug.print("Target: {s}\n", .{self.target.asString(&buf) });
-            },
-            .roll_right => {
-                const fwd = self.transform.forward();
-                const rot = Quat.fromAxisAngle(fwd, rot_angle);
-                self.transform.rotate(rot);
-            },
-            .roll_left => {
-                const fwd = self.transform.forward();
-                const rot = Quat.fromAxisAngle(fwd, -rot_angle);
-                self.transform.rotate(rot);
-            },
+            .turn_right => self.transform.rotateAxis(Vec3.World_Up, -rot_angle),
+            .turn_left => self.transform.rotateAxis(Vec3.World_Up, rot_angle),
+            .rotate_right => self.transform.rotateAxis(self.transform.up(), -rot_angle),
+            .rotate_left => self.transform.rotateAxis(self.transform.up(), rot_angle),
+            .rotate_up => self.transform.rotateAxis(self.transform.right(), rot_angle),
+            .rotate_down => self.transform.rotateAxis(self.transform.right(), -rot_angle),
+            .roll_right => self.transform.rotateAxis(self.transform.forward(), rot_angle),
+            .roll_left => self.transform.rotateAxis(self.transform.forward(), -rot_angle),
             .radius_in => {
                 const to_target = self.target.sub(self.transform.translation);
                 const dist = to_target.length();

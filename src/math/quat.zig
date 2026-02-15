@@ -46,9 +46,8 @@ pub const Quat = extern struct {
         return init(v.x, v.y, v.z, c);
     }
 
-    /// Creates a quaternion that orients an object so its local +Z axis points
+    /// Creates a quaternion that orients an object so its local -Z axis points
     /// along the given direction. Uses World_Up as the default up vector.
-    /// Produces a right-handed coordinate system.
     ///
     /// Fallback behavior:
     /// - If direction is zero length, returns identity quaternion
@@ -57,12 +56,8 @@ pub const Quat = extern struct {
         return fromDirectionWithUp(direction, Vec3.World_Up);
     }
 
-    /// Creates a quaternion that orients an object so its local +Z axis points
-    /// along the given direction. Produces a right-handed coordinate system.
-    ///
-    /// The basis is computed as:
-    /// - right = up × forward
-    /// - up is recomputed as forward × right (for orthogonality)
+    /// Creates a quaternion that orients an object so its local -Z axis points
+    /// along the given direction.
     ///
     /// Fallback behavior:
     /// - If direction is zero length, returns identity quaternion
@@ -76,6 +71,9 @@ pub const Quat = extern struct {
             break :blk normalized;
         };
 
+        // Back is opposite of forward (-Z forward convention)
+        const back_dir = forward_vec.mulScalar(-1.0);
+
         const up_norm = blk: {
             const normalized = up_dir.toNormalized();
             if (normalized.lengthSquared() == 0.0) {
@@ -84,46 +82,42 @@ pub const Quat = extern struct {
             break :blk normalized;
         };
 
-        // Compute right vector (perpendicular to both up and forward)
+        // Compute right vector (perpendicular to both up and back)
         const right_norm = blk: {
-            const right_vec = up_norm.cross(forward_vec);
+            const right_vec = up_norm.cross(back_dir);
             const normalized = right_vec.toNormalized();
             if (normalized.lengthSquared() == 0.0) {
-                // If up and forward are parallel, find any orthonormal vector
+                // If up and back are parallel, find any orthonormal vector
                 const arbitrary = if (@abs(up_norm.y) < 0.9)
                     Vec3.init(0.0, 1.0, 0.0)
                 else
                     Vec3.init(1.0, 0.0, 0.0);
-                const ortho = forward_vec.cross(arbitrary);
+                const ortho = up_norm.cross(arbitrary);
                 break :blk ortho.toNormalized();
             }
             break :blk normalized;
         };
 
         // Recompute up to ensure orthogonality
-        const final_up = forward_vec.cross(right_norm);
+        const final_up = back_dir.cross(right_norm);
 
         // Create rotation matrix from basis vectors (column-major format)
-        // Columns are [right, up, forward] mapping local axes to world axes
+        // Columns are [right, up, back] matching -Z forward convention
         const rotation_matrix = Mat4{ .data = .{
             .{ right_norm.x, right_norm.y, right_norm.z, 0.0 },
             .{ final_up.x, final_up.y, final_up.z, 0.0 },
-            .{ forward_vec.x, forward_vec.y, forward_vec.z, 0.0 },
+            .{ back_dir.x, back_dir.y, back_dir.z, 0.0 },
             .{ 0.0, 0.0, 0.0, 1.0 },
         } };
 
         return rotation_matrix.toQuat();
     }
 
-    /// Creates a quaternion that orients an object so its local +Z axis points
+    /// Creates a quaternion that orients an object so its local -Z axis points
     /// along the given direction, using a specified right vector to constrain the roll.
-    /// Produces a right-handed coordinate system.
     ///
     /// This is useful for projectiles following parabolic trajectories where the
     /// trajectory plane (and thus the right vector) remains constant.
-    ///
-    /// The basis is computed as:
-    /// - up = forward × right
     ///
     /// Fallback behavior:
     /// - If direction is zero length, returns identity quaternion
@@ -136,17 +130,20 @@ pub const Quat = extern struct {
             break :blk normalized;
         };
 
+        // Back is opposite of forward (-Z forward convention)
+        const back_dir = forward_vec.mulScalar(-1.0);
+
         const right_vec = right_dir.toNormalized();
 
         // Compute up to ensure orthogonality
-        const up_vec = forward_vec.cross(right_vec).toNormalized();
+        const up_vec = back_dir.cross(right_vec).toNormalized();
 
         // Create rotation matrix from basis vectors (column-major format)
-        // Columns are [right, up, forward] mapping local axes to world axes
+        // Columns are [right, up, back] matching -Z forward convention
         const rotation_matrix = Mat4{ .data = .{
             .{ right_vec.x, right_vec.y, right_vec.z, 0.0 },
             .{ up_vec.x, up_vec.y, up_vec.z, 0.0 },
-            .{ forward_vec.x, forward_vec.y, forward_vec.z, 0.0 },
+            .{ back_dir.x, back_dir.y, back_dir.z, 0.0 },
             .{ 0.0, 0.0, 0.0, 1.0 },
         } };
 
