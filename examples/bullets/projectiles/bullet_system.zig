@@ -20,7 +20,6 @@ const Mat4 = math.Mat4;
 const Quat = math.Quat;
 const uniforms = core.constants.Uniforms;
 
-// const State = state_mod.State;
 pub const BULLET_SCALE: f32 = 2.0;
 pub const BULLET_LIFETIME: f32 = 10.0;
 pub const Bullet_Speed: f32 = 2.0;
@@ -28,21 +27,11 @@ pub const Bullet_Speed: f32 = 2.0;
 pub const Bullets_Per_Side: i32 = 3;
 pub const Spread_Degrees: f32 = 10.0;
 
-const Forward_Dir: Vec3 = vec3(0.0, 0.0, -1.0);
-
-// pub const Bullet = struct {
-//     position: Vec3,
-//     direction: Vec3, // initial direction, seems it must constant
-//     speed: f32,
-//     rotation_mat: Mat4,
-//     lifetime: f32 = 10.0,
-// };
-
 var buf: [500]u8 = undefined;
 pub const BulletSystem = struct {
     allocator: Allocator,
     shader: *Shader,
-    gravity: f32 = 0.2,
+    gravity: f32 = 0.0,
     x_rotations: ManagedArrayList(Quat),
     y_rotations: ManagedArrayList(Quat),
     bullet_positions: ManagedArrayList(Vec3),
@@ -106,7 +95,7 @@ pub const BulletSystem = struct {
             .num_tiles_y = 1.0,
             .num_tiles_z = 1.0,
             .texture_mapping = .Cubemap2x3,
-            .is_instanced = false, // bullet is handling instancing
+            .is_instanced = false,
         };
 
         const bullet_cube = core.shapes.createCube(cube_config) catch {};
@@ -179,7 +168,7 @@ pub const BulletSystem = struct {
             const x_y_rot = x_rot.mulQuat(y_rot);
 
             const rotation = aim_transform.rotation.mulQuat(x_y_rot);
-            const direction = rotation.rotateVec(Forward_Dir);
+            const direction = rotation.rotateVec(Vec3.World_Forward);
 
             self.bullet_positions.items()[index] = aim_transform.translation;
             self.bullet_rotations.items()[index] = rotation;
@@ -189,17 +178,16 @@ pub const BulletSystem = struct {
             const velocity = direction.mulScalar(Bullet_Speed);
             self.bullet_velocities.items()[index] = velocity;
 
-            const down = vec3(0.0, -1.0, 0.0);
-            const right = blk: {
-                const r = direction.cross(down).toNormalized();
+            // const down = vec3(0.0, -1.0, 0.0);
+            // const right = blk: {
+                // const r = direction.cross(down).toNormalized();
                 // Handle edge case: firing straight up or down
-                if (r.lengthSquared() < 0.001) {
-                    break :blk vec3(1.0, 0.0, 0.0); // Arbitrary right for vertical shots
-                }
-                break :blk r;
-            };
-            _ = right;
-            //self.bullet_right_vectors.items()[index] = right;
+                // if (r.lengthSquared() < 0.001) {
+                    // break :blk vec3(1.0, 0.0, 0.0); // Arbitrary right for vertical shots
+                // }
+                // break :blk r;
+            // };
+            // _ = right;
             self.bullet_right_vectors.items()[index] = self.bullet_rotations.items()[index].right();
         }
     }
@@ -255,8 +243,7 @@ pub const BulletSystem = struct {
 
         for (start..end) |i| {
             const rotation = self.bullet_rotations_initial.items()[i];
-            const line_dir = rotation.rotateVec(Forward_Dir);
-            // const line_dir = self.bullet_directions.items()[i];
+            const line_dir = rotation.rotateVec(Vec3.World_Forward);
             transformed[i] = .{
                 .start = Vec3.Zero,
                 .end = line_dir.mulScalar(10.0),

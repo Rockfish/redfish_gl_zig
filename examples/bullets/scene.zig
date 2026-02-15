@@ -19,7 +19,6 @@ pub const Scene = struct {
         const gen = struct {
             const ObjectType = @TypeOf(object_ptr);
             const StateType = @TypeOf(state_ptr);
-            const node_ptr_info = @typeInfo(ObjectType);
 
             pub fn updateFn(obj_ptr: *anyopaque, state_pointer: *anyopaque) anyerror!void {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
@@ -47,6 +46,10 @@ pub const Scene = struct {
             },
         };
         return scene;
+    }
+
+    pub fn deinit(self: *Self) void {
+        _ = self;
     }
 
     pub fn update(self: *Scene, state: *anyopaque) anyerror!void {

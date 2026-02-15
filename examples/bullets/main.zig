@@ -2,7 +2,6 @@ const std = @import("std");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
 const run_app = @import("run_app.zig").run_app;
-// const run_app = @import("run_app.zig").run_app;
 
 const SCR_WIDTH: f32 = 1000.0;
 const SCR_HEIGHT: f32 = 1000.0;
@@ -59,7 +58,7 @@ pub fn main() !void {
     const window = try glfw.Window.create(
         SCR_WIDTH,
         SCR_HEIGHT,
-        "Demo App",
+        "Bullet App",
         null,
     );
     defer window.destroy();
@@ -68,7 +67,6 @@ pub fn main() !void {
     glfw.swapInterval(1);
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    // try run_app(window, runtime_duration);
     try run_app(window, runtime_duration);
 
     glfw.terminate();

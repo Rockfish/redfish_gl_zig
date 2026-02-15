@@ -29,7 +29,9 @@ pub const Turret = struct {
     lines: Lines,
     line_shader: *Shader,
 
-    pub fn init(allocator: Allocator) !Self {
+    const Self = @This();
+
+    pub fn init(allocator: Allocator) !*Self {
         const line_shader = try Shader.init(
             allocator,
             "examples/bullets/shaders/lines.vert",
@@ -39,25 +41,23 @@ pub const Turret = struct {
         const lines = try Lines.init(allocator, line_shader, 10.0, 1.0, 144);
 
         var aim_transform = Transform.identity();
-        // const up_rot = Quat.fromAxisAngle(Vec3.World_Up, math.degreesToRadians(45.0));
-        // const right_rot = Quat.fromAxisAngle(Vec3.World_Right, math.degreesToRadians(45.0));
         const up_rot = Quat.fromAxisAngle(Vec3.World_Up, math.degreesToRadians(0.0));
-        const right_rot = Quat.fromAxisAngle(Vec3.World_Right, math.degreesToRadians(90.0));
+        const right_rot = Quat.fromAxisAngle(Vec3.World_Right, math.degreesToRadians(0.0));
         const aim_rot = up_rot.mulQuat(right_rot);
         aim_transform.rotation = aim_transform.rotation.mulQuat(aim_rot);
 
         var bullets = try BulletSystem.init(allocator);
         try bullets.createBullets(aim_transform);
 
-        return .{
+        const self = try allocator.create(Self);
+        self.* = .{
             .bullets = bullets,
             .lines = lines,
             .line_shader = line_shader,
             .aim_transform = aim_transform,
         };
+        return self;
     }
-
-    const Self = @This();
 
     pub fn fire(self: *Self) !void {
         try self.bullets.createBullets(self.aim_transform);
@@ -96,29 +96,24 @@ pub const Turret = struct {
             switch (k) {
                 .up => {
                     const right_vec = self.aim_transform.right();
-                    const rot = Quat.fromAxisAngle(right_vec, rot_angle);
-                    self.aim_transform.rotate(rot);
+                    self.aim_transform.rotateAxis(right_vec, rot_angle);
                 },
                 .down => {
                     const right_vec = self.aim_transform.right();
-                    const rot = Quat.fromAxisAngle(right_vec, -rot_angle);
-                    self.aim_transform.rotate(rot);
+                    self.aim_transform.rotateAxis(right_vec, -rot_angle);
                 },
                 .right => {
-                    const rot = Quat.fromAxisAngle(Vec3.World_Up, -rot_angle);
-                    self.aim_transform.rotate(rot);
+                    self.aim_transform.rotateAxis(Vec3.World_Up, -rot_angle);
                 },
                 .left => {
-                    const rot = Quat.fromAxisAngle(Vec3.World_Up, rot_angle);
-                    self.aim_transform.rotate(rot);
+                    self.aim_transform.rotateAxis(Vec3.World_Up, rot_angle);
                 },
                 else => {},
             }
-            // One-shot keys: fire once per press
+
             if (input.key_processed.contains(k)) {
                 continue;
             }
-            // input.key_processed.insert(k);
 
             switch (k) {
                 .r => {

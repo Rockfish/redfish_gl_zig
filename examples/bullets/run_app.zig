@@ -2,39 +2,23 @@ const std = @import("std");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
 const core = @import("core");
-const math = @import("math");
 const world_module = @import("world.zig");
-
-const Vec3 = math.Vec3;
-const vec3 = math.vec3;
-const Vec4 = math.Vec4;
-const Mat4 = math.Mat4;
-const Quat = math.Quat;
-const quat = math.quat;
 
 const gl = zopengl.bindings;
 const Input = core.Input;
-const Camera = core.CameraGimbal;
-const Shader = core.Shader;
-const Skybox = core.shapes.Skybox;
-const Transform = core.Transform;
-
 const World = world_module.World;
 
 const log = std.log.scoped(.BulletsApp);
 
 pub fn run_app(window: *glfw.Window, max_duration: ?f32) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
-    defer arena.deinit();
-    const allocator = arena.allocator();
+    var root_allocator = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = root_allocator.deinit();
 
     log.info("Starting simple bullets test app", .{});
     const input = Input.init(window);
 
-    var world = try World.init(allocator, input);
+    const world = try World.init(root_allocator.allocator(), input);
+    defer world.deinit();
 
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
@@ -42,8 +26,8 @@ pub fn run_app(window: *glfw.Window, max_duration: ?f32) !void {
     log.info("Starting main loop", .{});
 
     while (!window.shouldClose()) {
-        input.update();
         glfw.pollEvents();
+        input.update();
 
         if (max_duration) |duration| {
             if (input.total_time >= duration) {
