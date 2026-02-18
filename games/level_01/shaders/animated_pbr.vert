@@ -18,6 +18,7 @@ uniform mat4 matModel;
 uniform mat4 nodeTransform;
 uniform mat4 jointMatrices[MAX_JOINTS];
 uniform bool hasSkin;
+uniform bool hasVertexColors;
 
 // Outputs to the fragment shader
 out vec3 fragWorldPosition;
@@ -81,7 +82,11 @@ void main() {
 
     // Pass through texture coordinates and vertex color.
     fragTexCoord = inTexCoord;
-    fragColor = inColor;
+    if (hasVertexColors) {
+        fragColor = inColor;
+    } else {
+        fragColor = vec4(1.0);
+    }
 
     // Output the transformed normal.
     fragNormal = N;

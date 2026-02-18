@@ -278,6 +278,8 @@ pub fn run(window: *glfw.Window) !void {
 
     var moving = false;
 
+    const barrel = try core.shapes.loadOBJ(allocator, "assets/modular_ruins/OBJ/Barrel.obj");
+
     // TODO: Fix animation system
     // const clip = AnimationClip.init(0, 0.0, 32.0, core.animation.AnimationRepeatMode.Forever);
     // try model_obj.model.playClip(clip);
@@ -323,6 +325,8 @@ pub fn run(window: *glfw.Window) !void {
         basic_shader.setVec3("lightColor", vec3(0.35, 0.4, 0.5));
         basic_shader.setVec3("lightDirection", vec3(3.0, 3.0, 3.0));
         basic_shader.bindTextureAuto("textureDiffuse", cube_texture.gl_texture_id);
+
+        // basic_shader.setBool("hasColor", false);
 
         model_shader.setMat4(uniforms.Mat_Projection, &state.camera.getProjection());
         model_shader.setMat4(uniforms.Mat_View, &state.camera.getView());
@@ -391,6 +395,8 @@ pub fn run(window: *glfw.Window) !void {
             }
         }
 
+        basic_shader.setBool(uniforms.Has_Texture, true);
+
         for (node_manager.node_list.list.items, 0..) |n, id| {
             if (picked.id != null and picked.id == @as(u32, @intCast(id))) {
                 basic_shader.setVec4("hitColor", vec4(1.0, 0.0, 0.0, 0.0));
@@ -409,6 +415,11 @@ pub fn run(window: *glfw.Window) !void {
         if (state.spin) {
             state.camera.movement.processMovement(.circle_right, state.delta_time * 1.0);
         }
+
+        const barrel_transform = Mat4.fromTranslation(vec3(-4.0, 1.0, 5.0));
+        basic_shader.setMat4(uniforms.Mat_Model, &barrel_transform);
+        basic_shader.setBool("hasTexture", false);
+        barrel.draw(basic_shader);
 
         window.swapBuffers();
         glfw.pollEvents();
