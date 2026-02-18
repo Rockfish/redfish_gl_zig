@@ -77,4 +77,8 @@ pub const Uniforms = struct {
     pub const Texture_Normal: [:0]const u8 = "textureNormal";
     pub const Texture_Spec: [:0]const u8 = "textureSpec";
     pub const Has_Texture: [:0]const u8 = "hasTexture";
+
+    // Vertex color uniforms
+    pub const Has_Color: [:0]const u8 = "hasColor";
+    pub const Has_Vertex_Colors: [:0]const u8 = "hasVertexColors";
 };

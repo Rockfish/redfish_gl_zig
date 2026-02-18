@@ -126,6 +126,8 @@ pub const Model = struct {
     }
 
     fn drawNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, node_index: usize) void {
+        if (!self.animator.nodes[node_index].is_visible) return;
+
         if (node.mesh) |mesh_index| {
             const transform = self.animator.nodes[node_index].calculated_transform.?;
             const local_matrix = transform.toMatrix();
@@ -215,6 +217,50 @@ pub const Model = struct {
                     }
                 }
             }
+        }
+    }
+
+    pub fn setMeshVisibility(self: *Self, mesh_name: []const u8, visible: bool) void {
+        for (self.meshes.list.items) |mesh| {
+            if (mesh.name) |name| {
+                if (std.mem.eql(u8, name, mesh_name)) {
+                    mesh.is_visible = visible;
+                }
+            }
+        }
+    }
+
+    pub fn hideAllMeshes(self: *Self) void {
+        for (self.meshes.list.items) |mesh| {
+            mesh.is_visible = false;
+        }
+    }
+
+    pub fn showAllMeshes(self: *Self) void {
+        for (self.meshes.list.items) |mesh| {
+            mesh.is_visible = true;
+        }
+    }
+
+    pub fn setNodeVisibility(self: *Self, node_name: []const u8, visible: bool) void {
+        for (self.animator.nodes) |*node| {
+            if (node.name) |name| {
+                if (std.mem.eql(u8, name, node_name)) {
+                    node.is_visible = visible;
+                }
+            }
+        }
+    }
+
+    pub fn hideAllNodes(self: *Self) void {
+        for (self.animator.nodes) |*node| {
+            node.is_visible = false;
+        }
+    }
+
+    pub fn showAllNodes(self: *Self) void {
+        for (self.animator.nodes) |*node| {
+            node.is_visible = true;
         }
     }
 

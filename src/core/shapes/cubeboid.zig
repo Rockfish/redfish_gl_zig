@@ -267,6 +267,7 @@ pub const Cubeboid = struct {
             &positions,
             &texcoords,
             &normals,
+            &.{},
             &indices,
             config.is_instanced,
         );

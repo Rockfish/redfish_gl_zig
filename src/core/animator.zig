@@ -235,6 +235,7 @@ pub const Node = struct {
     children: ?[]const u32,
     mesh: ?u32,
     skin: ?u32,
+    is_visible: bool = true,
     initial_transform: Transform,
     calculated_transform: ?Transform,
 };

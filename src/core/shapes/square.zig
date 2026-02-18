@@ -26,6 +26,7 @@ pub const Square = struct {
             &positions,
             &texcoords,
             &normals,
+            &.{},
             &indices,
             false,
         );

@@ -30,6 +30,7 @@ pub const Animator = @import("animator.zig").Animator;
 pub const AnimationClip = @import("animator.zig").AnimationClip;
 pub const AnimationRepeatMode = @import("animator.zig").AnimationRepeatMode;
 pub const WeightedAnimation = @import("animator.zig").WeightedAnimation;
+pub const AnimationStateMachine = @import("animation_fsm.zig").AnimationStateMachine;
 
 pub const shapes = @import("shapes/main.zig");
 pub const Color = @import("colors.zig").Color;

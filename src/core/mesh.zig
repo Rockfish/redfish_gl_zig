@@ -25,6 +25,7 @@ pub const DrawMode = enum {
 
 pub const Mesh = struct {
     name: ?[]const u8,
+    is_visible: bool = true,
     primitives: ManagedArrayList(*MeshPrimitive),
 
     const Self = @This();
@@ -53,9 +54,9 @@ pub const Mesh = struct {
     }
 
     pub fn draw(self: *Self, gltf_asset: *GltfAsset, shader: *const Shader) void {
+        if (!self.is_visible) return;
         for (self.primitives.list.items) |primitive| {
             primitive.draw(gltf_asset, shader);
-            // primitive.renderPBR(gltf, shader);
         }
     }
 };
@@ -160,7 +161,8 @@ pub const MeshPrimitive = struct {
         if (primitive.attributes.color_0) |accessor_id| {
             mesh_primitive.vbo_colors = createGlArrayBuffer(gltf_asset, constants.VertexAttr.COLOR, accessor_id);
             mesh_primitive.has_vertex_colors = true;
-            // std.debug.print("has_colors\n", .{});
+            // const name: []const u8 = if (mesh_name) |n| n else "none";
+            // std.debug.print("mesh: {s}  has_vertex_colors\n", .{name});
         }
 
         if (primitive.attributes.joints_0) |accessor_id| {
@@ -323,13 +325,13 @@ pub const MeshPrimitive = struct {
     fn setPBRMaterial(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
         if (self.material.pbr_metallic_roughness) |pbr| {
             // Base Color
-            shader.set4Float("material.baseColorFactor", @ptrCast(&pbr.base_color_factor));
+            shader.set4Float("material.baseColorFactor", pbr.base_color_factor.asArrayPtr());
             shader.setFloat("material.metallicFactor", pbr.metallic_factor);
             shader.setFloat("material.roughnessFactor", pbr.roughness_factor);
         } else {
             // Set default material values if PBR properties are missing
             const default_color = [4]f32{ 1.0, 1.0, 1.0, 1.0 };
-            shader.set4Float("material.baseColorFactor", @ptrCast(&default_color));
+            shader.set4Float("material.baseColorFactor", &default_color);
             shader.setFloat("material.metallicFactor", 0.0);
             shader.setFloat("material.roughnessFactor", 0.9);
         }
@@ -492,11 +494,13 @@ pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: u
             @ptrFromInt(0),
         );
     } else {
+        const normalized: gl.Boolean = if (gl_type != gl.FLOAT) gl.TRUE else gl.FALSE;
+
         gl.vertexAttribPointer(
             gl_index,
             @intCast(getTypeSize(accessor.type_)),
             gl_type,
-            gl.FALSE,
+            normalized,
             @intCast(byte_stride),
             @ptrFromInt(0),
         );

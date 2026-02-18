@@ -55,11 +55,11 @@ pub const ShapeBuilder = struct {
     }
 
     pub fn addVertex(self: *Self, position: [3]f32, normal: [3]f32, texCoord: [2]f32) !u32 {
-        const index = @as(u32, @intCast(self.positions.items.len));
+        const index = @as(u32, @intCast(self.positions.items().len));
         try self.positions.append(position);
         try self.normals.append(normal);
         try self.texcoords.append(texCoord);
-        self.aabb.expand(vec3(position[0], position[1], position[2]));
+        self.aabb.expandWithArray(position);
         return index;
     }
 
@@ -80,6 +80,7 @@ pub const ShapeBuilder = struct {
             self.positions.list.items,
             self.texcoords.list.items,
             self.normals.list.items,
+            self.colors.list.items,
             self.indices.list.items,
             self.is_instanced,
         );
@@ -91,6 +92,7 @@ pub fn initGLBuffers(
     positions: []const [3]f32,
     texcoords: []const [2]f32,
     normals: []const [3]f32,
+    colors: []const [4]f32,
     indices: []const u32,
     is_instanced: bool,
 ) Shape {
@@ -98,6 +100,7 @@ pub fn initGLBuffers(
     var position_vbo: u32 = 0;
     var texcoord_vbo: u32 = 0;
     var normal_vbo: u32 = 0;
+    var color_vbo: u32 = 0;
     var transforms_vbo: u32 = 0;
     var ebo: u32 = 0;
 
@@ -171,6 +174,27 @@ pub fn initGLBuffers(
         gl.enableVertexAttribArray(constants.VertexAttr.NORMAL);
     }
 
+    // colors
+    if (colors.len > 0) {
+        gl.genBuffers(1, &color_vbo);
+        gl.bindBuffer(gl.ARRAY_BUFFER, color_vbo);
+        gl.bufferData(
+            gl.ARRAY_BUFFER,
+            @intCast(colors.len * @sizeOf([4]f32)),
+            colors.ptr,
+            gl.STATIC_DRAW,
+        );
+        gl.vertexAttribPointer(
+            constants.VertexAttr.COLOR,
+            4,
+            gl.FLOAT,
+            gl.FALSE,
+            0,
+            null,
+        );
+        gl.enableVertexAttribArray(constants.VertexAttr.COLOR);
+    }
+
     // indices
     gl.genBuffers(1, &ebo);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
@@ -209,6 +233,8 @@ pub fn initGLBuffers(
         .vao = vao,
         .vbo = position_vbo, // Primary VBO for positions
         .ebo = ebo,
+        .color_vbo = color_vbo,
+        .has_vertex_colors = colors.len > 0,
         .transforms_vbo = transforms_vbo,
         .num_indices = @intCast(indices.len),
         .aabb = aabb,
@@ -230,6 +256,8 @@ pub const Shape = struct {
     vao: u32 = 0,
     vbo: u32 = 0,
     ebo: u32 = 0,
+    color_vbo: u32 = 0,
+    has_vertex_colors: bool = false,
     transforms_vbo: u32,
     num_indices: i32 = 0,
     aabb: AABB,
@@ -263,6 +291,9 @@ pub const Shape = struct {
         gl.deleteVertexArrays(1, &self.vao);
         gl.deleteBuffers(1, &self.vbo);
         gl.deleteBuffers(1, &self.ebo);
+        if (self.color_vbo != 0) {
+            gl.deleteBuffers(1, &self.color_vbo);
+        }
         gl.deleteBuffers(1, &self.transforms_vbo);
         gl.deleteTextures(1, &self.gl_texture_id);
     }

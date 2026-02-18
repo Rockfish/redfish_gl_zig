@@ -72,6 +72,7 @@ pub const Plane = struct {
             &positions,
             &texcoords,
             &normals,
+            &.{},
             &indices,
             false,
         );
