@@ -16,15 +16,15 @@ const Texture = core.texture.Texture;
 const uniforms = core.constants.Uniforms;
 
 pub const Cube = struct {
-    shape: Shape,
+    shape: *Shape,
     shader: *Shader,
-    transform: core.Transform = core.Transform.identity(),
     texture: *Texture,
+    transform: core.Transform = core.Transform.identity(),
 
     const Self = @This();
 
     pub fn init(allocator: Allocator) !Self {
-        const cube = try core.shapes.createCube(.{
+        const cube = try core.shapes.createCube(allocator, .{
             .width = 1.0,
             .height = 1.0,
             .depth = 1.0,

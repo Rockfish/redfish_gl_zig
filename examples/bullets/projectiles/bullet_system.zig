@@ -40,13 +40,13 @@ pub const BulletSystem = struct {
     bullet_directions: ManagedArrayList(Vec3),
     bullet_velocities: ManagedArrayList(Vec3),
     bullet_right_vectors: ManagedArrayList(Vec3),
-    bullet_cube: core.shapes.Shape,
+    bullet_cube: *core.shapes.Shape,
     rotations_vbo: gl.Uint = 0,
     positions_vbo: gl.Uint = 0,
     line_shader: *Shader,
     lines: Lines,
     is_lines_visible: bool = false,
-    plain_cube: core.shapes.Shape,
+    plain_cube: *core.shapes.Shape,
     plain_cube_shader: *Shader,
 
     const Self = @This();
@@ -98,8 +98,8 @@ pub const BulletSystem = struct {
             .is_instanced = false,
         };
 
-        const bullet_cube = core.shapes.createCube(cube_config) catch {};
-        const plain_cube = core.shapes.createCube(cube_config) catch {};
+        const bullet_cube = try core.shapes.createCube(allocator, cube_config);
+        const plain_cube = try core.shapes.createCube(allocator, cube_config);
 
         const plain_cube_shader = try Shader.init(
             allocator,
@@ -180,12 +180,12 @@ pub const BulletSystem = struct {
 
             // const down = vec3(0.0, -1.0, 0.0);
             // const right = blk: {
-                // const r = direction.cross(down).toNormalized();
-                // Handle edge case: firing straight up or down
-                // if (r.lengthSquared() < 0.001) {
-                    // break :blk vec3(1.0, 0.0, 0.0); // Arbitrary right for vertical shots
-                // }
-                // break :blk r;
+            // const r = direction.cross(down).toNormalized();
+            // Handle edge case: firing straight up or down
+            // if (r.lengthSquared() < 0.001) {
+            // break :blk vec3(1.0, 0.0, 0.0); // Arbitrary right for vertical shots
+            // }
+            // break :blk r;
             // };
             // _ = right;
             self.bullet_right_vectors.items()[index] = self.bullet_rotations.items()[index].right();

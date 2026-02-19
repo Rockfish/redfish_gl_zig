@@ -49,12 +49,12 @@ pub const BulletSystem = struct {
     bullet_positions: ManagedArrayList(Vec3),
     bullet_rotations: ManagedArrayList(Quat),
     bullet_directions: ManagedArrayList(Vec3),
-    bullet_cube: core.shapes.Shape,
+    bullet_cube: *core.shapes.Shape,
     rotations_vbo: gl.Uint = 0,
     positions_vbo: gl.Uint = 0,
     line_shader: *Shader,
     lines: Lines,
-    plain_cube: core.shapes.Shape,
+    plain_cube: *core.shapes.Shape,
     plain_cube_shader: *Shader,
     cube_positions: [24][3]f32 = undefined,
 
@@ -107,8 +107,8 @@ pub const BulletSystem = struct {
             .is_instanced = false, // bullet is handling instancing
         };
 
-        const bullet_cube = core.shapes.createCube(cube_config) catch {};
-        const plain_cube = core.shapes.createCube(cube_config) catch {};
+        const bullet_cube = try core.shapes.createCube(allocator, cube_config);
+        const plain_cube = try core.shapes.createCube(allocator, cube_config);
         const cube_positions = cubePostions(cube_config);
 
         const plain_cube_shader = try Shader.init(

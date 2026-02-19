@@ -21,12 +21,12 @@ const Transform = core.Transform;
 const uniforms = core.constants.Uniforms;
 
 pub const Grid = struct {
-    x_plus: Shape,
-    x_minus: Shape,
-    y_plus: Shape,
-    y_minus: Shape,
-    z_plus: Shape,
-    z_minus: Shape,
+    x_plus: *Shape,
+    x_minus: *Shape,
+    y_plus: *Shape,
+    y_minus: *Shape,
+    z_plus: *Shape,
+    z_minus: *Shape,
     x_plus_mat: Mat4,
     x_minus_mat: Mat4,
     y_plus_mat: Mat4,
@@ -37,8 +37,8 @@ pub const Grid = struct {
 
     const Self = @This();
 
-    pub fn init(texture_id: u32) Grid {
-        const x_plus = try core.shapes.createCube(.{
+    pub fn init(allocator: std.mem.Allocator, texture_id: u32) !Grid {
+        const x_plus = try core.shapes.createCube(allocator, .{
             .width = 100.0,
             .height = 0.1,
             .depth = 0.1,
@@ -47,7 +47,7 @@ pub const Grid = struct {
             .num_tiles_z = 1.0,
             .texture_mapping = .Cubemap2x3,
         });
-        const x_minus = try core.shapes.createCube(.{
+        const x_minus = try core.shapes.createCube(allocator, .{
             .width = 100.0,
             .height = 0.1,
             .depth = 0.1,
@@ -56,7 +56,7 @@ pub const Grid = struct {
             .num_tiles_z = 1.0,
             .texture_mapping = .Cubemap2x3,
         });
-        const y_plus = try core.shapes.createCube(.{
+        const y_plus = try core.shapes.createCube(allocator, .{
             .width = 0.1,
             .height = 100.0,
             .depth = 0.1,
@@ -65,7 +65,7 @@ pub const Grid = struct {
             .num_tiles_z = 1.0,
             .texture_mapping = .Cubemap2x3,
         });
-        const y_minus = try core.shapes.createCube(.{
+        const y_minus = try core.shapes.createCube(allocator, .{
             .width = 0.1,
             .height = 100.0,
             .depth = 0.1,
@@ -74,7 +74,7 @@ pub const Grid = struct {
             .num_tiles_z = 1.0,
             .texture_mapping = .Cubemap2x3,
         });
-        const z_plus = try core.shapes.createCube(.{
+        const z_plus = try core.shapes.createCube(allocator, .{
             .width = 0.1,
             .height = 0.1,
             .depth = 100.0,
@@ -83,7 +83,7 @@ pub const Grid = struct {
             .num_tiles_z = 1.0,
             .texture_mapping = .Cubemap2x3,
         });
-        const z_minus = try core.shapes.createCube(.{
+        const z_minus = try core.shapes.createCube(allocator, .{
             .width = 0.1,
             .height = 0.1,
             .depth = 100.0,

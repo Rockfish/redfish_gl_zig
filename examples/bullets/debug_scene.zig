@@ -12,6 +12,8 @@ const Cube = @import("scene/cube.zig").Cube;
 const Floor = @import("scene/floor.zig").Floor;
 const Lights = @import("scene/lights.zig").Lights;
 const SkyBoxDirections = @import("scene/skyboxes.zig").SkyBoxDirections;
+const Spacesuit = @import("scene/spacesuit.zig").Spacesuit;
+const ToonSoldier = @import("scene/toon_soldier.zig").ToonSoldier;
 
 const BulletSystem = @import("projectiles/bullet_system.zig").BulletSystem;
 const Turret = @import("projectiles/turret.zig").Turret;
@@ -57,16 +59,22 @@ pub const MotionObject = enum {
     base,
     gimbal,
     turret,
+    man,
+    soldier,
+    enemy,
     camera,
 };
 
 pub const SceneDebug = struct {
     scene_camera: *SceneCamera,
-    cube: Cube,
-    skybox: SkyBoxDirections,
-    floor: Floor,
-    axis_lines: AxisLines,
-    turret: *Turret,
+    cube: Cube = undefined,
+    skybox: SkyBoxDirections = undefined,
+    floor: Floor = undefined,
+    axis_lines: AxisLines = undefined,
+    turret: *Turret = undefined,
+    spacesuit: *Spacesuit = undefined,
+    toon_soldier: *ToonSoldier = undefined,
+    barrel: *Shape = undefined,
     input_tick: u64 = 0,
     motion_type: MotionType = .circle,
     motion_object: MotionObject = .turret,
@@ -76,22 +84,14 @@ pub const SceneDebug = struct {
     const Self = @This();
 
     pub fn init(allocator: Allocator, input: *core.Input) !*Scene {
-
         const camera = try FreeCamera.init(
             allocator,
             input.framebuffer_width,
             input.framebuffer_height,
         );
 
-        var scene = try allocator.create(SceneDebug);
-        scene.* = .{
-            .scene_camera = camera,
-            .cube = try Cube.init(allocator),
-            .skybox = try SkyBoxDirections.init(allocator),
-            .floor = try Floor.init(allocator),
-            .axis_lines = try AxisLines.init(allocator),
-            .turret = try Turret.init(allocator),
-        };
+        const scene = try allocator.create(SceneDebug);
+        scene.* = .{ .scene_camera = camera, .cube = try Cube.init(allocator), .skybox = try SkyBoxDirections.init(allocator), .floor = try Floor.init(allocator), .axis_lines = try AxisLines.init(allocator), .turret = try Turret.init(allocator), .spacesuit = try Spacesuit.init(allocator), .toon_soldier = try ToonSoldier.init(allocator), .barrel = try core.shapes.loadOBJ(allocator, "assets/modular_ruins/OBJ/Barrel.obj") };
 
         scene.floor.update_lights(basic_lights);
         scene.cube.update_lights(basic_lights);
@@ -108,6 +108,9 @@ pub const SceneDebug = struct {
 
     pub fn update(self: *Self, input: *core.Input) !void {
         try self.scene_camera.update(input);
+        try self.spacesuit.update(input);
+        try self.toon_soldier.update(input);
+
         try self.processInput(input);
 
         if (self.run_animation == true) {
@@ -125,6 +128,8 @@ pub const SceneDebug = struct {
         self.skybox.draw(&projection, &view);
 
         self.turret.draw(&projection, &view);
+        self.spacesuit.draw(&projection, &view);
+        self.toon_soldier.draw(&projection, &view);
 
         self.floor.draw(&projection, &view);
     }
@@ -135,46 +140,48 @@ pub const SceneDebug = struct {
         switch (self.motion_object) {
             .turret => try self.turret.processInput(input),
             .camera => try self.scene_camera.processInput(input),
+            .man => try self.spacesuit.processInput(input),
+            .soldier => try self.toon_soldier.processInput(input),
             else => {},
         }
 
         var iterator = input.key_presses.iterator();
         while (iterator.next()) |k| {
             // if (self.motion_object != .turret) {
-                // const movement_object = if (self.motion_object == .base) &self.getCamera().base_movement else &self.getCamera().gimbal_movement;
-                //
-                // switch (self.motion_type) {
-                //     .translate => switch (k) {
-                //         .w => movement_object.processMovement(.forward, dt),
-                //         .s => movement_object.processMovement(.backward, dt),
-                //         .a, .left => movement_object.processMovement(.left, dt),
-                //         .d, .right => movement_object.processMovement(.right, dt),
-                //         .up => movement_object.processMovement(.up, dt),
-                //         .down => movement_object.processMovement(.down, dt),
-                //         else => {},
-                //     },
-                //     .orbit => switch (k) {
-                //         .w, .up => movement_object.processMovement(.orbit_up, dt),
-                //         .s, .down => movement_object.processMovement(.orbit_down, dt),
-                //         .a, .left => movement_object.processMovement(.orbit_left, dt),
-                //         .d, .right => movement_object.processMovement(.orbit_right, dt),
-                //         else => {},
-                //     },
-                //     .circle => switch (k) {
-                //         .w, .up => movement_object.processMovement(.circle_up, dt),
-                //         .s, .down => movement_object.processMovement(.circle_down, dt),
-                //         .a, .left => movement_object.processMovement(.circle_left, dt),
-                //         .d, .right => movement_object.processMovement(.circle_right, dt),
-                //         else => {},
-                //     },
-                //     .rotate, .look => switch (k) {
-                //         .w, .up => movement_object.processMovement(.rotate_up, dt),
-                //         .s, .down => movement_object.processMovement(.rotate_down, dt),
-                //         .a, .left => movement_object.processMovement(.rotate_left, dt),
-                //         .d, .right => movement_object.processMovement(.rotate_right, dt),
-                //         else => {},
-                //     },
-                // }
+            // const movement_object = if (self.motion_object == .base) &self.getCamera().base_movement else &self.getCamera().gimbal_movement;
+            //
+            // switch (self.motion_type) {
+            //     .translate => switch (k) {
+            //         .w => movement_object.processMovement(.forward, dt),
+            //         .s => movement_object.processMovement(.backward, dt),
+            //         .a, .left => movement_object.processMovement(.left, dt),
+            //         .d, .right => movement_object.processMovement(.right, dt),
+            //         .up => movement_object.processMovement(.up, dt),
+            //         .down => movement_object.processMovement(.down, dt),
+            //         else => {},
+            //     },
+            //     .orbit => switch (k) {
+            //         .w, .up => movement_object.processMovement(.orbit_up, dt),
+            //         .s, .down => movement_object.processMovement(.orbit_down, dt),
+            //         .a, .left => movement_object.processMovement(.orbit_left, dt),
+            //         .d, .right => movement_object.processMovement(.orbit_right, dt),
+            //         else => {},
+            //     },
+            //     .circle => switch (k) {
+            //         .w, .up => movement_object.processMovement(.circle_up, dt),
+            //         .s, .down => movement_object.processMovement(.circle_down, dt),
+            //         .a, .left => movement_object.processMovement(.circle_left, dt),
+            //         .d, .right => movement_object.processMovement(.circle_right, dt),
+            //         else => {},
+            //     },
+            //     .rotate, .look => switch (k) {
+            //         .w, .up => movement_object.processMovement(.rotate_up, dt),
+            //         .s, .down => movement_object.processMovement(.rotate_down, dt),
+            //         .a, .left => movement_object.processMovement(.rotate_left, dt),
+            //         .d, .right => movement_object.processMovement(.rotate_right, dt),
+            //         else => {},
+            //     },
+            // }
             // }
 
             // One-shot keys: fire once per press
@@ -193,33 +200,39 @@ pub const SceneDebug = struct {
                 .f => {
                     self.floor.plane.shape.is_visible = !self.floor.plane.shape.is_visible;
                 },
+                .m => {
+                    self.motion_object = .man;
+                },
                 .r => try self.turret.fire(),
                 .t => {
                     self.motion_object = .turret;
                 },
-                .one => {
+                .z => {
+                    self.motion_object = .soldier;
+                },
+                .minus => {
                     self.getSceneCamera().getCamera().setPerspective();
                     std.debug.print("Projection: Perspective\n", .{});
                 },
-                .two => {
+                .equal => {
                     self.getSceneCamera().getCamera().setOrthographic();
                     std.debug.print("Projection: Orthographic\n", .{});
                 },
                 .three => {
-                    self.motion_type = .orbit;
-                    self.printMotionViewState();
+                    // self.motion_type = .orbit;
+                    // self.printMotionViewState();
                 },
                 .four => {
-                    self.motion_type = .rotate;
-                    self.printMotionViewState();
+                    // self.motion_type = .rotate;
+                    // self.printMotionViewState();
                 },
                 .five => {
-                    self.motion_type = .look;
-                    self.printMotionViewState();
+                    // self.motion_type = .look;
+                    // self.printMotionViewState();
                 },
                 .six => {
-                    self.motion_object = if (self.motion_object == .base) .gimbal else .base;
-                    self.printMotionViewState();
+                    // self.motion_object = if (self.motion_object == .base) .gimbal else .base;
+                    // self.printMotionViewState();
                 },
                 .seven => {
                     // const camera = self.getCamera();
@@ -227,12 +240,10 @@ pub const SceneDebug = struct {
                     // camera.view_cache_valid = false;
                     // self.printMotionViewState();
                 },
-                .eight => {
-                },
-                .nine => {
-                },
+                .eight => {},
+                .nine => {},
                 .zero => {
-                    self.motion_object = .turret;
+                    // self.motion_object = .turret;
                 },
                 .F12 => {
                     std.debug.print("Screenshot requested (F12)\n", .{});
