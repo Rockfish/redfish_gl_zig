@@ -33,7 +33,9 @@ pub fn build(b: *std.Build) void {
     lib.installHeadersDirectory(
         b.path("include"),
         "",
-        .{ .include_extensions = &.{ ".h", } },
+        .{ .include_extensions = &.{
+            ".h",
+        } },
     );
 
     // b.verbose = true;

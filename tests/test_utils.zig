@@ -20,14 +20,14 @@ pub const test_models = [_]TestModel{
         .description = "Simple textured cube - minimal geometry",
     },
     .{
-        .name = "BoxTextured", 
+        .name = "BoxTextured",
         .gltf_path = "BoxTextured/glTF/BoxTextured.gltf",
         .glb_path = "BoxTextured/glTF-Binary/BoxTextured.glb",
         .description = "Textured cube with diffuse texture",
     },
     .{
         .name = "BoxAnimated",
-        .gltf_path = "BoxAnimated/glTF/BoxAnimated.gltf", 
+        .gltf_path = "BoxAnimated/glTF/BoxAnimated.gltf",
         .glb_path = "BoxAnimated/glTF-Binary/BoxAnimated.glb",
         .description = "Animated cube with rotation",
     },

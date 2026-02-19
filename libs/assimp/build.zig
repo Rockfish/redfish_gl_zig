@@ -159,8 +159,8 @@ pub fn build(b: *std.Build) !void {
                 .flags = &.{}, // "-std=c++14"},
             });
         } else {
-            const define_importer = b.fmt("ASSIMP_BUILD_NO_{}_IMPORTER", .{upperCase(format_files.name)});
-            const define_exporter = b.fmt("ASSIMP_BUILD_NO_{}_EXPORTER", .{upperCase(format_files.name)});
+            const define_importer = b.fmt("ASSIMP_BUILD_NO_{}_IMPORTER ", .{upperCase(format_files.name)});
+            const define_exporter = b.fmt("ASSIMP_BUILD_NO_{}_EXPORTER ", .{upperCase(format_files.name)});
 
             lib.root_module.addCMacro(define_importer, "1");
             lib.root_module.addCMacro(define_exporter, "1");
@@ -168,8 +168,8 @@ pub fn build(b: *std.Build) !void {
     }
 
     for (unsupported_formats) |unsupported_format| {
-        const define_importer = b.fmt("ASSIMP_BUILD_NO_{}_IMPORTER", .{upperCase(unsupported_format)});
-        const define_exporter = b.fmt("ASSIMP_BUILD_NO_{}_EXPORTER", .{upperCase(unsupported_format)});
+        const define_importer = b.fmt("ASSIMP_BUILD_NO_{}_IMPORTER ", .{upperCase(unsupported_format)});
+        const define_exporter = b.fmt("ASSIMP_BUILD_NO_{}_EXPORTER ", .{upperCase(unsupported_format)});
 
         lib.root_module.addCMacro(define_importer, "1");
         lib.root_module.addCMacro(define_exporter, "1");
@@ -674,7 +674,6 @@ const sources = struct {
 //     return UpperCaseFormatter{ .data = string };
 // }
 
-
 const UpperFormatter = struct {
     string: []const u8,
 
@@ -688,5 +687,5 @@ const UpperFormatter = struct {
 };
 
 fn upperCase(string: []const u8) UpperFormatter {
-    return UpperFormatter { .string = string };
+    return UpperFormatter{ .string = string };
 }

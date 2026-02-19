@@ -39,14 +39,14 @@ pub fn main() !void {
     // If we get here, loading succeeded!
     std.debug.print("✅ GLB file loaded successfully!\n", .{});
     std.debug.print("   Asset version: {s}\n", .{asset.gltf.asset.version});
-    
+
     if (asset.gltf.meshes) |meshes| {
         std.debug.print("   Meshes: {d}\n", .{meshes.len});
         for (meshes, 0..) |mesh, i| {
             std.debug.print("     Mesh {d}: {d} primitives\n", .{ i, mesh.primitives.len });
         }
     }
-    
+
     if (asset.gltf.buffers) |buffers| {
         std.debug.print("   Buffers: {d}\n", .{buffers.len});
         for (buffers, 0..) |buffer, i| {
@@ -59,7 +59,7 @@ pub fn main() !void {
             std.debug.print("\n", .{});
         }
     }
-    
+
     std.debug.print("   Buffer data loaded: {d} chunks\n", .{asset.buffer_data.items.len});
     if (asset.buffer_data.items.len > 0) {
         std.debug.print("     First chunk size: {d} bytes\n", .{asset.buffer_data.items[0].len});

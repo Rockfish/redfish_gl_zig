@@ -14,7 +14,7 @@ pub fn main() !void {
 
     // Integration Tests
     std.debug.print("\n📁 Integration Tests\n");
-    
+
     // GLB Loading Test
     const glb_result = runTest(allocator, "GLB Loading", "integration/glb_loading_test.zig");
     if (glb_result) {
@@ -31,7 +31,7 @@ pub fn main() !void {
     std.debug.print("\n🔧 Unit Tests\n");
     std.debug.print("(No unit tests implemented yet)\n");
 
-    // Sample Tests  
+    // Sample Tests
     std.debug.print("\n📦 Sample Model Tests\n");
     std.debug.print("(No sample tests implemented yet)\n");
 
@@ -51,13 +51,13 @@ pub fn main() !void {
 
 fn runTest(allocator: std.mem.Allocator, test_name: []const u8, test_path: []const u8) bool {
     _ = allocator; // May be used in future for more complex test execution
-    
+
     std.debug.print("  Running: {s}... ", .{test_name});
-    
+
     // For now, we'll just indicate the test exists
     // In the future, this could actually execute the test file
     _ = test_path;
-    
+
     // Placeholder - assume test passes for now
     std.debug.print("✅ PASS\n");
     return true;

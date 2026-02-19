@@ -10,7 +10,7 @@
         .system_sdk = .{ .path = "libs/system-sdk" },
         .zglfw = .{ .path = "libs/zglfw" },
         .zopengl = .{ .path = "libs/zopengl" },
-        .zgui = .{ .path = "libs/zgui" },
+        // .zgui = .{ .path = "libs/zgui" },
         .zstbi = .{ .path = "libs/zstbi" },
     },
 

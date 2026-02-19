@@ -4,11 +4,12 @@ in vec2 fragTexCoord;
 in vec3 fragNormal;
 in vec4 fragColor;
 
-uniform int mesh_id;
 
 uniform vec3 ambient_light;
 uniform vec3 lightColor;
 uniform vec3 lightDirection;
+
+uniform int mesh_id;
 uniform vec4 hitColor;
 
 uniform int hasColor;
