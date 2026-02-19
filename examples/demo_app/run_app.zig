@@ -6,6 +6,7 @@ const math = @import("math");
 const assets_list = @import("assets_list.zig");
 const ui_display = @import("ui_display.zig");
 const screenshot = @import("screenshot.zig");
+const constants = core.constants;
 
 const Camera = core.Camera;
 const asset_loader = core.asset_loader;
@@ -19,7 +20,6 @@ const Shader = core.Shader;
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
-
 
 // Lighting
 const NON_BLUE: f32 = 0.9;
@@ -111,7 +111,7 @@ fn outputPositions(model: *Model, camera: *Camera) void {
         bbox.max.asString(&buf2),
     });
     std.debug.print("Camera positioned at: {s}  looking at: {s}\n", .{
-        camera.movement.position.asString(&buf1),
+        camera.movement.transform.translation.asString(&buf1),
         camera.movement.target.asString(&buf2),
     });
 }
@@ -152,7 +152,6 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
         .scaled_height = scaled_height,
         .window_scale = window_scale,
         .camera = camera,
-        .projection = camera.getProjectionMatrix(),
         .light_position = vec3(10.0, 10.0, -30.0),
         .delta_time = 0.0,
         .total_time = 0.0,
@@ -326,11 +325,11 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
         gl.clearColor(0.5, 0.5, 0.5, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        shader.setMat4("matProjection", &state.projection);
-        shader.setMat4("matView", &state.camera.getViewMatrix());
+        shader.setMat4(constants.Uniforms.Mat_Projection, &state.projection);
+        shader.setMat4(constants.Uniforms.Mat_View, &state.camera.getViewMatrix());
 
         var model_transform = Mat4.identity();
-        shader.setMat4("matModel", &model_transform);
+        shader.setMat4(constants.Uniforms.Mat_Model, &model_transform);
 
         // Basic shader
         shader.setBool("useLight", true);
@@ -340,16 +339,16 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
         shader.setVec3("light_dir", &vec3(10.0, 10.0, 2.0));
 
         // PBR shader
-        shader.setVec3("lightPosition", &vec3(state.camera.movement.position.x + 50.0, state.camera.movement.position.y + 50.0, state.camera.movement.position.z + 50.0));
+        shader.setVec3("lightPosition", &vec3(state.camera.movement.transform.translation.x + 50.0, state.camera.movement.transform.translation.y + 50.0, state.camera.movement.transform.translation.z + 50.0));
         shader.setVec3("lightColor", &vec3(1.0, 1.0, 1.0));
         shader.setFloat("lightIntensity", 100.0);
 
-        shader.setVec3("viewPosition", &state.camera.movement.position);
+        shader.setVec3("viewPosition", &state.camera.movement.transform.translation);
 
         // Add custom debug values when debug is enabled (for both regular debug and screenshot)
         if (state.shader_debug_enabled or capture_screenshot) {
             var buf_temp: [64]u8 = undefined;
-            shader.addDebugValue("camera_position", std.fmt.bufPrint(&buf_temp, "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.position.x, state.camera.movement.position.y, state.camera.movement.position.z }) catch "error");
+            shader.addDebugValue("camera_position", std.fmt.bufPrint(&buf_temp, "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.transform.translation.x, state.camera.movement.transform.translation.y, state.camera.movement.transform.translation.z }) catch "error");
             shader.addDebugValue("camera_target", std.fmt.bufPrint(buf1[0..64], "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.camera.movement.target.x, state.camera.movement.target.y, state.camera.movement.target.z }) catch "error");
             shader.addDebugValue("light_position", std.fmt.bufPrint(buf2[0..64], "Vec3({d:.3}, {d:.3}, {d:.3})", .{ state.light_position.x, state.light_position.y, state.light_position.z }) catch "error");
             shader.addDebugValue("frame_time", std.fmt.bufPrint(&buf_temp, "{d:.6}s", .{state.delta_time}) catch "error");
@@ -362,8 +361,8 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
             state.shader_debug_dump_requested = false;
         }
 
-        // model.render(shader);
-        current_model.render(shader);
+        // model.draw(shader);
+        current_model.draw(shader);
 
         // One-shot screenshot completion: dump data and clear flag
         if (capture_screenshot) {
@@ -383,8 +382,8 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
             std.debug.print("Screenshot completed!\n", .{});
         }
 
-        // Render UI overlay
-        ui_state.render(current_model);
+        // Draw UI overlay
+        ui_state.draw(current_model);
 
         //try core.dumpModelNodes(model);
         window.swapBuffers();

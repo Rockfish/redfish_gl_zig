@@ -101,16 +101,19 @@ pub fn run(window: *glfw.Window) !void {
     );
     defer basic_model_shader.deinit();
 
-    var cubeboid = try shapes.createCube(
+    const cubeboid = try shapes.createCube(
+        allocator,
         .{
             .width = 1.0,
             .height = 1.0,
             .depth = 2.0,
         },
     );
+    defer allocator.destroy(cubeboid);
     defer cubeboid.deinit();
 
-    var plane = try shapes.createCube(
+    const plane = try shapes.createCube(
+        allocator,
         .{
             .width = 100.0,
             .height = 2.0,
@@ -120,17 +123,20 @@ pub fn run(window: *glfw.Window) !void {
             .num_tiles_z = 50.0,
         },
     );
+    defer allocator.destroy(plane);
     defer plane.deinit();
 
-    var cylinder = try shapes.createCylinder(
+    const cylinder = try shapes.createCylinder(
         allocator,
         1.0,
         4.0,
         20.0,
     );
+    defer allocator.destroy(cylinder);
     defer cylinder.deinit();
 
-    var sphere = try shapes.createSphere(allocator, 1.0, 20, 20);
+    const sphere = try shapes.createSphere(allocator, 1.0, 20, 20);
+    defer allocator.destroy(sphere);
     defer sphere.deinit();
 
     var texture_diffuse = TextureConfig{
@@ -190,9 +196,9 @@ pub fn run(window: *glfw.Window) !void {
     }
 
     var basic_obj = nodes_.BasicObj.init("basic");
-    var cube_obj = nodes_.ShapeObj.init(&cubeboid, "cubeShape", cube_texture);
-    var cylinder_obj = nodes_.ShapeObj.init(&cylinder, "cylinderShape", cube_texture);
-    var sphere_obj = nodes_.ShapeObj.init(&sphere, "SphereShape", cube_texture);
+    var cube_obj = nodes_.ShapeObj.init(cubeboid, "cubeShape", cube_texture);
+    var cylinder_obj = nodes_.ShapeObj.init(cylinder, "cylinderShape", cube_texture);
+    var sphere_obj = nodes_.ShapeObj.init(sphere, "SphereShape", cube_texture);
     var model_obj = nodes_.ModelObj.init(model, "Bot_Model");
 
     const root_node = try nodes_.Node.init(allocator, "root_node", .{ .basic = &basic_obj });

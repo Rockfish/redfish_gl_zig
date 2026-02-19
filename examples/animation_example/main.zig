@@ -16,6 +16,7 @@ const Camera = core.Camera;
 const Shader = core.Shader;
 const String = core.string.String;
 const FrameCounter = core.FrameCounter;
+const Input = core.Input;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
@@ -58,6 +59,7 @@ const FLOOR_NON_BLUE: f32 = 0.7;
 // Struct for passing state between the window loop and the event handler.
 const State = struct {
     camera: *Camera,
+    input: *Input,
     light_postion: Vec3,
     delta_time: f32,
     last_frame: f32,
@@ -86,7 +88,12 @@ const V4 = struct {
     }
 };
 
-const TexConfigs = struct { mesh_name: []const u8, uniform_name: []const u8, texture_path: []const u8, config: TextureConfig };
+const TexConfigs = struct {
+    mesh_name: []const u8,
+    uniform_name: []const u8,
+    texture_path: []const u8,
+    config: TextureConfig,
+};
 
 const CameraPosition = struct {
     position: Vec3,
@@ -122,7 +129,12 @@ const ModelConfig = struct {
 };
 
 // Define texture configuration (same settings as ASSIMP version)
-const texture_config = TextureConfig{ .filter = .Linear, .flip_v = true, .gamma_correction = false, .wrap = .Clamp };
+const texture_config = TextureConfig{
+    .filter = .Linear,
+    .flip_v = true,
+    .gamma_correction = false,
+    .wrap = .Clamp,
+};
 
 // Model configurations - consolidated from all switch statements
 const model_configs = [_]ModelConfig{
@@ -132,9 +144,9 @@ const model_configs = [_]ModelConfig{
         .path = "BrainStem_converted.gltf",
         .name = "CesiumMan",
         .transform = blk: {
-            var transform = Mat4.identity();
-            transform.translate(&vec3(0.0, 0.0, -1.0));
-            transform.scale(&vec3(1.0, 1.0, 1.0));
+            var transform = Mat4.Identity;
+            transform.translate(vec3(0.0, 0.0, -1.0));
+            transform.scale(vec3(1.0, 1.0, 1.0));
             break :blk transform;
         },
         .addTextures = &[_]TexConfigs{
@@ -146,11 +158,11 @@ const model_configs = [_]ModelConfig{
     // Player configuration
     .{
         .choice = .player,
-        .path = "angrybots_assets/Models/Player/Player.gltf",
+        .path = "assets/angrybots_assets/Models/Player/Player.gltf",
         .name = "Player",
         .transform = blk: {
-            var transform = Mat4.identity();
-            transform.scale(&vec3(0.1, 0.1, 0.1));
+            var transform = Mat4.Identity;
+            transform.scale(vec3(0.1, 0.1, 0.1));
             break :blk transform;
         },
         .addTextures = &[_]TexConfigs{
@@ -169,11 +181,11 @@ const model_configs = [_]ModelConfig{
     // Spacesuit configuration
     .{
         .choice = .spacesuit,
-        .path = "angrybots_assets/Models/Player/Spacesuit.gltf",
+        .path = "assets/angrybots_assets/Models/Player/Spacesuit.gltf",
         .name = "Spacesuit",
         .transform = blk: {
-            var transform = Mat4.identity();
-            transform.scale(&vec3(0.5, 0.5, 0.5));
+            var transform = Mat4.Identity;
+            transform.scale(vec3(0.5, 0.5, 0.5));
             break :blk transform;
         },
         .addTextures = &[_]TexConfigs{},
@@ -183,9 +195,9 @@ const model_configs = [_]ModelConfig{
     // Security Bot configuration
     .{
         .choice = .securitybot,
-        .path = "angrybots_assets/security_bot_7/scene.gltf",
+        .path = "assets/angrybots_assets/security_bot_7/scene.gltf",
         .name = "Security_Bot",
-        .transform = Mat4.identity(),
+        .transform = Mat4.Identity,
         .addTextures = &[_]TexConfigs{},
         .animationClip = null,
         .cameraPosition = null,
@@ -193,9 +205,9 @@ const model_configs = [_]ModelConfig{
     // InterpolationTest configuration
     .{
         .choice = .interpolation_test,
-        .path = "glTF-Sample-Models/InterpolationTest/glTF/InterpolationTest.gltf",
+        .path = "assets/glTF-Sample-Models/InterpolationTest/glTF/InterpolationTest.gltf",
         .name = "InterpolationTest",
-        .transform = Mat4.identity(),
+        .transform = Mat4.Identity,
         .addTextures = &[_]TexConfigs{},
         .animationClip = AnimationClip.init(0, 0.0, 5.0, AnimationRepeat.Forever),
         .animationPlayAll = true,
@@ -284,6 +296,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
     // Initialize the world state
     state = State{
         .camera = camera,
+        .input = Input.init(window),
         .light_postion = vec3(1.2, 1.0, 2.0),
         .delta_time = 0.0,
         .last_frame = 0.0,
@@ -370,7 +383,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
         std.debug.print("Report generated successfully\n", .{});
     }
 
-    const bullet_model_path = "angrybots_assets/Models/Bullet/Bullet.gltf";
+    const bullet_model_path = "assets/angrybots_assets/Models/Bullet/Bullet.gltf";
 
     var bullet_gltf_asset = try GltfAsset.init(allocator, "bullet", bullet_model_path);
     try bullet_gltf_asset.load();
@@ -439,41 +452,37 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
         }
 
         frame_counter.update();
+        processKeys();
 
         glfw.pollEvents();
 
         gl.clearColor(0.05, 0.1, 0.05, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        const projection = Mat4.perspectiveRhGl(
-            std.math.degreesToRadians(camera.fov),
-            SCR_WIDTH / SCR_HEIGHT,
-            0.1,
-            1000.0,
-        );
-        const view = state.camera.getLookToView();
+        const projection = state.camera.getProjection();
+        const view = state.camera.getView();
 
         shader.setMat4("matProjection", &projection);
         shader.setMat4("matView", &view);
         shader.setMat4("matModel", &model_transform);
 
         shader.setBool("useLight", true);
-        shader.setVec3("ambient", &ambientColor);
+        shader.setVec3("ambient", ambientColor);
 
-        const identity = Mat4.identity();
+        const identity = Mat4.Identity;
         shader.setMat4("aimRot", &identity);
         shader.setMat4("matLightSpace", &identity);
 
-        // std.debug.print("Main: render\n", .{});
+        // std.debug.print("Main: draw\n", .{});
         try model.updateAnimation(state.delta_time);
         // try model.playTick(140.0);
-        model.render(shader);
+        model.draw(shader);
         // try core.dumpModelNodes(model);
 
         // const bulletTransform = Mat4.fromScale(&vec3(2.0, 2.0, 2.0));
         //
         // shader.setMat4("model", &bulletTransform);
-        // bullet_model.render(shader);
+        // bullet_model.draw(shader);
 
         window.swapBuffers();
 
@@ -496,41 +505,44 @@ fn keyHandler(
     mods: glfw.Mods,
 ) callconv(.c) void {
     _ = scancode;
-    _ = mods;
-    switch (key) {
-        .escape => {
-            window.setShouldClose(true);
-        },
-        .t => {
-            if (action == glfw.Action.press) {
-                std.debug.print("time: {d}\n", .{state.delta_time});
-            }
-        },
-        .w => {
-            state.camera.movement.processMovement(.forward, state.delta_time);
-        },
-        .s => {
-            state.camera.movement.processMovement(.backward, state.delta_time);
-        },
-        .a => {
-            state.camera.movement.processMovement(.circle_left, state.delta_time);
-        },
-        .d => {
-            state.camera.movement.processMovement(.circle_right, state.delta_time);
-        },
-        .n => {
-            if (action == glfw.Action.press) {
-                if (SELECTED_MODEL == .player and state.model != null) {
-                    state.current_clip_index = (state.current_clip_index + 1) % player_clips.len;
-                    const current_clip = player_clips[state.current_clip_index];
-                    std.debug.print("Switching to animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ current_clip.name, current_clip.clip.start_time, current_clip.clip.end_time });
-                    state.model.?.animator.playClip(current_clip.clip) catch |err| {
-                        std.debug.print("Failed to play animation clip: {}\n", .{err});
-                    };
+    state.input.handleKey(key, action, mods);
+    if (key == .escape) {
+        window.setShouldClose(true);
+    }
+}
+
+pub fn processKeys() void {
+    var iterator = state.input.key_presses.iterator();
+    while (iterator.next()) |k| {
+        switch (k) {
+            .t => std.debug.print("time: {d}\n", .{state.delta_time}),
+            .w => {
+                state.camera.movement.processMovement(.forward, state.delta_time);
+            },
+            .s => {
+                state.camera.movement.processMovement(.backward, state.delta_time);
+            },
+            .a => {
+                state.camera.movement.processMovement(.circle_left, state.delta_time);
+            },
+            .d => {
+                state.camera.movement.processMovement(.circle_right, state.delta_time);
+            },
+            .n => {
+                if (!state.input.key_processed.contains(.n)) {
+                    if (SELECTED_MODEL == .player and state.model != null) {
+                        state.current_clip_index = (state.current_clip_index + 1) % player_clips.len;
+                        const current_clip = player_clips[state.current_clip_index];
+                        std.debug.print("Switching to animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ current_clip.name, current_clip.clip.start_time, current_clip.clip.end_time });
+                        state.model.?.animator.playClip(current_clip.clip) catch |err| {
+                            std.debug.print("Failed to play animation clip: {}\n", .{err});
+                        };
+                    }
                 }
-            }
-        },
-        else => {},
+            },
+            else => {},
+        }
+        state.input.key_processed.insert(k);
     }
 }
 

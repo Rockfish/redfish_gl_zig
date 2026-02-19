@@ -1,4 +1,4 @@
-#version 330 core
+#version 400 core
 in vec2 fragTexCoord;
 in vec3 fragNormal;
 in vec4 fragPosLightSpace;

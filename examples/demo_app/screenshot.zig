@@ -73,7 +73,7 @@ pub const ScreenshotManager = struct {
         // Generate timestamp for synchronized filenames
         const timestamp_str = core.utils.generateTimestamp();
 
-        std.debug.print("Taking screenshot with render callback, timestamp: {s}\n", .{timestamp_str});
+        std.debug.print("Taking screenshot with draw callback, timestamp: {s}\n", .{timestamp_str});
 
         // Ensure temp directory exists
         std.fs.cwd().makeDir(self.temp_dir) catch |err| switch (err) {
@@ -93,7 +93,7 @@ pub const ScreenshotManager = struct {
         // Bind framebuffer for capture
         self.capture.bindForCapture();
 
-        // Render to framebuffer (this will capture uniforms)
+        // Draw to framebuffer (this will capture uniforms)
         render_fn();
 
         // Restore default framebuffer

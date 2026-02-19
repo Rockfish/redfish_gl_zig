@@ -46,8 +46,6 @@ pub const State = struct {
     total_time: f32,
     input: Input,
     camera: *Camera,
-    projection: Mat4 = undefined,
-    view: Mat4 = undefined,
     light_position: Vec3,
     spin: bool = false,
     world_point: ?Vec3,
@@ -424,18 +422,7 @@ pub fn setViewPort(w: i32, h: i32) void {
     state.scaled_width = width / state.window_scale[0];
     state.scaled_height = height / state.window_scale[1];
 
-    const aspect_ratio = (state.scaled_width / state.scaled_height);
-    state.camera.setAspect(aspect_ratio);
-
-    switch (state.camera.projection_type) {
-        .Perspective => {
-            state.projection = state.camera.getProjectionMatrix();
-        },
-        .Orthographic => {
-            state.camera.setScreenDimensions(state.scaled_width, state.scaled_height);
-            state.projection = state.camera.getProjectionMatrix();
-        },
-    }
+    state.camera.setScreenDimensions(state.scaled_width, state.scaled_height);
 }
 
 pub fn mouseHandler(window: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {

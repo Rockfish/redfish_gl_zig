@@ -100,7 +100,6 @@ pub const demo_models = [_]DemoModel{
         .description = "Lamp post with lantern",
     },
 
-
     // .{
     //     .path = "glTF-Sample-Models/BoxAnimated/glTF-Binary/BoxAnimated.glb",
     //     .name = "Animated Box",
@@ -177,7 +176,6 @@ pub const demo_models = [_]DemoModel{
         .description = "Interleaved vertex data",
     },
     // Extra models for variety
-
 };
 
 // // Legacy arrays maintained for compatibility

@@ -1,0 +1,76 @@
+//! stage: fragment
+//! requires: vec3 world_position, vec3 world_normal, vec4 base_color, float metallic, float roughness
+//! provides: vec3 lit_color
+//! uniform: samplerCube irradiance_map binding=4
+//! uniform: samplerCube prefilter_map binding=5
+//! uniform: sampler2D brdf_lut binding=6
+//! block: Lighting binding=1 { vec3 camera_pos; vec3 light_dir; vec3 light_color; float ambient_strength; }
+
+const float PI = 3.14159265359;
+
+// Normal Distribution Function (GGX/Trowbridge-Reitz)
+float distribution_ggx(vec3 N, vec3 H, float roughness) {
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float NdotH = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH * NdotH;
+    
+    float num = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+    
+    return num / denom;
+}
+
+// Geometry function (Schlick-GGX)
+float geometry_schlick_ggx(float NdotV, float roughness) {
+    float r = roughness + 1.0;
+    float k = (r * r) / 8.0;
+    
+    float num = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+    
+    return num / denom;
+}
+
+float geometry_smith(vec3 N, vec3 V, vec3 L, float roughness) {
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2 = geometry_schlick_ggx(NdotV, roughness);
+    float ggx1 = geometry_schlick_ggx(NdotL, roughness);
+    
+    return ggx1 * ggx2;
+}
+
+// Fresnel (Schlick approximation)
+vec3 fresnel_schlick(float cos_theta, vec3 F0) {
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
+}
+
+void lighting_pbr() {
+    vec3 N = normalize(world_normal);
+    vec3 V = normalize(camera_pos - world_position);
+    vec3 L = normalize(-light_dir);
+    vec3 H = normalize(V + L);
+    
+    vec3 albedo = base_color.rgb;
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    
+    // Cook-Torrance BRDF
+    float NDF = distribution_ggx(N, H, roughness);
+    float G = geometry_smith(N, V, L, roughness);
+    vec3 F = fresnel_schlick(max(dot(H, V), 0.0), F0);
+    
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;
+    
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metallic;
+    
+    float NdotL = max(dot(N, L), 0.0);
+    
+    vec3 ambient = ambient_strength * albedo;
+    lit_color = ambient + (kD * albedo / PI + specular) * light_color * NdotL;
+}

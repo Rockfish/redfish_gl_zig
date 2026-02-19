@@ -87,7 +87,7 @@ pub fn run(window: *glfw.Window) !void {
         .world_point = null,
         .current_position = vec3(0.0, 0.0, 0.0),
         .target_position = vec3(0.0, 0.0, 0.0),
-        .input = core.Input.init(scaled_width / 2.0, scaled_height / 2.0),
+        .input = core.Input.init(window),
     };
 
     const basic_model_shader = try Shader.init(
@@ -97,16 +97,19 @@ pub fn run(window: *glfw.Window) !void {
     );
     defer basic_model_shader.deinit();
 
-    var cubeboid = try shapes.createCube(
+    const cubeboid = try shapes.createCube(
+        allocator,
         .{
             .width = 1.0,
             .height = 1.0,
             .depth = 2.0,
         },
     );
+    defer allocator.destroy(cubeboid);
     defer cubeboid.deinit();
 
-    var plane = try shapes.createCube(
+    const plane = try shapes.createCube(
+        allocator,
         .{
             .width = 100.0,
             .height = 2.0,
@@ -116,14 +119,16 @@ pub fn run(window: *glfw.Window) !void {
             .num_tiles_z = 50.0,
         },
     );
+    defer allocator.destroy(plane);
     defer plane.deinit();
 
-    var cylinder = try shapes.createCylinder(
+    const cylinder = try shapes.createCylinder(
         allocator,
         1.0,
         4.0,
         20.0,
     );
+    defer allocator.destroy(cylinder);
     defer cylinder.deinit();
 
     var texture_diffuse = TextureConfig{
@@ -168,9 +173,9 @@ pub fn run(window: *glfw.Window) !void {
     defer node_model.deinit();
 
     node_model.transform.translation = vec3(0.0, 0.0, 2.0);
-    node_model.transform.rotation = Quat.fromAxisAngle(&vec3(1.0, 0.0, 0.0), math.degreesToRadians(-90.0));
+    node_model.transform.rotation = Quat.fromAxisAngle(vec3(1.0, 0.0, 0.0), math.degreesToRadians(-90.0));
 
-    const node_cylinder = try Node.init(allocator, "shape_cylinder", &cylinder, &main.state);
+    const node_cylinder = try Node.init(allocator, "shape_cylinder", cylinder, &main.state);
     defer node_cylinder.deinit();
 
     root_node.addChild(node_model);
@@ -188,7 +193,7 @@ pub fn run(window: *glfw.Window) !void {
         const cube = try Node.init(
             allocator,
             "shape_cubeboid",
-            &cubeboid,
+            cubeboid,
             &main.state,
         );
         cube.transform.translation = position;
@@ -198,7 +203,7 @@ pub fn run(window: *glfw.Window) !void {
     const node_cube_spin = try Node.init(
         allocator,
         "shape_cubeboid",
-        &cubeboid,
+        cubeboid,
         &main.state,
     );
     defer node_cube_spin.deinit();
@@ -209,17 +214,17 @@ pub fn run(window: *glfw.Window) !void {
     const node_cube = try Node.init(
         allocator,
         "shape_cubeboid",
-        &cubeboid,
+        cubeboid,
         &main.state,
     );
     defer node_cube.deinit();
 
     const cube_transforms = [_]Mat4{
-        Mat4.fromTranslation(&vec3(3.0, 0.5, 0.0)),
-        Mat4.fromTranslation(&vec3(1.5, 0.5, 0.0)),
-        Mat4.fromTranslation(&vec3(0.0, 0.5, 0.0)),
-        Mat4.fromTranslation(&vec3(-1.5, 0.5, 0.0)),
-        Mat4.fromTranslation(&vec3(-3.0, 0.5, 0.0)),
+        Mat4.fromTranslation(vec3(3.0, 0.5, 0.0)),
+        Mat4.fromTranslation(vec3(1.5, 0.5, 0.0)),
+        Mat4.fromTranslation(vec3(0.0, 0.5, 0.0)),
+        Mat4.fromTranslation(vec3(-1.5, 0.5, 0.0)),
+        Mat4.fromTranslation(vec3(-3.0, 0.5, 0.0)),
     };
 
     const xz_plane_point = vec3(0.0, 0.0, 0.0);
@@ -252,10 +257,10 @@ pub fn run(window: *glfw.Window) !void {
         );
 
         main.state.world_point = math.getRayPlaneIntersection(
-            &main.state.camera.getPosition(),
-            &world_ray, // direction
-            &xz_plane_point,
-            &xz_plane_normal,
+            main.state.camera.getPosition(),
+            world_ray, // direction
+            xz_plane_point,
+            xz_plane_normal,
         );
 
         const ray = Ray{
@@ -267,16 +272,16 @@ pub fn run(window: *glfw.Window) !void {
         basic_model_shader.setMat4("matProjection", &main.state.camera.getProjection());
         basic_model_shader.setMat4("matView", &main.state.camera.getView());
 
-        basic_model_shader.setVec3("ambient_color", &vec3(1.0, 0.6, 0.6));
-        basic_model_shader.setVec3("light_color", &vec3(0.35, 0.4, 0.5));
-        basic_model_shader.setVec3("light_dir", &vec3(3.0, 3.0, 3.0));
+        basic_model_shader.setVec3("ambient_color", vec3(1.0, 0.6, 0.6));
+        basic_model_shader.setVec3("light_color", vec3(0.35, 0.4, 0.5));
+        basic_model_shader.setVec3("light_dir", vec3(3.0, 3.0, 3.0));
 
         basic_model_shader.setBool("hasTexture", true);
         basic_model_shader.bindTextureAuto("textureDiffuse", cube_texture.gl_texture_id);
 
-        var model_transform = Mat4.identity();
-        model_transform.translate(&vec3(1.0, 0.0, 5.0));
-        model_transform.scale(&vec3(1.5, 1.5, 1.5));
+        var model_transform = Mat4.Identity;
+        model_transform.translate(vec3(1.0, 0.0, 5.0));
+        model_transform.scale(vec3(1.5, 1.5, 1.5));
 
         basic_model_shader.setMat4("matModel", &model_transform);
 
@@ -309,14 +314,14 @@ pub fn run(window: *glfw.Window) !void {
 
         for (cube_positions, 0..) |t, i| {
             if (picked.id != null and picked.id == @as(u32, @intCast(i))) {
-                basic_model_shader.setVec4("hit_color", &vec4(1.0, 0.0, 0.0, 0.0));
+                basic_model_shader.setVec4("hit_color", vec4(1.0, 0.0, 0.0, 0.0));
             }
 
             node_cube.transform.translation = t;
             node_cube.updateTransform(null);
             node_cube.draw(basic_model_shader);
 
-            basic_model_shader.setVec4("hit_color", &vec4(0.0, 0.0, 0.0, 0.0));
+            basic_model_shader.setVec4("hit_color", vec4(0.0, 0.0, 0.0, 0.0));
         }
 
         if (main.state.input.mouse_left_button and main.state.world_point != null) {
@@ -329,7 +334,7 @@ pub fn run(window: *glfw.Window) !void {
         root_node.updateTransform(null);
         root_node.draw(basic_model_shader);
 
-        const plane_transform = Mat4.fromTranslation(&vec3(0.0, -1.0, 0.0));
+        const plane_transform = Mat4.fromTranslation(vec3(0.0, -1.0, 0.0));
         basic_model_shader.setMat4("matModel", &plane_transform);
         basic_model_shader.bindTextureAuto("textureDiffuse", surface_texture.gl_texture_id);
         plane.draw(basic_model_shader);
@@ -349,6 +354,6 @@ pub fn updateSpin(node: *Node, st: *State) void {
     const up = vec3(0.0, 1.0, 0.0);
     const velocity: f32 = 5.0 * st.delta_time;
     const angle = math.degreesToRadians(velocity);
-    const turn_rotation = Quat.fromAxisAngle(&up, angle);
-    node.transform.rotation = node.transform.rotation.mulQuat(&turn_rotation);
+    const turn_rotation = Quat.fromAxisAngle(up, angle);
+    node.transform.rotation = node.transform.rotation.mulQuat(turn_rotation);
 }

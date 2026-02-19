@@ -166,7 +166,7 @@ pub fn run(window: *glfw.Window) !void {
         },
     );
 
-    const cube = try core.shapes.createCube(.{
+    const cube = try core.shapes.createCube(allocator, .{
         .width = 1.0,
         .height = 1.0,
         .depth = 1.0,
@@ -175,6 +175,8 @@ pub fn run(window: *glfw.Window) !void {
         .num_tiles_z = 1.0,
         .texture_mapping = .Cubemap2x3,
     });
+    defer allocator.destroy(cube);
+    defer cube.deinit();
 
     const skybox = Skybox.init(allocator, .{
         .right = "assets/textures/skybox/right.jpg",

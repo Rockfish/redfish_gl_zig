@@ -114,13 +114,13 @@ pub const UIState = struct {
         );
     }
 
-    pub fn render(self: *Self, current_model: ?*core.Model) void {
+    pub fn draw(self: *Self, current_model: ?*core.Model) void {
         if (self.show_model_info) {
-            self.renderModelInfo(current_model);
+            self.drawModelInfo(current_model);
         }
 
         if (self.show_performance) {
-            self.renderPerformance();
+            self.drawPerformance();
         }
 
         if (state.state.ui_camera_info_visible) {
@@ -131,7 +131,7 @@ pub const UIState = struct {
             self.renderHelp();
         }
 
-        // Render the UI
+        // Draw the UI
         zgui.backend.draw();
     }
 
@@ -158,8 +158,11 @@ pub const UIState = struct {
             }
 
             // Model counter and name
-            zgui.textColored(.{ 0.7, 0.9, 1.0, 1.0 }, "{d}/{d}: {s}", 
-            .{ current_index + 1, total_models, current_model.name },);
+            zgui.textColored(
+                .{ 0.7, 0.9, 1.0, 1.0 },
+                "{d}/{d}: {s}",
+                .{ current_index + 1, total_models, current_model.name },
+            );
 
             // Format and category
             const format_color: [4]f32 = if (std.mem.eql(u8, current_model.format, "GLB"))
@@ -177,13 +180,13 @@ pub const UIState = struct {
             // Model statistics
             if (model) |runtime_model| {
                 zgui.separator();
-                
+
                 // Get statistics from the runtime model
                 const vertex_count = runtime_model.getVertexCount();
                 const texture_count = runtime_model.getTextureCount();
                 const animation_count = runtime_model.getAnimationCount();
                 const primitive_count = runtime_model.getMeshPrimitiveCount();
-                
+
                 zgui.textColored(.{ 0.9, 0.7, 0.3, 1.0 }, "Statistics:", .{});
                 zgui.text("  Vertices: {d}", .{vertex_count});
                 zgui.text("  Primitives: {d}", .{primitive_count});
@@ -249,7 +252,7 @@ pub const UIState = struct {
             }
 
             // Camera position
-            const cam_pos = state.state.camera.movement.position;
+            const cam_pos = state.state.camera.movement.transform.translation;
             zgui.textColored(.{ 0.7, 0.9, 1.0, 1.0 }, "Camera:", .{});
             zgui.text("  Pos: {d:.1}, {d:.1}, {d:.1}", .{ cam_pos.x, cam_pos.y, cam_pos.z });
 
