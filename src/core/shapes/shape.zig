@@ -22,6 +22,7 @@ const SIZE_OF_U32 = @sizeOf(u32);
 const SIZE_OF_FLOAT = @sizeOf(f32);
 
 pub const ShapeBuilder = struct {
+    allocator: Allocator,
     shape_type: ShapeType,
     positions: ManagedArrayList([3]f32),
     texcoords: ManagedArrayList([2]f32),
@@ -35,6 +36,7 @@ pub const ShapeBuilder = struct {
 
     pub fn init(allocator: Allocator, shape_type: ShapeType, is_instanced: bool) ShapeBuilder {
         return .{
+            .allocator = allocator,
             .shape_type = shape_type,
             .positions = ManagedArrayList([3]f32).init(allocator),
             .texcoords = ManagedArrayList([2]f32).init(allocator),
@@ -74,8 +76,9 @@ pub const ShapeBuilder = struct {
         try self.colors.resize(size);
     }
 
-    pub fn build(self: *Self) Shape {
+    pub fn build(self: *Self) !*Shape {
         return initGLBuffers(
+            self.allocator,
             self.shape_type,
             self.positions.list.items,
             self.texcoords.list.items,
@@ -88,6 +91,7 @@ pub const ShapeBuilder = struct {
 };
 
 pub fn initGLBuffers(
+    allocator: Allocator,
     shape_type: ShapeType,
     positions: []const [3]f32,
     texcoords: []const [2]f32,
@@ -95,7 +99,7 @@ pub fn initGLBuffers(
     colors: []const [4]f32,
     indices: []const u32,
     is_instanced: bool,
-) Shape {
+) !*Shape {
     var vao: u32 = 0;
     var position_vbo: u32 = 0;
     var texcoord_vbo: u32 = 0;
@@ -228,7 +232,8 @@ pub fn initGLBuffers(
 
     const aabb = AABB.initWithPositions(positions);
 
-    return .{
+    const s = try allocator.create(Shape);
+    s.* = .{
         .shape_type = shape_type,
         .vao = vao,
         .vbo = position_vbo, // Primary VBO for positions
@@ -239,6 +244,7 @@ pub fn initGLBuffers(
         .num_indices = @intCast(indices.len),
         .aabb = aabb,
     };
+    return s;
 }
 
 pub const ShapeType = enum {

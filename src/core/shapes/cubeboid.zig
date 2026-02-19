@@ -5,6 +5,7 @@ const math = @import("math");
 const shape = @import("shape.zig");
 const AABB = @import("../aabb.zig").AABB;
 
+const Allocator = std.mem.Allocator;
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
 
@@ -29,7 +30,7 @@ pub const CubeConfig = struct {
 };
 
 pub const Cubeboid = struct {
-    pub fn init(config: CubeConfig) !shape.Shape {
+    pub fn init(allocator: Allocator, config: CubeConfig) !*shape.Shape {
         const max = vec3(config.width / 2.0, config.height / 2.0, config.depth / 2.0);
         const min = max.mulScalar(-1.0);
 
@@ -263,6 +264,7 @@ pub const Cubeboid = struct {
         };
 
         return shape.initGLBuffers(
+            allocator,
             .cube,
             &positions,
             &texcoords,

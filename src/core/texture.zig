@@ -1,7 +1,7 @@
 const std = @import("std");
 const zstbi = @import("zstbi");
 const gl = @import("zopengl").bindings;
-const utils = @import("utils/main.zig");
+const utils = @import("utils/root.zig");
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 

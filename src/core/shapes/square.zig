@@ -1,8 +1,10 @@
 const std = @import("std");
 const shape = @import("shape.zig");
 
+const Allocator = std.mem.Allocator;
+
 pub const Square = struct {
-    pub fn init() !shape.Shape {
+    pub fn init(allocator: Allocator) !*shape.Shape {
         const positions = [_][3]f32{
             .{ -0.5, -0.5, 0.0 }, // 1
             .{ 0.5, -0.5, 0.0 }, // 2
@@ -22,6 +24,7 @@ pub const Square = struct {
         const indices = [_]u32{ 0, 2, 1, 0, 3, 2 };
 
         return shape.initGLBuffers(
+            allocator,
             .square,
             &positions,
             &texcoords,

@@ -14,24 +14,24 @@ pub const Plane = @import("plane.zig").Plane;
 pub const Shape = @import("shape.zig").Shape;
 pub const obj_loader = @import("obj_loader.zig");
 
-pub fn loadOBJ(allocator: std.mem.Allocator, filepath: []const u8) !Shape {
+pub fn loadOBJ(allocator: std.mem.Allocator, filepath: []const u8) !*Shape {
     return obj_loader.loadOBJ(allocator, filepath);
 }
 
-pub fn createSquare() !Shape {
-    return try Square.init();
+pub fn createSquare(allocator: std.mem.Allocator) !*Shape {
+    return try Square.init(allocator);
 }
 
 pub const CubeConfig = cubeboid.CubeConfig;
-pub fn createCube(config: cubeboid.CubeConfig) !Shape {
-    return try cubeboid.Cubeboid.init(config);
+pub fn createCube(allocator: std.mem.Allocator, config: cubeboid.CubeConfig) !*Shape {
+    return try cubeboid.Cubeboid.init(allocator, config);
 }
 
-pub fn createCylinder(allocator: std.mem.Allocator, radius: f32, height: f32, sides: u32) !Shape {
+pub fn createCylinder(allocator: std.mem.Allocator, radius: f32, height: f32, sides: u32) !*Shape {
     return try Cylinder.init(allocator, radius, height, sides);
 }
 
-pub fn createSphere(allocator: std.mem.Allocator, radius: f32, poly_countX: u32, poly_countY: u32) !Shape {
+pub fn createSphere(allocator: std.mem.Allocator, radius: f32, poly_countX: u32, poly_countY: u32) !*Shape {
     return try Sphere.init(allocator, radius, poly_countX, poly_countY);
 }
 

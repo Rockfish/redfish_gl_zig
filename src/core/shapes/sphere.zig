@@ -14,10 +14,10 @@ const SIZE_OF_U32 = @sizeOf(u32);
 pub const Sphere = struct {
     const Self = @This();
 
-    pub fn init(allocator: Allocator, radius: f32, poly_countX: u32, poly_countY: u32) !shape.Shape {
+    pub fn init(allocator: Allocator, radius: f32, poly_countX: u32, poly_countY: u32) !*shape.Shape {
         var builder = try build(allocator, radius, poly_countX, poly_countY);
         defer builder.deinit();
-        return builder.build();
+        return try builder.build();
     }
 
     fn build(allocator: Allocator, radius: f32, poly_countX: u32, poly_countY: u32) !shape.ShapeBuilder {

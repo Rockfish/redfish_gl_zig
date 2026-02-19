@@ -26,7 +26,7 @@ pub const PlaneConfig = struct {
 
 pub const Plane = struct {
     allocator: Allocator,
-    shape: Shape = undefined,
+    shape: *Shape = undefined,
     texture_diffuse: *Texture = undefined,
     texture_normal: *Texture = undefined,
     texture_spec: *Texture = undefined,
@@ -38,6 +38,7 @@ pub const Plane = struct {
         self.texture_normal.deleteGlTexture();
         self.texture_spec.deleteGlTexture();
         self.shape.deinit();
+        self.allocator.destroy(self.shape);
     }
 
     pub fn init(allocator: Allocator, config: PlaneConfig) !Self {
@@ -67,7 +68,8 @@ pub const Plane = struct {
 
         try loadTextures(&self, config);
 
-        self.shape = shape.initGLBuffers(
+        self.shape = try shape.initGLBuffers(
+            allocator,
             .square,
             &positions,
             &texcoords,

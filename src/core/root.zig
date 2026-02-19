@@ -1,7 +1,7 @@
 pub const zstbi = @import("zstbi");
 pub const string = @import("string.zig");
 pub const texture = @import("texture.zig");
-pub const utils = @import("utils/main.zig");
+pub const utils = @import("utils/root.zig");
 pub const asset_loader = @import("asset_loader.zig");
 pub const gltf_report = @import("gltf/report.zig");
 pub const constants = @import("constants.zig");
@@ -32,5 +32,5 @@ pub const AnimationRepeatMode = @import("animator.zig").AnimationRepeatMode;
 pub const WeightedAnimation = @import("animator.zig").WeightedAnimation;
 pub const AnimationStateMachine = @import("animation_fsm.zig").AnimationStateMachine;
 
-pub const shapes = @import("shapes/main.zig");
+pub const shapes = @import("shapes/root.zig");
 pub const Color = @import("colors.zig").Color;

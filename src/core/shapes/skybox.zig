@@ -2,7 +2,7 @@ const std = @import("std");
 const gl = @import("zopengl").bindings;
 const zstbi = @import("zstbi");
 const shape = @import("shape.zig");
-const utils = @import("../utils/main.zig");
+const utils = @import("../utils/root.zig");
 
 const Allocator = std.mem.Allocator;
 

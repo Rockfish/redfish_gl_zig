@@ -9,7 +9,7 @@ const ManagedArrayList = containers.ManagedArrayList;
 
 const default_color = [4]f32{ 0.5, 0.5, 0.5, 1.0 };
 
-pub fn loadOBJ(allocator: Allocator, filepath: []const u8) !Shape {
+pub fn loadOBJ(allocator: Allocator, filepath: []const u8) !*Shape {
     const file = try std.fs.cwd().openFile(filepath, .{});
     defer file.close();
 
@@ -68,7 +68,7 @@ pub fn loadOBJ(allocator: Allocator, filepath: []const u8) !Shape {
         }
     }
 
-    return builder.build();
+    return try builder.build();
 }
 
 fn parseFace(

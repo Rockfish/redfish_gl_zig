@@ -5,12 +5,12 @@ const content_dir = "assets/";
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    
+
     // Help ZLS understand our project structure
     const build_options = b.addOptions();
     build_options.addOption(bool, "enable_tracy", false);
     build_options.addOption([]const u8, "content_dir", content_dir);
-    
+
     // b.verbose = true;
 
     const miniaudio = b.dependency("miniaudio", .{
@@ -42,13 +42,13 @@ pub fn build(b: *std.Build) void {
         // .optimize = optimize,
     });
 
-    const zgui = b.dependency("zgui", .{
-        .target = target,
-        .optimize = optimize,
-        .backend = .glfw_opengl3,
-        .with_te = true,
-        .shared = false,
-    });
+    // const zgui = b.dependency("zgui", .{
+    //     .target = target,
+    //     .optimize = optimize,
+    //     .backend = .glfw_opengl3,
+    //     .with_te = true,
+    //     .shared = false,
+    // });
 
     const zstbi = b.dependency("zstbi", .{
         .target = target,
@@ -63,14 +63,14 @@ pub fn build(b: *std.Build) void {
     //     .formats = formats,
     // });
 
-    const containers = b.createModule(.{ .root_source_file = b.path("src/containers/main.zig") });
-    const math = b.createModule(.{ .root_source_file = b.path("src/math/main.zig") });
-    const core = b.createModule(.{ .root_source_file = b.path("src/core/main.zig") });
+    const containers = b.createModule(.{ .root_source_file = b.path("src/containers/root.zig") });
+    const math = b.createModule(.{ .root_source_file = b.path("src/math/root.zig") });
+    const core = b.createModule(.{ .root_source_file = b.path("src/core/root.zig") });
 
     core.addImport("math", math);
     core.addImport("containers", containers);
     core.addImport("zopengl", zopengl.module("root"));
-    core.addImport("zgui", zgui.module("root"));
+    core.addImport("zglfw", zglfw.module("root"));
     core.addImport("zstbi", zstbi.module("root"));
     core.addImport("miniaudio", miniaudio.module("root"));
 
@@ -82,21 +82,33 @@ pub fn build(b: *std.Build) void {
         source: []const u8,
     }{
         .{ .name = "animation", .exe_name = "animation_example", .source = "examples/animation_example/main.zig" },
-        .{ .name = "demo_app", .exe_name = "demo_app", .source = "examples/demo_app/main.zig" },
+        // .{ .name = "demo_app", .exe_name = "demo_app", .source = "examples/demo_app/main.zig" }, // needs zgui
         .{ .name = "bullets", .exe_name = "bullets", .source = "examples/bullets/main.zig" },
+        .{ .name = "skybox", .exe_name = "skybox", .source = "examples/skybox/main.zig" },
+        .{ .name = "scene_tree", .exe_name = "scene_tree", .source = "examples/scene_tree/main.zig" },
         // .{ .name = "converter", .exe_name = "fbx_gltf_converter", .source = "converter/main.zig" },
         .{ .name = "angrybot", .exe_name = "angrybot", .source = "games/angrybot/main.zig" },
         .{ .name = "level_01", .exe_name = "level_01", .source = "games/level_01/main.zig" },
     }) |app| {
-        const app_mod = b.addModule(app.name, .{
-            .root_source_file = b.path(app.source),
-            .target = target,
-            .optimize = optimize,
-        });
 
         const exe = b.addExecutable(.{
             .name = app.exe_name,
-            .root_module = app_mod,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(app.source),
+                .target = target,
+                .optimize = optimize,
+                .imports = &.{
+                    .{ .name = "core", .module = core },
+                    .{ .name = "math", .module = math },
+                    .{ .name = "containers", .module = containers },
+                    .{ .name = "zopengl", .module = zopengl.module("root") },
+                    .{ .name = "zglfw", .module = zglfw.module("root") },
+                    .{ .name = "zstbi", .module = zstbi.module("root") },
+                    .{ .name = "miniaudio", .module = miniaudio.module("root") },
+                    // .{.name = "zgui", .module = zgui.module("root") },
+                    .{ .name = "build_options", .module = build_options.createModule() },
+                },
+            }),
         });
 
         // exe.addCxxFlag("-std=c++14");
@@ -104,17 +116,6 @@ pub fn build(b: *std.Build) void {
         if (exe.root_module.optimize == .ReleaseFast) {
             exe.root_module.strip = true;
         }
-
-        exe.root_module.addImport("containers", containers);
-        exe.root_module.addImport("math", math);
-        exe.root_module.addImport("core", core);
-        // exe.root_module.addImport("cglm", cglm.module("root"));
-        exe.root_module.addImport("miniaudio", miniaudio.module("root"));
-        exe.root_module.addImport("zglfw", zglfw.module("root"));
-        exe.root_module.addImport("zopengl", zopengl.module("root"));
-        exe.root_module.addImport("zgui", zgui.module("root"));
-        exe.root_module.addImport("zstbi", zstbi.module("root")); // gui
-        exe.root_module.addImport("build_options", build_options.createModule());
 
         // // Add ASSIMP support for converter app
         // if (std.mem.eql(u8, app.name, "converter")) {
@@ -126,7 +127,7 @@ pub fn build(b: *std.Build) void {
         exe.addIncludePath(b.path("src/include"));
         exe.addIncludePath(miniaudio.path("include"));
 
-        exe.linkLibrary(zgui.artifact("imgui"));
+        // exe.linkLibrary(zgui.artifact("imgui"));
         exe.linkLibrary(zglfw.artifact("glfw"));
         // exe.linkLibrary(cglm.artifact("cglm"));
         exe.linkLibrary(miniaudio.artifact("miniaudio"));
@@ -160,14 +161,19 @@ pub fn build(b: *std.Build) void {
 
     // extra check step for the game for better zls
     // See https://kristoff.it/blog/improving-your-zls-experience/
-    const app_mod = b.addModule("demo_app", .{
-        .root_source_file = b.path("examples/demo_app/main.zig"),
+    // const app_mod = b.addModule("demo_app", .{
+    //     .root_source_file = b.path("examples/demo_app/main.zig"),
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+    const app_mod = b.addModule("animation", .{
+        .root_source_file = b.path("examples/animation_example/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     const exe_check = b.addExecutable(.{
-        .name = "demo_app",
+        .name = "animation",
         .root_module = app_mod,
     });
 
@@ -177,10 +183,10 @@ pub fn build(b: *std.Build) void {
     exe_check.root_module.addImport("miniaudio", miniaudio.module("root"));
     exe_check.root_module.addImport("zglfw", zglfw.module("root"));
     exe_check.root_module.addImport("zopengl", zopengl.module("root"));
-    exe_check.root_module.addImport("zgui", zgui.module("root"));
+    // exe_check.root_module.addImport("zgui", zgui.module("root"));
     exe_check.root_module.addImport("zstbi", zstbi.module("root"));
     exe_check.root_module.addImport("build_options", build_options.createModule());
-    exe_check.linkLibrary(zgui.artifact("imgui"));
+    // exe_check.linkLibrary(zgui.artifact("imgui"));
     exe_check.linkLibrary(zstbi.artifact("zstbi"));
     exe_check.linkLibrary(miniaudio.artifact("miniaudio"));
     exe_check.linkLibrary(zglfw.artifact("glfw"));
