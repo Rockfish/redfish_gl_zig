@@ -3,8 +3,8 @@
   <component name="BuildScanner">
     <option name="projects">
       <list><![CDATA[{
-  "name": null,
-  "version": null,
+  "name": "redfish_gl_zig",
+  "version": "0.0.0",
   "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig",
   "steps": [
     {
@@ -28,16 +28,6 @@
       "kind": "run"
     },
     {
-      "name": "demo_app",
-      "description": "Build 'demo_app' app",
-      "kind": "install_artifact"
-    },
-    {
-      "name": "demo_app-run",
-      "description": "Run 'demo_app' app",
-      "kind": "run"
-    },
-    {
       "name": "bullets",
       "description": "Build 'bullets' app",
       "kind": "install_artifact"
@@ -45,6 +35,26 @@
     {
       "name": "bullets-run",
       "description": "Run 'bullets' app",
+      "kind": "run"
+    },
+    {
+      "name": "skybox",
+      "description": "Build 'skybox' app",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "skybox-run",
+      "description": "Run 'skybox' app",
+      "kind": "run"
+    },
+    {
+      "name": "scene_tree",
+      "description": "Build 'scene_tree' app",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "scene_tree-run",
+      "description": "Run 'scene_tree' app",
       "kind": "run"
     },
     {
@@ -110,12 +120,17 @@
       "imports": []
     },
     {
-      "root": "examples/demo_app/main.zig",
+      "root": "examples/bullets/main.zig",
       "public": false,
       "imports": []
     },
     {
-      "root": "examples/bullets/main.zig",
+      "root": "examples/skybox/main.zig",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "examples/scene_tree/main.zig",
       "public": false,
       "imports": []
     },
@@ -132,8 +147,8 @@
   ],
   "dependencies": []
 }]]><![CDATA[{
-  "name": null,
-  "version": null,
+  "name": "assimp",
+  "version": "6.0.2",
   "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/assimp",
   "steps": [
     {
@@ -166,7 +181,7 @@
     }
   ]
 }]]><![CDATA[{
-  "name": null,
+  "name": "assimp",
   "version": null,
   "path": "/Users/john/.cache/zig/p/N-V-__8AAAJ5kA56p5bMNoeLrMKx3VwAq6WYAC2_x7in3PU7",
   "steps": [
@@ -184,7 +199,7 @@
   "modules": [],
   "dependencies": []
 }]]><![CDATA[{
-  "name": null,
+  "name": "cglm",
   "version": null,
   "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/cglm",
   "steps": [
@@ -208,7 +223,7 @@
   ],
   "dependencies": []
 }]]><![CDATA[{
-  "name": null,
+  "name": "miniaudio",
   "version": null,
   "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/miniaudio",
   "steps": [
@@ -232,8 +247,8 @@
   ],
   "dependencies": []
 }]]><![CDATA[{
-  "name": null,
-  "version": null,
+  "name": "system_sdk",
+  "version": "0.1.1",
   "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/system-sdk",
   "steps": [
     {
@@ -250,8 +265,8 @@
   "modules": [],
   "dependencies": []
 }]]><![CDATA[{
-  "name": null,
-  "version": null,
+  "name": "zglfw",
+  "version": "0.10.0-dev",
   "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/zglfw",
   "steps": [
     {
@@ -294,8 +309,8 @@
     }
   ]
 }]]><![CDATA[{
-  "name": null,
-  "version": null,
+  "name": "system_sdk",
+  "version": "0.3.0-dev",
   "path": "/Users/john/.cache/zig/p/system_sdk-0.3.0-dev-alwUNnYaaAJAtIdE2fg4NQfDqEKs7QCXy_qYukAOBfmF",
   "steps": [
     {
@@ -312,8 +327,8 @@
   "modules": [],
   "dependencies": []
 }]]><![CDATA[{
-  "name": null,
-  "version": null,
+  "name": "zopengl",
+  "version": "0.6.0-dev",
   "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/zopengl",
   "steps": [
     {
@@ -351,8 +366,8 @@
   ],
   "dependencies": []
 }]]><![CDATA[{
-  "name": null,
-  "version": null,
+  "name": "zstbi",
+  "version": "0.11.0-dev",
   "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/zstbi",
   "steps": [
     {

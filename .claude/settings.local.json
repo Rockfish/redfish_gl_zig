@@ -11,7 +11,11 @@
       "Bash(gltf-transform validate:*)",
       "Bash(converter/zig-out/bin/fbx_gltf_converter:*)",
       "Bash(git add:*)",
-      "Bash(zig test:*)"
+      "Bash(zig test:*)",
+      "Bash(python3:*)",
+      "Bash(awk:*)",
+      "Bash(git status:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
