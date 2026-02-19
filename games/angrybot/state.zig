@@ -38,11 +38,11 @@ pub const MONSTER_SPEED: f32 = 0.6;
 pub const ENEMY_SPAWN_INTERVAL: f32 = 1.0; // seconds
 pub const SPAWNS_PER_INTERVAL: i32 = 1;
 pub const SPAWN_RADIUS: f32 = 10.0; // from player
-pub const ENEMY_COLLIDER: Capsule = Capsule{ .height = 0.4, .radius = 0.08 };
+pub const ENEMY_COLLIDER: Capsule = Capsule{ .length = 0.4, .radius = 0.08 };
 
 // Bullets
-//pub const SPREAD_AMOUNT: i32 = 20; // bullet spread
-pub const SPREAD_AMOUNT: i32 = 1; // bullet spread
+pub const SPREAD_AMOUNT: i32 = 20; // bullet spread
+// pub const SPREAD_AMOUNT: i32 = 1; // bullet spread
 //pub const BULLET_SCALE: f32 = 0.3;
 pub const BULLET_SCALE: f32 = 2.0;
 pub const BULLET_LIFETIME: f32 = 10.0;
@@ -50,7 +50,7 @@ pub const BULLET_LIFETIME: f32 = 10.0;
 pub const BULLET_SPEED: f32 = 2.0;
 pub const ROTATION_PER_BULLET: f32 = 3.0; // in degrees
 pub const BURN_MARK_TIME: f32 = 5.0; // seconds
-pub const BULLET_COLLIDER: Capsule = Capsule{ .height = 0.3, .radius = 0.03 };
+pub const BULLET_COLLIDER: Capsule = Capsule{ .length = 0.3, .radius = 0.03 };
 
 pub const camera_follow_vec = vec3(0.0, 4.0, 4.0);
 
@@ -116,23 +116,25 @@ pub const State = struct {
 var state: *State = undefined;
 
 pub fn updateCameras() void {
-    // state.game_camera.movement.position = state.player.position.add(&camera_follow_vec);
+    // state.game_camera.movement.transform.translation = state.player.position.add(&camera_follow_vec);
 
     var pv: ProjectionView = undefined;
     switch (state.active_camera) {
         CameraType.Game => {
+            const up_vec = state.game_camera.movement.transform.up();
             const game_view = Mat4.lookAtRhGl(
-                &state.game_camera.movement.position,
+                &state.game_camera.movement.transform.translation,
                 &state.player.position,
-                &state.game_camera.movement.up,
+                &up_vec,
             );
             pv = .{ .projection = state.game_projection, .view = game_view };
         },
         CameraType.Floating => {
+            const up_vec = state.floating_camera.movement.transform.up();
             const view = Mat4.lookAtRhGl(
-                &state.floating_camera.movement.position,
+                &state.floating_camera.movement.transform.translation,
                 &state.player.position,
-                &state.floating_camera.movement.up,
+                &up_vec,
             );
             pv = .{ .projection = state.floating_projection, .view = view };
         },
@@ -176,10 +178,10 @@ pub fn getMousePointAngle(view: *const Mat4, position: *Vec3) f32 {
     const xz_plane_normal = vec3(0.0, 1.0, 0.0);
 
     const world_point = math.getRayPlaneIntersection(
-        &state.game_camera.movement.position,
-        &world_ray,
-        &xz_plane_point,
-        &xz_plane_normal,
+        state.game_camera.movement.transform.translation,
+        world_ray,
+        xz_plane_point,
+        xz_plane_normal,
     );
 
     if (world_point) |point| {
@@ -226,10 +228,10 @@ pub fn processInput() void {
             var direction_vec = Vec3.splat(0.0);
 
             switch (key) {
-                .a => direction_vec.addTo(&vec3(-1.0, 0.0, 0.0)),
-                .d => direction_vec.addTo(&vec3(1.0, 0.0, 0.0)),
-                .s => direction_vec.addTo(&vec3(0.0, 0.0, 1.0)),
-                .w => direction_vec.addTo(&vec3(0.0, 0.0, -1.0)),
+                .a => direction_vec.addTo(vec3(-1.0, 0.0, 0.0)),
+                .d => direction_vec.addTo(vec3(1.0, 0.0, 0.0)),
+                .s => direction_vec.addTo(vec3(0.0, 0.0, 1.0)),
+                .w => direction_vec.addTo(vec3(0.0, 0.0, -1.0)),
                 .one => state.active_camera = state.game_camera,
                 .two => state.active_camera = state.floating_camera,
                 .three => state.active_camera = state.ortho_camera,
@@ -238,7 +240,7 @@ pub fn processInput() void {
             }
 
             if (direction_vec.lengthSquared() > 0.1) {
-                state.player.position.addTo(&direction_vec.toNormalized().mulScalar(state.player.speed * state.delta_time));
+                state.player.position.addTo(direction_vec.toNormalized().mulScalar(state.player.speed * state.delta_time));
                 state.player.direction = vec2(direction_vec.x, direction_vec.z);
             }
         }

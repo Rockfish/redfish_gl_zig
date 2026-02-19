@@ -1,6 +1,6 @@
 #version 400 core
 
-in vec2 FragTextureCoord;
+in vec2 fragTextureCoord;
 
 out vec4 FragColor;
 
@@ -13,7 +13,7 @@ uniform float age;
 void main() {
   // Doing this for every fragment is pretty wasteful...
   int col = int(age / timePerSprite);
-  vec2 spriteTexCoord = vec2(FragTextureCoord.x / numCols + col * (1.0 / numCols), FragTextureCoord.y);
+  vec2 spriteTexCoord = vec2(fragTextureCoord.x / numCols + col * (1.0 / numCols), fragTextureCoord.y);
   // TODO interpolation
   FragColor = texture(spritesheet, spriteTexCoord);
 }

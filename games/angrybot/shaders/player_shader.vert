@@ -19,10 +19,10 @@ uniform mat4 projectionView;
 uniform mat4 model;
 uniform mat4 aimRot;
 
-out vec2 FragTextureCoord;
-out vec3 FragNormal;
-out vec4 FragPosLightSpace;
-out vec3 FragWorldPos;
+out vec2 fragTextureCoord;
+out vec3 fragNormal;
+out vec4 fragPosLightSpace;
+out vec3 fragWorldPos;
 
 uniform bool depth_mode;
 uniform mat4 lightSpaceMatrix;
@@ -67,12 +67,12 @@ void main() {
     }
 
     // Outputs
-    FragTextureCoord = inTexCoord;
+    fragTextureCoord = inTexCoord;
 
-    FragNormal = vec3(aimRot * vec4(localNormal, 1.0));
-//    FragNormal = vec3(aimRot * vec4(inNormal, 1.0));
+    fragNormal = vec3(aimRot * vec4(localNormal, 1.0));
+//    fragNormal = vec3(aimRot * vec4(inNormal, 1.0));
 
-    FragWorldPos = vec3(model * vec4(inPosition, 1.0));
+    fragWorldPos = vec3(model * vec4(inPosition, 1.0));
 
-    FragPosLightSpace = lightSpaceMatrix * vec4(FragWorldPos, 1.0);
+    fragPosLightSpace = lightSpaceMatrix * vec4(fragWorldPos, 1.0);
 }

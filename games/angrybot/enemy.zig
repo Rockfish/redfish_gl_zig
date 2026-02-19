@@ -48,7 +48,7 @@ pub const EnemySystem = struct {
 
     pub fn init(allocator: Allocator) !Self {
         // Modern glTF path instead of .fbx
-        const model_path = "angrybots_assets/Models/Eeldog/EelDog.gltf";
+        const model_path = "assets/angrybots_assets/Models/Eeldog/EelDog.gltf";
 
         // Use GltfAsset instead of ModelBuilder
         var gltf_asset = try GltfAsset.init(allocator, "enemy", model_path);
@@ -107,15 +107,15 @@ pub const EnemySystem = struct {
 
         for (0..state.enemies.list.items.len) |i| {
             const enemy = &state.enemies.list.items[i].?;
-            var dir = state.player.position.sub(&enemy.position);
+            var dir = state.player.position.sub(enemy.position);
             dir.y = 0.0;
             enemy.dir = dir.toNormalized();
-            enemy.position = enemy.position.add(&enemy.dir.mulScalar(state.delta_time * world.MONSTER_SPEED));
+            enemy.position = enemy.position.add(enemy.dir.mulScalar(state.delta_time * world.MONSTER_SPEED));
 
             if (state.player.is_alive) {
-                const p1 = enemy.position.sub(&enemy.dir.mulScalar(world.ENEMY_COLLIDER.height / 2.0));
-                const p2 = enemy.position.sub(&enemy.dir.mulScalar(world.ENEMY_COLLIDER.height / 2.0));
-                const dist = geom.distanceBetweenPointAndLineSegment(&player_collision_position, &p1, &p2);
+                const p1 = enemy.position.sub(enemy.dir.mulScalar(world.ENEMY_COLLIDER.length / 2.0));
+                const p2 = enemy.position.sub(enemy.dir.mulScalar(world.ENEMY_COLLIDER.length / 2.0));
+                const dist = geom.distanceBetweenPointAndLineSegment(player_collision_position, p1, p2);
 
                 if (dist <= (world.PLAYER_COLLISION_RADIUS + world.ENEMY_COLLIDER.radius)) {
                     state.player.is_alive = false;
@@ -128,7 +128,7 @@ pub const EnemySystem = struct {
 
     pub fn drawEnemies(self: *Self, shader: *Shader, state: *State) void {
         shader.useShader();
-        shader.setVec3("nosePos", &vec3(1.0, world.MONSTER_Y, -2.0));
+        shader.setVec3("nosePos", vec3(1.0, world.MONSTER_Y, -2.0));
         shader.setFloat("time", state.frame_time);
 
         for (state.enemies.list.items) |e| {
@@ -136,21 +136,21 @@ pub const EnemySystem = struct {
             const val = if (e.?.dir.z < zero) zero else math.pi;
             const monster_theta = math.atan(e.?.dir.x / e.?.dir.z) + val;
 
-            var model_transform = Mat4.fromTranslation(&e.?.position);
+            var model_transform = Mat4.fromTranslation(e.?.position);
 
-            model_transform = model_transform.mulMat4(&Mat4.fromScale(&Vec3.splat(0.01)));
-            model_transform = model_transform.mulMat4(&Mat4.fromAxisAngle(&vec3(0.0, 1.0, 0.0), monster_theta));
-            model_transform = model_transform.mulMat4(&Mat4.fromAxisAngle(&vec3(0.0, 0.0, 1.0), math.pi));
-            model_transform = model_transform.mulMat4(&Mat4.fromAxisAngle(&vec3(1.0, 0.0, 0.0), math.degreesToRadians(90)));
+            model_transform = model_transform.mulMat4(&Mat4.fromScale(Vec3.splat(0.01)));
+            model_transform = model_transform.mulMat4(&Mat4.fromAxisAngle(vec3(0.0, 1.0, 0.0), monster_theta));
+            model_transform = model_transform.mulMat4(&Mat4.fromAxisAngle(vec3(0.0, 0.0, 1.0), math.pi));
+            model_transform = model_transform.mulMat4(&Mat4.fromAxisAngle(vec3(1.0, 0.0, 0.0), math.degreesToRadians(90)));
 
             // var rot_only = Mat4.from_axis_angle(vec3(0.0, 1.0, 0.0), monster_theta);
             // rot_only = Mat4.from_axis_angle(vec3(0.0, 0.0, 1.0), PI);
-            const rot_only = Mat4.fromAxisAngle(&vec3(1.0, 0.0, 0.0), math.degreesToRadians(90));
+            const rot_only = Mat4.fromAxisAngle(vec3(1.0, 0.0, 0.0), math.degreesToRadians(90));
 
             shader.setMat4("aimRot", &rot_only);
             shader.setMat4("model", &model_transform);
 
-            self.enemy_model.render(shader);
+            self.enemy_model.draw(shader);
         }
     }
 };

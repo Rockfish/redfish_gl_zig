@@ -1,8 +1,8 @@
 #version 400 core
 
-in vec2 FragTextureCoord;
+in vec2 fragTextureCoord;
 
-out vec4 FragColor;
+out vec4 fragColor;
 
 uniform sampler2D base_texture;
 uniform sampler2D emission_texture;
@@ -20,14 +20,14 @@ vec4 ScaleColor(float scale, vec4 color) {
 
 void main() {
 
-  FragColor = vec4(texture(base_texture, FragTextureCoord).rgb + texture(emission_texture, FragTextureCoord).rgb * 2.9, 1.0);
+  fragColor = vec4(texture(base_texture, fragTextureCoord).rgb + texture(emission_texture, fragTextureCoord).rgb * 2.9, 1.0);
 
-  vec3 rawBright = texture(bright_texture, FragTextureCoord).rgb;
+  vec3 rawBright = texture(bright_texture, fragTextureCoord).rgb;
 
   if (CalcBrightness(rawBright) > 0.05) {
     float mult = 1.5;
     float additive = CalcBrightness(rawBright) > 0.3 ? 1.8 : 0.4;
-    FragColor += vec4(mult * rawBright + vec3(2 * additive, 0.6 * additive, 0.6 * additive), 1.0);
+    fragColor += vec4(mult * rawBright + vec3(2 * additive, 0.6 * additive, 0.6 * additive), 1.0);
   }
 }
 

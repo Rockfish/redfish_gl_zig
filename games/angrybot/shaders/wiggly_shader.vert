@@ -22,10 +22,10 @@ const float wiggleMagnitude = 3.0;
 const float wiggleDistModifier = 0.12;
 const float wiggleTimeModifier = 9.4;
 
-out vec2 FragTextureCoord;
-out vec3 FragNormal;
-out vec4 FragPosLightSpace;
-out vec3 FragWorldPos;
+out vec2 fragTextureCoord;
+out vec3 fragNormal;
+out vec4 fragPosLightSpace;
+out vec3 fragWorldPos;
 
 void main() {
     float xOffset = sin(wiggleTimeModifier * time + wiggleDistModifier * distance(nosePos, inPosition)) * wiggleMagnitude;
@@ -36,12 +36,12 @@ void main() {
         gl_Position = projectionView * model * vec4(inPosition.x + xOffset, inPosition.y, inPosition.z, 1.0);
     }
 
-    FragTextureCoord = inTexCoord;
+    fragTextureCoord = inTexCoord;
 
     // TODO fix norm for wiggle
-    FragNormal = vec3(aimRot * vec4(inNormal, 1.0));
+    fragNormal = vec3(aimRot * vec4(inNormal, 1.0));
 
-    FragWorldPos = vec3(model * vec4(inPosition, 1.0));
+    fragWorldPos = vec3(model * vec4(inPosition, 1.0));
 
-    FragPosLightSpace = lightSpaceMatrix * model * vec4(inPosition, 1.0);
+    fragPosLightSpace = lightSpaceMatrix * model * vec4(inPosition, 1.0);
 }

@@ -68,7 +68,7 @@ const BULLET_NORMAL: Vec3 = vec3(0.0, 1.0, 0.0);
 const CANONICAL_DIR: Vec3 = vec3(0.0, 0.0, 1.0);
 const UP_VEC = vec3(0.0, 1.0, 0.0); // rotate around y
 
-const BULLET_ENEMY_MAX_COLLISION_DIST: f32 = world.BULLET_COLLIDER.height / 2.0 + world.BULLET_COLLIDER.radius + world.ENEMY_COLLIDER.height / 2.0 + world.ENEMY_COLLIDER.radius;
+const BULLET_ENEMY_MAX_COLLISION_DIST: f32 = world.BULLET_COLLIDER.length / 2.0 + world.BULLET_COLLIDER.radius + world.ENEMY_COLLIDER.length / 2.0 + world.ENEMY_COLLIDER.radius;
 
 // Trim off margin around the bullet image
 // const TEXTURE_MARGIN: f32 = 0.0625;
@@ -117,9 +117,9 @@ const VERTICES = BULLET_VERTICES_H_V;
 const INDICES = BULLET_INDICES_H_V;
 
 pub const BulletStore = struct {
-    all_bullet_positions: ManagedArrayList(Vec3),
-    all_bullet_rotations: ManagedArrayList(Quat),
-    all_bullet_directions: ManagedArrayList(Vec3),
+    bullet_positions: ManagedArrayList(Vec3),
+    bullet_rotations: ManagedArrayList(Quat),
+    bullet_directions: ManagedArrayList(Vec3),
     // precalculated rotations
     x_rotations: ManagedArrayList(Quat),
     y_rotations: ManagedArrayList(Quat),
@@ -136,9 +136,9 @@ pub const BulletStore = struct {
 
     pub fn deinit(self: *Self) void {
         self.bullet_texture.deleteGlTexture();
-        self.all_bullet_positions.deinit();
-        self.all_bullet_rotations.deinit();
-        self.all_bullet_directions.deinit();
+        self.bullet_positions.deinit();
+        self.bullet_rotations.deinit();
+        self.bullet_directions.deinit();
         self.x_rotations.deinit();
         self.y_rotations.deinit();
         self.bullet_groups.deinit();
@@ -146,9 +146,7 @@ pub const BulletStore = struct {
         self.bullet_impact_spritesheet.deinit();
     }
 
-    pub fn init(arena: *ArenaAllocator, unit_square_vao: c_uint) !Self {
-        const allocator = arena.allocator();
-
+    pub fn init(allocator: Allocator, unit_square_vao: c_uint) !Self {
         const texture_config = TextureConfig{
             .flip_v = false,
             .gamma_correction = false,
@@ -156,8 +154,8 @@ pub const BulletStore = struct {
             .wrap = .Repeat,
         };
 
-        const bullet_texture = try Texture.initFromFile(arena, "angrybots_assets/Textures/Bullet/bullet_texture_transparent.png", texture_config);
-        const texture_impact_sprite_sheet = try Texture.initFromFile(arena, "angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png", texture_config);
+        const bullet_texture = try Texture.initFromFile(allocator, "assets/angrybots_assets/Textures/Bullet/bullet_texture_transparent.png", texture_config);
+        const texture_impact_sprite_sheet = try Texture.initFromFile(allocator, "assets/angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png", texture_config);
 
         const bullet_impact_spritesheet = SpriteSheet.init(texture_impact_sprite_sheet, 11, 0.05);
 
@@ -172,11 +170,11 @@ pub const BulletStore = struct {
         for (0..world.SPREAD_AMOUNT) |i| {
             const i_f32: f32 = @floatFromInt(i);
             const y_rot = Quat.fromAxisAngle(
-                &vec3(0.0, 1.0, 0.0),
+                vec3(0.0, 1.0, 0.0),
                 rotation_per_bullet * ((i_f32 - world.SPREAD_AMOUNT) / @as(f32, 2.0)) + spread_centering,
             );
             const x_rot = Quat.fromAxisAngle(
-                &vec3(1.0, 0.0, 0.0),
+                vec3(1.0, 0.0, 0.0),
                 rotation_per_bullet * ((i_f32 - world.SPREAD_AMOUNT) / @as(f32, 2.0)) + spread_centering + math.pi,
             );
             // std.debug.print("x_rot = {any}\n", .{x_rot});
@@ -185,9 +183,9 @@ pub const BulletStore = struct {
         }
 
         var bullet_store: BulletStore = .{
-            .all_bullet_positions = ManagedArrayList(Vec3).init(allocator),
-            .all_bullet_rotations = ManagedArrayList(Quat).init(allocator),
-            .all_bullet_directions = ManagedArrayList(Vec3).init(allocator),
+            .bullet_positions = ManagedArrayList(Vec3).init(allocator),
+            .bullet_rotations = ManagedArrayList(Quat).init(allocator),
+            .bullet_directions = ManagedArrayList(Vec3).init(allocator),
             .x_rotations = x_rotations,
             .y_rotations = y_rotations,
             .bullet_groups = ManagedArrayList(BulletGroup).init(allocator),
@@ -208,22 +206,22 @@ pub const BulletStore = struct {
     }
 
     pub fn createBullets(self: *Self, aim_theta: f32, muzzle_transform: *const Mat4) !bool {
-        const muzzle_world_position = muzzle_transform.mulVec4(&vec4(0.0, 0.0, 0.0, 1.0));
+        const muzzle_world_position = muzzle_transform.mulVec4(vec4(0.0, 0.0, 0.0, 1.0));
         const projectile_spawn_point = muzzle_world_position.xyz();
 
-        var mid_dir_quat = Quat.default();
-        mid_dir_quat = mid_dir_quat.mulQuat(&Quat.fromAxisAngle(&UP_VEC, aim_theta));
+        var mid_dir_quat = Quat.Identity;
+        mid_dir_quat = mid_dir_quat.mulQuat(Quat.fromAxisAngle(UP_VEC, aim_theta));
 
-        const start_index = self.all_bullet_positions.items.len;
+        const current_len = self.bullet_positions.items().len;
         const bullet_group_size = world.SPREAD_AMOUNT * world.SPREAD_AMOUNT;
 
-        const bullet_group = BulletGroup.new(start_index, bullet_group_size, world.BULLET_LIFETIME);
+        const bullet_group = BulletGroup.new(current_len, bullet_group_size, world.BULLET_LIFETIME);
 
-        try self.all_bullet_positions.resize(start_index + bullet_group_size);
-        try self.all_bullet_rotations.resize(start_index + bullet_group_size);
-        try self.all_bullet_directions.resize(start_index + bullet_group_size);
+        try self.bullet_positions.resize(current_len + bullet_group_size);
+        try self.bullet_rotations.resize(current_len + bullet_group_size);
+        try self.bullet_directions.resize(current_len + bullet_group_size);
 
-        const start: usize = start_index;
+        const start: usize = current_len;
         const end = start + bullet_group_size;
 
         for (start..end) |index| {
@@ -231,14 +229,14 @@ pub const BulletStore = struct {
             const i = @divTrunc(count, world.SPREAD_AMOUNT);
             const j = @mod(count, world.SPREAD_AMOUNT);
 
-            const y_quat = mid_dir_quat.mulQuat(&self.y_rotations.items[i]);
-            const rot_quat = y_quat.mulQuat(&self.x_rotations.items[j]);
+            const y_quat = mid_dir_quat.mulQuat(self.y_rotations.items()[i]);
+            const rot_quat = y_quat.mulQuat(self.x_rotations.items()[j]);
 
-            const direction = rot_quat.rotateVec(&CANONICAL_DIR);
+            const direction = rot_quat.rotateVec(CANONICAL_DIR);
 
-            self.all_bullet_positions.items[index] = projectile_spawn_point;
-            self.all_bullet_rotations.items[index] = rot_quat;
-            self.all_bullet_directions.items[index] = direction;
+            self.bullet_positions.items()[index] = projectile_spawn_point;
+            self.bullet_rotations.items()[index] = rot_quat;
+            self.bullet_directions.items()[index] = direction;
         }
 
         try self.bullet_groups.append(bullet_group);
@@ -246,18 +244,18 @@ pub const BulletStore = struct {
     }
 
     pub fn updateBullets(self: *Self, state: *State) !void {
-        if (self.all_bullet_positions.items.len == 0) {
+        if (self.bullet_positions.items().len == 0) {
             return;
         }
 
-        const use_aabb = state.enemies.items.len != 0;
+        const use_aabb = state.enemies.items().len != 0;
         const num_sub_groups: u32 = if (use_aabb) @as(u32, @intCast(9)) else @as(u32, @intCast(1));
 
         const delta_position_magnitude = state.delta_time * world.BULLET_SPEED;
 
         var first_live_bullet_group: usize = 0;
 
-        for (self.bullet_groups.items) |*group| {
+        for (self.bullet_groups.items()) |*group| {
             group.time_to_live -= state.delta_time;
 
             if (group.time_to_live <= 0.0) {
@@ -279,33 +277,33 @@ pub const BulletStore = struct {
                     bullet_end += bullet_group_start_index;
 
                     for (bullet_start..bullet_end) |bullet_index| {
-                        var direction = self.all_bullet_directions.items[bullet_index];
+                        var direction = self.bullet_directions.items()[bullet_index];
                         const change = direction.mulScalar(delta_position_magnitude);
 
-                        var position = self.all_bullet_positions.items[bullet_index];
-                        position = position.sub(&change);
-                        self.all_bullet_positions.items[bullet_index] = position;
+                        var position = self.bullet_positions.items()[bullet_index];
+                        position = position.sub(change);
+                        self.bullet_positions.items()[bullet_index] = position;
                     }
 
                     var subgroup_bound_box = AABB.init();
 
                     if (use_aabb) {
                         for (bullet_start..bullet_end) |bullet_index| {
-                            subgroup_bound_box.expandWithVec3(self.all_bullet_positions.items[bullet_index]);
+                            subgroup_bound_box.expandWithVec3(self.bullet_positions.items()[bullet_index]);
                         }
                         subgroup_bound_box.expandBy(BULLET_ENEMY_MAX_COLLISION_DIST);
                     }
 
-                    for (0..state.enemies.items.len) |i| {
-                        const enemy = &state.enemies.items[i].?;
+                    for (0..state.enemies.items().len) |i| {
+                        const enemy = &state.enemies.items()[i].?;
 
                         if (use_aabb and !subgroup_bound_box.containsPoint(enemy.position)) {
                             continue;
                         }
                         for (bullet_start..bullet_end) |bullet_index| {
                             if (bulletCollidesWithEnemy(
-                                &self.all_bullet_positions.items[bullet_index],
-                                &self.all_bullet_directions.items[bullet_index],
+                                &self.bullet_positions.items()[bullet_index],
+                                &self.bullet_directions.items()[bullet_index],
                                 enemy,
                             )) {
                                 log.info("enemy killed", .{});
@@ -322,24 +320,24 @@ pub const BulletStore = struct {
 
         if (first_live_bullet_group != 0) {
             first_live_bullet =
-                self.bullet_groups.items[first_live_bullet_group - 1].start_index + self.bullet_groups.items[first_live_bullet_group - 1].group_size;
+                self.bullet_groups.items()[first_live_bullet_group - 1].start_index + self.bullet_groups.items()[first_live_bullet_group - 1].group_size;
             // self.bullet_groups.drain(0..first_live_bullet_group);
             try core.utils.removeRange(BulletGroup, &self.bullet_groups, 0, first_live_bullet_group);
         }
 
         if (first_live_bullet != 0) {
-            try core.utils.removeRange(Vec3, &self.all_bullet_positions, 0, first_live_bullet);
-            try core.utils.removeRange(Vec3, &self.all_bullet_directions, 0, first_live_bullet);
-            try core.utils.removeRange(Quat, &self.all_bullet_rotations, 0, first_live_bullet);
+            try core.utils.removeRange(Vec3, &self.bullet_positions, 0, first_live_bullet);
+            try core.utils.removeRange(Vec3, &self.bullet_directions, 0, first_live_bullet);
+            try core.utils.removeRange(Quat, &self.bullet_rotations, 0, first_live_bullet);
 
-            for (self.bullet_groups.items) |*group| {
+            for (self.bullet_groups.items()) |*group| {
                 group.start_index -= first_live_bullet;
             }
         }
 
-        if (self.bullet_impact_sprites.items.len != 0) {
-            for (0..self.bullet_impact_sprites.items.len) |i| {
-                self.bullet_impact_sprites.items[i].?.age = self.bullet_impact_sprites.items[i].?.age + state.delta_time;
+        if (self.bullet_impact_sprites.items().len != 0) {
+            for (0..self.bullet_impact_sprites.items().len) |i| {
+                self.bullet_impact_sprites.items()[i].?.age = self.bullet_impact_sprites.items()[i].?.age + state.delta_time;
             }
 
             const sprite_duration = self.bullet_impact_spritesheet.num_columns * self.bullet_impact_spritesheet.time_per_sprite;
@@ -354,7 +352,7 @@ pub const BulletStore = struct {
             );
         }
 
-        for (state.enemies.items) |enemy| {
+        for (state.enemies.items()) |enemy| {
             if (!enemy.?.is_alive) {
                 const sprite_sheet_sprite = SpriteSheetSprite{ .age = 0.0, .world_position = enemy.?.position };
                 try self.bullet_impact_sprites.append(sprite_sheet_sprite);
@@ -482,7 +480,7 @@ pub const BulletStore = struct {
     }
 
     pub fn drawBullets(self: *Self, shader: *Shader, projection_view: *const Mat4) void {
-        if (self.all_bullet_positions.items.len == 0) {
+        if (self.bullet_positions.items().len == 0) {
             return;
         }
 
@@ -506,8 +504,8 @@ pub const BulletStore = struct {
         gl.bindBuffer(gl.ARRAY_BUFFER, self.rotations_vbo);
         gl.bufferData(
             gl.ARRAY_BUFFER,
-            @intCast(self.all_bullet_rotations.items.len * SIZE_OF_QUAT),
-            self.all_bullet_rotations.items.ptr,
+            @intCast(self.bullet_rotations.items().len * SIZE_OF_QUAT),
+            self.bullet_rotations.items().ptr,
             gl.STREAM_DRAW,
         );
 
@@ -515,8 +513,8 @@ pub const BulletStore = struct {
         gl.bindBuffer(gl.ARRAY_BUFFER, self.positions_vbo);
         gl.bufferData(
             gl.ARRAY_BUFFER,
-            @intCast(self.all_bullet_positions.items.len * SIZE_OF_VEC3),
-            self.all_bullet_positions.items.ptr,
+            @intCast(self.bullet_positions.items().len * SIZE_OF_VEC3),
+            self.bullet_positions.items().ptr,
             gl.STREAM_DRAW,
         );
 
@@ -526,7 +524,7 @@ pub const BulletStore = struct {
             INDICES.len, // 6,
             gl.UNSIGNED_INT,
             null,
-            @intCast(self.all_bullet_positions.items.len),
+            @intCast(self.bullet_positions.items().len),
         );
 
         gl.disable(gl.BLEND);
@@ -551,10 +549,10 @@ pub const BulletStore = struct {
 
         const scale: f32 = 2.0; // 0.25f32;
 
-        for (self.bullet_impact_sprites.items) |sprite| {
-            var model = Mat4.fromTranslation(&sprite.?.world_position);
+        for (self.bullet_impact_sprites.itemsConst()) |sprite| {
+            var model = Mat4.fromTranslation(sprite.?.world_position);
             model = model.mulMat4(&Mat4.fromRotationX(math.degreesToRadians(-90.0)));
-            model = model.mulMat4(&Mat4.fromScale(&vec3(scale, scale, scale)));
+            model = model.mulMat4(&Mat4.fromScale(vec3(scale, scale, scale)));
 
             sprite_shader.setFloat("age", sprite.?.age);
             sprite_shader.setMat4("model", &model);
@@ -569,16 +567,17 @@ pub const BulletStore = struct {
 };
 
 fn bulletCollidesWithEnemy(position: *Vec3, direction: *Vec3, enemy: *Enemy) bool {
-    if (position.distance(&enemy.position) > BULLET_ENEMY_MAX_COLLISION_DIST) {
+    if (position.distance(enemy.position) > BULLET_ENEMY_MAX_COLLISION_DIST) {
         return false;
     }
 
-    const a0 = position.sub(&direction.mulScalar(world.BULLET_COLLIDER.height / 2.0));
-    const a1 = position.add(&direction.mulScalar(world.BULLET_COLLIDER.height / 2.0));
-    const b0 = enemy.position.sub(&enemy.dir.mulScalar(world.ENEMY_COLLIDER.height / 2.0));
-    const b1 = enemy.position.add(&enemy.dir.mulScalar(world.ENEMY_COLLIDER.height / 2.0));
+    // Start and end position of the capsule length for the bullet and the enemy
+    const a0 = position.sub(direction.mulScalar(world.BULLET_COLLIDER.length / 2.0));
+    const a1 = position.add(direction.mulScalar(world.BULLET_COLLIDER.length / 2.0));
+    const b0 = enemy.position.sub(enemy.dir.mulScalar(world.ENEMY_COLLIDER.length / 2.0));
+    const b1 = enemy.position.add(enemy.dir.mulScalar(world.ENEMY_COLLIDER.length / 2.0));
 
-    const closet_distance = geom.distanceBetweenLineSegments(&a0, &a1, &b0, &b1);
+    const closet_distance = geom.distanceBetweenLineSegments(a0, a1, b0, b1);
 
     return closet_distance <= (world.BULLET_COLLIDER.radius + world.ENEMY_COLLIDER.radius);
 }

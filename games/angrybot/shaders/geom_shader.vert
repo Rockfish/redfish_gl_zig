@@ -8,7 +8,7 @@ layout(location = 4) in vec4 inColor;
 layout(location = 5) in ivec4 inJointIds;
 layout(location = 6) in vec4 inWeights;
 
-out vec2 FragTextureCoord;
+out vec2 fragTextureCoord;
 
 // animation
 const int MAX_BONES = 100;
@@ -48,5 +48,5 @@ void main() {
 
     gl_Position = projectionView * model * final_position;
 
-    FragTextureCoord = inTexCoord;
+    fragTextureCoord = inTexCoord;
 }

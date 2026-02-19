@@ -114,7 +114,7 @@ pub const Player = struct {
 
     pub fn init(allocator: Allocator) !*Self {
         // Modern glTF path instead of .fbx
-        const model_path = "angrybots_assets/Models/Player/Player.gltf";
+        const model_path = "assets/angrybots_assets/Models/Player/Player.gltf";
 
         // Use GltfAsset instead of ModelBuilder
         var gltf_asset = try GltfAsset.init(allocator, "Player", model_path);
@@ -190,8 +190,8 @@ pub const Player = struct {
         }
     }
 
-    pub fn render(self: *Self, shader: *const Shader) void {
-        self.model.render(shader);
+    pub fn draw(self: *Self, shader: *const Shader) void {
+        self.model.draw(shader);
     }
 
     pub fn update(self: *Self, state: *State, aim_theta: f32) !void {
@@ -204,7 +204,7 @@ pub const Player = struct {
         _ = self; // Suppress unused parameter warning
         // Simple muzzle offset - adjust these values as needed for gun positioning
         const muzzle_offset = vec3(0.0, 120, 100); // Forward and up from player center
-        const muzzle_translation = Mat4.fromTranslation(&muzzle_offset);
+        const muzzle_translation = Mat4.fromTranslation(muzzle_offset);
         return player_transform.mulMat4(&muzzle_translation);
     }
 

@@ -1,8 +1,8 @@
 #version 400 core
 
-in vec2 FragTextureCoord;
-in vec3 FragWorldPos;
-in vec4 FragPosLightSpace;
+in vec2 fragTextureCoord;
+in vec3 fragWorldPos;
+in vec4 fragPosLightSpace;
 
 struct DirectionLight {
   vec3 dir;
@@ -42,23 +42,23 @@ float ShadowCalculation(float bias, vec4 fragPosLightSpace, vec2 offset) {
 }
 
 void main() {
-  vec4 color = texture(texture_diffuse, FragTextureCoord);
+  vec4 color = texture(texture_diffuse, fragTextureCoord);
 
   if (useLight) {
 
     vec2 texelSize = vec2(1.0) / vec2(textureSize(shadow_map, 0));;
 
     vec3 lightDir = normalize(-directionLight.dir);
-    vec3 normal = vec3(texture(texture_normal, FragTextureCoord));
+    vec3 normal = vec3(texture(texture_normal, fragTextureCoord));
     normal = normalize(normal * 2.0 - 1.0);
     float diff = max(dot(normal, lightDir), 0.0);
-    vec3 amb = ambient * vec3(texture(texture_diffuse, FragTextureCoord));
+    vec3 amb = ambient * vec3(texture(texture_diffuse, fragTextureCoord));
     float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
     float shadow = 0.0;
 
     for (int x = -1; x <= 1; ++x) {
       for (int y = -1; y <= 1; ++y) {
-        shadow += ShadowCalculation(bias, FragPosLightSpace, vec2(x, y) * texelSize);
+        shadow += ShadowCalculation(bias, fragPosLightSpace, vec2(x, y) * texelSize);
       }
     }
 
@@ -70,23 +70,23 @@ void main() {
       vec3 normal = vec3(0.0, 1.0, 0.0);
       vec3 specLightDir = normalize(vec3(-3.0, 0.0, -1.0));
       vec3 reflectDir = reflect(specLightDir, normal);
-      vec3 viewDir = normalize(viewPos - FragWorldPos);
+      vec3 viewDir = normalize(viewPos - fragWorldPos);
       float shininess = 0.7;
       float str = 1;//0.88;
       float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-      color += str * spec * texture(texture_specular, FragTextureCoord) * vec4(directionLight.color, 1.0);
+      color += str * spec * texture(texture_specular, fragTextureCoord) * vec4(directionLight.color, 1.0);
     }
 
     if (usePointLight) {
-      vec3 lightDir = normalize(pointLight.worldPos - FragWorldPos);
+      vec3 lightDir = normalize(pointLight.worldPos - fragWorldPos);
       vec3 normal = vec3(0.0, 1.0, 0.0);
       float diff = max(dot(normal, lightDir), 0.0);
-      float distance = length(pointLight.worldPos- FragWorldPos);
+      float distance = length(pointLight.worldPos- fragWorldPos);
       float linear = 0.5;
       float constant = 0;
       float quadratic = 3;
       float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));
-      vec3 diffuse  = pointLight.color  * diff * vec3(texture(texture_diffuse, FragTextureCoord));
+      vec3 diffuse  = pointLight.color  * diff * vec3(texture(texture_diffuse, fragTextureCoord));
       diffuse *= attenuation;
       // needs to have the opposite effect for good flash shadows
       // color += vec4(diffuse.xyz, 1.0) * (1.0 - shadow * diff); // doesn't work

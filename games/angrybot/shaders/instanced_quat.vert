@@ -8,7 +8,7 @@ layout(location = 1) in vec2 inTexCoord;
 layout(location = 2) in vec4 rotationQuat;
 layout(location = 3) in vec3 positionOffset;
 
-out vec2 FragTextureCoord;
+out vec2 fragTextureCoord;
 
 // Transformation matrices
 uniform mat4 projectionView;
@@ -82,5 +82,5 @@ void main() {
 
     gl_Position = projectionView * vec4(rotatedInPos + positionOffset, 1.0);
 
-    FragTextureCoord = inTexCoord;
+    fragTextureCoord = inTexCoord;
 }

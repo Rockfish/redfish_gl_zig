@@ -14,7 +14,6 @@ const Mat4 = math.Mat4;
 const Shader = core.Shader;
 const Texture = core.texture.Texture;
 const TextureConfig = core.texture.TextureConfig;
-const TextureType = core.texture.TextureType;
 const TextureWrap = core.texture.TextureWrap;
 const TextureFilter = core.texture.TextureFilter;
 
@@ -34,12 +33,12 @@ pub const MuzzleFlash = struct {
         self.muzzle_flash_sprites_age.deinit();
     }
 
-    pub fn init(arena: *ArenaAllocator, unit_square_vao: c_uint) !Self {
+    pub fn init(allocator: Allocator, unit_square_vao: c_uint) !Self {
         const texture_config: TextureConfig = .{ .wrap = .Repeat };
 
         const texture_muzzle_flash_sprite_sheet = try Texture.initFromFile(
-            arena,
-            "angrybots_assets/Textures/Bullet/muzzle_spritesheet.png",
+            allocator,
+            "assets/angrybots_assets/Textures/Bullet/muzzle_spritesheet.png",
             texture_config,
         );
 
@@ -49,7 +48,6 @@ pub const MuzzleFlash = struct {
             0.03,
         );
 
-        const allocator = arena.allocator();
         return .{
             .unit_square_vao = unit_square_vao,
             .muzzle_flash_impact_sprite = muzzle_flash_impact_sprite,
@@ -114,11 +112,11 @@ pub const MuzzleFlash = struct {
 
         const scale: f32 = 50.0;
 
-        var model = muzzle_transform.mulMat4(&Mat4.fromScale(&vec3(scale, scale, scale)));
+        var model = muzzle_transform.mulMat4(&Mat4.fromScale(vec3(scale, scale, scale)));
 
         model = model.mulMat4(&Mat4.fromRotationX(math.degreesToRadians(-90.0)));
         model = model.mulMat4(&Mat4.fromRotationZ(math.degreesToRadians(-90.0)));
-        model = model.mulMat4(&Mat4.fromTranslation(&vec3(0.7, -0.5, -0.7))); // adjust for position in the texture
+        model = model.mulMat4(&Mat4.fromTranslation(vec3(0.7, -0.5, -0.7))); // adjust for position in the texture
 
         sprite_shader.setMat4("model", &model);
 

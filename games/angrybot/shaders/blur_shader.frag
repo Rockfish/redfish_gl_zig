@@ -1,5 +1,5 @@
 #version 330 core
-in vec2 FragTextureCoord;
+in vec2 fragTextureCoord;
 
 out vec4 FragColor;
 
@@ -16,7 +16,7 @@ float CalcBrightness(vec3 col) {
 
 void main() {
 
-  vec3 baseSample = texture(image, FragTextureCoord).rgb;
+  vec3 baseSample = texture(image, fragTextureCoord).rgb;
 
   vec2 tex_offset = 1.0 / textureSize(image, 0); // gets size of single texel
 
@@ -24,13 +24,13 @@ void main() {
 
   if (horizontal) {
     for(int i = 1; i < BLUR_DIST; ++i) {
-      result += texture(image, FragTextureCoord + vec2(tex_offset.x * i, 0.0)).rgb * weight[i];
-      result += texture(image, FragTextureCoord - vec2(tex_offset.x * i, 0.0)).rgb * weight[i];
+      result += texture(image, fragTextureCoord + vec2(tex_offset.x * i, 0.0)).rgb * weight[i];
+      result += texture(image, fragTextureCoord - vec2(tex_offset.x * i, 0.0)).rgb * weight[i];
     }
   } else {
     for(int i = 1; i < BLUR_DIST; ++i) {
-      result += texture(image, FragTextureCoord + vec2(0.0, tex_offset.y * i)).rgb * weight[i];
-      result += texture(image, FragTextureCoord - vec2(0.0, tex_offset.y * i)).rgb * weight[i];
+      result += texture(image, fragTextureCoord + vec2(0.0, tex_offset.y * i)).rgb * weight[i];
+      result += texture(image, fragTextureCoord - vec2(0.0, tex_offset.y * i)).rgb * weight[i];
     }
   }
 

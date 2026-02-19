@@ -10,7 +10,7 @@ layout(location = 3) in vec4 transformRow1;
 layout(location = 4) in vec4 transformRow2;
 layout(location = 5) in vec4 transformRow3;
 
-out vec2 FragTextureCoord;
+out vec2 fragTextureCoord;
 
 // Transformation matrices
 uniform mat4 projectionView;
@@ -27,5 +27,5 @@ void main() {
     // Apply the complete transformation: projection * view * model * vertex
     gl_Position = projectionView * transform * vec4(inPosition, 1.0);
 
-    FragTextureCoord = inTexCoord;
+    fragTextureCoord = inTexCoord;
 }

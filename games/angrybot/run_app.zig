@@ -22,7 +22,7 @@ const CameraType = world.CameraType;
 const Player = @import("player.zig").Player;
 const Enemy = @import("enemy.zig").Enemy;
 const EnemySystem = @import("enemy.zig").EnemySystem;
-const BulletStore = @import("bullets_matrix.zig").BulletStore;
+const BulletStore = @import("bullets.zig").BulletStore;
 const BurnMarks = @import("burn_marks.zig").BurnMarks;
 const MuzzleFlash = @import("muzzle_flash.zig").MuzzleFlash;
 const Floor = @import("floor.zig").Floor;
@@ -56,15 +56,19 @@ var scene_fbo: fb.FrameBuffer = undefined;
 var horizontal_blur_fbo: fb.FrameBuffer = undefined;
 var vertical_blur_fbo: fb.FrameBuffer = undefined;
 
-pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
+pub fn run(window: *glfw.Window) !void {
     var buf: [512]u8 = undefined;
     const exe_dir = try std.fs.selfExeDirPath(&buf);
     // const cwd = try std.os.getFdPath(&buf);
     log.info("Running game. exe_dir = {s} ", .{exe_dir});
 
-    var arena = std.heap.ArenaAllocator.init(allocator);
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
     defer arena.deinit();
-    const alloc_arena = arena.allocator();
+
+    const allocator = arena.allocator();
 
     var buffer: [1024]u8 = undefined;
     const root_path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
@@ -74,66 +78,66 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
 
     // Shaders
     const player_shader = try Shader.init(
-        alloc_arena,
+        allocator,
         "games/angrybot/shaders/player_shader.vert",
         "games/angrybot/shaders/player_shader.frag",
     );
     const player_emissive_shader = try Shader.init(
-        alloc_arena,
+        allocator,
         "games/angrybot/shaders/player_shader.vert",
         "games/angrybot/shaders/texture_emissive_shader.frag",
     );
 
     const enemy_shader = try Shader.init(
-        alloc_arena,
+        allocator,
         "games/angrybot/shaders/wiggly_shader.vert",
         "games/angrybot/shaders/player_shader.frag",
     );
 
     const floor_shader = try Shader.init(
-        alloc_arena,
+        allocator,
         "games/angrybot/shaders/basic_texture_shader.vert",
         "games/angrybot/shaders/floor_shader.frag",
     );
 
     // bullets, muzzle flash, burn marks - using matrix-based instanced shader
     const instanced_matrix_shader = try Shader.init(
-        alloc_arena,
-        "games/angrybot/shaders/instanced_matrix.vert",
+        allocator,
+        "games/angrybot/shaders/instanced_quat.vert",
         "games/angrybot/shaders/basic_texture_shader.frag",
     );
     const sprite_shader = try Shader.init(
-        alloc_arena,
+        allocator,
         "games/angrybot/shaders/geom_shader2.vert",
         "games/angrybot/shaders/sprite_shader.frag",
     );
     const basic_texture_shader = try Shader.init(
-        alloc_arena,
+        allocator,
         "games/angrybot/shaders/basic_texture_shader.vert",
         "games/angrybot/shaders/basic_texture_shader.frag",
     );
 
     // blur and scene
     const blur_shader = try Shader.init(
-        alloc_arena,
+        allocator,
         "games/angrybot/shaders/basicer_shader.vert",
         "games/angrybot/shaders/blur_shader.frag",
     );
     const scene_draw_shader = try Shader.init(
-        alloc_arena,
+        allocator,
         "games/angrybot/shaders/basicer_shader.vert",
         "games/angrybot/shaders/texture_merge_shader.frag",
     );
 
     // for debug
     const basicer_shader = try Shader.init(
-        alloc_arena,
+        allocator,
         "games/angrybot/shaders/basicer_shader.vert",
         "games/angrybot/shaders/basicer_shader.frag",
     );
     // const _depth_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/depth_shader.vert", "games/angrybot/shaders/depth_shader.frag");
     const _debug_depth_shader = try Shader.init(
-        alloc_arena,
+        allocator,
         "games/angrybot/shaders/debug_depth_quad.vert",
         "games/angrybot/shaders/debug_depth_quad.frag",
     );
@@ -190,7 +194,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     // const _camera_up = vec3(0.0, 1.0, 0.0);
 
     const game_camera = try Camera.init(
-        alloc_arena,
+        allocator,
         .{
             //.position = vec3(0.0, 20.0, 80.0),
             .position = vec3(4.0, 10.0, 30.0),
@@ -201,7 +205,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     );
 
     const floating_camera = try Camera.init(
-        alloc_arena,
+        allocator,
         .{
             .position = vec3(0.0, 10.0, 20.0),
             .target = vec3(0.0, 0.0, 0.0),
@@ -211,7 +215,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     );
 
     const ortho_camera = try Camera.init(
-        alloc_arena,
+        allocator,
         .{
             .position = vec3(0.0, 1.0, 0.0),
             .target = vec3(0.0, 0.0, 0.0),
@@ -231,21 +235,21 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     log.info("camers loaded", .{});
 
     // Models and systems (modern glTF system doesn't need global texture cache)
-    var player = try Player.init(alloc_arena);
-    var enemy_system = try EnemySystem.init(alloc_arena);
-    var muzzle_flash = try MuzzleFlash.init(&arena, unit_square_quad);
-    var bullet_store = try BulletStore.init(&arena, unit_square_quad);
-    var floor = try Floor.init(&arena);
-    const burn_marks = try BurnMarks.init(&arena, unit_square_quad);
+    var player = try Player.init(allocator);
+    var enemy_system = try EnemySystem.init(allocator);
+    var muzzle_flash = try MuzzleFlash.init(allocator, unit_square_quad);
+    var bullet_store = try BulletStore.init(allocator, unit_square_quad);
+    var floor = try Floor.init(allocator);
+    const burn_marks = try BurnMarks.init(allocator, unit_square_quad);
 
     log.info("models loaded", .{});
 
     const clips = [2]world.ClipData{
-        .{ .clip = .Explosion, .file = "angrybots_assets/Audio/Enemy_SFX/enemy_Spider_DestroyedExplosion.wav" },
-        .{ .clip = .GunFire, .file = "angrybots_assets/Audio/Player_SFX/player_shooting.wav" },
+        .{ .clip = .Explosion, .file = "assets/angrybots_assets/Audio/Enemy_SFX/enemy_Spider_DestroyedExplosion.wav" },
+        .{ .clip = .GunFire, .file = "assets/angrybots_assets/Audio/Player_SFX/player_shooting.wav" },
     };
 
-    var sound_engine = try SoundEngine(world.ClipName, world.ClipData).init(alloc_arena, &clips);
+    var sound_engine = try SoundEngine(world.ClipName, world.ClipData).init(allocator, &clips);
     defer sound_engine.deinit();
 
     // Initialize the world state
@@ -264,7 +268,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         // .orthographic_projection = orthographic_projection,
         // .projection_view = undefined,
         .player = player,
-        .enemies = ManagedArrayList(?Enemy).init(alloc_arena),
+        .enemies = ManagedArrayList(?Enemy).init(allocator),
         .light_postion = vec3(1.2, 1.0, 2.0),
         .delta_time = 0.0,
         .frame_time = 0.0,
@@ -297,23 +301,23 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
     // Set constant shader uniforms
 
     player_shader.useShader();
-    player_shader.setVec3("directionLight.dir", &player_light_dir);
-    player_shader.setVec3("directionLight.color", &light_color);
-    player_shader.setVec3("ambient", &ambient_color);
+    player_shader.setVec3("directionLight.dir", player_light_dir);
+    player_shader.setVec3("directionLight.color", light_color);
+    player_shader.setVec3("ambient", ambient_color);
 
     // player_shader.bindTextureAuto("shadow_map", depth_map_fbo.texture_id);
 
     floor_shader.useShader();
-    floor_shader.setVec3("directionLight.dir", &light_dir);
-    floor_shader.setVec3("directionLight.color", &floor_light_color);
-    floor_shader.setVec3("ambient", &floor_ambient_color);
+    floor_shader.setVec3("directionLight.dir", light_dir);
+    floor_shader.setVec3("directionLight.color", floor_light_color);
+    floor_shader.setVec3("ambient", floor_ambient_color);
 
     // floor_shader.bindTextureAuto("shadow_map", depth_map_fbo.texture_id);
 
     enemy_shader.useShader();
-    enemy_shader.setVec3("directionLight.dir", &player_light_dir);
-    enemy_shader.setVec3("directionLight.color", &light_color);
-    enemy_shader.setVec3("ambient", &ambient_color);
+    enemy_shader.setVec3("directionLight.dir", player_light_dir);
+    enemy_shader.setVec3("directionLight.color", light_color);
+    enemy_shader.setVec3("ambient", ambient_color);
 
     log.info("games/angrybot/shaders initilized", .{});
     // --------------------------------
@@ -361,20 +365,20 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         state.game_camera.movement.target = state.player.position;
         state.active_camera.movement.target = state.player.position;
         // world.updateCameras();
-//
+        //
         // const game_view = Mat4.lookAtRhGl(
-            // &state.game_camera.movement.position,
-            // &state.player.position,
-            // &state.game_camera.movement.up,
+        // &state.game_camera.movement.position,
+        // &state.player.position,
+        // &state.game_camera.movement.up,
         // );
 
         aim_angle = world.getMousePointAngle(&state.game_camera.getView(), &state.player.position);
-        const aim_rotation_matrix = Mat4.fromAxisAngle(&vec3(0.0, 1.0, 0.0), aim_angle);
+        const aim_rotation_matrix = Mat4.fromAxisAngle(vec3(0.0, 1.0, 0.0), aim_angle);
 
-        var player_scale = Vec3.splat(world.PLAYER_MODEL_SCALE);
-        var scale_mat4 = Mat4.fromScale(&player_scale);
+        const player_scale = Vec3.splat(world.PLAYER_MODEL_SCALE);
+        var scale_mat4 = Mat4.fromScale(player_scale);
 
-        var player_transform = Mat4.fromTranslation(&player.position);
+        var player_transform = Mat4.fromTranslation(player.position);
         player_transform = player_transform.mulMat4(&scale_mat4);
         player_transform = player_transform.mulMat4(&aim_rotation_matrix);
 
@@ -393,18 +397,18 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         try bullet_store.updateBullets(&state);
 
         if (player.is_alive) {
-            // try enemy_system.update(&state);
-            // enemy_system.chasePlayer(&state);
+            try enemy_system.update(&state);
+            enemy_system.chasePlayer(&state);
         }
 
         try player.update(&state, aim_angle);
 
         var use_point_light = false;
-        var muzzle_world_position = Vec3.default();
+        var muzzle_world_position = Vec3.Zero;
 
         if (muzzle_flash.muzzle_flash_sprites_age.list.items.len != 0) {
             const min_age = muzzle_flash.getMinAge();
-            const muzzle_world_position_vec4 = muzzle_transform.mulVec4(&vec4(0.0, 0.0, 0.0, 1.0));
+            const muzzle_world_position_vec4 = muzzle_transform.mulVec4(vec4(0.0, 0.0, 0.0, 1.0));
 
             muzzle_world_position = vec3(
                 muzzle_world_position_vec4.x / muzzle_world_position_vec4.w,
@@ -420,7 +424,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         const ortho_size: f32 = 10.0;
 
         const light_projection = Mat4.orthographicRhGl(-ortho_size, ortho_size, -ortho_size, ortho_size, near_plane, far_plane);
-        const light_view = Mat4.lookAtRhGl(&player.position.sub(&player_light_dir.mulScalar(20)), &player.position, &vec3(0.0, 1.0, 0.0));
+        const light_view = Mat4.lookAtRhGl(player.position.sub(player_light_dir.mulScalar(20)), player.position, Vec3.World_Up);
         const light_space_matrix = light_projection.mulMat4(&light_view);
 
         // log.info("light_projection = {any}\nplayer.position = {any}\neye = {any}\nlight_view = {any}\nlight_space_matrix = {any}", .{
@@ -437,18 +441,18 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         player_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
         player_shader.setMat4("model", &player_transform);
         player_shader.setMat4("aimRot", &aim_rotation_matrix);
-        player_shader.setVec3("viewPos", &state.game_camera.movement.position);
+        player_shader.setVec3("viewPos", state.game_camera.movement.transform.translation);
         player_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
         player_shader.setBool("usePointLight", use_point_light);
-        player_shader.setVec3("pointLight.color", &muzzle_point_light_color);
-        player_shader.setVec3("pointLight.worldPos", &muzzle_world_position);
+        player_shader.setVec3("pointLight.color", muzzle_point_light_color);
+        player_shader.setVec3("pointLight.worldPos", muzzle_world_position);
 
         floor_shader.useShader();
-        floor_shader.setVec3("viewPos", &state.game_camera.movement.position);
+        floor_shader.setVec3("viewPos", state.game_camera.movement.transform.translation);
         floor_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
         floor_shader.setBool("usePointLight", use_point_light);
-        floor_shader.setVec3("pointLight.color", &muzzle_point_light_color);
-        floor_shader.setVec3("pointLight.worldPos", &muzzle_world_position);
+        floor_shader.setVec3("pointLight.color", muzzle_point_light_color);
+        floor_shader.setVec3("pointLight.worldPos", muzzle_world_position);
 
         //
         // shadows start - write to depth map fbo
@@ -464,7 +468,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         player_shader.setBool("depth_mode", true);
         player_shader.setBool("useLight", false);
 
-        player.render(player_shader);
+        player.draw(player_shader);
 
         enemy_shader.useShader();
         enemy_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
@@ -478,7 +482,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         //
 
         if (use_framebuffers) {
-            // render to emission buffer
+            // draw to emission buffer
 
             gl.bindFramebuffer(gl.FRAMEBUFFER, emissions_fbo.framebuffer_id);
             gl.viewport(0, 0, @intFromFloat(viewport_width), @intFromFloat(viewport_height));
@@ -489,9 +493,9 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             player_emissive_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
             player_emissive_shader.setMat4("model", &player_transform);
 
-            // log.info("rendering player with emissive shader", .{});
+            // log.info("drawing player with emissive shader", .{});
             // player_shader.bindTextureAuto("shadow_map", depth_map_fbo.texture_id);
-            player.render(player_emissive_shader);
+            player.draw(player_emissive_shader);
 
             // doesn't seem to do anything
             // {
@@ -511,7 +515,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             //     }
             // }
 
-            // log.info("rendering bullet_store ", .{});
+            // log.info("drawing bullet_store ", .{});
             bullet_store.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
 
             // const debug_emission = false;
@@ -528,8 +532,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             //     basicer_shader.setBool("greyscale", false);
             //     basicer_shader.setInt("tex", texture_unit);
             //
-            //     // log.info("rendering quads ", .{});
-            //     quads.renderQuad(&quad_vao);
+            //     // log.info("drawing quads ", .{});
+            //     quads.drawQuad(&quad_vao);
             //
             //     window.swap_buffers();
             //     continue;
@@ -545,10 +549,10 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         //     _debug_depth_shader.useShader();
         //     _debug_depth_shader.setFloat("near_plane", near_plane);
         //     _debug_depth_shader.setFloat("far_plane", far_plane);
-        //     quads.renderQuad(&quad_vao);
+        //     quads.drawQuad(&quad_vao);
         // }
 
-        // render to scene buffer for base texture
+        // draw to scene buffer for base texture
         if (use_framebuffers) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, scene_fbo.framebuffer_id);
             gl.viewport(0, 0, @intFromFloat(viewport_width), @intFromFloat(viewport_height));
@@ -567,7 +571,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         floor_shader.setBool("useLight", true);
         floor_shader.setBool("useSpec", true);
 
-        // log.info("rendering floor", .{});
+        // log.info("drawing floor", .{});
         floor.draw(floor_shader, &state.active_camera.getProjectionView());
 
         player_shader.useShader();
@@ -575,8 +579,8 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         player_shader.setBool("useEmissive", true);
         player_shader.setBool("depth_mode", false);
 
-        // log.info("rendering player", .{});
-        player.render(player_shader);
+        // log.info("drawing player", .{});
+        player.draw(player_shader);
 
         muzzle_flash.draw(sprite_shader, &state.active_camera.getProjectionView(), &muzzle_transform);
 
@@ -585,13 +589,13 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
         enemy_shader.setBool("useEmissive", false);
         enemy_shader.setBool("depth_mode", false);
 
-        // log.info("rendering enemies", .{});
+        // log.info("drawing enemies", .{});
         enemy_system.drawEnemies(enemy_shader, &state);
 
-        // log.debug("rendering burn_marks", .{});
+        // log.debug("drawing burn_marks", .{});
         state.burn_marks.drawMarks(basic_texture_shader, &state.active_camera.getProjectionView(), state.delta_time);
 
-        // log.info("rendering bullet_impacts", .{});
+        // log.info("drawing bullet_impacts", .{});
         bullet_store.drawBulletImpacts(sprite_shader, &state.active_camera.getProjectionView());
 
         if (!use_framebuffers) {
@@ -658,7 +662,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window) !void {
             //     basicer_shader.setBool("greyscale", false);
             //     basicer_shader.setInt("tex", texture_unit);
             //
-            //     quads.renderQuad(&quad_vao);
+            //     quads.drawQuad(&quad_vao);
             //
             //     window.swap_buffers();
             //     continue;

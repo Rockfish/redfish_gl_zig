@@ -26,7 +26,7 @@ const NUM_TILE_WRAPS: f32 = FLOOR_SIZE / TILE_SIZE;
 const SIZE_OF_FLOAT = @sizeOf(f32);
 
 const FLOOR_VERTICES: [30]f32 = .{
-    // Vertices                                // FragTextureCoord
+    // Vertices                                // fragTextureCoord
     -FLOOR_SIZE / 2.0, 0.0, -FLOOR_SIZE / 2.0, 0.0,            0.0,
     -FLOOR_SIZE / 2.0, 0.0, FLOOR_SIZE / 2.0,  NUM_TILE_WRAPS, 0.0,
     FLOOR_SIZE / 2.0,  0.0, FLOOR_SIZE / 2.0,  NUM_TILE_WRAPS, NUM_TILE_WRAPS,
@@ -50,7 +50,7 @@ pub const Floor = struct {
         self.texture_floor_spec.deleteGlTexture();
     }
 
-    pub fn init(arena: *ArenaAllocator) !Self {
+    pub fn init(allocator: Allocator) !Self {
         const texture_config = TextureConfig{
             .flip_v = false,
             .gamma_correction = false,
@@ -59,18 +59,18 @@ pub const Floor = struct {
         };
 
         const texture_floor_diffuse = try Texture.initFromFile(
-            arena,
-            "angrybots_assets/Textures/Floor/Floor D.png",
+            allocator,
+            "assets/Textures/Floor/Floor D.png",
             texture_config,
         );
         const texture_floor_normal = try Texture.initFromFile(
-            arena,
-            "angrybots_assets/Textures/Floor/Floor N.png",
+            allocator,
+            "assets/Textures/Floor/Floor N.png",
             texture_config,
         );
         const texture_floor_spec = try Texture.initFromFile(
-            arena,
-            "angrybots_assets/Textures/Floor/Floor M.png",
+            allocator,
+            "assets/Textures/Floor/Floor M.png",
             texture_config,
         );
 
@@ -127,7 +127,7 @@ pub const Floor = struct {
         // angle floor
         // const _model = Mat4.from_axis_angle(vec3(0.0, 1.0, 0.0), math.degreesToRadians(45.0));
 
-        const model = Mat4.identity();
+        const model = Mat4.Identity;
 
         shader.setMat4("projectionView", projection_view);
         shader.setMat4("model", &model);

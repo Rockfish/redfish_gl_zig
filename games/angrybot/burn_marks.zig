@@ -38,8 +38,7 @@ pub const BurnMarks = struct {
         self.marks.deinit();
     }
 
-    pub fn init(arena: *ArenaAllocator, unit_square_vao: c_uint) !*Self {
-        const allocator = arena.allocator();
+    pub fn init(allocator: Allocator, unit_square_vao: c_uint) !*Self {
 
         const texture_config = TextureConfig{
             .filter = .Linear,
@@ -48,7 +47,7 @@ pub const BurnMarks = struct {
             .gamma_correction = false,
         };
 
-        const mark_texture = try Texture.initFromFile(arena, "angrybots_assets/Textures/Bullet/burn_mark.png", texture_config);
+        const mark_texture = try Texture.initFromFile(allocator, "assets/angrybots_assets/Textures/Bullet/burn_mark.png", texture_config);
 
         const burn_marks = try allocator.create(BurnMarks);
         burn_marks.* = .{
@@ -90,10 +89,10 @@ pub const BurnMarks = struct {
             mark.*.?.time_left -= delta_time;
 
             // model *= Mat4.from_translation(vec3(mark.x, 0.01, mark.z));
-            var model = Mat4.fromTranslation(&mark.*.?.position);
+            var model = Mat4.fromTranslation(mark.*.?.position);
 
             model = model.mulMat4(&Mat4.fromRotationX(math.degreesToRadians(-90.0)));
-            model = model.mulMat4(&Mat4.fromScale(&vec3(scale, scale, scale)));
+            model = model.mulMat4(&Mat4.fromScale(vec3(scale, scale, scale)));
 
             shader.setMat4("model", &model);
 

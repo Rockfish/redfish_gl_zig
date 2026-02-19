@@ -9,11 +9,6 @@ const VIEW_PORT_WIDTH: f32 = 1500.0;
 const VIEW_PORT_HEIGHT: f32 = 1000.0;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    const allocator = gpa.allocator();
-
     try glfw.init();
     defer glfw.terminate();
 
@@ -35,7 +30,7 @@ pub fn main() !void {
 
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    try run_app(allocator, window);
+    try run_app(window);
 
     log.info("Exiting main", .{});
 }
