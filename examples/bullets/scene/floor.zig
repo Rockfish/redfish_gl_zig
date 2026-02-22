@@ -13,6 +13,8 @@ const Mat4 = math.Mat4;
 const Shader = core.Shader;
 const Shape = core.shapes.Shape;
 const Plane = core.shapes.Plane;
+const RenderContext = core.RenderContext;
+const uniforms = core.constants.Uniforms;
 
 pub const Floor = struct {
     plane: Plane,
@@ -28,7 +30,7 @@ pub const Floor = struct {
                 .tile_size = 1.0,
                 .diffuse_texture = "assets/Textures/Floor/Floor D.png",
                 .normal_texture = "assets/Textures/Floor/Floor N.png",
-                .spectal_texture = "assets/Textures/Floor/Floor M.png",
+                .specular_texture = "assets/Textures/Floor/Floor M.png",
             },
         );
         floor.shape.is_transparent = true;
@@ -53,14 +55,15 @@ pub const Floor = struct {
     }
 
     pub fn update_lights(self: *Self, lights: Lights) void {
-        self.shader.setVec3("ambientColor", lights.ambient_color);
-        self.shader.setVec3("lightColor", lights.light_color);
-        self.shader.setVec3("lightDirection", lights.light_direction);
+        lights.apply(self.shader);
     }
 
-    pub fn draw(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        // self.shader.setMat4("matProjection", projection);
-        // self.shader.setMat4("matView", view);
-        self.plane.draw(self.shader, projection, view);
+    pub fn draw(self: *Self, ctx: RenderContext) void {
+        self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
+        self.shader.setMat4(uniforms.Mat_Model, &Mat4.Identity);
+        self.shader.bindTextureAuto(uniforms.Texture_Diffuse, self.plane.texture_diffuse.gl_texture_id);
+        self.shader.bindTextureAuto(uniforms.Texture_Normal, self.plane.texture_normal.gl_texture_id);
+        self.shader.bindTextureAuto(uniforms.Texture_Spec, self.plane.texture_spec.gl_texture_id);
+        self.plane.shape.draw(self.shader);
     }
 };

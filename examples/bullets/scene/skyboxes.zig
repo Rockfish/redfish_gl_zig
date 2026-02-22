@@ -11,6 +11,7 @@ const Mat4 = math.Mat4;
 const Shader = core.Shader;
 const Shape = core.shapes.Shape;
 const uniforms = core.constants.Uniforms;
+const RenderContext = core.RenderContext;
 
 pub const SkyBoxDirections = struct {
     skybox: core.shapes.Skybox,
@@ -42,10 +43,10 @@ pub const SkyBoxDirections = struct {
         };
     }
 
-    pub fn draw(self: *Self, projection: *const Mat4, view: *const Mat4) void {
+    pub fn draw(self: *Self, ctx: RenderContext) void {
         if (!self.is_visible) return;
-        self.shader.setMat4(uniforms.Mat_Projection, projection);
-        self.shader.setMat4(uniforms.Mat_View, &view.removeTranslation());
+        self.shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        self.shader.setMat4(uniforms.Mat_View, &ctx.view.removeTranslation());
         self.skybox.draw();
     }
 };

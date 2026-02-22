@@ -40,7 +40,7 @@ pub fn run_app(window: *glfw.Window, max_duration: ?f32) !void {
 
         try world.scene.update(input);
 
-        world.scene.draw();
+        world.scene.draw(input.total_time);
 
         window.swapBuffers();
     }

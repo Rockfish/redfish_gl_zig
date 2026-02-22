@@ -14,6 +14,7 @@ const Shader = core.Shader;
 const Lines = core.shapes.Lines;
 const LineSegment = core.shapes.LineSegment;
 const uniforms = core.constants.Uniforms;
+const RenderContext = core.RenderContext;
 
 const Color = core.Color;
 const Vec3 = math.Vec3;
@@ -67,15 +68,12 @@ pub const Turret = struct {
         self.bullets.update(input.delta_time);
     }
 
-    pub fn draw(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        self.drawLines(projection, view);
-        self.bullets.draw(projection, view);
+    pub fn draw(self: *Self, ctx: RenderContext) void {
+        self.drawLines(ctx);
+        self.bullets.draw(ctx);
     }
 
-    pub fn drawLines(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        self.line_shader.setMat4(uniforms.Mat_Projection, projection);
-        self.line_shader.setMat4(uniforms.Mat_View, view);
-
+    pub fn drawLines(self: *Self, ctx: RenderContext) void {
         var transformed: [1]LineSegment = undefined;
         const line_dir = self.aim_transform.rotation.rotateVec(Vec3.World_Forward);
 
@@ -85,7 +83,7 @@ pub const Turret = struct {
             .color = Color.yellow,
         };
 
-        self.lines.draw(&transformed, projection, view);
+        self.lines.draw(&transformed, &ctx.projection, &ctx.view);
     }
 
     pub fn processInput(self: *Self, input: *core.Input) !void {

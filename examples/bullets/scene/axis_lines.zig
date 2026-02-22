@@ -12,6 +12,7 @@ const LineSegment = core.shapes.LineSegment;
 const Mat4 = math.Mat4;
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
+const RenderContext = core.RenderContext;
 
 // World unit axis for right handed coordinates
 // x: right, red; y: up, green; -z: forward, blue
@@ -76,20 +77,20 @@ pub const AxisLines = struct {
         };
     }
 
-    pub fn draw(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        self.drawWorldAxis(projection, view);
-        // self.drawLocalAxis(projection, view);
+    pub fn draw(self: *Self, ctx: RenderContext) void {
+        self.drawWorldAxis(ctx);
+        // self.drawLocalAxis(ctx);
     }
 
-    pub fn drawWorldAxis(self: *Self, projection: *const Mat4, view: *const Mat4) void {
+    pub fn drawWorldAxis(self: *Self, ctx: RenderContext) void {
         if (!self.world_axis.is_visible) {
             return;
         }
 
-        self.lines.draw(&self.world_axis.lines, projection, view);
+        self.lines.draw(&self.world_axis.lines, &ctx.projection, &ctx.view);
     }
 
-    pub fn drawLocalAxis(self: *Self, projection: *const Mat4, view: *const Mat4) void {
+    pub fn drawLocalAxis(self: *Self, ctx: RenderContext) void {
         if (!self.local_axis.is_visible) {
             return;
         }
@@ -109,7 +110,7 @@ pub const AxisLines = struct {
             };
         }
 
-        self.lines.draw(&transformed, projection, view);
+        self.lines.draw(&transformed, &ctx.projection, &ctx.view);
     }
 
     pub fn deinit(self: *Self) void {

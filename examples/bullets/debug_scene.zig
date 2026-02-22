@@ -10,7 +10,8 @@ const grids = @import("scene/grid.zig");
 const AxisLines = @import("scene/axis_lines.zig").AxisLines;
 const Cube = @import("scene/cube.zig").Cube;
 const Floor = @import("scene/floor.zig").Floor;
-const Lights = @import("scene/lights.zig").Lights;
+const scene_lights = @import("scene/lights.zig");
+const Lights = scene_lights.Lights;
 const SkyBoxDirections = @import("scene/skyboxes.zig").SkyBoxDirections;
 const Spacesuit = @import("scene/spacesuit.zig").Spacesuit;
 const ToonSoldier = @import("scene/toon_soldier.zig").ToonSoldier;
@@ -19,7 +20,6 @@ const BulletSystem = @import("projectiles/bullet_system.zig").BulletSystem;
 const Turret = @import("projectiles/turret.zig").Turret;
 
 const Vec3 = math.Vec3;
-const vec3 = math.vec3;
 const Vec4 = math.Vec4;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
@@ -36,11 +36,7 @@ const Plane = core.shapes.Plane;
 
 const Transform = core.Transform;
 
-pub const basic_lights = Lights{
-    .ambient_color = vec3(1.0, 0.6, 0.6),
-    .light_color = vec3(0.35, 0.4, 0.5),
-    .light_direction = vec3(3.0, 3.0, 3.0),
-};
+const basic_lights = scene_lights.basic_lights;
 
 pub const MotionType = enum {
     /// Direct movement along camera's local axes (Left, Right, Up, Down)
@@ -118,20 +114,19 @@ pub const SceneDebug = struct {
         }
     }
 
-    pub fn draw(self: *Self) void {
+    pub fn draw(self: *Self, time: f32) void {
         var camera = self.getSceneCamera().getCamera();
-        const projection = camera.getProjection();
-        const view = camera.getView();
+        const ctx = camera.getRenderContext(time);
 
-        self.cube.draw(&projection, &view);
-        self.axis_lines.draw(&projection, &view);
-        self.skybox.draw(&projection, &view);
+        self.cube.draw(ctx);
+        self.axis_lines.draw(ctx);
+        self.skybox.draw(ctx);
 
-        self.turret.draw(&projection, &view);
-        self.spacesuit.draw(&projection, &view);
-        self.toon_soldier.draw(&projection, &view);
+        self.turret.draw(ctx);
+        self.spacesuit.draw(ctx);
+        self.toon_soldier.draw(ctx);
 
-        self.floor.draw(&projection, &view);
+        self.floor.draw(ctx);
     }
 
     fn processInput(self: *Self, input: *core.Input) !void {

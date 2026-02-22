@@ -12,7 +12,7 @@ pub const Scene = struct {
         obj_ptr: *anyopaque,
         type_id: usize,
         update_fn: *const fn (ptr: *anyopaque, state: *anyopaque) anyerror!void,
-        draw_fn: *const fn (ptr: *anyopaque) void,
+        draw_fn: *const fn (ptr: *anyopaque, time: f32) void,
     };
 
     pub fn init(allocator: Allocator, name: []const u8, object_ptr: anytype, state_ptr: anytype) !*Scene {
@@ -29,9 +29,9 @@ pub const Scene = struct {
                 }
             }
 
-            pub fn drawFn(obj_ptr: *anyopaque) void {
+            pub fn drawFn(obj_ptr: *anyopaque, time: f32) void {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
-                return obj.draw();
+                return obj.draw(time);
             }
         };
 
@@ -56,8 +56,8 @@ pub const Scene = struct {
         try self.dispatch.update_fn(self.dispatch.obj_ptr, state);
     }
 
-    pub fn draw(self: *Scene) void {
-        self.dispatch.draw_fn(self.dispatch.obj_ptr);
+    pub fn draw(self: *Scene, time: f32) void {
+        self.dispatch.draw_fn(self.dispatch.obj_ptr, time);
     }
 
     pub fn castTo(self: *Self, comptime T: type) ?*T {

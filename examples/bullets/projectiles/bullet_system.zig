@@ -19,6 +19,7 @@ const vec4 = math.vec4;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
 const uniforms = core.constants.Uniforms;
+const RenderContext = core.RenderContext;
 
 pub const BULLET_SCALE: f32 = 2.0;
 pub const BULLET_LIFETIME: f32 = 10.0;
@@ -233,10 +234,7 @@ pub const BulletSystem = struct {
         }
     }
 
-    pub fn drawLines(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        self.line_shader.setMat4(uniforms.Mat_Projection, projection);
-        self.line_shader.setMat4(uniforms.Mat_View, view);
-
+    pub fn drawLines(self: *Self, ctx: RenderContext) void {
         var transformed: [Bullets_Per_Side * Bullets_Per_Side]LineSegment = undefined;
         const start: usize = 0;
         const end: usize = self.bullet_rotations_initial.items().len;
@@ -251,17 +249,16 @@ pub const BulletSystem = struct {
             };
         }
 
-        self.lines.draw(&transformed, projection, view);
+        self.lines.draw(&transformed, &ctx.projection, &ctx.view);
     }
 
-    pub fn drawBullets(self: *Self, projection: *const Mat4, view: *const Mat4) void {
+    pub fn drawBullets(self: *Self, ctx: RenderContext) void {
         if (self.bullet_positions.items().len == 0) {
             return;
         }
 
         self.shader.useShader();
-        self.shader.setMat4(uniforms.Mat_Projection, projection);
-        self.shader.setMat4(uniforms.Mat_View, view);
+        self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
 
         gl.bindVertexArray(self.bullet_cube.vao);
 
@@ -292,9 +289,9 @@ pub const BulletSystem = struct {
         );
     }
 
-    pub fn draw(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        if (self.is_lines_visible) self.drawLines(projection, view);
-        self.drawBullets(projection, view);
+    pub fn draw(self: *Self, ctx: RenderContext) void {
+        if (self.is_lines_visible) self.drawLines(ctx);
+        self.drawBullets(ctx);
     }
 
     fn createRotationsBuffers(self: *Self) void {

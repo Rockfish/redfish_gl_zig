@@ -5,8 +5,8 @@ const math = @import("math");
 const Lights = @import("scene/lights.zig").Lights;
 
 const Allocator = std.mem.Allocator;
-const Mat4 = math.Mat4;
 const Transform = core.Transform;
+const RenderContext = core.RenderContext;
 
 pub const SceneObject = struct {
     name: []const u8,
@@ -16,7 +16,7 @@ pub const SceneObject = struct {
 
     const Dispatch = struct {
         obj_ptr: *anyopaque,
-        draw_fn: *const fn (ptr: *anyopaque, projection: *const Mat4, view: *const Mat4) void,
+        draw_fn: *const fn (ptr: *anyopaque, ctx: RenderContext) void,
         update_lights_fn: *const fn (ptr: *anyopaque, lights: Lights) void,
         get_transform_fn: *const fn (ptr: *anyopaque) *Transform,
     };
@@ -25,9 +25,9 @@ pub const SceneObject = struct {
         const gen = struct {
             const ObjectType = @TypeOf(object_ptr);
 
-            pub fn draw(obj_ptr: *anyopaque, projection: *const Mat4, view: *const Mat4) void {
+            pub fn draw(obj_ptr: *anyopaque, ctx: RenderContext) void {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
-                obj.draw(projection, view);
+                obj.draw(ctx);
             }
 
             pub fn updateLights(obj_ptr: *anyopaque, lights: Lights) void {
@@ -54,8 +54,8 @@ pub const SceneObject = struct {
         return scene_object;
     }
 
-    pub fn draw(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        self.dispatch.draw_fn(self.dispatch.obj_ptr, projection, view);
+    pub fn draw(self: *Self, ctx: RenderContext) void {
+        self.dispatch.draw_fn(self.dispatch.obj_ptr, ctx);
     }
 
     pub fn updateLights(self: *Self, lights: Lights) void {

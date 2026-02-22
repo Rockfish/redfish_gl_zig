@@ -14,6 +14,7 @@ const Shader = core.Shader;
 const Shape = core.shapes.Shape;
 const Texture = core.texture.Texture;
 const uniforms = core.constants.Uniforms;
+const RenderContext = core.RenderContext;
 
 pub const Cube = struct {
     shape: *Shape,
@@ -64,14 +65,11 @@ pub const Cube = struct {
     }
 
     pub fn update_lights(self: *Self, lights: Lights) void {
-        self.shader.setVec3(uniforms.Ambient_Color, lights.ambient_color);
-        self.shader.setVec3(uniforms.Light_Color, lights.light_color);
-        self.shader.setVec3(uniforms.Light_Direction, lights.light_direction);
+        lights.apply(self.shader);
     }
 
-    pub fn draw(self: *Self, projection: *const Mat4, view: *const Mat4) void {
-        self.shader.setMat4(uniforms.Mat_Projection, projection);
-        self.shader.setMat4(uniforms.Mat_View, view);
+    pub fn draw(self: *Self, ctx: RenderContext) void {
+        self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
         self.shader.setMat4(uniforms.Mat_Model, &self.transform.toMatrix());
         self.shape.draw(self.shader);
     }

@@ -19,6 +19,7 @@ const quat = math.quat;
 
 const Transform = core.Transform;
 const uniforms = core.constants.Uniforms;
+const RenderContext = core.RenderContext;
 
 pub const Grid = struct {
     x_plus: *Shape,
@@ -110,9 +111,8 @@ pub const Grid = struct {
         };
     }
 
-    pub fn draw(self: *const Self, shader: *const Shader, projection: *const Mat4, view: *const Mat4) void {
-        shader.setMat4(uniforms.Mat_Projection, projection);
-        shader.setMat4(uniforms.Mat_View, view);
+    pub fn draw(self: *const Self, shader: *const Shader, ctx: RenderContext) void {
+        shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
         shader.bindTextureAuto("textureDiffuse", self.texture_id);
 
         shader.setMat4(uniforms.Mat_Model, &self.x_plus_mat);
