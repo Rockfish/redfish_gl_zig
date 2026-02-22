@@ -8,6 +8,7 @@ const MovementDirection = @import("movement.zig").MovementDirection;
 const Vec3 = math.Vec3;
 const Mat4 = math.Mat4;
 const Transform = @import("transform.zig").Transform;
+const RenderContext = @import("render.zig").RenderContext;
 
 const MIN_FOV: f32 = 10.0;
 const MAX_FOV: f32 = 120.0;
@@ -260,6 +261,18 @@ pub const Camera = struct {
 
     pub fn getProjectionView(self: *Self) Mat4 {
         return self.getProjection().mulMat4(&self.getView());
+    }
+
+    pub fn getRenderContext(self: *Self, time: f32) RenderContext {
+        const projection = self.getProjection();
+        const view = self.getView();
+        return .{
+            .projection = projection,
+            .projection_view = projection.mulMat4(&view),
+            .view = view,
+            .view_pos = self.getCameraPosition(),
+            .time = time,
+        };
     }
 
     // View mode control

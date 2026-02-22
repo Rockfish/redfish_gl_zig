@@ -32,5 +32,13 @@ pub const AnimationRepeatMode = @import("animator.zig").AnimationRepeatMode;
 pub const WeightedAnimation = @import("animator.zig").WeightedAnimation;
 pub const AnimationStateMachine = @import("animation_fsm.zig").AnimationStateMachine;
 
+pub const lights = @import("lights.zig");
+pub const SceneLights = lights.SceneLights;
+pub const PointLight = lights.PointLight;
+pub const DirectionLight = lights.DirectionLight;
+
+pub const render = @import("render.zig");
+pub const RenderContext = render.RenderContext;
+
 pub const shapes = @import("shapes/root.zig");
 pub const Color = @import("colors.zig").Color;
