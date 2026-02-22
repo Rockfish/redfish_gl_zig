@@ -9,8 +9,7 @@ layout(location = 2) in vec3 inNormal;
 layout(location = 8) in vec4 rotationQuat;
 layout(location = 9) in vec3 positionOffset;
 
-uniform mat4 matView;
-uniform mat4 matProjection;
+uniform mat4 projectionView;
 
 out vec4 fragColor;
 out vec2 fragTexCoord;
@@ -41,7 +40,7 @@ vec3 rotateVec(vec3 v, vec4 q) {
 
 void main() {
     vec3 rotatedPos = rotateVec(inPosition, rotationQuat);
-    gl_Position = matProjection * matView * vec4(rotatedPos + positionOffset, 1.0);
+    gl_Position = projectionView * vec4(rotatedPos + positionOffset, 1.0);
 
     fragTexCoord = inTexCoord;
     fragColor = vec4(1.0);
