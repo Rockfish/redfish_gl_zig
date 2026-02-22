@@ -325,8 +325,8 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
         gl.clearColor(0.5, 0.5, 0.5, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        shader.setMat4(constants.Uniforms.Mat_Projection, &state.projection);
-        shader.setMat4(constants.Uniforms.Mat_View, &state.camera.getViewMatrix());
+        const ctx = state.camera.getRenderContext(state.total_time);
+        shader.setMat4(constants.Uniforms.Projection_View, &ctx.projection_view);
 
         var model_transform = Mat4.identity();
         shader.setMat4(constants.Uniforms.Mat_Model, &model_transform);

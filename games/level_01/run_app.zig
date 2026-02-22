@@ -325,8 +325,8 @@ pub fn run(window: *glfw.Window) !void {
             .direction = world_ray,
         };
 
-        basic_shader.setMat4(uniforms.Mat_Projection, &state.camera.getProjection());
-        basic_shader.setMat4(uniforms.Mat_View, &state.camera.getView());
+        const ctx = state.camera.getRenderContext(state.total_time);
+        basic_shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
         basic_shader.setVec3("ambientColor", vec3(1.0, 0.6, 0.6));
         basic_shader.setVec3("lightColor", vec3(0.35, 0.4, 0.5));
         basic_shader.setVec3("lightDirection", vec3(3.0, 3.0, 3.0));
@@ -334,8 +334,7 @@ pub fn run(window: *glfw.Window) !void {
 
         // basic_shader.setBool("hasColor", false);
 
-        model_shader.setMat4(uniforms.Mat_Projection, &state.camera.getProjection());
-        model_shader.setMat4(uniforms.Mat_View, &state.camera.getView());
+        model_shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
         model_shader.setVec3("ambient_color", vec3(1.0, 0.6, 0.6));
         model_shader.setVec3("lightColor", vec3(0.35, 0.4, 0.5));
         model_shader.setVec3("lightDirection", vec3(3.0, 3.0, 3.0));
