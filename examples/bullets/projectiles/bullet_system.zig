@@ -7,6 +7,7 @@ const gl = @import("zopengl").bindings;
 
 const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
+const ResourceManager = core.ResourceManager;
 const Shader = core.Shader;
 const Shape = core.shapes.Shape;
 const Transform = core.Transform;
@@ -52,16 +53,16 @@ pub const BulletSystem = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: std.mem.Allocator) !Self {
-        const instanced_shader = try Shader.init(
-            allocator,
+    pub fn init(rm: *ResourceManager) !Self {
+        const allocator = rm.allocator;
+
+        const instanced_shader = try rm.createShader(
             "examples/bullets/shaders/instanced_quats.vert",
             "examples/bullets/shaders/basic_model.frag",
         );
 
-        const cubemap_texture = try core.texture.Texture.initFromFile(
-            allocator,
-            "assets/Textures/cubemap_template_2x3.png",
+        const cubemap_texture = try rm.createTexture(
+            "assets/textures/cubemap_template_2x3.png",
             .{
                 .flip_v = false,
                 .gamma_correction = false,
@@ -99,19 +100,17 @@ pub const BulletSystem = struct {
             .is_instanced = false,
         };
 
-        const bullet_cube = try core.shapes.createCube(allocator, cube_config);
-        const plain_cube = try core.shapes.createCube(allocator, cube_config);
+        const bullet_cube = try rm.createCube(cube_config);
+        const plain_cube = try rm.createCube(cube_config);
 
-        const plain_cube_shader = try Shader.init(
-            allocator,
+        const plain_cube_shader = try rm.createShader(
             "examples/bullets/shaders/basic_texture.vert",
             "examples/bullets/shaders/basic_texture.frag",
         );
         plain_cube_shader.setBool(uniforms.Has_Texture, true);
         plain_cube_shader.bindTextureAuto(uniforms.Texture_Diffuse, cubemap_texture.gl_texture_id);
 
-        const lines_shader = try Shader.init(
-            allocator,
+        const lines_shader = try rm.createShader(
             "examples/bullets/shaders/lines.vert",
             "examples/bullets/shaders/lines.frag",
         );

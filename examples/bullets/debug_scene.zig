@@ -4,6 +4,7 @@ const math = @import("math");
 
 const Scene = @import("scene.zig").Scene;
 const SceneCamera = @import("scene_camera.zig").SceneCamera;
+const ResourceManager = core.ResourceManager;
 
 const FreeCamera = @import("scene/free_camera.zig").FreeCamera;
 const grids = @import("scene/grid.zig");
@@ -62,6 +63,7 @@ pub const MotionObject = enum {
 };
 
 pub const SceneDebug = struct {
+    resource_manager: *ResourceManager,
     scene_camera: *SceneCamera,
     cube: Cube = undefined,
     skybox: SkyBoxDirections = undefined,
@@ -86,8 +88,21 @@ pub const SceneDebug = struct {
             input.framebuffer_height,
         );
 
+        const rm = try ResourceManager.init(allocator);
+
         const scene = try allocator.create(SceneDebug);
-        scene.* = .{ .scene_camera = camera, .cube = try Cube.init(allocator), .skybox = try SkyBoxDirections.init(allocator), .floor = try Floor.init(allocator), .axis_lines = try AxisLines.init(allocator), .turret = try Turret.init(allocator), .spacesuit = try Spacesuit.init(allocator), .toon_soldier = try ToonSoldier.init(allocator), .barrel = try core.shapes.loadOBJ(allocator, "assets/modular_ruins/OBJ/Barrel.obj") };
+        scene.* = .{
+            .resource_manager = rm,
+            .scene_camera = camera,
+            .cube = try Cube.init(rm),
+            .skybox = try SkyBoxDirections.init(rm),
+            .floor = try Floor.init(rm),
+            .axis_lines = try AxisLines.init(rm),
+            .turret = try Turret.init(rm),
+            .spacesuit = try Spacesuit.init(rm),
+            .toon_soldier = try ToonSoldier.init(rm),
+            .barrel = try rm.loadOBJ("assets/modular_ruins/OBJ/Barrel.obj"),
+        };
 
         scene.floor.update_lights(basic_lights);
         scene.cube.update_lights(basic_lights);

@@ -3,6 +3,7 @@ const core = @import("core");
 const math = @import("math");
 
 const Allocator = std.mem.Allocator;
+const ResourceManager = core.ResourceManager;
 
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
@@ -20,8 +21,8 @@ pub const SkyBoxDirections = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) !Self {
-        const skybox = core.shapes.Skybox.init(allocator, .{
+    pub fn init(rm: *ResourceManager) !Self {
+        const skybox = core.shapes.Skybox.init(rm.allocator, .{
             .right = "assets/textures/skybox_forward_negZ/right.png",
             .left = "assets/textures/skybox_forward_negZ/left.png",
             .top = "assets/textures/skybox_forward_negZ/top.png",
@@ -30,8 +31,7 @@ pub const SkyBoxDirections = struct {
             .back = "assets/textures/skybox_forward_negZ/back.png",
         });
 
-        const skybox_shader = try Shader.init(
-            allocator,
+        const skybox_shader = try rm.createShader(
             "examples/bullets/shaders/skybox.vert",
             "examples/bullets/shaders/skybox.frag",
         );

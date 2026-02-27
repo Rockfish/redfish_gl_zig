@@ -3,6 +3,7 @@ const core = @import("core");
 const math = @import("math");
 
 const Allocator = std.mem.Allocator;
+const ResourceManager = core.ResourceManager;
 const Shader = core.Shader;
 const Lines = core.shapes.Lines;
 const Color = core.Color;
@@ -52,9 +53,10 @@ pub const AxisLines = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) !Self {
-        const shader = try Shader.init(
-            allocator,
+    pub fn init(rm: *ResourceManager) !Self {
+        const allocator = rm.allocator;
+
+        const shader = try rm.createShader(
             "examples/bullets/shaders/lines.vert",
             "examples/bullets/shaders/lines.frag",
         );

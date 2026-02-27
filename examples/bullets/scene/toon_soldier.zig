@@ -14,6 +14,7 @@ const Quat = math.Quat;
 const quat = math.quat;
 
 const Allocator = std.mem.Allocator;
+const ResourceManager = core.ResourceManager;
 
 const Shader = core.Shader;
 const Shape = core.shapes.Shape;
@@ -80,17 +81,15 @@ pub const ToonSoldier = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) !*ToonSoldier {
-        const shader = try core.Shader.init(
-            allocator,
+    pub fn init(rm: *ResourceManager) !*ToonSoldier {
+        const allocator = rm.allocator;
+
+        const shader = try rm.createShader(
             "games/level_01/shaders/animated_pbr.vert",
             "games/level_01/shaders/animated_pbr.frag",
         );
 
-        var gltf_asset = try core.asset_loader.GltfAsset.init(allocator, "spacesuit", path_enemy);
-        try gltf_asset.load();
-
-        const model = try gltf_asset.buildModel();
+        const model = try rm.loadModel("toon_soldier", path_enemy);
 
         const configs = buildStateConfigs();
         var fsm = FSM.init(configs, .idle, model.animator.animations);

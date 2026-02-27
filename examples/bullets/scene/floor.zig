@@ -5,6 +5,7 @@ const math = @import("math");
 const Lights = @import("lights.zig").Lights;
 
 const Allocator = std.mem.Allocator;
+const ResourceManager = core.ResourceManager;
 
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
@@ -22,9 +23,9 @@ pub const Floor = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) !Self {
+    pub fn init(rm: *ResourceManager) !Self {
         var floor = try core.shapes.Plane.init(
-            allocator,
+            rm.allocator,
             .{
                 .plane_size = 100.0,
                 .tile_size = 1.0,
@@ -37,8 +38,7 @@ pub const Floor = struct {
         floor.shape.is_depth_write = false;
         floor.shape.is_visible = false;
 
-        const texture_shader = try Shader.init(
-            allocator,
+        const texture_shader = try rm.createShader(
             "examples/bullets/shaders/basic_texture.vert",
             "examples/bullets/shaders/basic_texture.frag",
         );

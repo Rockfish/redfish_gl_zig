@@ -5,6 +5,7 @@ const math = @import("math");
 const Lights = @import("lights.zig").Lights;
 
 const Allocator = std.mem.Allocator;
+const ResourceManager = core.ResourceManager;
 
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
@@ -24,8 +25,8 @@ pub const Cube = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) !Self {
-        const cube = try core.shapes.createCube(allocator, .{
+    pub fn init(rm: *ResourceManager) !Self {
+        const cube = try rm.createCube(.{
             .width = 1.0,
             .height = 1.0,
             .depth = 1.0,
@@ -35,8 +36,7 @@ pub const Cube = struct {
             .texture_mapping = .Cubemap2x3,
         });
 
-        const cubemap_texture = try core.texture.Texture.initFromFile(
-            allocator,
+        const cubemap_texture = try rm.createTexture(
             "assets/Textures/cubemap_template_2x3.png",
             .{
                 .flip_v = false,
@@ -46,8 +46,7 @@ pub const Cube = struct {
             },
         );
 
-        const texture_shader = try Shader.init(
-            allocator,
+        const texture_shader = try rm.createShader(
             "examples/bullets/shaders/basic_texture.vert",
             "examples/bullets/shaders/basic_texture.frag",
         );

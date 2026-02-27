@@ -6,6 +6,7 @@ const containers = @import("containers");
 
 const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
+const ResourceManager = core.ResourceManager;
 
 const BulletSystem = @import("bullet_system.zig").BulletSystem;
 
@@ -32,9 +33,10 @@ pub const Turret = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) !*Self {
-        const line_shader = try Shader.init(
-            allocator,
+    pub fn init(rm: *ResourceManager) !*Self {
+        const allocator = rm.allocator;
+
+        const line_shader = try rm.createShader(
             "examples/bullets/shaders/lines.vert",
             "examples/bullets/shaders/lines.frag",
         );
@@ -47,7 +49,7 @@ pub const Turret = struct {
         const aim_rot = up_rot.mulQuat(right_rot);
         aim_transform.rotation = aim_transform.rotation.mulQuat(aim_rot);
 
-        var bullets = try BulletSystem.init(allocator);
+        var bullets = try BulletSystem.init(rm);
         try bullets.createBullets(aim_transform);
 
         const self = try allocator.create(Self);

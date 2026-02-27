@@ -42,3 +42,5 @@ pub const RenderContext = render.RenderContext;
 
 pub const shapes = @import("shapes/root.zig");
 pub const Color = @import("colors.zig").Color;
+
+pub const ResourceManager = @import("resource_manager.zig").ResourceManager;
