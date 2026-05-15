@@ -56,45 +56,36 @@ var scene_fbo: fb.FrameBuffer = undefined;
 var horizontal_blur_fbo: fb.FrameBuffer = undefined;
 var vertical_blur_fbo: fb.FrameBuffer = undefined;
 
-pub fn run(window: *glfw.Window) !void {
-    var buf: [512]u8 = undefined;
-    const exe_dir = try std.fs.selfExeDirPath(&buf);
-    // const cwd = try std.os.getFdPath(&buf);
-    log.info("Running game. exe_dir = {s} ", .{exe_dir});
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var buffer: [1024]u8 = undefined;
-    const root_path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
-    _ = root_path;
+pub fn run(init: std.process.Init, window: *glfw.Window) !void {
+    const allocator = init.arena.allocator();
+    const cwd = try std.process.currentPathAlloc(init.io, allocator);
+    log.info("Running game. exe_dir = {s} ", .{cwd});
 
     world.initStateHandlers(window, &state);
 
     // Shaders
     const player_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/player_shader.vert",
         "games/angrybot/shaders/player_shader.frag",
     );
     const player_emissive_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/player_shader.vert",
         "games/angrybot/shaders/texture_emissive_shader.frag",
     );
 
     const enemy_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/wiggly_shader.vert",
         "games/angrybot/shaders/player_shader.frag",
     );
 
     const floor_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/basic_texture_shader.vert",
         "games/angrybot/shaders/floor_shader.frag",
@@ -102,16 +93,19 @@ pub fn run(window: *glfw.Window) !void {
 
     // bullets, muzzle flash, burn marks - using matrix-based instanced shader
     const instanced_matrix_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/instanced_quat.vert",
         "games/angrybot/shaders/basic_texture_shader.frag",
     );
     const sprite_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/geom_shader2.vert",
         "games/angrybot/shaders/sprite_shader.frag",
     );
     const basic_texture_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/basic_texture_shader.vert",
         "games/angrybot/shaders/basic_texture_shader.frag",
@@ -119,11 +113,13 @@ pub fn run(window: *glfw.Window) !void {
 
     // blur and scene
     const blur_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/basicer_shader.vert",
         "games/angrybot/shaders/blur_shader.frag",
     );
     const scene_draw_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/basicer_shader.vert",
         "games/angrybot/shaders/texture_merge_shader.frag",
@@ -131,12 +127,14 @@ pub fn run(window: *glfw.Window) !void {
 
     // for debug
     const basicer_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/basicer_shader.vert",
         "games/angrybot/shaders/basicer_shader.frag",
     );
     // const _depth_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/depth_shader.vert", "games/angrybot/shaders/depth_shader.frag");
     const _debug_depth_shader = try Shader.init(
+        init.io,
         allocator,
         "games/angrybot/shaders/debug_depth_quad.vert",
         "games/angrybot/shaders/debug_depth_quad.frag",
@@ -235,12 +233,12 @@ pub fn run(window: *glfw.Window) !void {
     log.info("camers loaded", .{});
 
     // Models and systems (modern glTF system doesn't need global texture cache)
-    var player = try Player.init(allocator);
-    var enemy_system = try EnemySystem.init(allocator);
-    var muzzle_flash = try MuzzleFlash.init(allocator, unit_square_quad);
-    var bullet_store = try BulletStore.init(allocator, unit_square_quad);
-    var floor = try Floor.init(allocator);
-    const burn_marks = try BurnMarks.init(allocator, unit_square_quad);
+    var player = try Player.init(init.io, allocator);
+    var enemy_system = try EnemySystem.init(init.io, allocator);
+    var muzzle_flash = try MuzzleFlash.init(init.io, allocator, unit_square_quad);
+    var bullet_store = try BulletStore.init(init.io, allocator, unit_square_quad);
+    var floor = try Floor.init(init.io, allocator);
+    const burn_marks = try BurnMarks.init(init.io, allocator, unit_square_quad);
 
     log.info("models loaded", .{});
 
@@ -329,7 +327,7 @@ pub fn run(window: *glfw.Window) !void {
 
     // --- event loop
     state.frame_time = @floatCast(glfw.getTime());
-    var frame_counter = core.FrameCounter.new();
+    var frame_counter = core.FrameCounter.init(init.io);
 
     log.info("Starting game loop!", .{});
 

@@ -46,12 +46,12 @@ pub const EnemySystem = struct {
         self.enemy_model.deinit();
     }
 
-    pub fn init(allocator: Allocator) !Self {
+    pub fn init(io: std.Io, allocator: Allocator) !Self {
         // Modern glTF path instead of .fbx
         const model_path = "assets/angrybots_assets/Models/Eeldog/EelDog.gltf";
 
         // Use GltfAsset instead of ModelBuilder
-        var gltf_asset = try GltfAsset.init(allocator, "enemy", model_path);
+        var gltf_asset = try GltfAsset.init(io, allocator, "enemy", model_path);
         try gltf_asset.load();
 
         // Define texture configuration (same settings as ASSIMP version)

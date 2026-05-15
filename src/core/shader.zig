@@ -1,4 +1,5 @@
 const std = @import("std");
+const utils = @import("utils/root.zig");
 const containers = @import("containers");
 const gl = @import("zopengl").bindings;
 const math = @import("math");
@@ -12,8 +13,11 @@ const vec4 = math.vec4;
 const Mat3 = math.Mat3;
 const Mat4 = math.Mat4;
 
+const Io = std.Io;
 const Allocator = std.mem.Allocator;
 const StringHashMap = std.StringHashMap;
+
+const readFileToEndZ = utils.readFileToEndZ;
 
 // const ShaderError = error{
 //     CompileError,
@@ -31,6 +35,7 @@ pub const Shader = struct {
     geom_file: ?[]const u8,
     locations: *StringHashMap(c_int),
     allocator: Allocator,
+    io: Io,
 
     // Debug uniform collection
     debug_enabled: bool,
@@ -45,7 +50,6 @@ pub const Shader = struct {
         if (self.geom_file != null) {
             self.allocator.free(self.geom_file.?);
         }
-        gl.deleteShader(self.id);
         var loc_iter = self.locations.keyIterator();
         while (loc_iter.next()) |key| {
             self.allocator.free(key.*);
@@ -74,14 +78,26 @@ pub const Shader = struct {
             texture_unit_map = null;
         }
 
+        self.deleteGlObjects();
+
         self.allocator.destroy(self);
     }
 
-    pub fn init(allocator: Allocator, vert_file_path: []const u8, frag_file_path: []const u8) !*Shader {
-        return initWithGeom(allocator, vert_file_path, frag_file_path, null);
+    pub fn deleteGlObjects(self: *Self) void {
+        gl.deleteShader(self.id);
+    }
+
+    pub fn init(
+        io: Io,
+        allocator: Allocator,
+        vert_file_path: []const u8,
+        frag_file_path: []const u8,
+    ) !*Shader {
+        return initWithGeom(io, allocator, vert_file_path, frag_file_path, null);
     }
 
     pub fn initWithGeom(
+        io: Io,
         allocator: Allocator,
         vert_file_path: []const u8,
         frag_file_path: []const u8,
@@ -94,53 +110,31 @@ pub const Shader = struct {
             texture_unit_map.?.* = StringHashMap(u32).init(allocator);
         }
 
-        const vert_file = std.fs.cwd().openFile(vert_file_path, .{}) catch |err| {
-            std.debug.panic("Shader error: {any} file: {s}", .{ err, vert_file_path });
-        };
-
-        const vert_code = try vert_file.readToEndAlloc(allocator, 256 * 1024);
-        const c_vert_code: [:0]const u8 = try allocator.dupeZ(u8, vert_code);
-
-        defer vert_file.close();
+        const vert_code = try readFileToEndZ(io, allocator, vert_file_path);
         defer allocator.free(vert_code);
-        defer allocator.free(c_vert_code);
-
-        // std.debug.print("vert_code: {s}\n", .{c_vert_code});
 
         const vertex_shader = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(vertex_shader, 1, &[_][*c]const u8{c_vert_code.ptr}, 0);
+        gl.shaderSource(vertex_shader, 1, &[_][*c]const u8{vert_code.ptr}, 0);
         gl.compileShader(vertex_shader);
 
         checkCompileErrors(vertex_shader, "VERTEX", vert_file_path);
 
-        const frag_file = try std.fs.cwd().openFile(frag_file_path, .{});
-        const frag_code = try frag_file.readToEndAlloc(allocator, 256 * 1024);
-        const c_frag_code: [:0]const u8 = try allocator.dupeZ(u8, frag_code);
-
-        defer frag_file.close();
+        const frag_code = try readFileToEndZ(io, allocator, frag_file_path);
         defer allocator.free(frag_code);
-        defer allocator.free(c_frag_code);
-
-        // std.debug.print("frag_code: {s}\n", .{c_frag_code});
 
         const frag_shader = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(frag_shader, 1, &[_][*c]const u8{c_frag_code.ptr}, 0);
+        gl.shaderSource(frag_shader, 1, &[_][*c]const u8{frag_code.ptr}, 0);
         gl.compileShader(frag_shader);
 
         checkCompileErrors(frag_shader, "FRAGMENT", frag_file_path);
 
         var geom_shader: ?c_uint = null;
         if (optional_geom_file) |geom_file_path| {
-            const geom_file = try std.fs.cwd().openFile(geom_file_path, .{});
-            const geom_code = try geom_file.readToEndAlloc(allocator, 256 * 1024);
-            const c_geom_code: [:0]const u8 = try allocator.dupeZ(u8, frag_code);
-
-            defer geom_file.close();
+            const geom_code = try readFileToEndZ(io, allocator, geom_file_path);
             defer allocator.free(geom_code);
-            defer allocator.free(c_geom_code);
 
             geom_shader = gl.createShader(gl.GEOMETRY_SHADER);
-            gl.shaderSource(geom_shader.?, 1, &[_][*c]const u8{c_geom_code.ptr}, 0);
+            gl.shaderSource(geom_shader.?, 1, &[_][*c]const u8{geom_code.ptr}, 0);
             gl.compileShader(geom_shader.?);
 
             checkCompileErrors(geom_shader.?, "GEOM", geom_file_path);
@@ -177,6 +171,7 @@ pub const Shader = struct {
         debug_uniforms.* = StringHashMap([]const u8).init(allocator);
 
         shader.* = Shader{
+            .io = io,
             .allocator = allocator,
             .id = shader_id,
             .vert_file = try allocator.dupe(u8, vert_file_path),

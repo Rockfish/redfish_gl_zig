@@ -25,6 +25,7 @@ pub const Floor = struct {
 
     pub fn init(rm: *ResourceManager) !Self {
         var floor = try core.shapes.Plane.init(
+            rm.io,
             rm.allocator,
             .{
                 .plane_size = 100.0,

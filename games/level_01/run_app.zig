@@ -83,13 +83,8 @@ const ModelWrapper = struct {
 
 // pub var state: State = undefined;
 
-pub fn run(window: *glfw.Window) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
+pub fn run(init: std.process.Init, window: *glfw.Window) !void {
+    const allocator = init.arena.allocator();
 
     state_.initWindowHandlers(window);
 
@@ -138,6 +133,7 @@ pub fn run(window: *glfw.Window) !void {
     defer node_manager.deinit();
 
     const basic_shader = try Shader.init(
+        init.io,
         allocator,
         "games/level_01/shaders/basic_model.vert",
         "games/level_01/shaders/basic_model.frag",
@@ -145,6 +141,7 @@ pub fn run(window: *glfw.Window) !void {
     defer basic_shader.deinit();
 
     const model_shader = try Shader.init(
+        init.io,
         allocator,
         "games/level_01/shaders/animated_pbr.vert",
         "games/level_01/shaders/animated_pbr.frag",
@@ -197,6 +194,7 @@ pub fn run(window: *glfw.Window) !void {
     };
 
     const cube_texture = try Texture.initFromFile(
+        init.io,
         allocator,
         "assets/textures/container.jpg",
         texture_config,
@@ -205,6 +203,7 @@ pub fn run(window: *glfw.Window) !void {
     texture_config.wrap = .Repeat;
 
     const surface_texture = try Texture.initFromFile(
+        init.io,
         allocator,
         "assets/Textures/Floor/Floor D.png",
         texture_config,
@@ -229,7 +228,7 @@ pub fn run(window: *glfw.Window) !void {
 
     // TODO: Fix model loading
     std.debug.print("Loading model: {s}\n", .{model_paths[7]});
-    var gltf_asset = try GltfAsset.init(allocator, "alien", model_paths[7]);
+    var gltf_asset = try GltfAsset.init(init.io, allocator, "alien", model_paths[7]);
     try gltf_asset.load();
     var model = try gltf_asset.buildModel();
     defer model.deinit();
@@ -284,7 +283,11 @@ pub fn run(window: *glfw.Window) !void {
 
     var moving = false;
 
-    const barrel = try core.shapes.loadOBJ(allocator, "assets/modular_ruins/OBJ/Barrel.obj");
+    const barrel = try core.shapes.loadOBJ(
+        init.io,
+        allocator,
+        "assets/modular_ruins/OBJ/Barrel.obj",
+    );
 
     // TODO: Fix animation system
     // const clip = AnimationClip.init(0, 0.0, 32.0, core.animation.AnimationRepeatMode.Forever);

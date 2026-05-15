@@ -49,7 +49,7 @@ const State = struct {
 
 var state: State = undefined;
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     try glfw.init();
     defer glfw.terminate();
 
@@ -67,6 +67,7 @@ pub fn main() !void {
         SCR_HEIGHT,
         "Skybox",
         null,
+        null,
     );
     defer window.destroy();
 
@@ -83,10 +84,12 @@ pub fn main() !void {
 
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    try run(window);
+    try run(init, window);
 }
 
-pub fn run(window: *glfw.Window) !void {
+pub fn run(init: std.process.Init, window: *glfw.Window) !void {
+    const allocator = init.arena.allocator();
+
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
     const viewport_width = @as(f32, @floatFromInt(window_size[0])) * window_scale[0];
@@ -94,13 +97,6 @@ pub fn run(window: *glfw.Window) !void {
     const scaled_width = viewport_width / window_scale[0];
     const scaled_height = viewport_height / window_scale[1];
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
     core.string.init(allocator);
 
     gl.enable(gl.DEPTH_TEST);
@@ -128,6 +124,7 @@ pub fn run(window: *glfw.Window) !void {
     };
 
     const basic_shader = try Shader.init(
+        init.io,
         allocator,
         "examples/skybox/basic.vert",
         "examples/skybox/basic.frag",
@@ -135,6 +132,7 @@ pub fn run(window: *glfw.Window) !void {
     defer basic_shader.deinit();
 
     const skybox_shader = try Shader.init(
+        init.io,
         allocator,
         "examples/skybox/skybox.vert",
         "examples/skybox/skybox.frag",
@@ -156,6 +154,7 @@ pub fn run(window: *glfw.Window) !void {
     // defer cube_texture.deleteGlTexture();
 
     const cubemap_texture = try core.texture.Texture.initFromFile(
+        init.io,
         allocator,
         "assets/Textures/cubemap_template_2x3.png",
         .{
@@ -178,7 +177,7 @@ pub fn run(window: *glfw.Window) !void {
     defer allocator.destroy(cube);
     defer cube.deinit();
 
-    const skybox = Skybox.init(allocator, .{
+    const skybox = Skybox.init(init.io, allocator, .{
         .right = "assets/textures/skybox/right.jpg",
         .left = "assets/textures/skybox/left.jpg",
         .top = "assets/textures/skybox/top.jpg",

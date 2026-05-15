@@ -4,7 +4,7 @@ const math = @import("math");
 const world = @import("state.zig");
 
 const Allocator = std.mem.Allocator;
-const HashMap = std.AutoArrayHashMap;
+const HashMap = std.AutoArrayHashMapUnmanaged;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
@@ -102,22 +102,22 @@ pub const Player = struct {
     animation_name: AnimationName,
     animations: PlayerAnimations,
     anim_weights: AnimationWeights,
-    anim_hash: HashMap(AnimationName, AnimationClip),
+    // anim_hash: HashMap(AnimationName, AnimationClip),
 
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
         self.model.deinit();
-        self.anim_hash.deinit();
+        // self.anim_hash.deinit();
         self.allocator.destroy(self);
     }
 
-    pub fn init(allocator: Allocator) !*Self {
+    pub fn init(io: std.Io, allocator: Allocator) !*Self {
         // Modern glTF path instead of .fbx
         const model_path = "assets/angrybots_assets/Models/Player/Player.gltf";
 
         // Use GltfAsset instead of ModelBuilder
-        var gltf_asset = try GltfAsset.init(allocator, "Player", model_path);
+        var gltf_asset = try GltfAsset.init(io, allocator, "Player", model_path);
         try gltf_asset.load();
 
         // Define texture configuration (same settings as ASSIMP version)
@@ -143,14 +143,14 @@ pub const Player = struct {
         std.debug.print("Player: model built successfully\n", .{});
 
         // Convert frame-based animation data to time-based for glTF
-        const fps = 24.0;
-        var anim_hash = HashMap(AnimationName, AnimationClip).init(allocator);
-        try anim_hash.put(.idle, AnimationClip.init(0, 55.0 / fps, 130.0 / fps, AnimationRepeatMode.Forever));
-        try anim_hash.put(.forward, AnimationClip.init(0, 134.0 / fps, 154.0 / fps, AnimationRepeatMode.Forever));
-        try anim_hash.put(.back, AnimationClip.init(0, 159.0 / fps, 179.0 / fps, AnimationRepeatMode.Forever));
-        try anim_hash.put(.right, AnimationClip.init(0, 184.0 / fps, 204.0 / fps, AnimationRepeatMode.Forever));
-        try anim_hash.put(.left, AnimationClip.init(0, 209.0 / fps, 229.0 / fps, AnimationRepeatMode.Forever));
-        try anim_hash.put(.dead, AnimationClip.init(0, 234.0 / fps, 293.0 / fps, AnimationRepeatMode.Once));
+        // const fps = 24.0;
+        // var anim_hash = try HashMap(AnimationName, AnimationClip).init(allocator, &[_]AnimationName {}, .{});
+        // try anim_hash.put(.idle, AnimationClip.init(0, 55.0 / fps, 130.0 / fps, AnimationRepeatMode.Forever));
+        // try anim_hash.put(.forward, AnimationClip.init(0, 134.0 / fps, 154.0 / fps, AnimationRepeatMode.Forever));
+        // try anim_hash.put(.back, AnimationClip.init(0, 159.0 / fps, 179.0 / fps, AnimationRepeatMode.Forever));
+        // try anim_hash.put(.right, AnimationClip.init(0, 184.0 / fps, 204.0 / fps, AnimationRepeatMode.Forever));
+        // try anim_hash.put(.left, AnimationClip.init(0, 209.0 / fps, 229.0 / fps, AnimationRepeatMode.Forever));
+        // try anim_hash.put(.dead, AnimationClip.init(0, 234.0 / fps, 293.0 / fps, AnimationRepeatMode.Once));
 
         const player = try allocator.create(Player);
         player.* = Player{
@@ -167,7 +167,7 @@ pub const Player = struct {
             .speed = world.PLAYER_SPEED,
             .animations = PlayerAnimations.new(),
             .anim_weights = AnimationWeights.default(),
-            .anim_hash = anim_hash,
+            // .anim_hash = anim_hash,
         };
 
         // Start with idle animation

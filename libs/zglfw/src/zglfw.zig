@@ -5,7 +5,7 @@ const assert = std.debug.assert;
 const options = @import("zglfw_options");
 
 test {
-    _ = std.testing.refAllDeclsRecursive(@This());
+    std.testing.refAllDecls(@This());
 }
 
 const zglfw = @This();
@@ -618,6 +618,8 @@ pub const Monitor = opaque {
     pub const getVideoMode = zglfw.getVideoMode;
     pub const getVideoModes = zglfw.getVideoModes;
     pub const getPhysicalSize = zglfw.getMonitorPhysicalSize;
+    pub const getUserPointer = zglfw.getMonitorUserPointer;
+    pub const setUserPointer = zglfw.setMonitorUserPointer;
 
     pub fn getPos(self: *Monitor) [2]c_int {
         var xpos: c_int = 0;
@@ -625,6 +627,11 @@ pub const Monitor = opaque {
         getMonitorPos(self, &xpos, &ypos);
         return .{ xpos, ypos };
     }
+
+    pub const Event = enum(c_int) {
+        connected = 0x00040001,
+        disconnected = 0x00040002,
+    };
 };
 
 pub const getPrimaryMonitor = glfwGetPrimaryMonitor;
@@ -659,6 +666,20 @@ pub fn getMonitorName(monitor: *Monitor) Error![]const u8 {
     return "";
 }
 extern fn glfwGetMonitorName(monitor: *Monitor) ?[*:0]const u8;
+
+pub fn getMonitorUserPointer(monitor: *Monitor, comptime T: type) ?*T {
+    return @ptrCast(@alignCast(glfwGetMonitorUserPointer(monitor)));
+}
+extern fn glfwGetMonitorUserPointer(monitor: *Monitor) callconv(.c) ?*anyopaque;
+
+pub fn setMonitorUserPointer(monitor: *Monitor, pointer: ?*anyopaque) void {
+    glfwSetMonitorUserPointer(monitor, pointer);
+}
+extern fn glfwSetMonitorUserPointer(monitor: *Monitor, pointer: ?*anyopaque) callconv(.c) void;
+
+pub const MonitorFn = *const fn (monitor: *Monitor, event: Monitor.Event) callconv(.c) void;
+pub const setMonitorCallback = glfwSetMonitorCallback;
+extern fn glfwSetMonitorCallback(callback: ?MonitorFn) ?MonitorFn;
 
 pub fn getVideoMode(monitor: *Monitor) Error!*VideoMode {
     if (glfwGetVideoMode(monitor)) |video_mode| {
@@ -852,8 +873,9 @@ pub fn createWindow(
     height: c_int,
     title: [:0]const u8,
     monitor: ?*Monitor,
+    share: ?*Window,
 ) Error!*Window {
-    if (glfwCreateWindow(width, height, title, monitor, null)) |window| return window;
+    if (glfwCreateWindow(width, height, title, monitor, share)) |window| return window;
     try maybeError();
     unreachable;
 }

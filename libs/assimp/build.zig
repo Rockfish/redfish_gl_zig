@@ -30,8 +30,8 @@ pub fn build(b: *std.Build) !void {
 
     // lib.root_module.addCxxCompileFlag("-std=c++14");
 
-    lib.linkLibC();
-    lib.linkLibCpp();
+    lib.root_module.link_libc = true;
+    lib.root_module.link_libcpp = true;
 
     const config_h = b.addConfigHeader(
         .{
@@ -59,21 +59,21 @@ pub fn build(b: *std.Build) !void {
         },
     );
 
-    lib.addConfigHeader(config_h);
-    lib.addConfigHeader(revision_h);
+    lib.root_module.addConfigHeader(config_h);
+    lib.root_module.addConfigHeader(revision_h);
 
-    lib.addIncludePath(assimp.path("include"));
-    lib.addIncludePath(b.path("include"));
+    lib.root_module.addIncludePath(assimp.path("include"));
+    lib.root_module.addIncludePath(b.path("include"));
 
-    lib.addIncludePath(assimp.path(""));
-    lib.addIncludePath(assimp.path("contrib"));
-    lib.addIncludePath(assimp.path("code"));
-    lib.addIncludePath(assimp.path("contrib/pugixml/src/"));
-    lib.addIncludePath(assimp.path("contrib/rapidjson/include"));
-    lib.addIncludePath(assimp.path("contrib/unzip"));
-    // lib.addIncludePath(assimp.path("contrib/zlib"));
-    lib.addIncludePath(assimp.path("contrib/openddlparser/include"));
-    lib.addIncludePath(assimp.path("contrib/utf8cpp/source"));
+    lib.root_module.addIncludePath(assimp.path(""));
+    lib.root_module.addIncludePath(assimp.path("contrib"));
+    lib.root_module.addIncludePath(assimp.path("code"));
+    lib.root_module.addIncludePath(assimp.path("contrib/pugixml/src/"));
+    lib.root_module.addIncludePath(assimp.path("contrib/rapidjson/include"));
+    lib.root_module.addIncludePath(assimp.path("contrib/unzip"));
+    // lib.root_module.addIncludePath(assimp.path("contrib/zlib"));
+    lib.root_module.addIncludePath(assimp.path("contrib/openddlparser/include"));
+    lib.root_module.addIncludePath(assimp.path("contrib/utf8cpp/source"));
 
     lib.root_module.addCMacro("RAPIDJSON_HAS_STDSTRING", "1");
 
@@ -88,14 +88,14 @@ pub fn build(b: *std.Build) !void {
 
     lib.installHeadersDirectory(assimp.path("include"), "", .{ .include_extensions = &.{ ".h", ".hpp", ".inl", ".in" } });
 
-    lib.addCSourceFiles(.{
+    lib.root_module.addCSourceFiles(.{
         .root = assimp.path(""),
         .files = &sources.common,
         .flags = flags.items,
     });
 
     inline for (comptime std.meta.declarations(sources.libraries)) |ext_lib| {
-        lib.addCSourceFiles(.{
+        lib.root_module.addCSourceFiles(.{
             .root = assimp.path(""),
             .files = &@field(sources.libraries, ext_lib.name),
             .flags = &.{}, //"-std=c++14"},
@@ -104,16 +104,16 @@ pub fn build(b: *std.Build) !void {
 
     switch (target.result.os.tag) {
         .windows => {
-            lib.addIncludePath(assimp.path("contrib/zlib"));
-            lib.addCSourceFiles(.{
+            lib.root_module.addIncludePath(assimp.path("contrib/zlib"));
+            lib.root_module.addCSourceFiles(.{
                 .root = assimp.path(""),
                 .files = &sources.zlib,
                 .flags = &.{}, // "-std=c++14"},
             });
         },
         .macos => {
-            lib.linkSystemLibrary("zlib");
-            lib.addSystemFrameworkPath(.{ .cwd_relative = "/opt/homebrew/Cellar/zlib/1.3.1/lib" });
+            lib.root_module.linkSystemLibrary("zlib", .{});
+            lib.root_module.addSystemFrameworkPath(.{ .cwd_relative = "/opt/homebrew/Cellar/zlib/1.3.1/lib" });
         },
         else => {},
     }
@@ -153,7 +153,7 @@ pub fn build(b: *std.Build) !void {
         const enabled = enable_all or enabled_formats.contains(format_files.name);
 
         if (enabled) {
-            lib.addCSourceFiles(.{
+            lib.root_module.addCSourceFiles(.{
                 .root = assimp.path(""),
                 .files = &@field(sources.formats, format_files.name),
                 .flags = &.{}, // "-std=c++14"},

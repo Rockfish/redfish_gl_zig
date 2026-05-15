@@ -11,7 +11,7 @@ const run_animation = @import("run_animation.zig").run;
 const SCR_WIDTH: f32 = 1000.0;
 const SCR_HEIGHT: f32 = 1000.0;
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     try glfw.init();
     defer glfw.terminate();
 
@@ -29,6 +29,7 @@ pub fn main() !void {
         SCR_HEIGHT,
         "Level 01",
         null,
+        null,
     );
     defer window.destroy();
 
@@ -36,7 +37,7 @@ pub fn main() !void {
     glfw.swapInterval(1);
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    try run_app(window);
+    try run_app(init, window);
     // try run_animation(window);
 
     glfw.terminate();

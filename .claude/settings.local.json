@@ -15,7 +15,8 @@
       "Bash(python3:*)",
       "Bash(awk:*)",
       "Bash(git status:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebFetch(domain:itch.io)"
     ],
     "deny": []
   }

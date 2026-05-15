@@ -174,16 +174,11 @@
       "imports": []
     }
   ],
-  "dependencies": [
-    {
-      "project": 2,
-      "lazy": false
-    }
-  ]
+  "dependencies": []
 }]]><![CDATA[{
   "name": "assimp",
   "version": null,
-  "path": "/Users/john/.cache/zig/p/N-V-__8AAAJ5kA56p5bMNoeLrMKx3VwAq6WYAC2_x7in3PU7",
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/zig-pkg/N-V-__8AAAJ5kA56p5bMNoeLrMKx3VwAq6WYAC2_x7in3PU7",
   "steps": [
     {
       "name": "install",
@@ -302,16 +297,11 @@
       "imports": []
     }
   ],
-  "dependencies": [
-    {
-      "project": 7,
-      "lazy": false
-    }
-  ]
+  "dependencies": []
 }]]><![CDATA[{
   "name": "system_sdk",
   "version": "0.3.0-dev",
-  "path": "/Users/john/.cache/zig/p/system_sdk-0.3.0-dev-alwUNnYaaAJAtIdE2fg4NQfDqEKs7QCXy_qYukAOBfmF",
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/zig-pkg/system_sdk-0.3.0-dev-alwUNnYaaAJAtIdE2fg4NQfDqEKs7QCXy_qYukAOBfmF",
   "steps": [
     {
       "name": "install",
@@ -408,5 +398,5 @@
   <component name="ZigProjectSettings">
     <option name="toolchainPath" value="$USER_HOME$/zig/bin" />
   </component>
-  <component name="ZigToolchain" toolchain="a3bdbc96-0be9-4a4a-8262-9d3aaf7e8605" />
+  <component name="ZigToolchain" toolchain="1903f504-c000-49ac-bfbc-6c1a565e2fb0" />
 </project>

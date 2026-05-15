@@ -7,6 +7,7 @@ const shapes = @import("shapes/root.zig");
 const shader_mod = @import("shader.zig");
 const model_mod = @import("model.zig");
 
+const Io = std.Io;
 const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
 
@@ -18,6 +19,7 @@ const Model = model_mod.Model;
 const Shape = shapes.Shape;
 
 pub const ResourceManager = struct {
+    io: Io,
     allocator: Allocator,
 
     // Typed resource storage
@@ -28,9 +30,10 @@ pub const ResourceManager = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) !*Self {
+    pub fn init(io: Io, allocator: Allocator) !*Self {
         const rm = try allocator.create(Self);
         rm.* = .{
+            .io = io,
             .allocator = allocator,
             .shaders = ManagedArrayList(*Shader).init(allocator),
             .textures = ManagedArrayList(*Texture).init(allocator),
@@ -47,7 +50,7 @@ pub const ResourceManager = struct {
         vert_path: []const u8,
         frag_path: []const u8,
     ) !*Shader {
-        const shader = try Shader.init(self.allocator, vert_path, frag_path);
+        const shader = try Shader.init(self.io, self.allocator, vert_path, frag_path);
         try self.shaders.append(shader);
         return shader;
     }
@@ -58,7 +61,7 @@ pub const ResourceManager = struct {
         frag_path: []const u8,
         geom_path: ?[]const u8,
     ) !*Shader {
-        const shader = try Shader.initWithGeom(self.allocator, vert_path, frag_path, geom_path);
+        const shader = try Shader.initWithGeom(self.io, self.allocator, vert_path, frag_path, geom_path);
         try self.shaders.append(shader);
         return shader;
     }
@@ -70,7 +73,7 @@ pub const ResourceManager = struct {
         path: [:0]const u8,
         config: TextureConfig,
     ) !*Texture {
-        const tex = try Texture.initFromFile(self.allocator, path, config);
+        const tex = try Texture.initFromFile(self.io, self.allocator, path, config);
         try self.textures.append(tex);
         return tex;
     }
@@ -100,7 +103,7 @@ pub const ResourceManager = struct {
         name: []const u8,
         path: []const u8,
     ) !*Model {
-        var gltf_asset = try GltfAsset.init(self.allocator, name, path);
+        var gltf_asset = try GltfAsset.init(self.io, self.allocator, name, path);
         const model = try gltf_asset.buildModel();
         try self.models.append(model);
         return model;
@@ -109,7 +112,7 @@ pub const ResourceManager = struct {
     // --- Shape Factory ---
 
     pub fn loadOBJ(self: *Self, filepath: []const u8) !*Shape {
-        const shape = try shapes.loadOBJ(self.allocator, filepath);
+        const shape = try shapes.loadOBJ(self.io, self.allocator, filepath);
         try self.obj_shapes.append(shape);
         return shape;
     }

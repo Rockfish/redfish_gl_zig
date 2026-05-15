@@ -20,7 +20,7 @@ pub fn build(b: *std.Build) void {
         .root_module = mod,
     });
 
-    lib.addCSourceFiles(.{
+    lib.root_module.addCSourceFiles(.{
         .root = b.path(""),
         .files = sources,
         .flags = &.{"-fno-sanitize=undefined"},
@@ -28,7 +28,7 @@ pub fn build(b: *std.Build) void {
 
     mod.addIncludePath(b.path("include"));
 
-    lib.addIncludePath(b.path("include"));
+    lib.root_module.addIncludePath(b.path("include"));
 
     lib.installHeadersDirectory(
         b.path("include"),

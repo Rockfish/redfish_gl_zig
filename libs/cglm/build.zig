@@ -67,20 +67,20 @@ pub fn build(b: *std.Build) void {
 
     switch (target.result.os.tag) {
         .macos => {
-            lib.addCSourceFiles(.{
+            lib.root_module.addCSourceFiles(.{
                 .root = b.path(""),
                 .files = cglm_sources,
                 .flags = &.{ "-DCGLM_STATIC=ON", "-DCGLM_SHARED=OFF", "-DCGLM_ALL_UNALIGNED" },
             });
         },
         .windows => {
-            lib.addCSourceFiles(.{
+            lib.root_module.addCSourceFiles(.{
                 .root = b.path(""),
                 .files = cglm_sources,
                 .flags = &.{ "-DCGLM_STATIC=ON", "-DCGLM_SHARED=OFF", "-DCGLM_ALL_UNALIGNED", "-D_MSC_VER" },
             });
-            lib.addIncludePath(.{ .cwd_relative = "C:\\cygwin64\\usr\\x86_64-w64-mingw32\\sys-root\\mingw\\include" });
-            lib.addLibraryPath(.{ .cwd_relative = "C:\\cygwin64\\usr\\x86_64-w64-mingw32\\sys-root\\mingw\\lib" });
+            lib.root_module.addIncludePath(.{ .cwd_relative = "C:\\cygwin64\\usr\\x86_64-w64-mingw32\\sys-root\\mingw\\include" });
+            lib.root_module.addLibraryPath(.{ .cwd_relative = "C:\\cygwin64\\usr\\x86_64-w64-mingw32\\sys-root\\mingw\\lib" });
         },
         else => {},
     }

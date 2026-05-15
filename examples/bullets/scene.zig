@@ -13,6 +13,7 @@ pub const Scene = struct {
         type_id: usize,
         update_fn: *const fn (ptr: *anyopaque, state: *anyopaque) anyerror!void,
         draw_fn: *const fn (ptr: *anyopaque, time: f32) void,
+        deinit_fn: *const fn (ptr: *anyopaque) void,
     };
 
     pub fn init(allocator: Allocator, name: []const u8, object_ptr: anytype, state_ptr: anytype) !*Scene {
@@ -33,6 +34,13 @@ pub const Scene = struct {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
                 return obj.draw(time);
             }
+
+            pub fn deinitFn(obj_ptr: *anyopaque) void {
+                const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
+                if (std.meta.hasMethod(ObjectType, "deinit")) {
+                    obj.deinit();
+                }
+            }
         };
 
         const scene = try allocator.create(Scene);
@@ -43,14 +51,19 @@ pub const Scene = struct {
                 .type_id = typeId(@TypeOf(object_ptr)),
                 .update_fn = gen.updateFn,
                 .draw_fn = gen.drawFn,
+                .deinit_fn = gen.deinitFn,
             },
         };
         return scene;
     }
 
     pub fn deinit(self: *Self) void {
-        _ = self;
+        self.dispatch.deinit_fn(self.dispatch.obj_ptr);
     }
+
+    //
+    // Interface
+    //
 
     pub fn update(self: *Scene, state: *anyopaque) anyerror!void {
         try self.dispatch.update_fn(self.dispatch.obj_ptr, state);
@@ -59,6 +72,17 @@ pub const Scene = struct {
     pub fn draw(self: *Scene, time: f32) void {
         self.dispatch.draw_fn(self.dispatch.obj_ptr, time);
     }
+
+    // Could we use a union with pointers?
+
+    // new()
+    // exit()
+    // resized()
+    // render_gui()
+
+    //
+    // Extra bits
+    //
 
     pub fn castTo(self: *Self, comptime T: type) ?*T {
         if (self.dispatch.type_id != typeId(T)) return null;

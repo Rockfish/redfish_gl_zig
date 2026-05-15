@@ -68,9 +68,9 @@ pub const Skybox = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, faces: SkyboxFaces) Self {
+    pub fn init(io: std.Io, allocator: Allocator, faces: SkyboxFaces) Self {
         const vao, const vbo = loadSkybox();
-        const gl_texture_id = loadCubemap(allocator, faces);
+        const gl_texture_id = loadCubemap(io, allocator, faces);
         return .{
             .vao = vao,
             .vbo = vbo,
@@ -136,8 +136,8 @@ pub const Skybox = struct {
     // +Z (front)
     // -Z (back)
     // -------------------------------------------------------
-    fn loadCubemap(allocator: Allocator, faces: SkyboxFaces) u32 {
-        zstbi.init(allocator);
+    fn loadCubemap(io: std.Io, allocator: Allocator, faces: SkyboxFaces) u32 {
+        zstbi.init(io, allocator);
         defer zstbi.deinit();
 
         var gl_texture_id: u32 = undefined;

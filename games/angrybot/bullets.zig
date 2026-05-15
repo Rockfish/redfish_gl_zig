@@ -146,7 +146,7 @@ pub const BulletStore = struct {
         self.bullet_impact_spritesheet.deinit();
     }
 
-    pub fn init(allocator: Allocator, unit_square_vao: c_uint) !Self {
+    pub fn init(io: std.Io, allocator: Allocator, unit_square_vao: c_uint) !Self {
         const texture_config = TextureConfig{
             .flip_v = false,
             .gamma_correction = false,
@@ -154,8 +154,8 @@ pub const BulletStore = struct {
             .wrap = .Repeat,
         };
 
-        const bullet_texture = try Texture.initFromFile(allocator, "assets/angrybots_assets/Textures/Bullet/bullet_texture_transparent.png", texture_config);
-        const texture_impact_sprite_sheet = try Texture.initFromFile(allocator, "assets/angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png", texture_config);
+        const bullet_texture = try Texture.initFromFile(io, allocator, "assets/angrybots_assets/Textures/Bullet/bullet_texture_transparent.png", texture_config);
+        const texture_impact_sprite_sheet = try Texture.initFromFile(io, allocator, "assets/angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png", texture_config);
 
         const bullet_impact_spritesheet = SpriteSheet.init(texture_impact_sprite_sheet, 11, 0.05);
 

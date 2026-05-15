@@ -2,6 +2,7 @@ const std = @import("std");
 const containers = @import("containers");
 const shape = @import("shape.zig");
 
+const Io = std.Io;
 const Allocator = std.mem.Allocator;
 const Shape = shape.Shape;
 const ShapeBuilder = shape.ShapeBuilder;
@@ -9,15 +10,19 @@ const ManagedArrayList = containers.ManagedArrayList;
 
 const default_color = [4]f32{ 0.5, 0.5, 0.5, 1.0 };
 
-pub fn loadOBJ(allocator: Allocator, filepath: []const u8) !*Shape {
-    const file = try std.fs.cwd().openFile(filepath, .{});
-    defer file.close();
-
-    const file_data = try file.readToEndAlloc(allocator, 16 * 1024 * 1024);
+pub fn loadOBJ(io: Io, allocator: Allocator, filepath: []const u8) !*Shape {
+    const file_data = std.Io.Dir.cwd().readFileAllocOptions(
+        io,
+        filepath,
+        allocator,
+        .unlimited,
+        .@"4",
+        null,
+    ) catch |err| std.debug.panic("Error reading file. error: '{any}'  file: '{s}'\n", .{ err, filepath });
     defer allocator.free(file_data);
 
     const dir_path = dirName(filepath);
-    const materials = try parseMtlFromOBJ(allocator, file_data, dir_path);
+    const materials = try parseMtlFromOBJ(io, allocator, file_data, dir_path);
     defer {
         var mats = materials;
         mats.deinit();
@@ -37,7 +42,7 @@ pub fn loadOBJ(allocator: Allocator, filepath: []const u8) !*Shape {
 
     var lines_iter = std.mem.splitScalar(u8, file_data, '\n');
     while (lines_iter.next()) |raw_line| {
-        const line = std.mem.trimRight(u8, raw_line, "\r");
+        const line = std.mem.trim(u8, raw_line, "\r");
         if (line.len == 0) continue;
 
         if (std.mem.startsWith(u8, line, "v ")) {
@@ -174,6 +179,7 @@ fn dirName(path: []const u8) []const u8 {
 }
 
 fn parseMtlFromOBJ(
+    io: Io,
     allocator: Allocator,
     obj_data: []const u8,
     dir_path: []const u8,
@@ -182,12 +188,12 @@ fn parseMtlFromOBJ(
 
     var lines_iter = std.mem.splitScalar(u8, obj_data, '\n');
     while (lines_iter.next()) |raw_line| {
-        const line = std.mem.trimRight(u8, raw_line, "\r");
+        const line = std.mem.trim(u8, raw_line, "\r");
         if (std.mem.startsWith(u8, line, "mtllib ")) {
             const mtl_name = std.mem.trim(u8, line[7..], " \t");
             const mtl_path = try std.fmt.allocPrint(allocator, "{s}{s}", .{ dir_path, mtl_name });
             defer allocator.free(mtl_path);
-            parseMtlFile(allocator, mtl_path, &materials) catch {
+            parseMtlFile(io, allocator, mtl_path, &materials) catch {
                 std.debug.print("OBJ loader: could not load MTL file: {s}\n", .{mtl_path});
             };
         }
@@ -197,21 +203,26 @@ fn parseMtlFromOBJ(
 }
 
 fn parseMtlFile(
+    io: Io,
     allocator: Allocator,
     filepath: []const u8,
     materials: *std.StringHashMap([3]f32),
 ) !void {
-    const file = try std.fs.cwd().openFile(filepath, .{});
-    defer file.close();
-
-    const file_data = try file.readToEndAlloc(allocator, 1 * 1024 * 1024);
+    const file_data = std.Io.Dir.cwd().readFileAllocOptions(
+        io,
+        filepath,
+        allocator,
+        .unlimited,
+        .@"4",
+        null,
+    ) catch |err| std.debug.panic("Error reading file. error: '{any}'  file: '{s}'\n", .{ err, filepath });
     defer allocator.free(file_data);
 
     var current_name: ?[]const u8 = null;
 
     var lines_iter = std.mem.splitScalar(u8, file_data, '\n');
     while (lines_iter.next()) |raw_line| {
-        const line = std.mem.trimRight(u8, raw_line, "\r");
+        const line = std.mem.trim(u8, raw_line, "\r");
         if (line.len == 0) continue;
 
         if (std.mem.startsWith(u8, line, "newmtl ")) {

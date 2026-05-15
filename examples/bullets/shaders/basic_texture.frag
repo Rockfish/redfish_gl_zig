@@ -9,7 +9,19 @@ struct DirectionLight {
   vec3 color;
 };
 
+struct PointLight {
+  vec3 worldPos;
+  vec3 color;
+  float constant;
+  float linear;
+  float quadratic;
+};
+
+const int MAX_POINT_LIGHTS = 4;
+
 uniform DirectionLight directionLight;
+uniform PointLight pointLights[MAX_POINT_LIGHTS];
+uniform int numPointLights;
 
 uniform int hasColor;
 uniform int hasTexture;
@@ -22,7 +34,7 @@ uniform vec4 emissiveColor;
 
 uniform sampler2D textureDiffuse;
 uniform sampler2D textureNormal;
-//uniform sampler2D textureSpecular;
+uniform sampler2D textureSpec;
 
 uniform float colorAlpha;
 uniform bool useLight;
@@ -42,14 +54,32 @@ void main() {
   }
 
   if (useLight) {
-    vec3 lightDir = normalize(-directionLight.dir);
     vec3 normal = vec3(texture(textureNormal, fragTexCoord));
     normal = normalize(normal * 2.0 - 1.0);
+
+    // Direction light
+    vec3 lightDir = normalize(-directionLight.dir);
     float diff = max(dot(normal, lightDir), 0.0);
+    vec3 lighting = directionLight.color * diff;
+
+    // Point lights
+    for (int i = 0; i < numPointLights; i++) {
+      float dist = length(pointLights[i].worldPos - fragPosition);
+      float attenuation = 1.0 / (pointLights[i].constant
+                                + pointLights[i].linear * dist
+                                + pointLights[i].quadratic * dist * dist);
+      vec3 ptDir = normalize(pointLights[i].worldPos - fragPosition);
+      float ptDiff = max(dot(normal, ptDir), 0.0);
+      lighting += pointLights[i].color * ptDiff * attenuation;
+    }
+
+    // Specular map modulates highlight intensity
+    float spec = texture(textureSpec, fragTexCoord).r;
+    lighting += lighting * spec * 0.3;
+
     vec3 amb = ambient * vec3(texture(textureDiffuse, fragTexCoord));
-    color = vec4(directionLight.color, 1.0) * color * diff + vec4(amb, 1.0);
+    color = vec4(lighting, 1.0) * color + vec4(amb, 1.0);
   }
 
   fragFinalColor = vec4(color.rgb, colorAlpha);
 }
-

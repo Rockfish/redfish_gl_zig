@@ -64,10 +64,7 @@ pub const State = struct {
 
 pub var state: State = undefined;
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
+pub fn main(init: std.process.Init) !void {
     var point1 = vec3(0.0, 2.0, 3.0);
     var point2 = vec3(4.0, 5.0, 6.0);
 
@@ -100,6 +97,7 @@ pub fn main() !void {
         SCR_HEIGHT,
         "Skybox",
         null,
+        null,
     );
     defer window.destroy();
 
@@ -108,8 +106,8 @@ pub fn main() !void {
 
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    try run_interfaces(window);
-    // try run_union(window);
+    try run_interfaces(init, window);
+    // try run_union(init, window);
 }
 
 fn getPVMMatrix(projection: *const Mat4, view: *const Mat4, model_transform: *const Mat4) Mat4 {

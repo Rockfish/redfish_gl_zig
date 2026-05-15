@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const miniaudiolib = miniaudio.artifact("miniaudio");
-    miniaudiolib.addIncludePath(miniaudio.path("include"));
+    miniaudiolib.root_module.addIncludePath(miniaudio.path("include"));
     b.installArtifact(miniaudiolib);
 
     // CGLM - C math library (unused - prefer local src/math/ implementation)
@@ -90,7 +90,6 @@ pub fn build(b: *std.Build) void {
         .{ .name = "angrybot", .exe_name = "angrybot", .source = "games/angrybot/main.zig" },
         .{ .name = "level_01", .exe_name = "level_01", .source = "games/level_01/main.zig" },
     }) |app| {
-
         const exe = b.addExecutable(.{
             .name = app.exe_name,
             .root_module = b.createModule(.{
@@ -124,13 +123,13 @@ pub fn build(b: *std.Build) void {
         //     exe.addIncludePath(assimp.path("include"));
         // }
 
-        exe.addIncludePath(b.path("src/include"));
-        exe.addIncludePath(miniaudio.path("include"));
+        exe.root_module.addIncludePath(b.path("src/include"));
+        exe.root_module.addIncludePath(miniaudio.path("include"));
 
         // exe.linkLibrary(zgui.artifact("imgui"));
-        exe.linkLibrary(zglfw.artifact("glfw"));
+        exe.root_module.linkLibrary(zglfw.artifact("glfw"));
         // exe.linkLibrary(cglm.artifact("cglm"));
-        exe.linkLibrary(miniaudio.artifact("miniaudio"));
+        exe.root_module.linkLibrary(miniaudio.artifact("miniaudio"));
 
         const install_exe = b.addInstallArtifact(exe, .{});
 
@@ -187,11 +186,11 @@ pub fn build(b: *std.Build) void {
     exe_check.root_module.addImport("zstbi", zstbi.module("root"));
     exe_check.root_module.addImport("build_options", build_options.createModule());
     // exe_check.linkLibrary(zgui.artifact("imgui"));
-    exe_check.linkLibrary(zstbi.artifact("zstbi"));
-    exe_check.linkLibrary(miniaudio.artifact("miniaudio"));
-    exe_check.linkLibrary(zglfw.artifact("glfw"));
-    exe_check.addIncludePath(b.path("src/include"));
-    exe_check.addIncludePath(miniaudio.path("include"));
+    exe_check.root_module.linkLibrary(zstbi.artifact("zstbi"));
+    exe_check.root_module.linkLibrary(miniaudio.artifact("miniaudio"));
+    exe_check.root_module.linkLibrary(zglfw.artifact("glfw"));
+    exe_check.root_module.addIncludePath(b.path("src/include"));
+    exe_check.root_module.addIncludePath(miniaudio.path("include"));
 
     const check = b.step("check", "Check if game compiles");
     check.dependOn(&exe_check.step);
@@ -209,7 +208,7 @@ pub fn build(b: *std.Build) void {
 
     // Add required dependencies
     movement_tests.root_module.addImport("math", math);
-    movement_tests.addIncludePath(b.path("src/include"));
+    movement_tests.root_module.addIncludePath(b.path("src/include"));
 
     const run_movement_tests = b.addRunArtifact(movement_tests);
     const test_step = b.step("test-movement", "Run movement tests");
@@ -229,7 +228,7 @@ pub fn build(b: *std.Build) void {
 
     glb_test.root_module.addImport("math", math);
     glb_test.root_module.addImport("core", core);
-    glb_test.addIncludePath(b.path("src/include"));
+    glb_test.root_module.addIncludePath(b.path("src/include"));
 
     const run_glb_test = b.addRunArtifact(glb_test);
     const glb_test_step = b.step("test-glb", "Run GLB loading integration test");

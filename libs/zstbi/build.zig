@@ -37,13 +37,7 @@ pub fn build(b: *std.Build) void {
         });
     }
 
-    if (target.result.os.tag == .emscripten) {
-        zstbi.addIncludePath(.{
-            .cwd_relative = b.pathJoin(&.{ b.sysroot.?, "/include" }),
-        });
-    } else {
-        zstbi.link_libc = true;
-    }
+    zstbi.link_libc = true;
 
     b.installArtifact(zstbi_lib);
 

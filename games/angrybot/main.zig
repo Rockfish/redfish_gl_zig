@@ -8,7 +8,7 @@ const run_app = @import("run_app.zig").run;
 const VIEW_PORT_WIDTH: f32 = 1500.0;
 const VIEW_PORT_HEIGHT: f32 = 1000.0;
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     try glfw.init();
     defer glfw.terminate();
 
@@ -22,7 +22,13 @@ pub fn main() !void {
     glfw.windowHint(.client_api, .opengl_api);
     glfw.windowHint(.doublebuffer, true);
 
-    const window = try glfw.Window.create(VIEW_PORT_WIDTH, VIEW_PORT_HEIGHT, "Angry Monsters", null);
+    const window = try glfw.Window.create(
+        VIEW_PORT_WIDTH,
+        VIEW_PORT_HEIGHT,
+        "Angry Monsters",
+        null,
+        null,
+    );
     defer window.destroy();
 
     glfw.makeContextCurrent(window);
@@ -30,7 +36,7 @@ pub fn main() !void {
 
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    try run_app(window);
+    try run_app(init, window);
 
     log.info("Exiting main", .{});
 }

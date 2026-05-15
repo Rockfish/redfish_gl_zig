@@ -76,6 +76,14 @@ pub const Model = struct {
         parent_allocator.destroy(arena);
     }
 
+    pub fn deleteGlObjects(self: *Self) void {
+        for (self.meshes.items()) |mesh| {
+            mesh.deleteGlObjects();
+        }
+
+        self.gltf_asset.deleteGlObjects();
+    }
+
     // pub fn playClip(self: *Self, clip: AnimationClip) !void {
     //     try self.animator.playClip(clip);
     // }

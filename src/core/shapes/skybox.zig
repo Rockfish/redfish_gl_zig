@@ -4,6 +4,7 @@ const zstbi = @import("zstbi");
 const shape = @import("shape.zig");
 const utils = @import("../utils/root.zig");
 
+const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
 const SIZE_OF_U32 = @sizeOf(u32);
@@ -70,9 +71,9 @@ pub const Skybox = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, faces: SkyboxFaces) Self { // shape.Shape {
+    pub fn init(io: Io, allocator: Allocator, faces: SkyboxFaces) Self { // shape.Shape {
         const vao, const vbo = loadSkybox();
-        const gl_texture_id = loadCubemap(allocator, faces);
+        const gl_texture_id = loadCubemap(io, allocator, faces);
         return .{
             .vao = vao,
             .vbo = vbo,
@@ -139,8 +140,8 @@ pub const Skybox = struct {
     // +Z (back)
     // -Z (forward)
     // -------------------------------------------------------
-    fn loadCubemap(allocator: Allocator, faces: SkyboxFaces) u32 {
-        zstbi.init(allocator);
+    fn loadCubemap(io: Io, allocator: Allocator, faces: SkyboxFaces) u32 {
+        zstbi.init(io, allocator);
         defer zstbi.deinit();
 
         var gl_texture_id: u32 = undefined;

@@ -38,8 +38,7 @@ pub const BurnMarks = struct {
         self.marks.deinit();
     }
 
-    pub fn init(allocator: Allocator, unit_square_vao: c_uint) !*Self {
-
+    pub fn init(io: std.Io, allocator: Allocator, unit_square_vao: c_uint) !*Self {
         const texture_config = TextureConfig{
             .filter = .Linear,
             .wrap = .Repeat,
@@ -47,7 +46,12 @@ pub const BurnMarks = struct {
             .gamma_correction = false,
         };
 
-        const mark_texture = try Texture.initFromFile(allocator, "assets/angrybots_assets/Textures/Bullet/burn_mark.png", texture_config);
+        const mark_texture = try Texture.initFromFile(
+            io,
+            allocator,
+            "assets/angrybots_assets/Textures/Bullet/burn_mark.png",
+            texture_config,
+        );
 
         const burn_marks = try allocator.create(BurnMarks);
         burn_marks.* = .{

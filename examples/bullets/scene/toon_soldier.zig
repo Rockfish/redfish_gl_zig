@@ -74,8 +74,8 @@ pub const ToonSoldier = struct {
     scale: Vec3 = vec3(1.0, 1.0, 1.0),
     transform: core.Transform = core.Transform.identity(),
     rotation_speed: f32 = 2.0,
-    walk_speed: f32 = 0.04,
-    run_speed: f32 = 0.10,
+    walk_speed: f32 = 0.02,
+    run_speed: f32 = 0.04,
     fsm: FSM,
     current_weapon: Weapon = .ShortCannon,
 
@@ -154,7 +154,7 @@ pub const ToonSoldier = struct {
             const is_running = input.key_shift;
             const speed = if (is_running) self.run_speed else self.walk_speed;
             const fwd = self.transform.forward();
-            self.transform.translation = self.transform.translation.sub(fwd.mulScalar(speed));
+            self.transform.translation = self.transform.translation.add(fwd.mulScalar(speed));
 
             if (is_running) {
                 _ = self.fsm.requestState(.run_shoot);
@@ -163,7 +163,7 @@ pub const ToonSoldier = struct {
             }
         } else if (input.key_presses.contains(.s)) {
             const fwd = self.transform.forward();
-            self.transform.translation = self.transform.translation.add(fwd.mulScalar(self.walk_speed));
+            self.transform.translation = self.transform.translation.sub(fwd.mulScalar(self.walk_speed));
             _ = self.fsm.requestState(.walk);
         } else {
             _ = self.fsm.requestState(.idle);

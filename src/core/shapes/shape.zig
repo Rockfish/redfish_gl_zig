@@ -293,7 +293,10 @@ pub const Shape = struct {
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
-        // deinit should be delegated to original type. Use union?
+        self.deleteGlObjects();
+    }
+
+    pub fn deleteGlObjects(self: *Self) void {
         gl.deleteVertexArrays(1, &self.vao);
         gl.deleteBuffers(1, &self.vbo);
         gl.deleteBuffers(1, &self.ebo);

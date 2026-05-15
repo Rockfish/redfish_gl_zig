@@ -28,6 +28,7 @@ const quat = math.quat;
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 
 const Shader = core.Shader;
 const Texture = core.texture.Texture;
@@ -81,14 +82,14 @@ pub const SceneDebug = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, input: *core.Input) !*Scene {
+    pub fn init(io: Io, allocator: Allocator, input: *core.Input) !*Scene {
         const camera = try FreeCamera.init(
             allocator,
             input.framebuffer_width,
             input.framebuffer_height,
         );
 
-        const rm = try ResourceManager.init(allocator);
+        const rm = try ResourceManager.init(io, allocator);
 
         const scene = try allocator.create(SceneDebug);
         scene.* = .{
@@ -111,6 +112,10 @@ pub const SceneDebug = struct {
         scene.skybox.is_visible = false;
 
         return try Scene.init(allocator, "Debug", scene, input);
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.resource_manager.deinit();
     }
 
     pub fn getSceneCamera(self: *Self) *SceneCamera {

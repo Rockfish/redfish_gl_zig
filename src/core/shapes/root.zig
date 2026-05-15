@@ -14,8 +14,8 @@ pub const Plane = @import("plane.zig").Plane;
 pub const Shape = @import("shape.zig").Shape;
 pub const obj_loader = @import("obj_loader.zig");
 
-pub fn loadOBJ(allocator: std.mem.Allocator, filepath: []const u8) !*Shape {
-    return obj_loader.loadOBJ(allocator, filepath);
+pub fn loadOBJ(io: std.Io, allocator: std.mem.Allocator, filepath: []const u8) !*Shape {
+    return obj_loader.loadOBJ(io, allocator, filepath);
 }
 
 pub fn createSquare(allocator: std.mem.Allocator) !*Shape {

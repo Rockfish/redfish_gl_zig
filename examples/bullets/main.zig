@@ -13,9 +13,8 @@ fn printUsage() void {
     std.debug.print("  --help, -h                   Show this help message\n", .{});
 }
 
-pub fn main() !void {
-    // Parse command line arguments
-    var args = std.process.args();
+pub fn main(init: std.process.Init) !void {
+    var args = init.minimal.args.iterate();
     _ = args.skip(); // Skip program name
 
     var runtime_duration: ?f32 = null;
@@ -60,6 +59,7 @@ pub fn main() !void {
         SCR_HEIGHT,
         "Bullet App",
         null,
+        null,
     );
     defer window.destroy();
 
@@ -67,7 +67,7 @@ pub fn main() !void {
     glfw.swapInterval(1);
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    try run_app(window, runtime_duration);
+    try run_app(init, window, runtime_duration);
 
     glfw.terminate();
 }

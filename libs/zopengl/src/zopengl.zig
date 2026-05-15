@@ -2,10 +2,13 @@ const std = @import("std");
 const assert = std.debug.assert;
 
 const options = @import("zopengl_options");
+const build_options = @import("build_options");
 
 comptime {
     @setEvalBranchQuota(20_000);
-    _ = std.testing.refAllDeclsRecursive(@This());
+    _ = std.testing.refAllDecls(@This());
+    _ = std.testing.refAllDecls(bindings);
+    _ = std.testing.refAllDecls(wrapper);
 }
 
 pub const bindings = @import("bindings.zig");
@@ -562,6 +565,8 @@ pub fn loadCoreProfile(loader: LoaderFn, major: u32, minor: u32) !void {
         try load("glVertexAttribL2dv", .{&bindings.vertexAttribL2dv});
         try load("glVertexAttribL3dv", .{&bindings.vertexAttribL3dv});
         try load("glVertexAttribL4dv", .{&bindings.vertexAttribL4dv});
+        try load("glVertexAttribLPointer", .{&bindings.vertexAttribLPointer});
+        try load("glGetVertexAttribLdv", .{&bindings.getVertexAttribLdv});
         try load("glViewportArrayv", .{&bindings.viewportArrayv});
         try load("glViewportIndexedf", .{&bindings.viewportIndexedf});
         try load("glViewportIndexedfv", .{&bindings.viewportIndexedfv});
@@ -1369,7 +1374,7 @@ fn getProcAddress(comptime T: type, proc_name: [:0]const u8) !T {
 // C exports
 //
 //--------------------------------------------------------------------------------------------------
-const linkage: @import("std").builtin.GlobalLinkage = .strong;
+const linkage: std.builtin.GlobalLinkage = @enumFromInt(build_options.linkage);
 comptime {
     //----------------------------------------------------------------------------------------------
     // OpenGL 1.0 (Core Profile)

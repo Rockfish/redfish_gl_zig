@@ -1,6 +1,7 @@
 const std = @import("std");
 
 pub const FrameCounter = struct {
+    io: std.Io,
     last_time: i64,
     frame_count: f32,
     fps: f32,
@@ -8,24 +9,20 @@ pub const FrameCounter = struct {
 
     const Self = @This();
 
-    pub fn init() Self {
+    pub fn init(io: std.Io) Self {
         return .{
-            .last_time = std.time.milliTimestamp(),
+            .io = io,
+            .last_time = std.Io.Timestamp.now(io, .awake).toMilliseconds(),
             .frame_count = 0.0,
             .frame_time = 0.0,
             .fps = 0.0,
         };
     }
 
-    // Legacy constructor for backward compatibility
-    pub fn new() Self {
-        return init();
-    }
-
     pub fn update(self: *Self) void {
         self.frame_count += 1.0;
 
-        const current_time = std.time.milliTimestamp();
+        const current_time = std.Io.Timestamp.now(self.io, .awake).toMilliseconds();
         const diff: f32 = @floatFromInt(current_time - self.last_time);
         const elapsed_secs = diff / 1000.0;
 

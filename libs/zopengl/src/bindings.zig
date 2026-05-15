@@ -186,6 +186,7 @@ pub const TEXTURE_MIN_FILTER = 0x2801;
 pub const TEXTURE_WRAP_S = 0x2802;
 pub const TEXTURE_WRAP_T = 0x2803;
 pub const REPEAT = 0x2901;
+
 pub var cullFace: *const fn (mode: Enum) callconv(.c) void = undefined;
 pub var frontFace: *const fn (mode: Enum) callconv(.c) void = undefined;
 pub var hint: *const fn (target: Enum, mode: Enum) callconv(.c) void = undefined;
@@ -282,6 +283,7 @@ pub var getTexLevelParameteriv: *const fn (
 pub var isEnabled: *const fn (cap: Enum) callconv(.c) Boolean = undefined;
 pub var depthRange: *const fn (n: Double, f: Double) callconv(.c) void = undefined;
 pub var viewport: *const fn (x: Int, y: Int, width: Sizei, height: Sizei) callconv(.c) void = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 1.1 (Core Profile)
@@ -321,6 +323,7 @@ pub const RGB10_A2 = 0x8059;
 pub const RGBA12 = 0x805A;
 pub const RGBA16 = 0x805B;
 pub const VERTEX_ARRAY = 0x8074;
+
 pub var drawArrays: *const fn (mode: Enum, first: Int, count: Sizei) callconv(.c) void = undefined;
 pub var drawElements: *const fn (
     mode: Enum,
@@ -390,6 +393,7 @@ pub var bindTexture: *const fn (target: Enum, texture: Uint) callconv(.c) void =
 pub var deleteTextures: *const fn (n: Sizei, textures: [*c]const Uint) callconv(.c) void = undefined;
 pub var genTextures: *const fn (n: Sizei, textures: [*c]Uint) callconv(.c) void = undefined;
 pub var isTexture: *const fn (texture: Uint) callconv(.c) Boolean = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 1.2 (Core Profile)
@@ -431,6 +435,7 @@ pub const SMOOTH_POINT_SIZE_GRANULARITY = 0x0B13;
 pub const SMOOTH_LINE_WIDTH_RANGE = 0x0B22;
 pub const SMOOTH_LINE_WIDTH_GRANULARITY = 0x0B23;
 pub const ALIASED_LINE_WIDTH_RANGE = 0x846E;
+
 pub var drawRangeElements: *const fn (
     mode: Enum,
     start: Uint,
@@ -475,6 +480,7 @@ pub var copyTexSubImage3D: *const fn (
     width: Sizei,
     height: Sizei,
 ) callconv(.c) void = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 1.3 (Core Profile)
@@ -539,6 +545,7 @@ pub const TEXTURE_COMPRESSED = 0x86A1;
 pub const NUM_COMPRESSED_TEXTURE_FORMATS = 0x86A2;
 pub const COMPRESSED_TEXTURE_FORMATS = 0x86A3;
 pub const CLAMP_TO_BORDER = 0x812D;
+
 pub var activeTexture: *const fn (texture: Enum) callconv(.c) void = undefined;
 pub var sampleCoverage: *const fn (value: Float, invert: Boolean) callconv(.c) void = undefined;
 pub var compressedTexImage3D: *const fn (
@@ -605,6 +612,7 @@ pub var compressedTexSubImage1D: *const fn (
     data: ?*const anyopaque,
 ) callconv(.c) void = undefined;
 pub var getCompressedTexImage: *const fn (target: Enum, level: Int, img: ?*anyopaque) callconv(.c) void = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 1.4 (Core Profile)
@@ -637,6 +645,7 @@ pub const FUNC_REVERSE_SUBTRACT = 0x800B;
 pub const FUNC_SUBTRACT = 0x800A;
 pub const MIN = 0x8007;
 pub const MAX = 0x8008;
+
 pub var blendFuncSeparate: *const fn (
     sfactorRGB: Enum,
     dfactorRGB: Enum,
@@ -662,6 +671,7 @@ pub var pointParameteri: *const fn (pname: Enum, param: Int) callconv(.c) void =
 pub var pointParameteriv: *const fn (pname: Enum, params: [*c]const Int) callconv(.c) void = undefined;
 pub var blendColor: *const fn (red: Float, green: Float, blue: Float, alpha: Float) callconv(.c) void = undefined;
 pub var blendEquation: *const fn (mode: Enum) callconv(.c) void = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 1.5 (Core Profile)
@@ -698,6 +708,7 @@ pub const DYNAMIC_READ = 0x88E9;
 pub const DYNAMIC_COPY = 0x88EA;
 pub const SAMPLES_PASSED = 0x8914;
 pub const SRC1_ALPHA = 0x8589;
+
 pub var genQueries: *const fn (n: Sizei, ids: [*c]Uint) callconv(.c) void = undefined;
 pub var deleteQueries: *const fn (n: Sizei, ids: [*c]const Uint) callconv(.c) void = undefined;
 pub var isQuery: *const fn (id: Uint) callconv(.c) Boolean = undefined;
@@ -736,6 +747,7 @@ pub var getBufferPointerv: *const fn (
     pname: Enum,
     params: [*c]?*anyopaque,
 ) callconv(.c) void = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 2.0 (Core Profile)
@@ -826,6 +838,7 @@ pub const UPPER_LEFT = 0x8CA2;
 pub const STENCIL_BACK_REF = 0x8CA3;
 pub const STENCIL_BACK_VALUE_MASK = 0x8CA4;
 pub const STENCIL_BACK_WRITEMASK = 0x8CA5;
+
 pub var blendEquationSeparate: *const fn (modeRGB: Enum, modeAlpha: Enum) callconv(.c) void = undefined;
 pub var drawBuffers: *const fn (n: Sizei, bufs: [*c]const Enum) callconv(.c) void = undefined;
 pub var stencilOpSeparate: *const fn (
@@ -956,10 +969,10 @@ pub var uniform4fv: *const fn (
     count: Sizei,
     value: [*c]const Float,
 ) callconv(.c) void = undefined;
-pub var uniform1iv: *const fn (location: Int, count: Sizei, value: [*]const Int) callconv(.c) void = undefined;
-pub var uniform2iv: *const fn (location: Int, count: Sizei, value: [*]const Int) callconv(.c) void = undefined;
-pub var uniform3iv: *const fn (location: Int, count: Sizei, value: [*]const Int) callconv(.c) void = undefined;
-pub var uniform4iv: *const fn (location: Int, count: Sizei, value: [*]const Int) callconv(.c) void = undefined;
+pub var uniform1iv: *const fn (location: Int, count: Sizei, value: [*c]const Int) callconv(.c) void = undefined;
+pub var uniform2iv: *const fn (location: Int, count: Sizei, value: [*c]const Int) callconv(.c) void = undefined;
+pub var uniform3iv: *const fn (location: Int, count: Sizei, value: [*c]const Int) callconv(.c) void = undefined;
+pub var uniform4iv: *const fn (location: Int, count: Sizei, value: [*c]const Int) callconv(.c) void = undefined;
 pub var uniformMatrix2fv: *const fn (
     location: Int,
     count: Sizei,
@@ -1047,6 +1060,7 @@ pub var vertexAttribPointer: *const fn (
     stride: Sizei,
     pointer: ?*const anyopaque,
 ) callconv(.c) void = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 2.1 (Core Profile)
@@ -1068,6 +1082,7 @@ pub const SRGB_ALPHA = 0x8C42;
 pub const SRGB8_ALPHA8 = 0x8C43;
 pub const COMPRESSED_SRGB = 0x8C48;
 pub const COMPRESSED_SRGB_ALPHA = 0x8C49;
+
 pub var uniformMatrix2x3fv: *const fn (
     location: Int,
     count: Sizei,
@@ -1104,6 +1119,7 @@ pub var uniformMatrix4x3fv: *const fn (
     transpose: Boolean,
     value: [*c]const Float,
 ) callconv(.c) void = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 3.0 (Core Profile)
@@ -1342,6 +1358,7 @@ pub const RG16UI = 0x823A;
 pub const RG32I = 0x823B;
 pub const RG32UI = 0x823C;
 pub const VERTEX_ARRAY_BINDING = 0x85B5;
+
 pub var colorMaski: *const fn (
     index: Uint,
     r: Boolean,
@@ -1548,6 +1565,7 @@ pub var bindVertexArray: *const fn (array: Uint) callconv(.c) void = undefined;
 pub var deleteVertexArrays: *const fn (n: Sizei, arrays: [*c]const Uint) callconv(.c) void = undefined;
 pub var genVertexArrays: *const fn (n: Sizei, arrays: [*c]Uint) callconv(.c) void = undefined;
 pub var isVertexArray: *const fn (array: Uint) callconv(.c) Boolean = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 3.1 (Core Profile)
@@ -1614,6 +1632,7 @@ pub const UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER = 0x8A44;
 pub const UNIFORM_BLOCK_REFERENCED_BY_GEOMETRY_SHADER = 0x8A45;
 pub const UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER = 0x8A46;
 pub const INVALID_INDEX = 0xFFFFFFFF;
+
 pub var drawArraysInstanced: *const fn (
     mode: Enum,
     first: Int,
@@ -1678,6 +1697,7 @@ pub var uniformBlockBinding: *const fn (
     uniformBlockIndex: Uint,
     uniformBlockBinding: Uint,
 ) callconv(.c) void = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 3.2 (Core Profile)
@@ -1751,6 +1771,7 @@ pub const UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY = 0x910D;
 pub const MAX_COLOR_TEXTURE_SAMPLES = 0x910E;
 pub const MAX_DEPTH_TEXTURE_SAMPLES = 0x910F;
 pub const MAX_INTEGER_SAMPLES = 0x9110;
+
 pub var drawElementsBaseVertex: *const fn (
     mode: Enum,
     count: Sizei,
@@ -1850,11 +1871,12 @@ pub const TEXTURE_SWIZZLE_RGBA = 0x8E46;
 pub const TIME_ELAPSED = 0x88BF;
 pub const TIMESTAMP = 0x8E28;
 pub const INT_2_10_10_10_REV = 0x8D9F;
+
 pub var bindFragDataLocationIndexed: *const fn (
     program: Uint,
     colorNumber: Uint,
     index: Uint,
-    name: [*:0]const Char,
+    name: [*c]const Char,
 ) callconv(.c) void = undefined;
 pub var getFragDataIndex: *const fn (program: Uint, name: [*c]const Char) callconv(.c) Int = undefined;
 pub var genSamplers: *const fn (count: Sizei, samplers: [*c]Uint) callconv(.c) void = undefined;
@@ -1908,13 +1930,13 @@ pub var getQueryObjecti64v: *const fn (id: Uint, pname: Enum, params: [*c]Int64)
 pub var getQueryObjectui64v: *const fn (id: Uint, pname: Enum, params: [*c]Uint64) callconv(.c) void = undefined;
 pub var vertexAttribDivisor: *const fn (index: Uint, divisor: Uint) callconv(.c) void = undefined;
 pub var vertexAttribP1ui: *const fn (index: Uint, type: Enum, normalized: Boolean, value: Uint) callconv(.c) void = undefined;
-pub var vertexAttribP1uiv: *const fn (index: Uint, type: Enum, normalized: Boolean, value: *const Uint) callconv(.c) void = undefined;
+pub var vertexAttribP1uiv: *const fn (index: Uint, type: Enum, normalized: Boolean, value: [*c]const Uint) callconv(.c) void = undefined;
 pub var vertexAttribP2ui: *const fn (index: Uint, type: Enum, normalized: Boolean, value: Uint) callconv(.c) void = undefined;
-pub var vertexAttribP2uiv: *const fn (index: Uint, type: Enum, normalized: Boolean, value: *const Uint) callconv(.c) void = undefined;
+pub var vertexAttribP2uiv: *const fn (index: Uint, type: Enum, normalized: Boolean, value: [*c]const Uint) callconv(.c) void = undefined;
 pub var vertexAttribP3ui: *const fn (index: Uint, type: Enum, normalized: Boolean, value: Uint) callconv(.c) void = undefined;
-pub var vertexAttribP3uiv: *const fn (index: Uint, type: Enum, normalized: Boolean, value: *const Uint) callconv(.c) void = undefined;
+pub var vertexAttribP3uiv: *const fn (index: Uint, type: Enum, normalized: Boolean, value: [*c]const Uint) callconv(.c) void = undefined;
 pub var vertexAttribP4ui: *const fn (index: Uint, type: Enum, normalized: Boolean, value: Uint) callconv(.c) void = undefined;
-pub var vertexAttribP4uiv: *const fn (index: Uint, type: Enum, normalized: Boolean, value: *const Uint) callconv(.c) void = undefined;
+pub var vertexAttribP4uiv: *const fn (index: Uint, type: Enum, normalized: Boolean, value: [*c]const Uint) callconv(.c) void = undefined;
 
 //--------------------------------------------------------------------------------------------------
 //
@@ -1939,6 +1961,7 @@ pub const MAX_GEOMETRY_SHADER_INVOCATIONS = 0x8E5A;
 pub const MIN_FRAGMENT_INTERPOLATION_OFFSET = 0x8E5B;
 pub const MAX_FRAGMENT_INTERPOLATION_OFFSET = 0x8E5C;
 pub const FRAGMENT_INTERPOLATION_OFFSET_BITS = 0x8E5D;
+pub const MAX_VERTEX_STREAMS = 0x8E71;
 pub const DOUBLE_VEC2 = 0x8FFC;
 pub const DOUBLE_VEC3 = 0x8FFD;
 pub const DOUBLE_VEC4 = 0x8FFE;
@@ -1997,8 +2020,8 @@ pub const TRANSFORM_FEEDBACK_BUFFER_PAUSED = 0x8E23;
 pub const TRANSFORM_FEEDBACK_BUFFER_ACTIVE = 0x8E24;
 pub const TRANSFORM_FEEDBACK_BINDING = 0x8E25;
 pub const MAX_TRANSFORM_FEEDBACK_BUFFERS = 0x8E70;
-pub const MAX_VERTEX_STREAMS = 0x8E71;
 
+// TODO: should probably be in wrapper.zig
 pub const DrawArraysIndirectCommand = extern struct {
     count: Uint,
     instance_count: Uint,
@@ -2015,13 +2038,15 @@ pub const DrawElementsIndirectCommand = extern struct {
     /// base_instance should always be set to zero for GL versions < 4.2
     base_instance: Uint = 0,
 };
+
 pub var minSampleShading: *const fn (value: Float) callconv(.c) void = undefined;
 pub var blendEquationi: *const fn (buf: Uint, mode: Enum) callconv(.c) void = undefined;
 pub var blendEquationSeparatei: *const fn (buf: Uint, modeRGB: Enum, modeAlpha: Enum) callconv(.c) void = undefined;
 pub var blendFunci: *const fn (buf: Uint, src: Enum, dst: Enum) callconv(.c) void = undefined;
 pub var blendFuncSeparatei: *const fn (buf: Uint, srcRGB: Enum, dstRGB: Enum, srcAlpha: Enum, dstAlpha: Enum) callconv(.c) void = undefined;
-pub var drawArraysIndirect: *const fn (mode: Enum, indirect: *const DrawArraysIndirectCommand) callconv(.c) void = undefined;
-pub var drawElementsIndirect: *const fn (mode: Enum, type: Enum, indirect: *const DrawElementsIndirectCommand) callconv(.c) void = undefined;
+// TODO: ?*const anyopaque should be used to keep bindings as closed to reference
+pub var drawArraysIndirect: *const fn (mode: Enum, indirect: [*c]const DrawArraysIndirectCommand) callconv(.c) void = undefined;
+pub var drawElementsIndirect: *const fn (mode: Enum, type: Enum, indirect: [*c]const DrawElementsIndirectCommand) callconv(.c) void = undefined;
 pub var uniform1d: *const fn (location: Int, x: Double) callconv(.c) void = undefined;
 pub var uniform2d: *const fn (location: Int, x: Double, y: Double) callconv(.c) void = undefined;
 pub var uniform3d: *const fn (location: Int, x: Double, y: Double, z: Double) callconv(.c) void = undefined;
@@ -2102,33 +2127,34 @@ pub const VIEWPORT_BOUNDS_RANGE = 0x825D;
 pub const LAYER_PROVOKING_VERTEX = 0x825E;
 pub const VIEWPORT_INDEX_PROVOKING_VERTEX = 0x825F;
 pub const UNDEFINED_VERTEX = 0x8260;
+
 pub var releaseShaderCompiler: *const fn () callconv(.c) void = undefined;
 pub var shaderBinary: *const fn (
     count: Sizei,
-    shaders: [*]const Uint,
-    binary_format: Enum,
-    binary: *const anyopaque,
+    shaders: [*c]const Uint,
+    binaryFormat: Enum,
+    binary: ?*const anyopaque,
     length: Sizei,
 ) callconv(.c) void = undefined;
 pub var getShaderPrecisionFormat: *const fn (
-    shader_type: Enum,
-    precisionType: Enum,
-    range: *Int,
-    precision: *Int,
+    shadertype: Enum,
+    precisiontype: Enum,
+    range: [*c]Int,
+    precision: [*c]Int,
 ) callconv(.c) void = undefined;
 // depthRangef first defined by OpenGL ES 1.0
 // clearDepthf first defined by OpenGL ES 1.0
 pub var getProgramBinary: *const fn (
     program: Uint,
-    buf_size: Sizei,
-    length: *Sizei,
-    binary_format: *Enum,
-    binary: *anyopaque,
+    bufSize: Sizei,
+    length: [*c]Sizei,
+    binaryFormat: [*c]Enum,
+    binary: ?*anyopaque,
 ) callconv(.c) void = undefined;
 pub var programBinary: *const fn (
     program: Uint,
-    binary_format: Enum,
-    binary: *const anyopaque,
+    binaryFormat: Enum,
+    binary: ?*const anyopaque,
     length: Sizei,
 ) callconv(.c) void = undefined;
 pub var programParameteri: *const fn (
@@ -2153,347 +2179,347 @@ pub var createShaderProgramv: *const fn (
 pub var bindProgramPipeline: *const fn (pipeline: Uint) callconv(.c) void = undefined;
 pub var deleteProgramPipelines: *const fn (
     n: Sizei,
-    pipelines: [*]const Uint,
+    pipelines: [*c]const Uint,
 ) callconv(.c) void = undefined;
-pub var genProgramPipelines: *const fn (n: Sizei, pipelines: [*]Uint) callconv(.c) void = undefined;
+pub var genProgramPipelines: *const fn (n: Sizei, pipelines: [*c]Uint) callconv(.c) void = undefined;
 pub var isProgramPipeline: *const fn (pipeline: Uint) callconv(.c) Boolean = undefined;
 pub var getProgramPipelineiv: *const fn (
     pipeline: Uint,
     pname: Enum,
-    params: [*]Int,
+    params: [*c]Int,
 ) callconv(.c) void = undefined;
 pub var programUniform1i: *const fn (
     program: Uint,
     location: Int,
-    x: Int,
+    v0: Int,
 ) callconv(.c) void = undefined;
 pub var programUniform2i: *const fn (
     program: Uint,
     location: Int,
-    x: Int,
-    y: Int,
+    v0: Int,
+    v1: Int,
 ) callconv(.c) void = undefined;
 pub var programUniform3i: *const fn (
     program: Uint,
     location: Int,
-    x: Int,
-    y: Int,
-    z: Int,
+    v0: Int,
+    v1: Int,
+    v2: Int,
 ) callconv(.c) void = undefined;
 pub var programUniform4i: *const fn (
     program: Uint,
     location: Int,
-    x: Int,
-    y: Int,
-    z: Int,
-    w: Int,
+    v0: Int,
+    v1: Int,
+    v2: Int,
+    v3: Int,
 ) callconv(.c) void = undefined;
 pub var programUniform1ui: *const fn (
     program: Uint,
     location: Int,
-    x: Uint,
+    v0: Uint,
 ) callconv(.c) void = undefined;
 pub var programUniform2ui: *const fn (
     program: Uint,
     location: Int,
-    x: Uint,
-    y: Uint,
+    v0: Uint,
+    v1: Uint,
 ) callconv(.c) void = undefined;
 pub var programUniform3ui: *const fn (
     program: Uint,
     location: Int,
-    x: Uint,
-    y: Uint,
-    z: Uint,
+    v0: Uint,
+    v1: Uint,
+    v2: Uint,
 ) callconv(.c) void = undefined;
 pub var programUniform4ui: *const fn (
     program: Uint,
     location: Int,
-    x: Uint,
-    y: Uint,
-    z: Uint,
-    w: Uint,
+    v0: Uint,
+    v1: Uint,
+    v2: Uint,
+    v3: Uint,
 ) callconv(.c) void = undefined;
 pub var programUniform1f: *const fn (
     program: Uint,
     location: Int,
-    x: Float,
+    v0: Float,
 ) callconv(.c) void = undefined;
 pub var programUniform2f: *const fn (
     program: Uint,
     location: Int,
-    x: Float,
-    y: Float,
+    v0: Float,
+    v1: Float,
 ) callconv(.c) void = undefined;
 pub var programUniform3f: *const fn (
     program: Uint,
     location: Int,
-    x: Float,
-    y: Float,
-    z: Float,
+    v0: Float,
+    v1: Float,
+    v2: Float,
 ) callconv(.c) void = undefined;
 pub var programUniform4f: *const fn (
     program: Uint,
     location: Int,
-    x: Float,
-    y: Float,
-    z: Float,
-    w: Float,
+    v0: Float,
+    v1: Float,
+    v2: Float,
+    v3: Float,
 ) callconv(.c) void = undefined;
 pub var programUniform1d: *const fn (
     program: Uint,
     location: Int,
-    x: Double,
+    v0: Double,
 ) callconv(.c) void = undefined;
 pub var programUniform2d: *const fn (
     program: Uint,
     location: Int,
-    x: Double,
-    y: Double,
+    v0: Double,
+    v1: Double,
 ) callconv(.c) void = undefined;
 pub var programUniform3d: *const fn (
     program: Uint,
     location: Int,
-    x: Double,
-    y: Double,
-    z: Double,
+    v0: Double,
+    v1: Double,
+    v2: Double,
 ) callconv(.c) void = undefined;
 pub var programUniform4d: *const fn (
     program: Uint,
     location: Int,
-    x: Double,
-    y: Double,
-    z: Double,
-    w: Double,
+    v0: Double,
+    v1: Double,
+    v2: Double,
+    v3: Double,
 ) callconv(.c) void = undefined;
 pub var programUniform1iv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Int,
+    value: [*c]const Int,
 ) callconv(.c) void = undefined;
 pub var programUniform2iv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Int,
+    value: [*c]const Int,
 ) callconv(.c) void = undefined;
 pub var programUniform3iv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Int,
+    value: [*c]const Int,
 ) callconv(.c) void = undefined;
 pub var programUniform4iv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Int,
+    value: [*c]const Int,
 ) callconv(.c) void = undefined;
 pub var programUniform1uiv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Uint,
+    value: [*c]const Uint,
 ) callconv(.c) void = undefined;
 pub var programUniform2uiv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Uint,
+    value: [*c]const Uint,
 ) callconv(.c) void = undefined;
 pub var programUniform3uiv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Uint,
+    value: [*c]const Uint,
 ) callconv(.c) void = undefined;
 pub var programUniform4uiv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Uint,
+    value: [*c]const Uint,
 ) callconv(.c) void = undefined;
 pub var programUniform1fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniform2fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniform3fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniform4fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniform1dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniform2dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniform3dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniform4dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix2fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix3fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix4fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix2dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix3dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix4dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix2x3fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix3x2fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix2x4fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix4x2fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix3x4fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix4x3fv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Float,
+    value: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix2x3dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix3x2dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix2x4dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix4x2dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix3x4dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var programUniformMatrix4x3dv: *const fn (
     program: Uint,
     location: Int,
     count: Sizei,
     transpose: Boolean,
-    value: [*]const Double,
+    value: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var validateProgramPipeline: *const fn (pipeline: Uint) callconv(.c) void = undefined;
 pub var getProgramPipelineInfoLog: *const fn (
     pipeline: Uint,
     bufSize: Sizei,
-    length: *Sizei,
-    infoLog: [*]u8,
+    length: [*c]Sizei,
+    infoLog: [*c]Char,
 ) callconv(.c) void = undefined;
 pub var vertexAttribL1d: *const fn (index: Uint, x: Double) callconv(.c) void = undefined;
 pub var vertexAttribL2d: *const fn (index: Uint, x: Double, y: Double) callconv(.c) void = undefined;
@@ -2510,14 +2536,26 @@ pub var vertexAttribL4d: *const fn (
     z: Double,
     w: Double,
 ) callconv(.c) void = undefined;
-pub var vertexAttribL1dv: *const fn (index: Uint, v: [*]const Double) callconv(.c) void = undefined;
-pub var vertexAttribL2dv: *const fn (index: Uint, v: [*]const Double) callconv(.c) void = undefined;
-pub var vertexAttribL3dv: *const fn (index: Uint, v: [*]const Double) callconv(.c) void = undefined;
-pub var vertexAttribL4dv: *const fn (index: Uint, v: [*]const Double) callconv(.c) void = undefined;
+pub var vertexAttribL1dv: *const fn (index: Uint, v: [*c]const Double) callconv(.c) void = undefined;
+pub var vertexAttribL2dv: *const fn (index: Uint, v: [*c]const Double) callconv(.c) void = undefined;
+pub var vertexAttribL3dv: *const fn (index: Uint, v: [*c]const Double) callconv(.c) void = undefined;
+pub var vertexAttribL4dv: *const fn (index: Uint, v: [*c]const Double) callconv(.c) void = undefined;
+pub var vertexAttribLPointer: *const fn (
+    index: Uint,
+    size: Int,
+    type: Enum,
+    stride: Sizei,
+    pointer: ?*const anyopaque,
+) callconv(.c) void = undefined;
+pub var getVertexAttribLdv: *const fn (
+    index: Uint,
+    pname: Enum,
+    params: [*c]Double,
+) callconv(.c) void = undefined;
 pub var viewportArrayv: *const fn (
     first: Uint,
     count: Sizei,
-    v: [*]const Float,
+    v: [*c]const Float,
 ) callconv(.c) void = undefined;
 pub var viewportIndexedf: *const fn (
     index: Uint,
@@ -2526,11 +2564,11 @@ pub var viewportIndexedf: *const fn (
     w: Float,
     h: Float,
 ) callconv(.c) void = undefined;
-pub var viewportIndexedfv: *const fn (index: Uint, v: [*]const Float) callconv(.c) void = undefined;
+pub var viewportIndexedfv: *const fn (index: Uint, v: [*c]const Float) callconv(.c) void = undefined;
 pub var scissorArrayv: *const fn (
     first: Uint,
     count: Sizei,
-    v: [*]const Int,
+    v: [*c]const Int,
 ) callconv(.c) void = undefined;
 pub var scissorIndexed: *const fn (
     index: Uint,
@@ -2539,26 +2577,26 @@ pub var scissorIndexed: *const fn (
     width: Sizei,
     height: Sizei,
 ) callconv(.c) void = undefined;
-pub var scissorIndexedv: *const fn (index: Uint, v: [*]const Int) callconv(.c) void = undefined;
+pub var scissorIndexedv: *const fn (index: Uint, v: [*c]const Int) callconv(.c) void = undefined;
 pub var depthRangeArrayv: *const fn (
     first: Uint,
     count: Sizei,
-    v: [*]const Clampd,
+    v: [*c]const Double,
 ) callconv(.c) void = undefined;
 pub var depthRangeIndexed: *const fn (
     index: Uint,
-    n: Clampd,
-    f: Clampd,
+    n: Double,
+    f: Double,
 ) callconv(.c) void = undefined;
 pub var getFloati_v: *const fn (
     target: Enum,
     index: Uint,
-    data: [*]Float,
+    data: [*c]Float,
 ) callconv(.c) void = undefined;
 pub var getDoublei_v: *const fn (
     target: Enum,
     index: Uint,
-    data: [*]Double,
+    data: [*c]Double,
 ) callconv(.c) void = undefined;
 
 //--------------------------------------------------------------------------------------------------
@@ -2566,10 +2604,10 @@ pub var getDoublei_v: *const fn (
 // OpenGL 4.2 (Core Profile)
 //
 //--------------------------------------------------------------------------------------------------
-pub const COPY_READ_BUFFER_BINDING = COPY_READ_BUFFER;
-pub const COPY_WRITE_BUFFER_BINDING = COPY_WRITE_BUFFER;
-pub const TRANSFORM_FEEDBACK_PAUSED = TRANSFORM_FEEDBACK_BUFFER_PAUSED;
-pub const TRANSFORM_FEEDBACK_ACTIVE = TRANSFORM_FEEDBACK_BUFFER_ACTIVE;
+pub const COPY_READ_BUFFER_BINDING = 0x8F36;
+pub const COPY_WRITE_BUFFER_BINDING = 0x8F37;
+pub const TRANSFORM_FEEDBACK_ACTIVE = 0x8E24;
+pub const TRANSFORM_FEEDBACK_PAUSED = 0x8E23;
 pub const UNPACK_COMPRESSED_BLOCK_WIDTH = 0x9127;
 pub const UNPACK_COMPRESSED_BLOCK_HEIGHT = 0x9128;
 pub const UNPACK_COMPRESSED_BLOCK_DEPTH = 0x9129;
@@ -2678,6 +2716,7 @@ pub const COMPRESSED_SRGB_ALPHA_BPTC_UNORM = 0x8E8D;
 pub const COMPRESSED_RGB_BPTC_SIGNED_FLOAT = 0x8E8E;
 pub const COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT = 0x8E8F;
 pub const TEXTURE_IMMUTABLE_FORMAT = 0x912F;
+
 pub var drawArraysInstancedBaseInstance: *const fn (
     mode: Enum,
     first: Int,
@@ -2689,7 +2728,7 @@ pub var drawElementsInstancedBaseInstance: *const fn (
     mode: Enum,
     count: Sizei,
     type: Enum,
-    indices: *const anyopaque,
+    indices: ?*const anyopaque,
     instancecount: Sizei,
     baseinstance: Uint,
 ) callconv(.c) void = undefined;
@@ -2697,7 +2736,7 @@ pub var drawElementsInstancedBaseVertexBaseInstance: *const fn (
     mode: Enum,
     count: Sizei,
     type: Enum,
-    indices: *const anyopaque,
+    indices: ?*const anyopaque,
     instancecount: Sizei,
     basevertex: Int,
     baseinstance: Uint,
@@ -2765,6 +2804,16 @@ pub var drawTransformFeedbackStreamInstanced: *const fn (
 // OpenGL 4.3 (Core Profile)
 //
 //--------------------------------------------------------------------------------------------------
+pub const DEBUGPROC = fn (
+    source: Enum,
+    type: Enum,
+    id: Uint,
+    severity: Enum,
+    length: Sizei,
+    message: [*c]const Char,
+    userParam: ?*const anyopaque,
+) callconv(.c) void;
+
 pub const NUM_SHADING_LANGUAGE_VERSIONS = 0x82E9;
 pub const VERTEX_ATTRIB_ARRAY_LONG = 0x874E;
 pub const COMPRESSED_RGB8_ETC2 = 0x9274;
@@ -2798,15 +2847,6 @@ pub const ATOMIC_COUNTER_BUFFER_REFERENCED_BY_COMPUTE_SHADER = 0x90ED;
 pub const DISPATCH_INDIRECT_BUFFER = 0x90EE;
 pub const DISPATCH_INDIRECT_BUFFER_BINDING = 0x90EF;
 pub const COMPUTE_SHADER_BIT = 0x00000020;
-pub const DEBUGPROC = *const fn (
-    source: Enum,
-    type: Enum,
-    id: Uint,
-    severity: Enum,
-    length: Sizei,
-    message: [*c]const Char,
-    userParam: *const anyopaque,
-) callconv(.c) void;
 pub const DEBUG_OUTPUT_SYNCHRONOUS = 0x8242;
 pub const DEBUG_NEXT_LOGGED_MESSAGE_LENGTH = 0x8243;
 pub const DEBUG_CALLBACK_FUNCTION = 0x8244;
@@ -2949,7 +2989,7 @@ pub const VIEW_CLASS_S3TC_DXT1_RGBA = 0x82CD;
 pub const VIEW_CLASS_S3TC_DXT3_RGBA = 0x82CE;
 pub const VIEW_CLASS_S3TC_DXT5_RGBA = 0x82CF;
 pub const VIEW_CLASS_RGTC1_RED = 0x82D0;
-pub const VIEW_CLASS_RGTC1_RG = 0x82D1;
+pub const VIEW_CLASS_RGTC2_RG = 0x82D1;
 pub const VIEW_CLASS_BPTC_UNORM = 0x82D2;
 pub const VIEW_CLASS_BPTC_FLOAT = 0x82D3;
 pub const UNIFORM = 0x92E1;
@@ -3032,12 +3072,13 @@ pub const VERTEX_BINDING_STRIDE = 0x82D8;
 pub const MAX_VERTEX_ATTRIB_RELATIVE_OFFSET = 0x82D9;
 pub const MAX_VERTEX_ATTRIB_BINDINGS = 0x82DA;
 pub const VERTEX_BINDING_BUFFER = 0x8F4F;
+
 pub var clearBufferData: *const fn (
     target: Enum,
     internalformat: Enum,
     format: Enum,
-    @"type": Enum,
-    data: [*c]const u8,
+    type: Enum,
+    data: ?*const anyopaque,
 ) callconv(.c) void = undefined;
 pub var clearBufferSubData: *const fn (
     target: Enum,
@@ -3045,8 +3086,8 @@ pub var clearBufferSubData: *const fn (
     offset: Intptr,
     size: Sizeiptr,
     format: Enum,
-    @"type": Enum,
-    data: [*c]const u8,
+    type: Enum,
+    data: ?*const anyopaque,
 ) callconv(.c) void = undefined;
 pub var dispatchCompute: *const fn (
     num_groups_x: Uint,
@@ -3128,14 +3169,14 @@ pub var invalidateSubFramebuffer: *const fn (
 ) callconv(.c) void = undefined;
 pub var multiDrawArraysIndirect: *const fn (
     mode: Enum,
-    indirect: [*c]const u8,
+    indirect: ?*const anyopaque,
     drawcount: Sizei,
     stride: Sizei,
 ) callconv(.c) void = undefined;
 pub var multiDrawElementsIndirect: *const fn (
     mode: Enum,
-    @"type": Enum,
-    indirect: [*c]const u8,
+    type: Enum,
+    indirect: ?*const anyopaque,
     drawcount: Sizei,
     stride: Sizei,
 ) callconv(.c) void = undefined;
@@ -3155,7 +3196,7 @@ pub var getProgramResourceName: *const fn (
     programInterface: Enum,
     index: Uint,
     bufSize: Sizei,
-    length: *Sizei,
+    length: [*c]Sizei,
     name: [*c]Char,
 ) callconv(.c) void = undefined;
 pub var getProgramResourceiv: *const fn (
@@ -3165,7 +3206,7 @@ pub var getProgramResourceiv: *const fn (
     propCount: Sizei,
     props: [*c]const Enum,
     count: Sizei,
-    length: *Sizei,
+    length: [*c]Sizei,
     params: [*c]Int,
 ) callconv(.c) void = undefined;
 pub var getProgramResourceLocation: *const fn (
@@ -3226,20 +3267,20 @@ pub var bindVertexBuffer: *const fn (
 pub var vertexAttribFormat: *const fn (
     attribindex: Uint,
     size: Int,
-    @"type": Enum,
+    type: Enum,
     normalized: Boolean,
     relativeoffset: Uint,
 ) callconv(.c) void = undefined;
 pub var vertexAttribIFormat: *const fn (
     attribindex: Uint,
     size: Int,
-    @"type": Enum,
+    type: Enum,
     relativeoffset: Uint,
 ) callconv(.c) void = undefined;
 pub var vertexAttribLFormat: *const fn (
     attribindex: Uint,
     size: Int,
-    @"type": Enum,
+    type: Enum,
     relativeoffset: Uint,
 ) callconv(.c) void = undefined;
 pub var vertexAttribBinding: *const fn (
@@ -3264,10 +3305,10 @@ pub var debugMessageInsert: *const fn (
     id: Uint,
     severity: Enum,
     length: Sizei,
-    buf: [*c]const u8,
+    message: [*c]const Char,
 ) callconv(.c) void = undefined;
 pub var debugMessageCallback: *const fn (
-    callback: DEBUGPROC,
+    callback: ?*const DEBUGPROC,
     userParam: ?*const anyopaque,
 ) callconv(.c) void = undefined;
 pub var getDebugMessageLog: *const fn (
@@ -3297,42 +3338,46 @@ pub var getObjectLabel: *const fn (
     identifier: Enum,
     name: Uint,
     bufSize: Sizei,
-    length: *Sizei,
+    length: [*c]Sizei,
     label: [*c]Char,
 ) callconv(.c) void = undefined;
 pub var objectPtrLabel: *const fn (
-    ptr: *anyopaque,
+    ptr: ?*const anyopaque,
     length: Sizei,
     label: [*c]const Char,
 ) callconv(.c) void = undefined;
 pub var getObjectPtrLabel: *const fn (
-    ptr: *anyopaque,
+    ptr: ?*const anyopaque,
     bufSize: Sizei,
-    length: *Sizei,
+    length: [*c]Sizei,
     label: [*c]Char,
 ) callconv(.c) void = undefined;
 pub var getPointerv: *const fn (
     pname: Enum,
-    params: *anyopaque,
+    params: [*c]?*anyopaque,
 ) callconv(.c) void = undefined;
+
 //--------------------------------------------------------------------------------------------------
 //
 // OpenGL 4.4 (Core Profile)
 //
 //--------------------------------------------------------------------------------------------------
-pub const BUFFER_IMMUTABLE_STORAGE = 0x821F;
-pub const BUFFER_STORAGE_FLAGS = 0x8220;
-pub const CLIENT_STORAGE_BIT = 0x0200;
-pub const DYNAMIC_STORAGE_BIT = 0x0100;
-pub const CLIENT_MAPPED_BUFFER_BARRIER_BIT = 0x00004000;
+pub const MAX_VERTEX_ATTRIB_STRIDE = 0x82E5;
+pub const PRIMITIVE_RESTART_FOR_PATCHES_SUPPORTED = 0x8221;
+pub const TEXTURE_BUFFER_BINDING = 0x8C2A;
 pub const MAP_PERSISTENT_BIT = 0x0040;
 pub const MAP_COHERENT_BIT = 0x0080;
+pub const DYNAMIC_STORAGE_BIT = 0x0100;
+pub const CLIENT_STORAGE_BIT = 0x0200;
+pub const CLIENT_MAPPED_BUFFER_BARRIER_BIT = 0x00004000;
+pub const BUFFER_IMMUTABLE_STORAGE = 0x821F;
+pub const BUFFER_STORAGE_FLAGS = 0x8220;
 pub const CLEAR_TEXTURE = 0x9365;
 pub const LOCATION_COMPONENT = 0x934A;
 pub const TRANSFORM_FEEDBACK_BUFFER_INDEX = 0x934B;
 pub const TRANSFORM_FEEDBACK_BUFFER_STRIDE = 0x934C;
-pub const MAX_VERTEX_ATTRIB_STRIDE = 0x82E5;
 pub const QUERY_BUFFER = 0x9192;
+pub const QUERY_BUFFER_BARRIER_BIT = 0x00008000;
 pub const QUERY_BUFFER_BINDING = 0x9193;
 pub const QUERY_RESULT_NO_WAIT = 0x9194;
 pub const MIRROR_CLAMP_TO_EDGE = 0x8743;
@@ -3405,8 +3450,11 @@ pub var bindVertexBuffers: *const fn (
 // OpenGL 4.5 (Core Profile)
 //
 //--------------------------------------------------------------------------------------------------
+pub const CONTEXT_LOST = 0x0507;
 pub const NEGATIVE_ONE_TO_ONE = 0x935E;
 pub const ZERO_TO_ONE = 0x935F;
+pub const CLIP_ORIGIN = 0x935C;
+pub const CLIP_DEPTH_MODE = 0x935D;
 pub const QUERY_WAIT_INVERTED = 0x8E17;
 pub const QUERY_NO_WAIT_INVERTED = 0x8E18;
 pub const QUERY_BY_REGION_WAIT_INVERTED = 0x8E19;
@@ -3415,14 +3463,16 @@ pub const MAX_CULL_DISTANCES = 0x82F9;
 pub const MAX_COMBINED_CLIP_AND_CULL_DISTANCES = 0x82FA;
 pub const TEXTURE_TARGET = 0x1006;
 pub const QUERY_TARGET = 0x82EA;
-pub const TEXTURE_BINDING = 0x82EB;
-pub const CONTEXT_FLAG_ROBUST_ACCESS_BIT_ARB = 0x00000004;
-pub const LOSE_CONTEXT_ON_RESET_ARB = 0x8252;
-pub const GUILTY_CONTEXT_RESET_ARB = 0x8253;
-pub const INNOCENT_CONTEXT_RESET_ARB = 0x8254;
-pub const UNKNOWN_CONTEXT_RESET_ARB = 0x8255;
-pub const RESET_NOTIFICATION_STRATEGY_ARB = 0x8256;
-pub const NO_RESET_NOTIFICATION_ARB = 0x8261;
+pub const GUILTY_CONTEXT_RESET = 0x8253;
+pub const INNOCENT_CONTEXT_RESET = 0x8254;
+pub const UNKNOWN_CONTEXT_RESET = 0x8255;
+pub const RESET_NOTIFICATION_STRATEGY = 0x8256;
+pub const LOSE_CONTEXT_ON_RESET = 0x8252;
+pub const NO_RESET_NOTIFICATION = 0x8261;
+pub const CONTEXT_FLAG_ROBUST_ACCESS_BIT = 0x00000004;
+pub const CONTEXT_RELEASE_BEHAVIOR = 0x82FB;
+pub const CONTEXT_RELEASE_BEHAVIOR_FLUSH = 0x82FC;
+
 pub var clipControl: *const fn (
     origin: Enum,
     depth: Enum,
@@ -4110,8 +4160,11 @@ pub var textureBarrier: *const fn () callconv(.c) void = undefined;
 // OpenGL 4.6 (Core Profile)
 //
 //--------------------------------------------------------------------------------------------------
+pub const SHADER_BINARY_FORMAT_SPIR_V = 0x9551;
+pub const SPIR_V_BINARY = 0x9552;
 pub const PARAMETER_BUFFER = 0x80EE;
 pub const PARAMETER_BUFFER_BINDING = 0x80EF;
+pub const CONTEXT_FLAG_NO_ERROR_BIT = 0x00000008;
 pub const VERTICES_SUBMITTED = 0x82EE;
 pub const PRIMITIVES_SUBMITTED = 0x82EF;
 pub const VERTEX_SHADER_INVOCATIONS = 0x82F0;
@@ -4122,19 +4175,17 @@ pub const FRAGMENT_SHADER_INVOCATIONS = 0x82F4;
 pub const COMPUTE_SHADER_INVOCATIONS = 0x82F5;
 pub const CLIPPING_INPUT_PRIMITIVES = 0x82F6;
 pub const CLIPPING_OUTPUT_PRIMITIVES = 0x82F7;
-pub const SPIR_V_BINARY = 0x9552;
-pub const SHADER_BINARY_FORMAT_SPIR_V = 0x9551;
+pub const POLYGON_OFFSET_CLAMP = 0x8E1B;
 pub const SPIR_V_EXTENSIONS = 0x9553;
 pub const NUM_SPIR_V_EXTENSIONS = 0x9554;
 pub const TEXTURE_MAX_ANISOTROPY = 0x84FE;
 pub const MAX_TEXTURE_MAX_ANISOTROPY = 0x84FF;
 pub const TRANSFORM_FEEDBACK_OVERFLOW = 0x82EC;
 pub const TRANSFORM_FEEDBACK_STREAM_OVERFLOW = 0x82ED;
-pub const CONTEXT_FLAG_NO_ERROR_BIT = 0x00000008;
 
 pub var multiDrawArraysIndirectCount: *const fn (
     mode: Enum,
-    indirect: *const anyopaque,
+    indirect: ?*const anyopaque,
     drawcount: Intptr,
     maxdrawcount: Sizei,
     stride: Sizei,
@@ -4142,7 +4193,7 @@ pub var multiDrawArraysIndirectCount: *const fn (
 pub var multiDrawElementsIndirectCount: *const fn (
     mode: Enum,
     type: Enum,
-    indirect: *const anyopaque,
+    indirect: ?*const anyopaque,
     drawcount: Intptr,
     maxdrawcount: Sizei,
     stride: Sizei,
@@ -4197,35 +4248,35 @@ pub var scalef: *const fn (x: Float, y: Float, z: Float) callconv(.c) void = und
 pub var translatef: *const fn (x: Float, y: Float, z: Float) callconv(.c) void = undefined;
 
 pub var vertexP2ui: *const fn (type: Enum, value: Uint) callconv(.c) void = undefined;
-pub var vertexP2uiv: *const fn (type: Enum, value: *const Uint) callconv(.c) void = undefined;
+pub var vertexP2uiv: *const fn (type: Enum, value: [*c]const Uint) callconv(.c) void = undefined;
 pub var vertexP3ui: *const fn (type: Enum, value: Uint) callconv(.c) void = undefined;
-pub var vertexP3uiv: *const fn (type: Enum, value: *const Uint) callconv(.c) void = undefined;
+pub var vertexP3uiv: *const fn (type: Enum, value: [*c]const Uint) callconv(.c) void = undefined;
 pub var vertexP4ui: *const fn (type: Enum, value: Uint) callconv(.c) void = undefined;
-pub var vertexP4uiv: *const fn (type: Enum, value: *const Uint) callconv(.c) void = undefined;
+pub var vertexP4uiv: *const fn (type: Enum, value: [*c]const Uint) callconv(.c) void = undefined;
 pub var texCoordP1ui: *const fn (type: Enum, coords: Uint) callconv(.c) void = undefined;
-pub var texCoordP1uiv: *const fn (type: Enum, coords: *const Uint) callconv(.c) void = undefined;
+pub var texCoordP1uiv: *const fn (type: Enum, coords: [*c]const Uint) callconv(.c) void = undefined;
 pub var texCoordP2ui: *const fn (type: Enum, coords: Uint) callconv(.c) void = undefined;
-pub var texCoordP2uiv: *const fn (type: Enum, coords: *const Uint) callconv(.c) void = undefined;
+pub var texCoordP2uiv: *const fn (type: Enum, coords: [*c]const Uint) callconv(.c) void = undefined;
 pub var texCoordP3ui: *const fn (type: Enum, coords: Uint) callconv(.c) void = undefined;
-pub var texCoordP3uiv: *const fn (type: Enum, coords: *const Uint) callconv(.c) void = undefined;
+pub var texCoordP3uiv: *const fn (type: Enum, coords: [*c]const Uint) callconv(.c) void = undefined;
 pub var texCoordP4ui: *const fn (type: Enum, coords: Uint) callconv(.c) void = undefined;
-pub var texCoordP4uiv: *const fn (type: Enum, coords: *const Uint) callconv(.c) void = undefined;
+pub var texCoordP4uiv: *const fn (type: Enum, coords: [*c]const Uint) callconv(.c) void = undefined;
 pub var multiTexCoordP1ui: *const fn (texture: Enum, type: Enum, coords: Uint) callconv(.c) void = undefined;
-pub var multiTexCoordP1uiv: *const fn (texture: Enum, type: Enum, coords: *const Uint) callconv(.c) void = undefined;
+pub var multiTexCoordP1uiv: *const fn (texture: Enum, type: Enum, coords: [*c]const Uint) callconv(.c) void = undefined;
 pub var multiTexCoordP2ui: *const fn (texture: Enum, type: Enum, coords: Uint) callconv(.c) void = undefined;
-pub var multiTexCoordP2uiv: *const fn (texture: Enum, type: Enum, coords: *const Uint) callconv(.c) void = undefined;
+pub var multiTexCoordP2uiv: *const fn (texture: Enum, type: Enum, coords: [*c]const Uint) callconv(.c) void = undefined;
 pub var multiTexCoordP3ui: *const fn (texture: Enum, type: Enum, coords: Uint) callconv(.c) void = undefined;
-pub var multiTexCoordP3uiv: *const fn (texture: Enum, type: Enum, coords: *const Uint) callconv(.c) void = undefined;
+pub var multiTexCoordP3uiv: *const fn (texture: Enum, type: Enum, coords: [*c]const Uint) callconv(.c) void = undefined;
 pub var multiTexCoordP4ui: *const fn (texture: Enum, type: Enum, coords: Uint) callconv(.c) void = undefined;
-pub var multiTexCoordP4uiv: *const fn (texture: Enum, type: Enum, coords: *const Uint) callconv(.c) void = undefined;
+pub var multiTexCoordP4uiv: *const fn (texture: Enum, type: Enum, coords: [*c]const Uint) callconv(.c) void = undefined;
 pub var normalP3ui: *const fn (type: Enum, coords: Uint) callconv(.c) void = undefined;
-pub var normalP3uiv: *const fn (type: Enum, coords: *const Uint) callconv(.c) void = undefined;
+pub var normalP3uiv: *const fn (type: Enum, coords: [*c]const Uint) callconv(.c) void = undefined;
 pub var colorP3ui: *const fn (type: Enum, color: Uint) callconv(.c) void = undefined;
-pub var colorP3uiv: *const fn (type: Enum, color: *const Uint) callconv(.c) void = undefined;
+pub var colorP3uiv: *const fn (type: Enum, color: [*c]const Uint) callconv(.c) void = undefined;
 pub var colorP4ui: *const fn (type: Enum, color: Uint) callconv(.c) void = undefined;
-pub var colorP4uiv: *const fn (type: Enum, color: *const Uint) callconv(.c) void = undefined;
+pub var colorP4uiv: *const fn (type: Enum, color: [*c]const Uint) callconv(.c) void = undefined;
 pub var secondaryColorP3ui: *const fn (type: Enum, color: Uint) callconv(.c) void = undefined;
-pub var secondaryColorP3uiv: *const fn (type: Enum, color: *const Uint) callconv(.c) void = undefined;
+pub var secondaryColorP3uiv: *const fn (type: Enum, color: [*c]const Uint) callconv(.c) void = undefined;
 
 pub var matrixLoadIdentityEXT: *const fn (mode: Enum) callconv(.c) void = undefined;
 pub var matrixOrthoEXT: *const fn (
@@ -4369,10 +4420,10 @@ pub var debugMessageInsertKHR: *const fn (
     id: Uint,
     severity: Enum,
     length: Sizei,
-    buf: [*c]const u8,
+    buf: [*c]const Char,
 ) callconv(.c) void = undefined;
 pub var debugMessageCallbackKHR: *const fn (
-    callback: DEBUGPROC,
+    callback: ?*const DEBUGPROC,
     userParam: ?*const anyopaque,
 ) callconv(.c) void = undefined;
 pub var getDebugMessageLogKHR: *const fn (
@@ -4387,7 +4438,7 @@ pub var getDebugMessageLogKHR: *const fn (
 ) callconv(.c) Uint = undefined;
 pub var getPointervKHR: *const fn (
     pname: Enum,
-    params: *anyopaque,
+    params: [*c]?*anyopaque,
 ) callconv(.c) void = undefined;
 pub var pushDebugGroupKHR: *const fn (
     source: Enum,
@@ -4406,18 +4457,18 @@ pub var getObjectLabelKHR: *const fn (
     identifier: Enum,
     name: Uint,
     bufSize: Sizei,
-    length: *Sizei,
+    length: [*c]Sizei,
     label: [*c]Char,
 ) callconv(.c) void = undefined;
 pub var objectPtrLabelKHR: *const fn (
-    ptr: *anyopaque,
+    ptr: ?*const anyopaque,
     length: Sizei,
     label: [*c]const Char,
 ) callconv(.c) void = undefined;
 pub var getObjectPtrLabelKHR: *const fn (
-    ptr: *anyopaque,
+    ptr: ?*const anyopaque,
     bufSize: Sizei,
-    length: *Sizei,
+    length: [*c]Sizei,
     label: [*c]Char,
 ) callconv(.c) void = undefined;
 //--------------------------------------------------------------------------------------------------

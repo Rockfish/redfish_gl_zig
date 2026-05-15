@@ -7,6 +7,7 @@ const GltfAsset = @import("asset_loader.zig").GltfAsset;
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 
 pub const TextureConfig = struct {
     filter: TextureFilter = .Linear,
@@ -33,12 +34,13 @@ pub const Texture = struct {
 
     const Self = @This();
 
-    pub fn deleteGlTexture(self: *const Texture) void {
+    pub fn deleteGlObjects(self: *const Texture) void {
         gl.deleteTextures(1, &self.gl_texture_id);
     }
 
     // Initialize from glTF texture reference
     pub fn initFromGltf(
+        io: Io,
         arena: *ArenaAllocator,
         gltf_asset: *GltfAsset,
         directory: []const u8,
@@ -50,7 +52,7 @@ pub const Texture = struct {
         const source_id = gltf_texture.source orelse std.debug.panic("texture.source null not supported.", .{});
         const gltf_image = gltf_asset.gltf.images.?[source_id];
 
-        zstbi.init(allocator);
+        zstbi.init(io, allocator);
         defer zstbi.deinit();
 
         // GLTF defines UV coordinates with a top-left origin
@@ -84,11 +86,12 @@ pub const Texture = struct {
 
     // Initialize from custom file path with configuration (for manual texture assignment)
     pub fn initFromFile(
+        io: Io,
         allocator: Allocator,
         file_path: [:0]const u8,
         config: TextureConfig,
     ) !*Texture {
-        zstbi.init(allocator);
+        zstbi.init(io, allocator);
         defer zstbi.deinit();
 
         zstbi.setFlipVerticallyOnLoad(config.flip_v);

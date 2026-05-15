@@ -18,6 +18,7 @@ pub const NormalGenerationMode = enum {
     accurate, // Calculate normals from triangle geometry
 };
 
+const Io = std.Io;
 const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
 const ArenaAllocator = std.heap.ArenaAllocator;
@@ -62,6 +63,7 @@ const GlbError = error{
 };
 
 pub const GltfAsset = struct {
+    io: Io,
     arena: *ArenaAllocator,
 
     // Pure GLTF specification data
@@ -75,6 +77,7 @@ pub const GltfAsset = struct {
     directory: []const u8,
     name: []const u8,
     filepath: [:0]const u8,
+    is_loaded: bool = false,
 
     // Configuration
     gamma_correction: bool,
@@ -85,7 +88,7 @@ pub const GltfAsset = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, name: []const u8, path: []const u8) !*Self {
+    pub fn init(io: Io, allocator: Allocator, name: []const u8, path: []const u8) !*Self {
 
         // will be owned by the model
         const arena = try allocator.create(ArenaAllocator);
@@ -95,6 +98,7 @@ pub const GltfAsset = struct {
 
         const asset: *GltfAsset = try local_alloc.create(Self);
         asset.* = GltfAsset{
+            .io = io,
             .arena = arena, // will be owned by the model
             .gltf = undefined, // Will be set during load
             .buffer_data = ManagedArrayList([]align(4) const u8).init(local_alloc),
@@ -115,16 +119,20 @@ pub const GltfAsset = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        self.deleteGlObjects();
+    }
+
+    pub fn deleteGlObjects(self: *Self) void {
         // Free loaded textures
         var texture_iterator = self.loaded_textures.valueIterator();
         while (texture_iterator.next()) |tex| {
-            tex.*.deleteGlTexture();
+            tex.*.deleteGlObjects();
         }
 
         // Free custom textures
         for (self.custom_textures.list.items) |*custom_tex| {
             if (custom_tex.texture) |tex| {
-                tex.deleteGlTexture();
+                tex.deleteGlObjects();
             }
         }
     }
@@ -193,6 +201,7 @@ pub const GltfAsset = struct {
 
         // Load texture manually (similar to ASSIMP system)
         const tex = try texture.Texture.initFromFile(
+            self.io,
             allocator,
             full_path,
             config,
@@ -249,11 +258,11 @@ pub const GltfAsset = struct {
     }
 
     pub fn load(self: *Self) !void {
-        const file_contents = std.fs.cwd().readFileAllocOptions(
-            self.arena.allocator(),
+        const file_contents = std.Io.Dir.cwd().readFileAllocOptions(
+            self.io,
             self.filepath,
-            500_000_000,
-            null,
+            self.arena.allocator(),
+            .unlimited,
             .@"4",
             null,
         ) catch |err| std.debug.panic("Error reading file. error: '{any}'  file: '{s}'\n", .{ err, self.filepath });
@@ -277,10 +286,13 @@ pub const GltfAsset = struct {
             // Load external buffer data from URIs
             try self.loadBufferData();
         }
+        self.is_loaded = true;
     }
 
     pub fn buildModel(self: *Self) !*Model {
         const allocator = self.arena.allocator();
+
+        if (!self.is_loaded) try self.load();
 
         // Generate normals for missing ones based on configuration
         try self.generateMissingNormals();
@@ -343,6 +355,7 @@ pub const GltfAsset = struct {
 
         // Load texture on demand
         const tex = try texture.Texture.initFromGltf(
+            self.io,
             self.arena,
             self,
             self.directory,
@@ -389,11 +402,11 @@ pub const GltfAsset = struct {
                         const path = try std.fs.path.join(alloc, &[_][]const u8{ self.directory, uri });
                         defer alloc.free(path);
 
-                        const buffer_file = std.fs.cwd().readFileAllocOptions(
-                            alloc,
-                            path,
-                            4_512_000,
-                            null,
+                        const buffer_file = std.Io.Dir.cwd().readFileAllocOptions(
+                            self.io,
+                            self.filepath,
+                            self.arena.allocator(),
+                            .unlimited,
                             .@"4",
                             null,
                         ) catch |err| {

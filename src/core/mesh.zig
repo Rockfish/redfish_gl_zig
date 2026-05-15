@@ -30,12 +30,6 @@ pub const Mesh = struct {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self) void {
-        for (self.primitives.list.items) |primitive| {
-            primitive.deleteGlObjects();
-        }
-    }
-
     pub fn init(arena: *ArenaAllocator, gltf_asset: *GltfAsset, gltf_mesh: gltf_types.Mesh, mesh_index: usize) !*Mesh {
         const allocator = arena.allocator();
         const mesh = try allocator.create(Mesh);
@@ -51,6 +45,16 @@ pub const Mesh = struct {
         }
 
         return mesh;
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.deleteGlObjects();
+    }
+
+    pub fn deleteGlObjects(self: *Self) void {
+        for (self.primitives.items()) |primitive| {
+            primitive.deleteGlObjects();
+        }
     }
 
     pub fn draw(self: *Self, gltf_asset: *GltfAsset, shader: *const Shader) void {

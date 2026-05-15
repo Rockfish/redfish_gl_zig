@@ -67,10 +67,17 @@ pub const Uniforms = struct {
     pub const Model_Transform: [:0]const u8 = "model_transform";
     pub const Projection_View_Alt: [:0]const u8 = "projection_view";
 
-    // Lighting uniforms
+    // Lighting uniforms (legacy - used by animated_pbr shaders)
     pub const Ambient_Color: [:0]const u8 = "ambientColor";
     pub const Light_Color: [:0]const u8 = "lightColor";
     pub const Light_Direction: [:0]const u8 = "lightDirection";
+
+    // Lighting uniforms (standardized - matches DirectionLight/PointLight structs)
+    pub const Ambient: [:0]const u8 = "ambient";
+    pub const Use_Light: [:0]const u8 = "useLight";
+    pub const Direction_Light_Dir: [:0]const u8 = "directionLight.dir";
+    pub const Direction_Light_Color: [:0]const u8 = "directionLight.color";
+    pub const Num_Point_Lights: [:0]const u8 = "numPointLights";
 
     // Texture uniforms
     pub const Texture_Diffuse: [:0]const u8 = "textureDiffuse";

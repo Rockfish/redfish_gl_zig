@@ -21,10 +21,11 @@ pub const PlaneConfig = struct {
     tile_size: f32 = 1.0,
     diffuse_texture: ?[:0]const u8 = null,
     normal_texture: ?[:0]const u8 = null,
-    spectal_texture: ?[:0]const u8 = null,
+    specular_texture: ?[:0]const u8 = null,
 };
 
 pub const Plane = struct {
+    io: std.Io,
     allocator: Allocator,
     shape: *Shape = undefined,
     texture_diffuse: *Texture = undefined,
@@ -34,15 +35,15 @@ pub const Plane = struct {
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
-        self.texture_diffuse.deleteGlTexture();
-        self.texture_normal.deleteGlTexture();
-        self.texture_spec.deleteGlTexture();
+        self.texture_diffuse.deleteGlObjects();
+        self.texture_normal.deleteGlObjects();
+        self.texture_spec.deleteGlObjects();
         self.shape.deinit();
         self.allocator.destroy(self.shape);
     }
 
-    pub fn init(allocator: Allocator, config: PlaneConfig) !Self {
-        var self = Self{ .allocator = allocator };
+    pub fn init(io: std.Io, allocator: Allocator, config: PlaneConfig) !Self {
+        var self = Self{ .io = io, .allocator = allocator };
 
         const positions = [_][3]f32{
             .{ -config.plane_size / 2.0, 0.0, -config.plane_size / 2.0 },
@@ -92,6 +93,7 @@ pub const Plane = struct {
 
         if (config.diffuse_texture) |texture_path| {
             self.texture_diffuse = try Texture.initFromFile(
+                self.io,
                 self.allocator,
                 texture_path,
                 texture_config,
@@ -99,13 +101,15 @@ pub const Plane = struct {
         }
         if (config.normal_texture) |texture_path| {
             self.texture_normal = try Texture.initFromFile(
+                self.io,
                 self.allocator,
                 texture_path,
                 texture_config,
             );
         }
-        if (config.spectal_texture) |texture_path| {
+        if (config.specular_texture) |texture_path| {
             self.texture_spec = try Texture.initFromFile(
+                self.io,
                 self.allocator,
                 texture_path,
                 texture_config,

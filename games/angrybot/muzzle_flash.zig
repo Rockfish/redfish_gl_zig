@@ -33,10 +33,11 @@ pub const MuzzleFlash = struct {
         self.muzzle_flash_sprites_age.deinit();
     }
 
-    pub fn init(allocator: Allocator, unit_square_vao: c_uint) !Self {
+    pub fn init(io: std.Io, allocator: Allocator, unit_square_vao: c_uint) !Self {
         const texture_config: TextureConfig = .{ .wrap = .Repeat };
 
         const texture_muzzle_flash_sprite_sheet = try Texture.initFromFile(
+            io,
             allocator,
             "assets/angrybots_assets/Textures/Bullet/muzzle_spritesheet.png",
             texture_config,

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="BuildScanner">
+    <option name="projects">
+      <list><![CDATA[{
+  "name": "zglfw",
+  "version": "0.10.0-dev",
+  "path": "/Users/john/Dev/Repos_Zig/zglfw",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "test",
+      "description": "Run zglfw tests",
+      "kind": "run"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/zglfw.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "<null>",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "src/zglfw.zig",
+      "public": false,
+      "imports": []
+    }
+  ],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": "system_sdk",
+  "version": "0.3.0-dev",
+  "path": "/Users/john/Dev/Repos_Zig/zglfw/zig-pkg/system_sdk-0.3.0-dev-alwUNnYaaAJAtIdE2fg4NQfDqEKs7QCXy_qYukAOBfmF",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    }
+  ],
+  "modules": [],
+  "dependencies": []
+}]]></list>
+    </option>
+  </component>
+  <component name="ZigToolchain" toolchain="1903f504-c000-49ac-bfbc-6c1a565e2fb0" />
+</project>

@@ -48,15 +48,16 @@ pub fn ManagedArrayList(comptime T: type) type {
             return self.list.shrinkRetainingCapacity(new_len);
         }
 
-        pub const Writer = if (T != u8) void else std.io.GenericWriter(*Self, Allocator.Error, appendWrite);
+        // pub const Writer = if (T != u8) void else std.Io.Writer; // (*Self, Allocator.Error, appendWrite);
 
         fn appendWrite(self: *Self, data: []const T) Allocator.Error!usize {
             try self.list.appendSlice(self.allocator, data);
             return data.len;
         }
 
-        pub fn writer(self: *Self) Writer {
-            return .{ .context = self };
+        pub fn writer(self: *Self) std.Io.Writer.Allocating {
+            //return .{ .context = self, .allocator = self.allocator };
+            return std.Io.Writer.Allocating.init(self.allocator);
         }
 
         pub fn clearRetainingCapacity(self: *Self) void {

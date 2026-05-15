@@ -44,13 +44,8 @@ const SIZE_OF_VEC3 = @sizeOf(Vec3);
 const SIZE_OF_VEC4 = @sizeOf(Vec4);
 const SIZE_OF_QUAT = @sizeOf(Quat);
 
-pub fn run(window: *glfw.Window) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
-    defer arena.deinit();
-    const allocator = arena.allocator();
+pub fn run(init: std.process.Init, window: *glfw.Window) !void {
+    const allocator = init.arena.allocator();
 
     gl.enable(gl.DEPTH_TEST);
 
@@ -91,6 +86,7 @@ pub fn run(window: *glfw.Window) !void {
     };
 
     const basic_model_shader = try Shader.init(
+        init.io,
         allocator,
         "examples/scene_tree/basic_model.vert",
         "examples/scene_tree/basic_model.frag",
@@ -139,6 +135,7 @@ pub fn run(window: *glfw.Window) !void {
     };
 
     const cube_texture = try Texture.initFromFile(
+        init.io,
         allocator,
         "assets/textures/container.jpg",
         texture_diffuse,
@@ -146,6 +143,7 @@ pub fn run(window: *glfw.Window) !void {
 
     texture_diffuse.wrap = TextureWrap.Repeat;
     const surface_texture = try Texture.initFromFile(
+        init.io,
         allocator,
         "assets/Textures/Floor/Floor D.png",
         texture_diffuse,
@@ -153,7 +151,7 @@ pub fn run(window: *glfw.Window) !void {
 
     // const model_path = ""/Users/john/Dev/Repos/Egregoria/assets/models/pedestrian.glb"";
     const model_path = "glTF-Sample-Models/CesiumMan/glTF-Binary/CesiumMan.glb";
-    var gltf_asset = try GltfAsset.init(allocator, "alien", model_path);
+    var gltf_asset = try GltfAsset.init(init.io, allocator, "alien", model_path);
     try gltf_asset.load();
 
     const model = try gltf_asset.buildModel();

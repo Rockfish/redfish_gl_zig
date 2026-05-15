@@ -220,14 +220,14 @@ const model_configs = [_]ModelConfig{
 // Select model based on enum
 const SELECTED_MODEL: ModelChoice = .player;
 
-pub fn main() !void {
-    var buf: [512]u8 = undefined;
-    const cwd = try std.fs.selfExeDirPath(&buf);
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.arena.allocator();
+    const cwd = try std.process.currentPathAlloc(init.io, allocator);
     std.debug.print("Running sample_animation. cwd = {s}\n", .{cwd});
 
-    // Parse command line arguments
-    var args = std.process.args();
+    var args = init.minimal.args.iterate();
     _ = args.skip(); // Skip program name
+    //
     var runtime_duration: ?f32 = null;
 
     while (args.next()) |arg| {
@@ -245,10 +245,6 @@ pub fn main() !void {
         }
     }
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    const allocator = gpa.allocator();
     core.string.init(allocator);
 
     try glfw.init();
@@ -264,7 +260,13 @@ pub fn main() !void {
     // For MacOS
     glfw.windowHint(.opengl_forward_compat, true);
 
-    const window = try glfw.Window.create(600, 600, "Angry ", null);
+    const window = try glfw.Window.create(
+        600,
+        600,
+        "Angry ",
+        null,
+        null,
+    );
     defer window.destroy();
 
     glfw.makeContextCurrent(window);
@@ -272,10 +274,10 @@ pub fn main() !void {
 
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    try run(allocator, window, runtime_duration);
+    try run(init, allocator, window, runtime_duration);
 }
 
-pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f32) !void {
+pub fn run(init: std.process.Init, allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f32) !void {
     //var buffer: [1024]u8 = undefined;
     //const root_path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
     //_ = root_path;
@@ -308,6 +310,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
     gl.enable(gl.DEPTH_TEST);
 
     const shader = try Shader.init(
+        init.io,
         allocator,
         "examples/animation_example/player_shader.vert",
         "examples/animation_example/player_shader.frag",
@@ -344,7 +347,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
     std.debug.print("Main: loading model: {s}\n", .{model_path});
 
     // Create glTF asset and load model
-    var gltf_asset = try GltfAsset.init(allocator, model_name, model_path);
+    var gltf_asset = try GltfAsset.init(init.io, allocator, model_name, model_path);
     try gltf_asset.load();
 
     // Apply model configuration
@@ -374,6 +377,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
         std.debug.print("Generating glTF report to: {s}\n", .{REPORT_PATH});
         const GltfReport = core.gltf_report.GltfReport;
         try GltfReport.writeDetailedReportToFile(
+            init.io,
             allocator,
             gltf_asset,
             REPORT_PATH,
@@ -385,7 +389,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
 
     const bullet_model_path = "assets/angrybots_assets/Models/Bullet/Bullet.gltf";
 
-    var bullet_gltf_asset = try GltfAsset.init(allocator, "bullet", bullet_model_path);
+    var bullet_gltf_asset = try GltfAsset.init(init.io, allocator, "bullet", bullet_model_path);
     try bullet_gltf_asset.load();
 
     bullet_gltf_asset.skipModelTextures();
@@ -429,7 +433,7 @@ pub fn run(allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f3
 
     // --- event loop
     state.last_frame = @floatCast(glfw.getTime());
-    var frame_counter = FrameCounter.new();
+    var frame_counter = FrameCounter.init(init.io);
 
     _ = window.setKeyCallback(keyHandler);
     _ = window.setFramebufferSizeCallback(framebufferSizeHandler);
