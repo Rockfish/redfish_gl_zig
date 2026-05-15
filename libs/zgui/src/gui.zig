@@ -25,6 +25,7 @@ pub const backend = switch (@import("zgui_options").backend) {
     .sdl3_opengl3 => @import("backend_sdl3_opengl.zig"),
     .sdl3_renderer => @import("backend_sdl3_renderer.zig"),
     .sdl3_gpu => @import("backend_sdl3_gpu.zig"),
+    .sdl3_vulkan => @import("backend_sdl3_vulkan.zig"),
     .no_backend => .{},
 };
 const te_enabled = @import("zgui_options").with_te;
@@ -52,7 +53,7 @@ pub fn init(allocator: std.mem.Allocator) void {
 
         _ = zguiCreateContext(null);
 
-        temp_buffer = std.ArrayList(u8){};
+        temp_buffer = std.ArrayList(u8).empty;
         temp_buffer.?.resize(allocator, 3 * 1024 + 1) catch unreachable;
 
         if (te_enabled) {
@@ -71,7 +72,7 @@ pub fn initWithExistingContext(allocator: std.mem.Allocator, ctx: Context) void 
 
     zguiSetCurrentContext(ctx);
 
-    temp_buffer = std.ArrayList(u8){};
+    temp_buffer = std.ArrayList(u8).empty;
     temp_buffer.?.resize(mem_allocator.?, 3 * 1024 + 1) catch unreachable;
 
     if (te_enabled) {
@@ -115,7 +116,7 @@ pub fn deinit() void {
 pub fn initNoContext(allocator: std.mem.Allocator) void {
     mem_allocator = allocator;
     if (temp_buffer == null) {
-        temp_buffer = std.ArrayList(u8){};
+        temp_buffer = std.ArrayList(u8).empty;
         temp_buffer.?.resize(mem_allocator.?, 3 * 1024 + 1) catch unreachable;
     }
 }
@@ -131,12 +132,12 @@ extern fn zguiSetCurrentContext(ctx: ?Context) void;
 //--------------------------------------------------------------------------------------------------
 var mem_allocator: ?std.mem.Allocator = null;
 var mem_allocations: ?std.AutoHashMap(usize, usize) = null;
-var mem_mutex: std.Thread.Mutex = .{};
+var mem_mutex: std.Io.Mutex = std.Io.Mutex.init;
 const mem_alignment: std.mem.Alignment = .@"16";
 
 fn zguiMemAlloc(size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
-    mem_mutex.lock();
-    defer mem_mutex.unlock();
+    while (!mem_mutex.tryLock()) std.atomic.spinLoopHint();
+    defer _ = mem_mutex.state.swap(.unlocked, .release);
 
     const mem = mem_allocator.?.alignedAlloc(
         u8,
@@ -151,8 +152,8 @@ fn zguiMemAlloc(size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
 
 fn zguiMemFree(maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
     if (maybe_ptr) |ptr| {
-        mem_mutex.lock();
-        defer mem_mutex.unlock();
+        while (!mem_mutex.tryLock()) std.atomic.spinLoopHint();
+        defer _ = mem_mutex.state.swap(.unlocked, .release);
 
         if (mem_allocations != null) {
             if (mem_allocations.?.fetchRemove(@intFromPtr(ptr))) |kv| {
@@ -369,6 +370,10 @@ pub const io = struct {
     /// `pub fn setConfigFlags(flags: ConfigFlags) void`
     pub const setConfigFlags = zguiIoSetConfigFlags;
     extern fn zguiIoSetConfigFlags(flags: ConfigFlags) void;
+
+    /// `pub fn getBackendFlags() BackendFlags`
+    pub const getBackendFlags = zguiIoGetBackendFlags;
+    extern fn zguiIoGetBackendFlags() BackendFlags;
 
     /// `pub fn setBackendFlags(flags: BackendFlags) void`
     pub const setBackendFlags = zguiIoSetBackendFlags;
@@ -1002,6 +1007,12 @@ extern fn zguiGetWindowSize(size: *[2]f32) void;
 extern fn zguiGetWindowWidth() f32;
 extern fn zguiGetWindowHeight() f32;
 extern fn zguiGetContentRegionAvail(size: *[2]f32) void;
+
+pub const Window = opaque {};
+/// `pub fn getCurrentWindow() *Window`
+pub const getCurrentWindow = zguiGetCurrentWindow;
+extern fn zguiGetCurrentWindow() *Window;
+
 //--------------------------------------------------------------------------------------------------
 //
 // Docking
@@ -1561,7 +1572,7 @@ pub fn getCursorScreenPos() [2]f32 {
     return pos;
 }
 pub fn setCursorScreenPos(screen_pos: [2]f32) void {
-    zguiSetCursorPos(screen_pos[0], screen_pos[1]);
+    zguiSetCursorScreenPos(screen_pos[0], screen_pos[1]);
 }
 extern fn zguiGetCursorStartPos(pos: *[2]f32) void;
 extern fn zguiGetCursorScreenPos(pos: *[2]f32) void;
@@ -4346,7 +4357,7 @@ pub const DrawList = *opaque {
         p1: [2]f32,
         p2: [2]f32,
         col: u32,
-        thickness: f32,
+        thickness: f32 = 1.0,
     }) void {
         zguiDrawList_AddLine(draw_list, &args.p1, &args.p2, args.col, args.thickness);
     }

@@ -213,6 +213,11 @@ extern "C"
         return ImGui::GetWindowHeight();
     }
 
+    ZGUI_API void* zguiGetCurrentWindow(void)
+    {
+        return ImGui::GetCurrentWindow();
+    }
+
     ZGUI_API void zguiGetMouseDragDelta(ImGuiMouseButton button, float lock_threshold, float delta[2])
     {
         const ImVec2 d = ImGui::GetMouseDragDelta(button, lock_threshold);
@@ -1609,6 +1614,11 @@ extern "C"
     ZGUI_API void zguiIoSetBackendFlags(ImGuiBackendFlags flags)
     {
         ImGui::GetIO().BackendFlags = flags;
+    }
+
+    ZGUI_API ImGuiBackendFlags zguiIoGetBackendFlags()
+    {
+        return ImGui::GetIO().BackendFlags;
     }
 
     ZGUI_API void zguiIoSetDisplaySize(float width, float height)
