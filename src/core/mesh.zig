@@ -458,13 +458,13 @@ pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: u
 
     const end = start + data_size;
 
-    // std.debug.print("\naccessor:  {any}\n", .{accessor});
-    // std.debug.print("buffer_view:  {any}\n", .{buffer_view});
-    // std.debug.print("buffer len:  {d}\n", .{buffer_data.len});
-    // std.debug.print("data size:  {d}\n", .{data_size});
-    // std.debug.print("start:  {d}\n", .{start});
-    // std.debug.print("end:  {d}\n", .{end});
-    // std.debug.print("element_size: {d}  byte_stride: {d}  type size: {d}\n", .{ element_size, byte_stride, getTypeSize(accessor.type_) });
+    std.debug.print("\naccessor:  {any}\n", .{accessor});
+    std.debug.print("buffer_view:  {any}\n", .{buffer_view});
+    std.debug.print("buffer len:  {d}\n", .{buffer_data.len});
+    std.debug.print("data size:  {d}\n", .{data_size});
+    std.debug.print("start:  {d}\n", .{start});
+    std.debug.print("end:  {d}\n", .{end});
+    std.debug.print("element_size: {d}  byte_stride: {d}  type size: {d}\n", .{ element_size, byte_stride, getTypeSize(accessor.type_) });
 
     const data = buffer_data[start..end];
 

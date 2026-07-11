@@ -43,10 +43,10 @@ pub fn strchr(str: []const u8, c: u8) ?usize {
 }
 
 /// Generate a timestamp string in format: YYYY-MM-DD_HH.MM.SS.mmm
-pub fn generateTimestamp() [23]u8 {
-    const timestamp = std.time.timestamp();
-    const epoch_seconds: u64 = @intCast(timestamp);
-    const millis = @as(u64, @intCast(std.time.milliTimestamp())) % 1000;
+pub fn generateTimestamp(io: std.Io) [23]u8 {
+    const timestamp = std.Io.Timestamp.now(io, .awake);
+    const epoch_seconds: u64 = @intCast(timestamp.toSeconds());
+    const millis = @mod(std.Io.Timestamp.now(io, .awake).toMilliseconds(), 1000);
 
     // Convert to local time structure
     const epoch_day = epoch_seconds / (24 * 60 * 60);

@@ -480,10 +480,11 @@ pub const Shader = struct {
         const json_content = try self.dumpDebugUniformsJSON(&buffer, timestamp_str);
 
         // Write to file
-        const file = try std.fs.cwd().createFile(filepath, .{});
-        defer file.close();
+        var file = try std.Io.Dir.cwd().createFile(self.io, filepath, .{});
+        defer file.close(self.io);
 
-        try file.writeAll(json_content);
+        var writer =  file.writer(self.io, json_content);
+        try writer.flush();
 
         std.debug.print("Shader uniforms saved: {s}\n", .{filepath});
     }
@@ -493,8 +494,9 @@ pub const Shader = struct {
             return std.fmt.bufPrint(buffer, "Debug not enabled\n", .{});
         }
 
-        var stream = std.io.fixedBufferStream(buffer);
-        var writer = stream.writer();
+        // var stream = std.Io.fixedBufferStream(buffer);
+        // var writer = stream.writer();
+        var writer = std.Io.Writer.fixed(buffer);
 
         try writer.print("=== Shader Debug Uniforms ===\n", .{});
         try writer.print("Shader: {s} | {s}\n", .{ self.vert_file, self.frag_file });
@@ -505,7 +507,8 @@ pub const Shader = struct {
             try writer.print("{s}: {s}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
         }
 
-        return stream.getWritten();
+        //return stream.getWritten();
+        return writer.buffered();
     }
 
     pub fn dumpDebugUniformsJSON(self: *Self, buffer: []u8, timestamp_str: []const u8) ![]u8 {
@@ -513,11 +516,11 @@ pub const Shader = struct {
             return std.fmt.bufPrint(buffer, "{{\"error\": \"Debug not enabled\"}}\n", .{});
         }
 
-        var stream = std.io.fixedBufferStream(buffer);
-        var writer = stream.writer();
+        var writer = std.Io.Writer.fixed(buffer);
+        // var writer = stream.writer();
 
         // Use provided timestamp
-        const timestamp = std.time.timestamp();
+        const timestamp =std.Io.Timestamp.now(self.io, .awake);
 
         try writer.print("{{\n", .{});
         try writer.print("  \"timestamp\": {d},\n", .{timestamp});
@@ -557,7 +560,8 @@ pub const Shader = struct {
         try writer.print("\n  }}\n", .{});
         try writer.print("}}\n", .{});
 
-        return stream.getWritten();
+        //return stream.getWritten();
+        return writer.buffered();
     }
 };
 

@@ -249,13 +249,13 @@ pub fn processKeys() void {
             },
             .one => {
                 if (!state.input.key_processed.contains(.one)) {
-                    state.camera.setLookTo();
+                    // state.camera.setLookTo();
                     std.debug.print("Look To\n", .{});
                 }
             },
             .two => {
                 if (!state.input.key_processed.contains(.two)) {
-                    state.camera.setLookAt();
+                    // state.camera.setLookAt();
                     std.debug.print("Look At\n", .{});
                 }
             },
@@ -267,13 +267,13 @@ pub fn processKeys() void {
             .four => {
                 if (!state.input.key_processed.contains(.four)) {
                     state.camera.setPerspective();
-                    state.projection = state.camera.getProjectionMatrix();
+                    // state.projection = state.camera.getProjectionMatrix();
                 }
             },
             .five => {
                 if (!state.input.key_processed.contains(.five)) {
                     state.camera.setOrthographic();
-                    state.projection = state.camera.getProjectionMatrix();
+                    // state.projection = state.camera.getProjectionMatrix();
                 }
             },
             .zero => {

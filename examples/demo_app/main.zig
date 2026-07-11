@@ -24,9 +24,8 @@ fn listModels() void {
     }
 }
 
-pub fn main() !void {
-    // Parse command line arguments
-    var args = std.process.args();
+pub fn main(init: std.process.Init) !void {
+    var args = init.minimal.args.iterate();
     _ = args.skip(); // Skip program name
 
     var initial_model_index: ?usize = null;
@@ -91,6 +90,7 @@ pub fn main() !void {
         SCR_HEIGHT,
         "Demo App",
         null,
+        null,
     );
     defer window.destroy();
 
@@ -107,7 +107,7 @@ pub fn main() !void {
     );
     std.debug.print("Press 'n' for next model, 'b' for previous model\n", .{});
 
-    try run(window, model_index, runtime_duration);
+    try run(init, window, model_index, runtime_duration);
 
     glfw.terminate();
 }

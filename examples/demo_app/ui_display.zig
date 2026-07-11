@@ -27,7 +27,7 @@ pub const UIState = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, window: *glfw.Window) Self {
+    pub fn init(io: std.Io, allocator: Allocator, window: *glfw.Window) Self {
         var ui_state = Self{};
 
         // Initialize zgui
@@ -54,7 +54,7 @@ pub const UIState = struct {
         ui_state.setupStyle();
 
         // Initialize frame counter
-        ui_state.frame_counter = core.FrameCounter.init();
+        ui_state.frame_counter = core.FrameCounter.init(io);
 
         return ui_state;
     }
@@ -116,11 +116,11 @@ pub const UIState = struct {
 
     pub fn draw(self: *Self, current_model: ?*core.Model) void {
         if (self.show_model_info) {
-            self.drawModelInfo(current_model);
+            self.renderModelInfo(current_model);
         }
 
         if (self.show_performance) {
-            self.drawPerformance();
+            self.renderPerformance();
         }
 
         if (state.state.ui_camera_info_visible) {
@@ -273,11 +273,12 @@ pub const UIState = struct {
             zgui.text("  Type: {s}", .{motion_type_str});
 
             // View type
-            const view_type_str = switch (state.state.camera.view_type) {
-                .LookTo => "LookTo",
-                .LookAt => "LookAt",
-            };
-            zgui.text("  View: {s}", .{view_type_str});
+            // const view_type_str = switch (state.state.camera.view_type) {
+                // .LookTo => "LookTo",
+                // .LookAt => "LookAt",
+            // };
+            // zgui.text("  View: {s}", .{view_type_str});
+            zgui.text("  View: {s}", .{"LookTo"});
 
             // Projection type
             const proj_type_str = switch (state.state.camera.projection_type) {

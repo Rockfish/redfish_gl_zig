@@ -87,7 +87,7 @@ pub const ResourceManager = struct {
         name: []const u8,
         path: []const u8,
     ) !*GltfAsset {
-        return try GltfAsset.init(self.allocator, name, path);
+        return try GltfAsset.init(self.io, self.allocator, name, path);
     }
 
     /// Build a model from a pre-configured GltfAsset and track it.

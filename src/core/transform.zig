@@ -308,7 +308,7 @@ pub const Transform = struct {
 };
 
 test "basis vectors for identity transform" {
-    const transform = Transform.Identity;
+    const transform = Transform.identity();
     const epsilon = 0.0001;
 
     const fwd = transform.forward();
@@ -330,12 +330,12 @@ test "basis vectors for identity transform" {
 }
 
 test "basis vectors after Y rotation" {
-    var transform = Transform.Identity;
+    var transform = Transform.identity();
     const epsilon = 0.0001;
 
     // Rotate 90 degrees around Y axis (right-hand rule: counterclockwise when viewed from +Y)
     const angle = math.pi / 2.0;
-    const rot = Quat.fromAxisAngle(&Vec3.init(0.0, 1.0, 0.0), angle);
+    const rot = Quat.fromAxisAngle(Vec3.init(0.0, 1.0, 0.0), angle);
     transform.rotation = rot;
 
     const fwd = transform.forward();
@@ -352,12 +352,12 @@ test "basis vectors after Y rotation" {
 }
 
 test "rotate method applies rotation" {
-    var transform = Transform.Identity;
+    var transform = Transform.identity();
     const epsilon = 0.0001;
 
     // Apply 90 degree rotation around Y axis
     const angle = math.pi / 2.0;
-    const rot = Quat.fromAxisAngle(&Vec3.init(0.0, 1.0, 0.0), angle);
+    const rot = Quat.fromAxisAngle(Vec3.init(0.0, 1.0, 0.0), angle);
     transform.rotate(rot);
 
     const fwd = transform.forward();
@@ -369,7 +369,7 @@ test "rotate method applies rotation" {
 }
 
 test "rotateAxis method" {
-    var transform = Transform.Identity;
+    var transform = Transform.identity();
     const epsilon = 0.0001;
 
     // Rotate 90 degrees around Y axis using rotateAxis
@@ -386,7 +386,7 @@ test "rotateAxis method" {
 }
 
 test "multiple rotations maintain orthonormality" {
-    var transform = Transform.Identity;
+    var transform = Transform.identity();
     const epsilon = 0.001;
 
     // Apply multiple rotations
@@ -406,9 +406,9 @@ test "multiple rotations maintain orthonormality" {
     try std.testing.expectApproxEqAbs(right_vec.length(), 1.0, epsilon);
 
     // Basis vectors should remain orthogonal
-    try std.testing.expectApproxEqAbs(fwd.dot(&up_vec), 0.0, epsilon);
-    try std.testing.expectApproxEqAbs(fwd.dot(&right_vec), 0.0, epsilon);
-    try std.testing.expectApproxEqAbs(up_vec.dot(&right_vec), 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.dot(up_vec), 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(fwd.dot(right_vec), 0.0, epsilon);
+    try std.testing.expectApproxEqAbs(up_vec.dot(right_vec), 0.0, epsilon);
 }
 
 test "lookAt sets correct forward direction" {
@@ -428,7 +428,7 @@ test "lookAt sets correct forward direction" {
 }
 
 test "basis vectors form right-handed coordinate system" {
-    var transform = Transform.Identity;
+    var transform = Transform.identity();
     const epsilon = 0.0001;
 
     // Rotate to a non-trivial orientation
@@ -440,7 +440,7 @@ test "basis vectors form right-handed coordinate system" {
 
     // In a right-handed system: right = up × forward (or forward × up depending on convention)
     // For OpenGL convention: right × up should give forward (or close to it)
-    const cross = right_vec.cross(&up_vec);
+    const cross = right_vec.cross(up_vec);
 
     // The cross product should point in the forward direction (negative Z becomes positive after cross)
     // Actually, right × up = -forward in our convention, so we negate

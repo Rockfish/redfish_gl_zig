@@ -364,12 +364,12 @@ test "orbit right full circle return" {
         if (i % 18 == 0) {
             std.debug.print("\nStep {d}:\n", .{i});
             movement.printState();
-            const current_radius = movement.transform.translation.sub(&target).length();
+            const current_radius = movement.transform.translation.sub(target).length();
             try std.testing.expectApproxEqAbs(current_radius, radius, epsilon);
-            const translated_position = movement.transform.translation.sub(&target);
+            const translated_position = movement.transform.translation.sub(target);
             const translated_position_norm = translated_position.toNormalized();
             const up_vec = movement.transform.up();
-            const dot_with_up = translated_position_norm.dot(&up_vec);
+            const dot_with_up = translated_position_norm.dot(up_vec);
             try std.testing.expectApproxEqAbs(dot_with_up, 0.0, epsilon);
         }
     }
@@ -408,7 +408,7 @@ test "backward translation updates forward" {
     movement.processMovement(.backward, dt);
 
     // forward should always equal normalized (target - position)
-    const expected_forward = movement.target.sub(&movement.transform.translation).toNormalized();
+    const expected_forward = movement.target.sub(movement.transform.translation).toNormalized();
     const actual_forward = movement.transform.forward();
     const eps = 0.0001;
     try std.testing.expectApproxEqAbs(actual_forward.x, expected_forward.x, eps);
@@ -424,7 +424,7 @@ test "radius in clamps near target" {
     const dt: f32 = 10.0;
     movement.processMovement(.radius_in, dt);
 
-    const dist = movement.transform.translation.sub(&target).length();
+    const dist = movement.transform.translation.sub(target).length();
     // Expect we stop close to POSITION_EPSILON distance
     const tol: f32 = 1e-4;
     try std.testing.expect(dist <= POSITION_EPSILON + tol);
@@ -438,26 +438,29 @@ test "radius in clamps near target" {
 test "circle up/down works near pole" {
     const radius: f32 = 5.0;
     const target = Vec3.init(0.0, 0.0, 0.0);
-    // Position directly below target so forward points exactly up
-    var movement = Movement.init(Vec3.init(0.0, -radius, 0.0), target);
+    // Near the poles (not exactly on them): at the exact pole,
+    // direction_to_target × world_up is zero so world-right is undefined.
+    const near_south = Vec3.init(0.1, -radius, 0.0).toNormalized().mulScalar(radius);
+    var movement = Movement.init(near_south, target);
 
     const start_pos_up = movement.transform.translation.clone();
     const step_angle = math.degreesToRadians(15.0);
     movement.update(step_angle, .circle_up);
 
     // Should have moved and stayed on the same radius
-    const new_radius_up = movement.transform.translation.sub(&target).length();
+    const new_radius_up = movement.transform.translation.sub(target).length();
     const eps = 1e-3;
     try std.testing.expect(new_radius_up > 0.0);
     try std.testing.expect(new_radius_up <= radius + eps and new_radius_up >= radius - eps);
     try std.testing.expect(!(movement.transform.translation.x == start_pos_up.x and movement.transform.translation.y == start_pos_up.y and movement.transform.translation.z == start_pos_up.z));
     try std.testing.expect(!std.math.isNan(movement.transform.translation.x) and !std.math.isNan(movement.transform.translation.y) and !std.math.isNan(movement.transform.translation.z));
 
-    // Now try circle down from top pole
-    movement.reset(Vec3.init(0.0, radius, 0.0), target);
+    // Near the north pole
+    const near_north = Vec3.init(0.1, radius, 0.0).toNormalized().mulScalar(radius);
+    movement.reset(near_north, target);
     const start_pos_down = movement.transform.translation.clone();
     movement.update(step_angle, .circle_down);
-    const new_radius_down = movement.transform.translation.sub(&target).length();
+    const new_radius_down = movement.transform.translation.sub(target).length();
     try std.testing.expect(new_radius_down > 0.0);
     try std.testing.expect(new_radius_down <= radius + eps and new_radius_down >= radius - eps);
     try std.testing.expect(!(movement.transform.translation.x == start_pos_down.x and movement.transform.translation.y == start_pos_down.y and movement.transform.translation.z == start_pos_down.z));

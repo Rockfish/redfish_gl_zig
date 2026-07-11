@@ -14,16 +14,18 @@ pub const FrameBuffer = struct {
 };
 
 pub const ScreenshotManager = struct {
-    capture: ScreenshotCapture,
+    io: std.Io,
     allocator: std.mem.Allocator,
+    capture: ScreenshotCapture,
     temp_dir: []const u8,
 
     const Self = @This();
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(io: std.Io, allocator: std.mem.Allocator) Self {
         return Self{
-            .capture = ScreenshotCapture.init(allocator),
+            .io = io,
             .allocator = allocator,
+            .capture = ScreenshotCapture.init(io, allocator),
             .temp_dir = "temp",
         };
     }
@@ -38,12 +40,12 @@ pub const ScreenshotManager = struct {
 
     pub fn takeScreenshot(self: *Self, shader: *Shader) !void {
         // Generate timestamp for synchronized filenames
-        const timestamp_str = core.utils.generateTimestamp();
+        const timestamp_str = core.utils.generateTimestamp(self.io);
 
         std.debug.print("Taking screenshot with timestamp: {s}\n", .{timestamp_str});
 
         // Ensure temp directory exists
-        std.fs.cwd().makeDir(self.temp_dir) catch |err| switch (err) {
+        std.Io.Dir.cwd().createDir(self.io, self.temp_dir, .default_file ) catch |err| switch (err) {
             error.PathAlreadyExists => {},
             else => return err,
         };
@@ -127,16 +129,18 @@ pub const ScreenshotManager = struct {
 };
 
 pub const ScreenshotCapture = struct {
-    framebuffer: ?FrameBuffer,
+    io: std.Io,
     allocator: std.mem.Allocator,
+    framebuffer: ?FrameBuffer,
     temp_dir: []const u8,
 
     const Self = @This();
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(io: std.Io, allocator: std.mem.Allocator) Self {
         return Self{
-            .framebuffer = null,
+            .io = io,
             .allocator = allocator,
+            .framebuffer = null,
             .temp_dir = "temp",
         };
     }
@@ -178,7 +182,7 @@ pub const ScreenshotCapture = struct {
         const filename_z = try self.allocator.dupeZ(u8, filename);
         defer self.allocator.free(filename_z);
 
-        zstbi.init(self.allocator);
+        zstbi.init(self.io, self.allocator);
         defer zstbi.deinit();
 
         zstbi.setFlipVerticallyOnWrite(true);

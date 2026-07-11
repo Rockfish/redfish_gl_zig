@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>redfish_gl_zig — Codebase Review</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --surface: #1a2332;
+    --surface2: #243044;
+    --border: #2d3a4f;
+    --text: #e7ecf3;
+    --muted: #9aabbd;
+    --accent: #5eb8ff;
+    --accent2: #7dd3a0;
+    --warn: #e8b84a;
+    --danger: #f07178;
+    --purple: #c792ea;
+    --mono: "SF Mono", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    --sans: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 16px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+  }
+  nav {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 1.5rem 1rem;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  nav h2 {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 1.25rem 0 0.5rem;
+  }
+  nav a {
+    display: block;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 2px;
+  }
+  nav a:hover { background: var(--surface2); color: var(--text); }
+  main {
+    max-width: 880px;
+    padding: 2.5rem 3rem 4rem;
+  }
+  header.hero {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  header.hero h1 {
+    font-size: 1.85rem;
+    font-weight: 650;
+    margin: 0 0 0.4rem;
+    letter-spacing: -0.02em;
+  }
+  header.hero .meta {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  header.hero .meta code {
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.85em;
+  }
+  h2 {
+    font-size: 1.35rem;
+    margin: 2.5rem 0 0.85rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+    letter-spacing: -0.01em;
+  }
+  h2:first-of-type { border-top: none; }
+  h3 {
+    font-size: 1.05rem;
+    margin: 1.6rem 0 0.5rem;
+    color: var(--accent2);
+  }
+  h4 {
+    font-size: 0.95rem;
+    margin: 1.2rem 0 0.4rem;
+    color: var(--purple);
+  }
+  p { margin: 0.6rem 0 0.9rem; }
+  ul, ol { margin: 0.4rem 0 1rem; padding-left: 1.35rem; }
+  li { margin-bottom: 0.35rem; }
+  li > ul { margin-top: 0.3rem; }
+  code, .path {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--surface2);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+  }
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.15rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    padding: 0.85rem 1.1rem;
+    margin: 1.2rem 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.danger { border-left-color: var(--danger); }
+  .callout.good { border-left-color: var(--accent2); }
+  .callout strong { display: block; margin-bottom: 0.25rem; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.4rem;
+    font-size: 0.92rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.55rem 0.7rem;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  tr:hover td { background: var(--surface); }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 0.9em; }
+  .tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.15em 0.5em;
+    border-radius: 4px;
+    vertical-align: middle;
+  }
+  .tag.you { background: #1e3a2f; color: var(--accent2); }
+  .tag.ai { background: #2a2540; color: var(--purple); }
+  .tag.mix { background: #2a3020; color: var(--warn); }
+  .tag.core { background: #1a3040; color: var(--accent); }
+  .tag.game { background: #3a2820; color: #f0a070; }
+  .tag.lab { background: #203030; color: #70d0c0; }
+  .bar-chart { margin: 1rem 0; }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 180px 1fr 60px;
+    gap: 0.6rem;
+    align-items: center;
+    margin-bottom: 0.4rem;
+    font-size: 0.88rem;
+  }
+  .bar-row .label { color: var(--muted); font-family: var(--mono); font-size: 0.8rem; }
+  .bar-track {
+    height: 10px;
+    background: var(--surface2);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, var(--accent), #3d8fd1);
+  }
+  .bar-fill.math { background: linear-gradient(90deg, var(--accent2), #4a9a6a); }
+  .bar-fill.anim { background: linear-gradient(90deg, var(--purple), #8b6ab8); }
+  .bar-fill.gltf { background: linear-gradient(90deg, var(--warn), #c49a3a); }
+  .bar-fill.game { background: linear-gradient(90deg, #f0a070, #c07040); }
+  .bar-row .val { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); text-align: right; }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.15rem;
+  }
+  .card h4 { margin-top: 0; }
+  .q {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    margin: 0.7rem 0;
+  }
+  .q .qnum {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav { position: relative; height: auto; }
+    main { padding: 1.5rem; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <div style="font-weight:650;margin-bottom:0.25rem;">Codebase Review</div>
+  <div style="color:var(--muted);font-size:0.75rem;margin-bottom:1rem;">2026-07-11</div>
+  <h2>Overview</h2>
+  <a href="#summary">Executive summary</a>
+  <a href="#snapshot">Project snapshot</a>
+  <a href="#philosophy">Your stated intent</a>
+  <h2>Architecture</h2>
+  <a href="#layers">Layer map</a>
+  <a href="#core-depth">Core deep dive</a>
+  <a href="#math">Math library</a>
+  <a href="#bullets">bullets as game lab</a>
+  <a href="#games">Games inventory</a>
+  <h2>Authorship</h2>
+  <a href="#git">Git archaeology</a>
+  <a href="#ai-boundary">AI collaboration boundary</a>
+  <h2>Findings</h2>
+  <a href="#strengths">What is genuinely good</a>
+  <a href="#interesting">Interesting discoveries</a>
+  <a href="#friction">Friction &amp; debt</a>
+  <a href="#bugs">Concrete issues</a>
+  <h2>Forward</h2>
+  <a href="#core-vs-game">Core vs game boundary</a>
+  <a href="#learning">Learning opportunities</a>
+  <a href="#questions">Questions for you</a>
+  <a href="#recommendations">Recommendations</a>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>redfish_gl_zig — Codebase Review</h1>
+  <p class="meta">
+    Peer review for a long-horizon hobby engine · Zig <code>0.16.0</code> ·
+    ~14.5k LOC in <code>src/</code> · 140 commits · sole author: John Hatch
+  </p>
+</header>
+
+<section id="summary">
+  <h2>1. Executive summary</h2>
+  <p>
+    Yes — your intended split makes complete sense. This is not a vibe-coded toy
+    that happens to compile. It is a real graphics/engine learning platform with a
+    clear center of gravity: <strong>pure-Zig math</strong>, a
+    <strong>glTF-native animation pipeline</strong>, and an experimental game shell
+    in <code>examples/bullets</code> where architecture is still being discovered.
+  </p>
+  <p>
+    The codebase reads as two interleaved voices: short imperative commits that
+    move pieces around (“refactored shapes”, “added view caching”) and longer
+    design-shaped commits with bullet bodies (“Add ResourceManager with factory
+    methods…”). That maps well to your claim — you own the interesting core,
+    AI has been used more heavily for migration, glTF, plans, and mechanical refactors.
+  </p>
+  <div class="callout good">
+    <strong>Bottom line</strong>
+    The engine’s technical soul is sound: column-major math, Transform/Movement
+    as orientation primitives, Cook-Torrance PBR path, cubic-spline animation,
+    and a growing scene/resource pattern in bullets. The main risks are not
+    “wrong architecture” but <em>layer blur</em>, <em>doc/status drift</em>,
+    a few concrete API bugs, and the gravitational pull of AI toward filling
+    core with game-adjacent systems.
+  </div>
+</section>
+
+<section id="snapshot">
+  <h2>2. Project snapshot</h2>
+
+  <h3>Size by area (Zig source)</h3>
+  <div class="bar-chart">
+    <div class="bar-row">
+      <span class="label">src/core total</span>
+      <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+      <span class="val">12,483</span>
+    </div>
+    <div class="bar-row">
+      <span class="label">gltf parser+types</span>
+      <div class="bar-track"><div class="bar-fill gltf" style="width:85%"></div></div>
+      <span class="val">~2,100</span>
+    </div>
+    <div class="bar-row">
+      <span class="label">animator.zig</span>
+      <div class="bar-track"><div class="bar-fill anim" style="width:60%"></div></div>
+      <span class="val">1,249</span>
+    </div>
+    <div class="bar-row">
+      <span class="label">src/math</span>
+      <div class="bar-track"><div class="bar-fill math" style="width:48%"></div></div>
+      <span class="val">1,993</span>
+    </div>
+    <div class="bar-row">
+      <span class="label">examples/bullets</span>
+      <div class="bar-track"><div class="bar-fill game" style="width:73%"></div></div>
+      <span class="val">3,049</span>
+    </div>
+    <div class="bar-row">
+      <span class="label">games/*</span>
+      <div class="bar-track"><div class="bar-fill game" style="width:100%"></div></div>
+      <span class="val">4,611</span>
+    </div>
+  </div>
+
+  <h3>Largest core files (complexity hotspots)</h3>
+  <table>
+    <thead>
+      <tr><th>File</th><th>LOC</th><th>Role</th><th>Suggested ownership</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>gltf/parser.zig</code></td>
+        <td class="num">1,453</td>
+        <td>JSON/binary glTF parse</td>
+        <td><span class="tag ai">AI OK</span> spec-driven</td>
+      </tr>
+      <tr>
+        <td><code>animator.zig</code></td>
+        <td class="num">1,249</td>
+        <td>Skin, joints, blend, cubic spline</td>
+        <td><span class="tag you">You</span> interesting core</td>
+      </tr>
+      <tr>
+        <td><code>asset_loader.zig</code></td>
+        <td class="num">689</td>
+        <td>GltfAsset, GLB, textures, normals</td>
+        <td><span class="tag mix">Shared</span> AI write, you review</td>
+      </tr>
+      <tr>
+        <td><code>gltf/gltf.zig</code></td>
+        <td class="num">668</td>
+        <td>Type definitions</td>
+        <td><span class="tag ai">AI OK</span> schema mirror</td>
+      </tr>
+      <tr>
+        <td><code>gltf/report.zig</code></td>
+        <td class="num">601</td>
+        <td>Debug reporting</td>
+        <td><span class="tag ai">AI OK</span> tooling</td>
+      </tr>
+      <tr>
+        <td><code>mesh.zig</code></td>
+        <td class="num">591</td>
+        <td>GPU buffers, PBR bind</td>
+        <td><span class="tag you">You</span> graphics core</td>
+      </tr>
+      <tr>
+        <td><code>shader.zig</code></td>
+        <td class="num">589</td>
+        <td>Compile, uniforms, texture units</td>
+        <td><span class="tag you">You</span> graphics core</td>
+      </tr>
+      <tr>
+        <td><code>camera_gimbal.zig</code></td>
+        <td class="num">577</td>
+        <td>Dual-transform camera</td>
+        <td><span class="tag you">You</span> interesting systems</td>
+      </tr>
+      <tr>
+        <td><code>mat4.zig</code> / <code>quat.zig</code> / <code>vec.zig</code></td>
+        <td class="num">~1,450</td>
+        <td>Math foundation</td>
+        <td><span class="tag you">You</span> pure learning gold</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Build targets</h3>
+  <p>
+    Apps: <code>animation_example</code>, <code>demo_app</code>, <code>bullets</code>,
+    <code>skybox</code>, <code>scene_tree</code>, <code>angrybot</code>, <code>level_01</code>.
+    Converter and ASSIMP are present but largely sidelined after the glTF migration.
+  </p>
+</section>
+
+<section id="philosophy">
+  <h2>3. Your stated intent (as I understand it)</h2>
+  <div class="two-col">
+    <div class="card">
+      <h4>You write</h4>
+      <ul>
+        <li>Interesting graphics / model / math problems</li>
+        <li>Orientation, movement, camera behavior</li>
+        <li>Animation evaluation semantics</li>
+        <li>Architectural choices that teach</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>AI assists</h4>
+      <ul>
+        <li>Consulting on hard issues</li>
+        <li>Spec-driven work (glTF load/parse)</li>
+        <li>Mechanical migrations &amp; API renames</li>
+        <li>Boilerplate factories, plan scaffolding</li>
+      </ul>
+    </div>
+  </div>
+  <p>
+    Core stays focused on <strong>graphics + model support</strong>. Actual game
+    structure lives in <code>games/</code> or <code>examples/</code>. Right now
+    <code>examples/bullets</code> is the laboratory for “how I want a game to feel
+    architecturally.” Overarching goal: continuous learning, not shipping a product.
+  </p>
+  <div class="callout">
+    <strong>Alignment check</strong>
+    The tree already mostly matches that philosophy. The tension points are places
+    where game-shaped systems have landed in core early
+    (<code>ResourceManager</code>, <code>AnimationStateMachine</code>,
+    <code>Input</code>, <code>Movement</code>) — not wrong, but worth conscious
+    decisions (see §10).
+  </div>
+</section>
+
+<section id="layers">
+  <h2>4. Layer map</h2>
+<pre>
+┌─────────────────────────────────────────────────────────────┐
+│  games/angrybot, games/level_01                             │
+│  Full games (older ports + experiments)                     │
+├─────────────────────────────────────────────────────────────┤
+│  examples/bullets          ← active architecture lab        │
+│  Scene vtable · ResourceManager · FSM · projectiles         │
+│  examples/demo_app, animation_example, skybox, scene_tree   │
+│  Feature probes / validation / alternate designs            │
+├─────────────────────────────────────────────────────────────┤
+│  src/core                                                   │
+│  Camera · Shader · Mesh · Model · Animator · Transform      │
+│  Shapes · Texture · Lights · RenderContext · Asset loader   │
+│  (+ borderline: Input, Movement, ResourceManager, AnimFSM)  │
+├─────────────────────────────────────────────────────────────┤
+│  src/math          pure Zig Vec/Mat/Quat (no CGLM runtime)  │
+│  src/containers    ManagedArrayList wrapper                 │
+├─────────────────────────────────────────────────────────────┤
+│  libs/  zglfw zopengl zgui zstbi miniaudio  (+ dormant assimp/cglm)
+└─────────────────────────────────────────────────────────────┘
+</pre>
+  <p>
+    Dependency direction is healthy: apps → core → math/containers → third-party.
+    Core does not import games/examples. That is the right spine for a learning engine.
+  </p>
+</section>
+
+<section id="core-depth">
+  <h2>5. Core deep dive</h2>
+
+  <h3>Rendering spine</h3>
+  <p>
+    Path is classic modern OpenGL: load mesh attributes into VAOs, bind materials
+    in <code>MeshPrimitive.draw</code>, drive joints via <code>jointMatrices[100]</code>,
+    apply per-node <code>nodeTransform</code>. <code>constants.zig</code> is a smart
+    habit — CPU/GPU contract in one place — even though sync is still manual.
+  </p>
+  <p>
+    Recent <code>RenderContext</code> work (plan 014) is architecturally mature:
+    one camera-derived value per frame (<code>projection</code>,
+    <code>projection_view</code>, <code>view</code>, <code>view_pos</code>,
+    <code>time</code>) instead of every object setting matrices. That is the kind
+    of incremental engine hygiene that scales without over-designing a full
+    render graph.
+  </p>
+
+  <h3>Animation — the crown jewel and the risk</h3>
+  <p>
+    <code>animator.zig</code> is the densest intellectual property in the project.
+    It carries:
+  </p>
+  <ul>
+    <li>glTF skin / joint hierarchy with inverse bind matrices</li>
+    <li>Linear and cubic-spline (Hermite) channels for T/R/S</li>
+    <li><code>WeightedAnimation</code> multi-clip blending with quaternion care</li>
+    <li>Preprocessed per-node animation data unions for type-safe dispatch</li>
+  </ul>
+  <p>
+    The ASSIMP → glTF migration philosophy documented in the changelog —
+    <em>rewrite internals, preserve call sites where useful</em> — is a senior
+    move. You kept games working while replacing the substrate.
+  </p>
+  <p>
+    <code>animation_fsm.zig</code> (comptime-generic over a state enum) is elegant
+    Zig. Used well by <code>ToonSoldier</code> in bullets. It sits on the
+    core/game fence: reusable, but game-policy flavored.
+  </p>
+
+  <h3>Asset loading</h3>
+  <p>
+    <code>GltfAsset</code> is the right abstraction boundary: parse/load/configure
+    once, then <code>buildModel()</code>. Normal generation modes
+    (skip / simple / accurate) and custom texture assignment are practical bridges
+    for imperfect author-pipeline assets. Dual storage note
+    (<code>buffer.data</code> vs <code>buffer_data</code>) is the kind of scar tissue
+    worth keeping documented — you already fixed a real bug from that confusion.
+  </p>
+
+  <h3>Camera stack</h3>
+  <table>
+    <thead><tr><th>Type</th><th>LOC</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>Camera</code></td>
+        <td class="num">286</td>
+        <td>Movement + projection cache; primary simple camera</td>
+      </tr>
+      <tr>
+        <td><code>CameraGimbal</code></td>
+        <td class="num">577</td>
+        <td>Base + gimbal transforms; turret/aim style control; has unit tests</td>
+      </tr>
+      <tr>
+        <td><code>Movement</code></td>
+        <td class="num">465</td>
+        <td>Translate / orbit / circle / roll; Transform-backed; well tested</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Early git history is almost a diary of getting orbit/circle right
+    (“orbits appear fixed”, “fixed circular movement”). That is learning-project
+    gold — the commit trail encodes hard-won 3D intuition.
+  </p>
+
+  <h3>Shapes &amp; utilities</h3>
+  <p>
+    Procedural shapes (cube, sphere, plane, cylinder, lines, skybox) plus OBJ
+    loader give you a second asset path besides glTF. Heap-allocated
+    <code>*Shape</code> is a recent consistency pass. Lines + axis helpers support
+    the debug-first workflow visible in bullets.
+  </p>
+</section>
+
+<section id="math">
+  <h2>6. Math library</h2>
+  <p>
+    ~2k lines of pure Zig: <code>Vec2/3/4</code>, <code>Mat3/4</code>, <code>Quat</code>,
+    ray helpers, easing. Column-major, OpenGL-compatible. CGLM is still vendored
+    but commented out of the build — the “Complete CGLM elimination” commits
+    (2025-06) were a milestone.
+  </p>
+  <div class="callout good">
+    <strong>Why this matters for a 30-year systems person</strong>
+    Writing your own math forces you to confront conventions (row vs column,
+    -Z forward, handedness, matrix×vector order) that engines usually hide.
+    Your <code>fromDirection</code> docs, Transform basis tests, and the
+    <code>-Z forward</code> fix commit show that confrontation actually happened
+    and left tests behind. Keep that habit.
+  </div>
+  <p>
+    Naming is mostly consistent (<code>toNormalized</code>, methods on types).
+    Occasional typos survive (<code>fromRotaion</code> in Transform) — harmless
+    but a reminder that AI and humans both leave lint.
+  </p>
+</section>
+
+<section id="bullets">
+  <h2>7. <code>examples/bullets</code> — the real product right now</h2>
+  <p>
+    This is where the project’s future game shape is being negotiated. It is more
+    interesting as architecture than as a game.
+  </p>
+
+  <h3>Patterns in play</h3>
+  <ul>
+    <li>
+      <strong>Scene vtable</strong> (<code>scene.zig</code>): type-erased
+      update/draw/deinit with optional method detection via
+      <code>std.meta.hasMethod</code>. Comment even asks “Could we use a union
+      with pointers?” — good design journal left in code.
+    </li>
+    <li>
+      <strong>SceneObject vtable</strong>: draw / updateLights / getTransform.
+      Lightweight entity interface without ECS.
+    </li>
+    <li>
+      <strong>World + scene arena</strong>: switching scenes deinit GL, tear down
+      arena, rebuild. Correct instinct for lifetime isolation.
+    </li>
+    <li>
+      <strong>ResourceManager factory</strong>: create → auto-track →
+      <code>deleteAll</code>. Plan 015 reasoning is solid (MonoGame ContentManager
+      analogue).
+    </li>
+    <li>
+      <strong>Motion debugging</strong>: <code>MotionType</code> /
+      <code>MotionObject</code> in debug scene — treat the scene as a control
+      surface for core Movement/Camera behavior.
+    </li>
+    <li>
+      <strong>Projectiles</strong>: instanced cubes, spread, gravity field ready
+      (<code>gravity: f32 = 0.0</code>), turret — pure experiment sandboxes.
+    </li>
+  </ul>
+
+  <h3>Alternate design nearby</h3>
+  <p>
+    <code>examples/scene_tree</code> explores union-based nodes vs interface
+    nodes. Having both bullets’ vtables and scene_tree’s unions is healthy
+    research — just don’t promote both into core prematurely.
+  </p>
+
+  <div class="callout">
+    <strong>Read of current focus</strong>
+    bullets is doing what a good hobby engine lab should: prove that core APIs
+    compose into a game loop, without freezing the game architecture too early.
+    PageUp/PageDown scene switching is a nice touch for A/B of scene designs.
+  </div>
+</section>
+
+<section id="games">
+  <h2>8. Games inventory</h2>
+  <table>
+    <thead>
+      <tr><th>Project</th><th>LOC</th><th>Character</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>angrybot</code></td>
+        <td class="num">~2.9k</td>
+        <td>
+          Full-ish shooter port. Still carries ASSIMP-era comments (frame→time
+          at 24 FPS, texture config notes). Heavier, more complete, less
+          “clean architecture lab.”
+        </td>
+      </tr>
+      <tr>
+        <td><code>level_01</code></td>
+        <td class="num">~1.4k</td>
+        <td>
+          Smaller game/app hybrid. TODOs still open (“Fix model loading”,
+          “Fix animation system”). Migrated toward RenderContext.
+        </td>
+      </tr>
+      <tr>
+        <td><code>demo_app</code></td>
+        <td class="num">—</td>
+        <td>
+          Model carousel / PBR validation / F12 screenshot+uniform dump.
+          Good “engine showcase” rather than game.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Historical path: ASSIMP games → glTF core → ports. angrybot proves the
+    pipeline can host a real game; bullets is where you invent the next structure.
+  </p>
+</section>
+
+<section id="git">
+  <h2>9. Git archaeology — two voices</h2>
+  <p>
+    140 commits, single author name. Message style is a usable proxy for who
+    drove the work:
+  </p>
+
+  <h3>Short / diary-like <span class="tag you">likely you</span></h3>
+  <pre>moved plan to docs/plans
+refactored shapes
+added view and projection caching to camera
+orbits appear fixed. Working on circling
+fixed normalizeTo bug
+working on bullets example tool
+fix typo</pre>
+  <p>
+    These read as a developer in the loop: low ceremony, present-tense problem
+    solving, no marketing language.
+  </p>
+
+  <h3>Subject + bullet body <span class="tag ai">likely AI-assisted</span></h3>
+  <pre>Add ResourceManager with factory methods to core
+- Create src/core/resource_manager.zig with typed storage...
+- Factory methods: createShader, createTexture...
+- deleteAll() with correct cleanup ordering...
+
+Migrate bullets scene objects to RenderContext
+- All draw() functions take RenderContext...
+- Scene dispatch threads time parameter...</pre>
+  <p>
+    Also characteristic: “Complete X”, “Implement comprehensive Y”, “Production-ready”,
+    emoji-heavy changelog sections, plans that sound like sprint reports.
+  </p>
+
+  <h3>Timeline shape</h3>
+  <table>
+    <thead><tr><th>Period</th><th>Theme</th></tr></thead>
+    <tbody>
+      <tr><td>2025-03 → 06</td><td>Foundation, movement/orbit struggle, pure Zig math</td></tr>
+      <tr><td>2025-06 → 08</td><td>glTF migration, animation depth, PBR, angrybot port</td></tr>
+      <tr><td>2025-late → 2026</td><td>bullets architecture, shapes heap, RenderContext, ResourceManager, Zig 0.15→0.16</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>Docs lag reality</strong>
+    <code>active-plans.md</code> still frames “level_01 active development” and
+    foundation status around 2025-08. Recent git energy is clearly bullets +
+    RenderContext + ResourceManager + Zig upgrades. The plan system is good;
+    the status dashboard needs a human pass so it does not become AI folklore.
+  </div>
+</section>
+
+<section id="ai-boundary">
+  <h2>10. AI collaboration boundary (recommended)</h2>
+  <table>
+    <thead>
+      <tr><th>Area</th><th>AI role</th><th>Why</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>gltf/parser</code>, types, GLB</td>
+        <td>Primary implementer</td>
+        <td>Spec is external ground truth; review for correctness/tests</td>
+      </tr>
+      <tr>
+        <td><code>asset_loader</code>, report tools</td>
+        <td>Primary implementer</td>
+        <td>Mechanical + exhaustive; you keep ownership of config API design</td>
+      </tr>
+      <tr>
+        <td>Shader glue / uniform renames</td>
+        <td>Pair / bulk edits</td>
+        <td>Repetitive across examples/games</td>
+      </tr>
+      <tr>
+        <td>Plans, migration notes</td>
+        <td>Drafting</td>
+        <td>You edit for truth; cut “production-ready” fluff</td>
+      </tr>
+      <tr>
+        <td>Math, Movement, Transform, Camera</td>
+        <td>Consultant only</td>
+        <td>Your learning core; bugs here teach most</td>
+      </tr>
+      <tr>
+        <td>Animator evaluation / blending</td>
+        <td>Consultant / review</td>
+        <td>Deep correctness; easy for AI to paper over</td>
+      </tr>
+      <tr>
+        <td>Game structure in bullets</td>
+        <td>Discuss options, not drive</td>
+        <td>Architecture discovery is the point</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    A practical rule that matches your experience: <strong>AI proposes,
+    you merge the mental model</strong>. If you cannot explain a core change
+    without reading the commit message, it should not land in <code>src/core</code>
+    yet.
+  </p>
+</section>
+
+<section id="strengths">
+  <h2>11. What is genuinely good</h2>
+  <ol>
+    <li>
+      <strong>End-to-end glTF ownership.</strong> Parse → asset → mesh/GPU →
+      skinning → draw. No black-box importer runtime for the main path.
+    </li>
+    <li>
+      <strong>Math you can trust (and test).</strong> Eliminating CGLM and
+      keeping Transform orthonormality tests is serious engineering practice.
+    </li>
+    <li>
+      <strong>Debuggability culture.</strong> glTF report tool, F12 screenshot +
+      uniform JSON, motion object selectors, axis lines, scene switching.
+      Systems people debug systems — this codebase reflects that.
+    </li>
+    <li>
+      <strong>Layered plans.</strong> Numbered plans 001–015 with backlog
+      clustering is better than most hobby projects. The “horizontal layers,
+      always demonstrable” philosophy is sound.
+    </li>
+    <li>
+      <strong>Zig 0.16 currency.</strong> Tracking language breakage (ArrayList
+      API, Io, process.Init) is itself a learning track.
+    </li>
+    <li>
+      <strong>bullets as architecture sandbox</strong> separate from “ship a
+      game” pressure. Correct hobby structure.
+    </li>
+  </ol>
+</section>
+
+<section id="interesting">
+  <h2>12. Interesting discoveries</h2>
+
+  <h3>12.1 Core is heavier on “engine services” than pure graphics</h3>
+  <p>
+    Exported from <code>core/root.zig</code>: Camera, Movement, Input,
+    ResourceManager, AnimationStateMachine, SoundEngine, Random… These are
+    reasonable, but they expand core beyond “graphics and model support.”
+    bullets already treats ResourceManager as the scene’s factory; Input is
+    window/engine glue. Worth deciding which are <em>engine platform</em>
+    vs <em>graphics core</em> — maybe later a <code>src/engine/</code> or
+    keep flat but mentally tiered.
+  </p>
+
+  <h3>12.2 Two polymorphism experiments coexist</h3>
+  <p>
+    bullets: runtime vtables with <code>*anyopaque</code>. scene_tree: tagged
+    unions / interface experiments. Neither is wrong. The interesting learning
+    question is Zig-specific: when is comptime enough, when do you want
+    type erasure for heterogeneous scene lists?
+  </p>
+
+  <h3>12.3 Shader global texture unit allocator</h3>
+  <p>
+    <code>shader.zig</code> uses module-level <code>texture_unit_map</code> /
+    <code>next_available_unit</code>. Clever auto-bind, but process-global.
+    Fine for single-window hobby apps; would bite multi-context or multi-thread
+    later. Awareness &gt; rewrite for now.
+  </p>
+
+  <h3>12.4 Legacy is still legible in the tree</h3>
+  <ul>
+    <li>ASSIMP comments in angrybot / animation_example</li>
+    <li><code>finalBonesMatrices</code> uniform marked phased out</li>
+    <li>Dual lighting uniform naming (legacy vs standardized)</li>
+    <li>Empty stub <code>examples/bullets/scene/spheres.zig</code></li>
+    <li><code>temp/</code> full of notes, old bullets, screenshots — a personal lab notebook</li>
+  </ul>
+  <p>
+    That is not failure; it is archaeology. For a hobby project it can stay.
+    For learning clarity, occasionally pruning or labeling “historical”
+    reduces cognitive load.
+  </p>
+
+  <h3>12.5 Docs volume vs code volume</h3>
+  <p>
+    ~800 lines of CLAUDE.md + CHANGELOG + DEVELOPMENT, plus 15+ plan files.
+    Much of the prose is high-ceremony status writing. Useful as session
+    memory for AI; less useful as your personal map. Consider a short
+    <code>docs/review/</code> or <code>NOTES.md</code> that is unapologetically
+    human and sparse.
+  </p>
+
+  <h3>12.6 Test coverage is concentrated where you learned the hardest</h3>
+  <p>
+    Unit tests cluster on Transform, Movement, Camera/Gimbal, retain/remove
+    utils, some math. Integration test for GLB. Animator / asset_loader /
+    mesh have far less automated coverage relative to complexity. That pattern
+    matches “I wrote tests when orbit math betrayed me” — good instinct —
+    and points to the next high-value test targets if you want them.
+  </p>
+</section>
+
+<section id="friction">
+  <h2>13. Friction &amp; technical debt (prioritized)</h2>
+
+  <h3>High value to address when it blocks you</h3>
+  <ul>
+    <li>
+      <strong>API drift across apps.</strong> angrybot still feels older;
+      bullets is modern; level_01 mid-migration. Not urgent to unify, but
+      when teaching yourself “the” way to load a model, pick bullets’ RM path
+      as the reference.
+    </li>
+    <li>
+      <strong>Manual shader/constant sync.</strong> Documented honestly in
+      <code>constants.zig</code>. A tiny codegen or test that greps shaders
+      for required names would be a classic systems-person quality tool.
+    </li>
+    <li>
+      <strong>Plan status stale.</strong> Plans 004/005 still “planned” while
+      FSM and multi-model scenes partially exist in code. Reconcile to avoid
+      false sense of unfinished foundation.
+    </li>
+  </ul>
+
+  <h3>Medium — polish when touching nearby code</h3>
+  <ul>
+    <li>Naming: occasional snake leftovers, typos (<code>fromRotaion</code>)</li>
+    <li>Commented-out dead methods in Model (playClip, transitions)</li>
+    <li>ResourceManager incomplete vs plan (no name maps, not all shape types)</li>
+    <li>libs still carries full assimp/cglm trees (~1GB under libs/) — fine if offline/vendored preference, heavy clone cost</li>
+  </ul>
+
+  <h3>Low — leave until curious</h3>
+  <ul>
+    <li>Shadow maps, IBL, post — backlog is appropriately aspirational</li>
+    <li>ECS / Bevy-style assets — correctly deferred in plan 015 analysis</li>
+  </ul>
+</section>
+
+<section id="bugs">
+  <h2>14. Concrete issues found in review</h2>
+
+  <div class="callout danger">
+    <strong>Bug: <code>ResourceManager.loadGltfAsset</code> wrong init arity</strong>
+    <code>loadModel</code> correctly calls
+    <code>GltfAsset.init(self.io, self.allocator, name, path)</code>, but
+    <code>loadGltfAsset</code> calls
+    <code>GltfAsset.init(self.allocator, name, path)</code> — missing
+    <code>io</code>. Currently unused by call sites (only <code>loadModel</code>
+    is used in bullets), so it may not fail builds depending on analysis,
+    but it is broken as written. Easy fix when you next touch RM.
+  </div>
+
+  <ul>
+    <li>
+      <code>AnimationRepeatMode.Count</code> is TODO (falls through to restart)
+    </li>
+    <li>
+      level_01 still has explicit TODOs for model loading and animation
+    </li>
+    <li>
+      glTF README sample still shows old <code>GltfAsset.init(allocator, …)</code>
+      without <code>io</code> — docs drift after Zig 0.16 Io changes
+    </li>
+  </ul>
+</section>
+
+<section id="core-vs-game">
+  <h2>15. Core vs game boundary — a sharper line</h2>
+  <p>Suggested mental model:</p>
+  <table>
+    <thead><tr><th>Lives in core</th><th>Stays in examples/games</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Math, Transform, Mesh, Model, Animator, Shader, Texture, Lights, RenderContext, shapes, glTF stack</td>
+        <td>Scene graphs, World, game FSMs configs, projectiles, enemy AI, UI layout, input bindings for specific games</td>
+      </tr>
+      <tr>
+        <td>Optional thin helpers: ResourceManager, Camera, Movement (as reusable controllers)</td>
+        <td>How scenes compose those helpers; motion debug selectors; gallery scenes</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    <strong>Promotion rule:</strong> promote from bullets → core only after the
+    same pattern appears twice and you are tired of copy-paste. ResourceManager
+    and RenderContext earned promotion. Scene vtable has not (yet) — keep
+    iterating in bullets.
+  </p>
+</section>
+
+<section id="learning">
+  <h2>16. Learning opportunities (matched to your background)</h2>
+  <p>
+    With compilers/debuggers/OS/cloud background, the highest-yield learning
+    surfaces here are not “write another CRUD system” but:
+  </p>
+  <ol>
+    <li>
+      <strong>Numerical &amp; geometric correctness</strong> — quaternions at poles,
+      matrix decomposition, skinning math. You have already been living here.
+    </li>
+    <li>
+      <strong>Data-oriented GPU feeding</strong> — instancing in bullet system,
+      joint matrix packing, attribute layout contracts.
+    </li>
+    <li>
+      <strong>Lifetime management as systems design</strong> — arenas per scene,
+      GL object lifetime vs Zig memory, factory vs manual delete.
+    </li>
+    <li>
+      <strong>Language evolution as ongoing curriculum</strong> — Zig 0.14→0.15→0.16
+      API churn is a feature for a lifelong learner.
+    </li>
+    <li>
+      <strong>Spec engineering</strong> — glTF is a large external standard; using
+      AI on the parser while you own the runtime model is a healthy hybrid.
+    </li>
+    <li>
+      <strong>Architecture without product pressure</strong> — bullets can try
+      vtables, unions, FSMs, until one feels like <em>your</em> style.
+    </li>
+  </ol>
+</section>
+
+<section id="questions">
+  <h2>17. Questions for you</h2>
+  <p>These would sharpen future assistance and the next review:</p>
+
+  <div class="q">
+    <div class="qnum">Q1</div>
+    Is <code>examples/bullets</code> intended to become a template for future games,
+    or permanently a lab that never “ships”?
+  </div>
+  <div class="q">
+    <div class="qnum">Q2</div>
+    Do you want Movement/Input/Camera in core forever, or eventually a thinner
+    graphics core with an <code>engine</code> or <code>app</code> layer above it?
+  </div>
+  <div class="q">
+    <div class="qnum">Q3</div>
+    For animation: is the next hard problem <em>correctness/performance of
+    evaluation</em>, or <em>game-facing authoring</em> (FSM, blend spaces, events)?
+  </div>
+  <div class="q">
+    <div class="qnum">Q4</div>
+    How attached are you to angrybot as a living game vs a migration trophy?
+    Affects whether to invest in cleaning its legacy comments/paths.
+  </div>
+  <div class="q">
+    <div class="qnum">Q5</div>
+    Preferred AI interaction style going forward:
+    (a) consult only until you ask for code,
+    (b) draft behind a plan file for your review,
+    (c) implement only in gltf/asset_loader-class paths automatically?
+  </div>
+  <div class="q">
+    <div class="qnum">Q6</div>
+    Coordinate system: are you settled on OpenGL + local -Z forward everywhere,
+    or still refining conventions as assets from different kits (toon, ruins,
+    angrybot) disagree?
+  </div>
+  <div class="q">
+    <div class="qnum">Q7</div>
+    How much do you care about automated tests expanding into animator/glTF?
+    Some people in learning mode prefer visual validation only.
+  </div>
+</section>
+
+<section id="recommendations">
+  <h2>18. Recommendations (lightweight, non-prescriptive)</h2>
+  <ol>
+    <li>
+      <strong>Keep writing bullets by hand.</strong> It is the right place for
+      structure discovery. Promote to core only after repeated use.
+    </li>
+    <li>
+      <strong>Treat glTF + asset_loader as AI-eligible with your review gate.</strong>
+      Matches your stated intent exactly.
+    </li>
+    <li>
+      <strong>Fix <code>loadGltfAsset</code> when next in ResourceManager</strong>
+      — small, real bug.
+    </li>
+    <li>
+      <strong>Refresh active-plans / CLAUDE status</strong> so tools and humans
+      share the same story: bullets + RenderContext + RM are current, not 2025-08
+      foundation narrative alone.
+    </li>
+    <li>
+      <strong>Optional: one-page “engine map”</strong> you maintain yourself —
+      ten lines of truth beats 300 lines of AI changelog.
+    </li>
+    <li>
+      <strong>When stuck on math/animation, use AI as a rubber duck and
+      second calculator</strong>, not as the author of the final algorithm.
+    </li>
+    <li>
+      <strong>Do not rush shadows/IBL</strong> until you enjoy the current lab.
+      Backlog is permission, not obligation.
+    </li>
+  </ol>
+
+  <div class="callout good">
+    <strong>Does this make sense? Yes.</strong>
+    Using AI as an assistant on a personal learning engine is a coherent stance.
+    The codebase already shows you can absorb AI-generated bulk without
+    surrendering the interesting problems. The discipline is continuing to
+    choose which problems are yours.
+  </div>
+</section>
+
+<footer>
+  <p>
+    Report written to <code>docs/review/codebase_review.html</code> ·
+    Based on source tree, plans, changelog, and full git history as of 2026-07-11 ·
+    Not a code review of a PR — a structural peer review for long-term hobby direction.
+  </p>
+  <p>
+    Open in a browser: <code>open docs/review/codebase_review.html</code>
+  </p>
+</footer>
+</main>
+</div>
+</body>
+</html>

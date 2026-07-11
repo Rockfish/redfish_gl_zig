@@ -42,13 +42,13 @@ pub fn build(b: *std.Build) void {
         // .optimize = optimize,
     });
 
-    // const zgui = b.dependency("zgui", .{
-    //     .target = target,
-    //     .optimize = optimize,
-    //     .backend = .glfw_opengl3,
-    //     .with_te = true,
-    //     .shared = false,
-    // });
+    const zgui = b.dependency("zgui", .{
+        .target = target,
+        .optimize = optimize,
+        .backend = .glfw_opengl3,
+        .with_te = true,
+        .shared = false,
+    });
 
     const zstbi = b.dependency("zstbi", .{
         .target = target,
@@ -82,7 +82,7 @@ pub fn build(b: *std.Build) void {
         source: []const u8,
     }{
         .{ .name = "animation", .exe_name = "animation_example", .source = "examples/animation_example/main.zig" },
-        // .{ .name = "demo_app", .exe_name = "demo_app", .source = "examples/demo_app/main.zig" }, // needs zgui
+        .{ .name = "demo_app", .exe_name = "demo_app", .source = "examples/demo_app/main.zig" },
         .{ .name = "bullets", .exe_name = "bullets", .source = "examples/bullets/main.zig" },
         .{ .name = "skybox", .exe_name = "skybox", .source = "examples/skybox/main.zig" },
         .{ .name = "scene_tree", .exe_name = "scene_tree", .source = "examples/scene_tree/main.zig" },
@@ -102,9 +102,9 @@ pub fn build(b: *std.Build) void {
                     .{ .name = "containers", .module = containers },
                     .{ .name = "zopengl", .module = zopengl.module("root") },
                     .{ .name = "zglfw", .module = zglfw.module("root") },
+                    .{ .name = "zgui", .module = zgui.module("root") },
                     .{ .name = "zstbi", .module = zstbi.module("root") },
                     .{ .name = "miniaudio", .module = miniaudio.module("root") },
-                    // .{.name = "zgui", .module = zgui.module("root") },
                     .{ .name = "build_options", .module = build_options.createModule() },
                 },
             }),
@@ -126,7 +126,7 @@ pub fn build(b: *std.Build) void {
         exe.root_module.addIncludePath(b.path("src/include"));
         exe.root_module.addIncludePath(miniaudio.path("include"));
 
-        // exe.linkLibrary(zgui.artifact("imgui"));
+        exe.root_module.linkLibrary(zgui.artifact("imgui"));
         exe.root_module.linkLibrary(zglfw.artifact("glfw"));
         // exe.linkLibrary(cglm.artifact("cglm"));
         exe.root_module.linkLibrary(miniaudio.artifact("miniaudio"));
@@ -182,10 +182,10 @@ pub fn build(b: *std.Build) void {
     exe_check.root_module.addImport("miniaudio", miniaudio.module("root"));
     exe_check.root_module.addImport("zglfw", zglfw.module("root"));
     exe_check.root_module.addImport("zopengl", zopengl.module("root"));
-    // exe_check.root_module.addImport("zgui", zgui.module("root"));
+    exe_check.root_module.addImport("zgui", zgui.module("root"));
     exe_check.root_module.addImport("zstbi", zstbi.module("root"));
     exe_check.root_module.addImport("build_options", build_options.createModule());
-    // exe_check.linkLibrary(zgui.artifact("imgui"));
+    exe_check.root_module.linkLibrary(zgui.artifact("imgui"));
     exe_check.root_module.linkLibrary(zstbi.artifact("zstbi"));
     exe_check.root_module.linkLibrary(miniaudio.artifact("miniaudio"));
     exe_check.root_module.linkLibrary(zglfw.artifact("glfw"));

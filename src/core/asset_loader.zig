@@ -370,6 +370,10 @@ pub const GltfAsset = struct {
     fn loadBufferData(self: *Self) !void {
         const alloc = self.arena.allocator();
 
+        const buffer_count = if (self.gltf.buffers) |buf| buf.len else 0;
+
+        std.debug.print("Loading buffer data for {d} buffers\n", .{buffer_count});
+
         if (self.gltf.buffers) |buffers| {
             for (buffers, 0..) |buffer, buffer_index| {
                 // For GLB files, buffer index 0 is typically the embedded binary chunk
@@ -404,7 +408,7 @@ pub const GltfAsset = struct {
 
                         const buffer_file = std.Io.Dir.cwd().readFileAllocOptions(
                             self.io,
-                            self.filepath,
+                            path,
                             self.arena.allocator(),
                             .unlimited,
                             .@"4",
@@ -420,6 +424,8 @@ pub const GltfAsset = struct {
                         std.debug.panic("Buffer {d} has no URI and is not GLB embedded buffer\n", .{buffer_index});
                     }
                 }
+                std.debug.print("Loaded buffer {d} with {d} bytes\n", .{ buffer_index, self.buffer_data.list.items[self.buffer_data.list.items.len - 1].len });
+                std.debug.print("Total buffer size: {d}\n\n", .{self.buffer_data.list.items.len});
             }
         }
     }

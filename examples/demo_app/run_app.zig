@@ -33,7 +33,7 @@ var buf2: [1024]u8 = undefined;
 var debug_dump_buffer: [4096]u8 = undefined;
 
 // Model loading helper function
-fn loadModel(allocator: std.mem.Allocator, model_info: assets_list.DemoModel, state: *state_.State) !*Model {
+fn loadModel(io: std.Io, allocator: std.mem.Allocator, model_info: assets_list.DemoModel, state: *state_.State) !*Model {
     // const path = try std.fs.path.join(allocator, &[_][]const u8{ assets_list.root, model_info.path });
     // defer allocator.free(path);
     const path = model_info.path;
@@ -41,7 +41,7 @@ fn loadModel(allocator: std.mem.Allocator, model_info: assets_list.DemoModel, st
     std.debug.print("\nLoading model: {s} ({s}) - {s}\n", .{ model_info.name, model_info.format, model_info.description });
     std.debug.print("Path: {s}\n", .{path});
 
-    var gltf_asset = try asset_loader.GltfAsset.init(allocator, model_info.name, path);
+    var gltf_asset = try asset_loader.GltfAsset.init(io, allocator, model_info.name, path);
 
     // Set normal generation mode for models that need it
     gltf_asset.setNormalGenerationMode(.accurate);
@@ -119,13 +119,10 @@ fn outputPositions(model: *Model, camera: *Camera) void {
 const camera_position = vec3(0.0, 12.0, 40.0);
 const camera_target = vec3(0.0, 12.0, 0.0);
 
-pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32) !void {
+pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: usize, max_duration: ?f32) !void {
     std.debug.print("running app\n", .{});
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    const allocator = gpa.allocator();
+    const allocator = init.arena.allocator();
     core.string.init(allocator);
 
     const window_size = window.getSize();
@@ -173,14 +170,15 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
     state_.initWindowHandlers(window);
 
     // Initialize UI system
-    var ui_state = ui_display.UIState.init(allocator, window);
+    var ui_state = ui_display.UIState.init(init.io, allocator, window);
     defer ui_state.deinit();
 
     // Initialize screenshot system
-    var screenshot_mgr = screenshot.ScreenshotManager.init(allocator);
+    var screenshot_mgr = screenshot.ScreenshotManager.init(init.io, allocator);
     defer screenshot_mgr.deinit();
 
     const shader = try Shader.init(
+        init.io,
         allocator,
         // "examples/demo_app/shaders/player_shader.vert",
         // "examples/demo_app/shaders/basic_model.frag",
@@ -196,7 +194,7 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
     std.debug.print("\n--- Build gltf model ----------------------\n\n", .{});
 
     // Load initial model from demo list
-    var current_model = try loadModel(allocator, state_.getCurrentModel(), state);
+    var current_model = try loadModel(init.io, allocator, state_.getCurrentModel(), state);
 
     // Position camera for initial model
     positionCameraForModel(current_model, camera);
@@ -259,12 +257,13 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
         // Check if model reload is requested
         if (state.model_reload_requested) {
             std.debug.print("Reloading model...\n", .{});
-            current_model.deinit();
-            current_model = loadModel(allocator, state_.getCurrentModel(), state) catch |err| {
-                std.debug.panic("Failed to load model: {}\n", .{err});
-                // Keep the old model if loading fails
-                // current_model = try loadModel(allocator, assets_list.demo_models[0]);
-            };
+            const new_model: ?*Model = loadModel(init.io, allocator, state_.getCurrentModel(), state) catch null;
+            if (new_model) |model| {
+                current_model.deinit();
+                current_model = model;
+            } else {
+                std.debug.print("Failed to load model: {s}\n", .{state_.getCurrentModel().path});
+            }
             state.model_reload_requested = false;
         }
 
@@ -328,22 +327,22 @@ pub fn run(window: *glfw.Window, initial_model_index: usize, max_duration: ?f32)
         const ctx = state.camera.getRenderContext(state.total_time);
         shader.setMat4(constants.Uniforms.Projection_View, &ctx.projection_view);
 
-        var model_transform = Mat4.identity();
+        var model_transform = Mat4.Identity;
         shader.setMat4(constants.Uniforms.Mat_Model, &model_transform);
 
         // Basic shader
         shader.setBool("useLight", true);
-        shader.setVec3("ambient", &ambientColor);
-        shader.setVec3("ambient_light", &vec3(1.0, 0.8, 0.8));
-        shader.setVec3("light_color", &vec3(0.1, 0.1, 0.1));
-        shader.setVec3("light_dir", &vec3(10.0, 10.0, 2.0));
+        shader.setVec3("ambient", ambientColor);
+        shader.setVec3("ambient_light", vec3(1.0, 0.8, 0.8));
+        shader.setVec3("light_color", vec3(0.1, 0.1, 0.1));
+        shader.setVec3("light_dir", vec3(10.0, 10.0, 2.0));
 
         // PBR shader
-        shader.setVec3("lightPosition", &vec3(state.camera.movement.transform.translation.x + 50.0, state.camera.movement.transform.translation.y + 50.0, state.camera.movement.transform.translation.z + 50.0));
-        shader.setVec3("lightColor", &vec3(1.0, 1.0, 1.0));
+        shader.setVec3("lightPosition", vec3(state.camera.movement.transform.translation.x + 50.0, state.camera.movement.transform.translation.y + 50.0, state.camera.movement.transform.translation.z + 50.0));
+        shader.setVec3("lightColor", vec3(1.0, 1.0, 1.0));
         shader.setFloat("lightIntensity", 100.0);
 
-        shader.setVec3("viewPosition", &state.camera.movement.transform.translation);
+        shader.setVec3("viewPosition", state.camera.movement.transform.translation);
 
         // Add custom debug values when debug is enabled (for both regular debug and screenshot)
         if (state.shader_debug_enabled or capture_screenshot) {

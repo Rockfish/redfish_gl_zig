@@ -164,7 +164,7 @@ pub const Model = struct {
         if (scene.nodes) |nodes| {
             for (nodes) |node_index| {
                 const node = self.gltf_asset.gltf.nodes.?[node_index];
-                self.calculateNodeBounds(&bbox, node, Mat4.identity());
+                self.calculateNodeBounds(&bbox, node, Mat4.Identity);
             }
         }
 
@@ -220,7 +220,7 @@ pub const Model = struct {
                     };
 
                     for (corners) |corner| {
-                        const transformed_pos = transform.mulVec4(&vec4(corner.x, corner.y, corner.z, 1.0)).toVec3();
+                        const transformed_pos = transform.mulVec4(vec4(corner.x, corner.y, corner.z, 1.0)).toVec3();
                         bbox.expandWithVec3(transformed_pos);
                     }
                 }
