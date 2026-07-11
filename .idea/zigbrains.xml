@@ -28,6 +28,16 @@
       "kind": "run"
     },
     {
+      "name": "demo_app",
+      "description": "Build 'demo_app' app",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "demo_app-run",
+      "description": "Run 'demo_app' app",
+      "kind": "run"
+    },
+    {
       "name": "bullets",
       "description": "Build 'bullets' app",
       "kind": "install_artifact"
@@ -116,6 +126,11 @@
     },
     {
       "root": "examples/animation_example/main.zig",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "examples/demo_app/main.zig",
       "public": false,
       "imports": []
     },
@@ -320,6 +335,123 @@
   "name": "zopengl",
   "version": "0.6.0-dev",
   "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/zopengl",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "test",
+      "description": "Run zopengl tests",
+      "kind": "run"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/zopengl.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "src/zopengl.zig",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "src/zopengl.zig",
+      "public": false,
+      "imports": []
+    }
+  ],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": "zgui",
+  "version": "0.6.0-dev",
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/libs/zgui",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "test",
+      "description": "Run zgui tests",
+      "kind": "run"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/gui.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "<null>",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "src/gui.zig",
+      "public": false,
+      "imports": []
+    }
+  ],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": "zglfw",
+  "version": "0.10.0-dev",
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/zig-pkg/zglfw-0.10.0-dev-zgVDNIG4IQBWN_sfMD-xfC9bJS2hbBN2W7jNlDLovcdC",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "test",
+      "description": "Run zglfw tests",
+      "kind": "run"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/zglfw.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "<null>",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "src/zglfw.zig",
+      "public": false,
+      "imports": []
+    }
+  ],
+  "dependencies": []
+}]]><![CDATA[{
+  "name": "zopengl",
+  "version": "0.6.0-dev",
+  "path": "/Users/john/Dev/Dev_Zig/redfish_gl_zig/zig-pkg/zopengl-0.6.0-dev-5-tnz36mDgBuU9pDfag6_B-qCWOJQc5GXiXuZ6z41zQM",
   "steps": [
     {
       "name": "install",

@@ -358,8 +358,8 @@ pub const Camera = struct {
     }
 
     pub fn frameTarget(self: *Self, target: Vec3, distance: f32) void {
-        const direction = target.sub(&self.base_movement.getPosition()).toNormalized();
-        const new_position = target.sub(&direction.mulScalar(distance));
+        const direction = target.sub(self.base_movement.getPosition()).toNormalized();
+        const new_position = target.sub(direction.mulScalar(distance));
 
         self.base_movement.reset(new_position, target);
         // Reset gimbal to look forward relative to base

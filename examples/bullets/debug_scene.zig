@@ -215,6 +215,17 @@ pub const SceneDebug = struct {
                 .f => {
                     self.floor.plane.shape.is_visible = !self.floor.plane.shape.is_visible;
                 },
+                .l => {
+                    // Explicit re-level after orbit/circle basis drift (see Movement.levelTowardTarget)
+                    const cam = self.getSceneCamera().getCamera();
+                    if (input.key_shift) {
+                        cam.movement.levelTowardTarget(null);
+                        std.debug.print("Level: right ∥ XZ, preserve bank\n", .{});
+                    } else {
+                        cam.movement.levelUpright();
+                        std.debug.print("Level: upright (world up)\n", .{});
+                    }
+                },
                 .m => {
                     self.motion_object = .man;
                 },

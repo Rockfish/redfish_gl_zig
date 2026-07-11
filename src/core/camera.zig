@@ -176,8 +176,8 @@ pub const Camera = struct {
     }
 
     pub fn frameTarget(self: *Self, target: Vec3, distance: f32) void {
-        const direction = target.sub(&self.movement.getPosition()).toNormalized();
-        const new_position = target.sub(&direction.mulScalar(distance));
+        const direction = target.sub(self.movement.getPosition()).toNormalized();
+        const new_position = target.sub(direction.mulScalar(distance));
         self.movement.reset(new_position, target);
     }
 

@@ -149,6 +149,7 @@ pub fn processKeys() void {
                     state.camera.movement.processMovement(.circle_down, state.delta_time);
                 }
             },
+            .l => state.camera.movement.levelTowardTarget(Vec3.World_Up),
             .one => {
                 // state.camera.setLookTo();
             },
