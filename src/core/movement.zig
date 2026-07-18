@@ -439,11 +439,11 @@ pub const Movement = struct {
                 self.transform.translation = self.transform.translation.sub(up_vec.mulScalar(translation_velocity));
             },
             .turn_right => {
-                self.transform.rotateAxis(Vec3.World_Up, -rot_angle);
+                self.transform.rotateAxis(self.world_up, -rot_angle);
                 self.maybeSyncTargetAfterLookChange();
             },
             .turn_left => {
-                self.transform.rotateAxis(Vec3.World_Up, rot_angle);
+                self.transform.rotateAxis(self.world_up, rot_angle);
                 self.maybeSyncTargetAfterLookChange();
             },
             .rotate_right => {
@@ -478,7 +478,14 @@ pub const Movement = struct {
                 }
             },
             .radius_out => {
-                const dir = self.target.sub(self.transform.translation).toNormalized();
+                const to_target = self.target.sub(self.transform.translation);
+                const dist = to_target.length();
+                // On top of the target the radial direction is undefined; dolly
+                // out along -forward so the target ends up in front of the camera.
+                const dir = if (dist > POSITION_EPSILON)
+                    to_target.mulScalar(1.0 / dist)
+                else
+                    self.transform.forward();
                 self.transform.translation = self.transform.translation.sub(dir.mulScalar(translation_velocity));
             },
             .orbit_right => {
@@ -570,21 +577,17 @@ pub const Movement = struct {
         std.debug.print("Up: {s}\n", .{up_vec.asString(&up_buf)});
         std.debug.print("Right: {s}\n", .{right_vec.asString(&right_buf)});
     }
-
-    /// Test helper: treats `angle` (radians) as the desired orbit/circle step by
-    /// deriving `delta_time = degrees(angle) / orbit_speed`. Only accurate for
-    /// orbit/circle when `rotation_speed == orbit_speed` (both default to 50).
-    /// Prefer `processMovement` with real dt in production.
-    pub fn update(self: *Self, angle: f32, direction: MovementDirection) void {
-        const angle_degrees = math.radiansToDegrees(angle);
-        const delta_time = angle_degrees / self.orbit_speed;
-        self.processMovement(direction, delta_time);
-    }
 };
 
 // ---------------------------------------------------------------------------
 // Movement invariant tests (executable reference for motion families)
 // ---------------------------------------------------------------------------
+
+/// Apply an exact rotate/orbit/circle step of `angle` radians via `applyMovement`
+/// (no speed/delta-time coupling). Production code should use `processMovement`.
+fn stepAngle(movement: *Movement, angle: f32, direction: MovementDirection) void {
+    movement.applyMovement(direction, 0.0, angle, angle);
+}
 
 fn expectVec3ApproxEq(a: Vec3, b: Vec3, eps: f32) !void {
     try std.testing.expectApproxEqAbs(a.x, b.x, eps);
@@ -602,7 +605,7 @@ test "orbit right full circle return" {
     const step_angle = math.degreesToRadians(5.0);
     const epsilon = 0.001;
     for (0..steps) |_| {
-        movement.update(step_angle, .orbit_right);
+        stepAngle(&movement, step_angle, .orbit_right);
         const current_radius = movement.transform.translation.sub(target).length();
         try std.testing.expectApproxEqAbs(current_radius, radius, epsilon);
         // Stays in horizontal plane when starting on equator with upright camera
@@ -641,7 +644,7 @@ test "rotate keeps target when sync disabled" {
     const step_angle = math.degreesToRadians(30.0);
     const epsilon = 0.001;
     for (0..12) |_| {
-        movement.update(step_angle, .rotate_right);
+        stepAngle(&movement, step_angle, .rotate_right);
     }
     try expectVec3ApproxEq(movement.target, start_target, epsilon);
     try expectVec3ApproxEq(movement.transform.translation, position, epsilon);
@@ -654,7 +657,7 @@ test "rotate with sync_target_on_rotate keeps target along forward" {
     movement.sync_target_on_rotate = true;
 
     const start_distance = target.sub(position).length();
-    movement.update(math.degreesToRadians(30.0), .rotate_right);
+    stepAngle(&movement, math.degreesToRadians(30.0), .rotate_right);
 
     const to_target = movement.target.sub(movement.transform.translation);
     const eps = 0.001;
@@ -711,6 +714,23 @@ test "radius out then in restores distance" {
     try std.testing.expectApproxEqAbs(end_dist, start_dist, 0.05);
 }
 
+test "radius out at target falls back to forward" {
+    const target = Vec3.init(0.0, 0.0, 0.0);
+    var movement = Movement.init(Vec3.init(0.0, 0.0, 10.0), target);
+    // Degenerate: sitting exactly on the focus point
+    movement.transform.translation = target;
+
+    movement.processMovement(.radius_out, 0.1);
+
+    const pos = movement.transform.translation;
+    try std.testing.expect(!std.math.isNan(pos.x) and !std.math.isNan(pos.y) and !std.math.isNan(pos.z));
+    try std.testing.expect(pos.sub(target).length() > 0.01);
+
+    // Dolly out went along -forward, so the target sits in front of the camera
+    const to_target = target.sub(pos).toNormalized();
+    try std.testing.expectApproxEqAbs(to_target.dot(movement.transform.forward()), 1.0, 0.001);
+}
+
 test "orbit and circle diverge when pitched" {
     const target = Vec3.init(0.0, 0.0, 0.0);
     const start = Vec3.init(10.0, 0.0, 0.0);
@@ -718,7 +738,7 @@ test "orbit and circle diverge when pitched" {
 
     var orbit_m = Movement.init(start, target);
     // Pitch local frame first so orbit axes leave the world-horizontal plane
-    orbit_m.update(math.degreesToRadians(35.0), .orbit_up);
+    stepAngle(&orbit_m, math.degreesToRadians(35.0), .orbit_up);
     const pitched_pos = orbit_m.transform.translation;
     const pitched_rot = orbit_m.transform.rotation;
 
@@ -727,8 +747,8 @@ test "orbit and circle diverge when pitched" {
     circle_m.transform.rotation = pitched_rot;
     circle_m.target = target;
 
-    orbit_m.update(step, .orbit_right);
-    circle_m.update(step, .circle_right);
+    stepAngle(&orbit_m, step, .orbit_right);
+    stepAngle(&circle_m, step, .circle_right);
 
     const pos_diff = orbit_m.transform.translation.sub(circle_m.transform.translation).length();
     // Same start attitude; world-axis circle vs local-axis orbit should separate
@@ -747,7 +767,7 @@ test "circle right full circle about world up returns" {
     const step_angle = math.degreesToRadians(5.0);
     const eps = 0.02;
     for (0..steps) |_| {
-        movement.update(step_angle, .circle_right);
+        stepAngle(&movement, step_angle, .circle_right);
         try std.testing.expectApproxEqAbs(movement.transform.translation.sub(target).length(), radius, eps);
         // Constant height about world-up axis
         try std.testing.expectApproxEqAbs(movement.transform.translation.y, start_pos.y, eps);
@@ -763,7 +783,7 @@ test "circle up/down works near pole" {
 
     const start_pos_up = movement.transform.translation.clone();
     const step_angle = math.degreesToRadians(15.0);
-    movement.update(step_angle, .circle_up);
+    stepAngle(&movement, step_angle, .circle_up);
 
     // Should have moved and stayed on the same radius
     const new_radius_up = movement.transform.translation.sub(target).length();
@@ -777,7 +797,7 @@ test "circle up/down works near pole" {
     const near_north = Vec3.init(0.1, radius, 0.0).toNormalized().mulScalar(radius);
     movement.reset(near_north, target);
     const start_pos_down = movement.transform.translation.clone();
-    movement.update(step_angle, .circle_down);
+    stepAngle(&movement, step_angle, .circle_down);
     const new_radius_down = movement.transform.translation.sub(target).length();
     try std.testing.expect(new_radius_down > 0.0);
     try std.testing.expect(new_radius_down <= radius + eps and new_radius_down >= radius - eps);
@@ -795,7 +815,7 @@ test "circle travels over pole with continuous orientation" {
 
     var max_y: f32 = movement.transform.translation.y;
     for (0..36) |_| {
-        movement.update(step_angle, .circle_up);
+        stepAngle(&movement, step_angle, .circle_up);
         const pos = movement.transform.translation;
         try std.testing.expectApproxEqAbs(pos.sub(target).length(), radius, eps);
         try std.testing.expect(!std.math.isNan(pos.x) and !std.math.isNan(pos.y) and !std.math.isNan(pos.z));
@@ -814,8 +834,8 @@ test "levelTowardTarget with world_up snaps upright" {
     var movement = Movement.init(Vec3.init(0.0, 0.0, 10.0), target);
 
     // Tilt with orbit then free-look so basis is messy
-    movement.update(math.degreesToRadians(40.0), .orbit_up);
-    movement.update(math.degreesToRadians(25.0), .rotate_right);
+    stepAngle(&movement, math.degreesToRadians(40.0), .orbit_up);
+    stepAngle(&movement, math.degreesToRadians(25.0), .rotate_right);
 
     movement.levelTowardTarget(movement.world_up);
 
@@ -834,8 +854,8 @@ test "levelTowardTarget with world_up snaps upright" {
 test "levelTowardTarget null levels right to XZ" {
     const target = Vec3.init(0.0, 0.0, 0.0);
     var movement = Movement.init(Vec3.init(10.0, 0.0, 0.0), target);
-    movement.update(math.degreesToRadians(30.0), .orbit_up);
-    movement.update(math.degreesToRadians(20.0), .rotate_left);
+    stepAngle(&movement, math.degreesToRadians(30.0), .orbit_up);
+    stepAngle(&movement, math.degreesToRadians(20.0), .rotate_left);
 
     movement.levelTowardTarget(null);
 
@@ -905,7 +925,7 @@ test "circle up near pole does not oscillate position" {
     var prev_dy: f32 = 0.0;
 
     for (0..80) |_| {
-        movement.update(step_angle, .circle_up);
+        stepAngle(&movement, step_angle, .circle_up);
         const y = movement.transform.translation.y;
         const dy = y - prev_y;
         // Count sign flips of dy (oscillation); allow one flip when cresting the pole

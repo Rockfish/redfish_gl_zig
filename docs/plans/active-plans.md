@@ -8,6 +8,10 @@
 
 ## 📋 Planned (Priority Order) - Foundation Layer
 
+- **[016-motion-patterns.md](016-motion-patterns.md)** - Time-based motion patterns (`motion.zig`) layered on Movement
+  - Smooth follow, moveToward, path following, shake; CameraGimbal revival as showcase
+  - Drafted 2026-07-12 from [movement usage review](../review/movement_usage_review.md)
+
 - **[004-animation-state-machine.md](004-animation-state-machine.md)** - Essential animation and state management
   - Depends on Plans 001-003
   - Target: 1-2 weeks, focused on character movement
