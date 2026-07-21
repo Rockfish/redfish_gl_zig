@@ -11,6 +11,7 @@ const Enemy = @import("enemy.zig").Enemy;
 
 const ManagedArrayList = containers.ManagedArrayList;
 
+const Context = core.Context;
 const AABB = core.AABB;
 const State = world.State;
 const Shader = core.Shader;
@@ -146,7 +147,7 @@ pub const BulletStore = struct {
         self.bullet_impact_spritesheet.deinit();
     }
 
-    pub fn init(io: std.Io, allocator: Allocator, unit_square_vao: c_uint) !Self {
+    pub fn init(context: Context, unit_square_vao: c_uint) !Self {
         const texture_config = TextureConfig{
             .flip_v = false,
             .gamma_correction = false,
@@ -154,14 +155,14 @@ pub const BulletStore = struct {
             .wrap = .Repeat,
         };
 
-        const bullet_texture = try Texture.initFromFile(io, allocator, "assets/angrybots_assets/Textures/Bullet/bullet_texture_transparent.png", texture_config);
-        const texture_impact_sprite_sheet = try Texture.initFromFile(io, allocator, "assets/angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png", texture_config);
+        const bullet_texture = try Texture.initFromFile(context, "assets/angrybots_assets/Textures/Bullet/bullet_texture_transparent.png", texture_config);
+        const texture_impact_sprite_sheet = try Texture.initFromFile(context, "assets/angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png", texture_config);
 
         const bullet_impact_spritesheet = SpriteSheet.init(texture_impact_sprite_sheet, 11, 0.05);
 
         // Pre calculate the bullet spread rotations. Only needs to be done once.
-        var x_rotations = ManagedArrayList(Quat).init(allocator);
-        var y_rotations = ManagedArrayList(Quat).init(allocator);
+        var x_rotations = ManagedArrayList(Quat).init(context.alloc);
+        var y_rotations = ManagedArrayList(Quat).init(context.alloc);
 
         const rotation_per_bullet = world.ROTATION_PER_BULLET * math.pi / 180.0;
         const spread_amount_f32: f32 = @floatFromInt(world.SPREAD_AMOUNT);
@@ -183,13 +184,13 @@ pub const BulletStore = struct {
         }
 
         var bullet_store: BulletStore = .{
-            .bullet_positions = ManagedArrayList(Vec3).init(allocator),
-            .bullet_rotations = ManagedArrayList(Quat).init(allocator),
-            .bullet_directions = ManagedArrayList(Vec3).init(allocator),
+            .bullet_positions = ManagedArrayList(Vec3).init(context.alloc),
+            .bullet_rotations = ManagedArrayList(Quat).init(context.alloc),
+            .bullet_directions = ManagedArrayList(Vec3).init(context.alloc),
             .x_rotations = x_rotations,
             .y_rotations = y_rotations,
-            .bullet_groups = ManagedArrayList(BulletGroup).init(allocator),
-            .bullet_impact_sprites = ManagedArrayList(?SpriteSheetSprite).init(allocator),
+            .bullet_groups = ManagedArrayList(BulletGroup).init(context.alloc),
+            .bullet_impact_sprites = ManagedArrayList(?SpriteSheetSprite).init(context.alloc),
             .bullet_vao = 1000, //bullet_vao,
             .rotations_vbo = 1000, //instance_rotation_vbo,
             .positions_vbo = 1000, //instance_position_vbo,

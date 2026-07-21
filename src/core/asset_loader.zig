@@ -8,6 +8,9 @@ const utils = @import("utils/root.zig");
 const Model = @import("model.zig").Model;
 const Mesh = @import("mesh.zig").Mesh;
 const Animator = @import("animator.zig").Animator;
+const Context = @import("context.zig").Context;
+
+const log = std.log.scoped(.asset_loader);
 
 const Vec3 = math.Vec3;
 
@@ -21,7 +24,6 @@ pub const NormalGenerationMode = enum {
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
-const ArenaAllocator = std.heap.ArenaAllocator;
 const Path = std.fs.path;
 
 const GLTF = gltf_types.GLTF;
@@ -63,8 +65,7 @@ const GlbError = error{
 };
 
 pub const GltfAsset = struct {
-    io: Io,
-    arena: *ArenaAllocator,
+    context: Context,
 
     // Pure GLTF specification data
     gltf: GLTF,
@@ -88,26 +89,18 @@ pub const GltfAsset = struct {
 
     const Self = @This();
 
-    pub fn init(io: Io, allocator: Allocator, name: []const u8, path: []const u8) !*Self {
-
-        // will be owned by the model
-        const arena = try allocator.create(ArenaAllocator);
-        arena.* = ArenaAllocator.init(allocator);
-
-        const local_alloc = arena.allocator();
-
-        const asset: *GltfAsset = try local_alloc.create(Self);
+    pub fn init(context: Context, name: []const u8, path: []const u8) !*Self {
+        const asset: *GltfAsset = try context.alloc.create(Self);
         asset.* = GltfAsset{
-            .io = io,
-            .arena = arena, // will be owned by the model
+            .context = context,
             .gltf = undefined, // Will be set during load
-            .buffer_data = ManagedArrayList([]align(4) const u8).init(local_alloc),
-            .loaded_textures = std.AutoHashMap(u32, *texture.Texture).init(local_alloc),
-            .generated_normals = std.AutoHashMap(u64, []Vec3).init(local_alloc),
-            .custom_textures = ManagedArrayList(CustomTexture).init(local_alloc),
-            .directory = try local_alloc.dupe(u8, Path.dirname(path) orelse ""),
-            .name = try local_alloc.dupe(u8, name),
-            .filepath = try local_alloc.dupeZ(u8, path),
+            .buffer_data = ManagedArrayList([]align(4) const u8).init(context.alloc),
+            .loaded_textures = std.AutoHashMap(u32, *texture.Texture).init(context.alloc),
+            .generated_normals = std.AutoHashMap(u64, []Vec3).init(context.alloc),
+            .custom_textures = ManagedArrayList(CustomTexture).init(context.alloc),
+            .directory = try context.alloc.dupe(u8, Path.dirname(path) orelse ""),
+            .name = try context.alloc.dupe(u8, name),
+            .filepath = try context.alloc.dupeZ(u8, path),
             .gamma_correction = false,
             .flip_v = false,
             .flip_h = false,
@@ -116,10 +109,6 @@ pub const GltfAsset = struct {
         };
 
         return asset;
-    }
-
-    pub fn deinit(self: *Self) void {
-        self.deleteGlObjects();
     }
 
     pub fn deleteGlObjects(self: *Self) void {
@@ -152,7 +141,7 @@ pub const GltfAsset = struct {
 
     // Add custom texture assignment for models without material definitions
     pub fn addTexture(self: *Self, mesh_name: []const u8, uniform_name: []const u8, texture_path: []const u8, config: texture.TextureConfig) !void {
-        const allocator = self.arena.allocator();
+        const allocator = self.context.alloc;
 
         const custom_texture = CustomTexture{
             .mesh_name = try allocator.dupe(u8, mesh_name),
@@ -163,20 +152,6 @@ pub const GltfAsset = struct {
         };
 
         try self.custom_textures.append(custom_texture);
-    }
-
-    // Get custom textures for a specific mesh
-    pub fn getCustomTextures(self: *Self, mesh_name: []const u8) []CustomTexture {
-        const allocator = self.arena.allocator();
-        var matching_textures = ManagedArrayList(CustomTexture).init(allocator);
-
-        for (self.custom_textures.list.items) |*custom_tex| {
-            if (std.mem.eql(u8, custom_tex.mesh_name, mesh_name)) {
-                matching_textures.append(custom_tex.*) catch continue;
-            }
-        }
-
-        return matching_textures.toOwnedSlice() catch &[_]CustomTexture{};
     }
 
     // Load custom texture on demand with caching
@@ -193,16 +168,14 @@ pub const GltfAsset = struct {
 
     // Load custom texture from file with configuration
     fn loadCustomTextureFromFile(self: *Self, texture_path: []const u8, config: texture.TextureConfig) !*texture.Texture {
-        const allocator = self.arena.allocator();
 
         // Create full path
-        const full_path = try std.fs.path.joinZ(allocator, &[_][]const u8{ self.directory, texture_path });
-        defer allocator.free(full_path);
+        const full_path = try std.fs.path.joinZ(self.context.temp_alloc, &[_][]const u8{ self.directory, texture_path });
+        defer self.context.temp_alloc.free(full_path);
 
         // Load texture manually (similar to ASSIMP system)
         const tex = try texture.Texture.initFromFile(
-            self.io,
-            allocator,
+            self.context,
             full_path,
             config,
         );
@@ -233,7 +206,7 @@ pub const GltfAsset = struct {
 
                     // Get vertex count from position accessor
                     const position_accessor_id = primitive.attributes.position orelse {
-                        std.debug.print("Primitive {d}.{d} has no position data, skipping normal generation\n", .{ mesh_index, primitive_index });
+                        log.debug("Primitive {d}.{d} has no position data, skipping normal generation\n", .{ mesh_index, primitive_index });
                         continue;
                     };
 
@@ -251,37 +224,38 @@ pub const GltfAsset = struct {
                     const key = (@as(u64, @intCast(mesh_index)) << 32) | @as(u64, @intCast(primitive_index));
                     try self.generated_normals.put(key, normals);
 
-                    std.debug.print("Generated {s} normals for mesh {d} primitive {d} ({d} vertices)\n", .{ @tagName(self.normal_generation_mode), mesh_index, primitive_index, vertex_count });
+                    log.debug("Generated {s} normals for mesh {d} primitive {d} ({d} vertices)\n", .{ @tagName(self.normal_generation_mode), mesh_index, primitive_index, vertex_count });
                 }
             }
         }
     }
 
     pub fn load(self: *Self) !void {
-        const file_contents = std.Io.Dir.cwd().readFileAllocOptions(
-            self.io,
+        const file_contents = try std.Io.Dir.cwd().readFileAllocOptions(
+            self.context.io,
             self.filepath,
-            self.arena.allocator(),
+            self.context.temp_alloc,
             .unlimited,
             .@"4",
             null,
-        ) catch |err| std.debug.panic("Error reading file. error: '{any}'  file: '{s}'\n", .{ err, self.filepath });
+        );
+        //catch |err| std.debug.panic("Error reading file. error: '{any}'  file: '{s}'\n", .{ err, self.filepath });
 
         if (isGlbFile(self.filepath)) {
             // GLB format: parse binary format and extract JSON + binary chunks
-            const glb_data = try parseGlbFile(self.arena.allocator(), file_contents);
-            self.gltf = try parser.parseGltfJson(self.arena.allocator(), glb_data.json_data);
+            const glb_data = try parseGlbFile(file_contents);
+            self.gltf = try parser.parseGltfJson(self.context.alloc, self.context.temp_alloc, glb_data.json_data);
 
             // Pre-populate buffer_data with GLB binary chunk if present
             if (glb_data.binary_data) |bin_data| {
                 // Create aligned copy of binary data
-                const aligned_data = try self.arena.allocator().alignedAlloc(u8, .@"4", bin_data.len);
+                const aligned_data = try self.context.alloc.alignedAlloc(u8, .@"4", bin_data.len);
                 @memcpy(aligned_data, bin_data);
                 try self.buffer_data.append(aligned_data);
             }
         } else {
             // GLTF format: parse JSON directly
-            self.gltf = try parser.parseGltfJson(self.arena.allocator(), file_contents);
+            self.gltf = try parser.parseGltfJson(self.context.alloc, self.context.temp_alloc, file_contents);
 
             // Load external buffer data from URIs
             try self.loadBufferData();
@@ -290,20 +264,18 @@ pub const GltfAsset = struct {
     }
 
     pub fn buildModel(self: *Self) !*Model {
-        const allocator = self.arena.allocator();
-
         if (!self.is_loaded) try self.load();
 
         // Generate normals for missing ones based on configuration
         try self.generateMissingNormals();
 
         // Create meshes
-        const meshes = try allocator.create(ManagedArrayList(*Mesh));
-        meshes.* = ManagedArrayList(*Mesh).init(allocator);
+        const meshes = try self.context.alloc.create(ManagedArrayList(*Mesh));
+        meshes.* = ManagedArrayList(*Mesh).init(self.context.alloc);
 
         if (self.gltf.meshes) |gltf_meshes| {
             for (gltf_meshes, 0..) |gltf_mesh, mesh_index| {
-                const mesh = try Mesh.init(self.arena, self, gltf_mesh, mesh_index);
+                const mesh = try Mesh.init(self.context.alloc, self, gltf_mesh, mesh_index);
                 try meshes.append(mesh);
             }
         }
@@ -317,7 +289,7 @@ pub const GltfAsset = struct {
                     for (nodes, 0..) |node, node_idx| {
                         if (node.mesh != null and node.skin != null) {
                             skin_index = node.skin.?;
-                            std.debug.print("Found {d} skins, using skin {d} with {d} joints (from node {d})\n", .{ skins.len, skin_index.?, skins[skin_index.?].joints.len, node_idx });
+                            log.debug("Found {d} skins, using skin {d} with {d} joints (from node {d})\n", .{ skins.len, skin_index.?, skins[skin_index.?].joints.len, node_idx });
                             break;
                         }
                     }
@@ -326,19 +298,19 @@ pub const GltfAsset = struct {
                 // Fallback to first skin if no node with both mesh and skin found
                 if (skin_index == null) {
                     skin_index = 0;
-                    std.debug.print("Found {d} skins, using fallback skin 0 with {d} joints\n", .{ skins.len, skins[0].joints.len });
+                    log.debug("Found {d} skins, using fallback skin 0 with {d} joints\n", .{ skins.len, skins[0].joints.len });
                 }
             }
         } else {
-            std.debug.print("No skins found in model\n", .{});
+            log.debug("No skins found in model\n", .{});
         }
 
         // Create animator
-        const animator = try Animator.init(self.arena, self, skin_index);
+        const animator = try Animator.init(self.context, self, skin_index);
 
         // Create model
         const model = try Model.init(
-            self.arena, // model now owns arena
+            self.context.alloc,
             self.name,
             meshes,
             animator,
@@ -355,8 +327,7 @@ pub const GltfAsset = struct {
 
         // Load texture on demand
         const tex = try texture.Texture.initFromGltf(
-            self.io,
-            self.arena,
+            self.context,
             self,
             self.directory,
             texture_index,
@@ -368,11 +339,9 @@ pub const GltfAsset = struct {
 
     // Load buffer data from URIs or embedded data
     fn loadBufferData(self: *Self) !void {
-        const alloc = self.arena.allocator();
-
         const buffer_count = if (self.gltf.buffers) |buf| buf.len else 0;
 
-        std.debug.print("Loading buffer data for {d} buffers\n", .{buffer_count});
+        log.debug("Loading buffer data for {d} buffers\n", .{buffer_count});
 
         if (self.gltf.buffers) |buffers| {
             for (buffers, 0..) |buffer, buffer_index| {
@@ -395,7 +364,7 @@ pub const GltfAsset = struct {
                             const decoded_length = decoder.calcSizeForSlice(uri[idx + 1 .. uri.len]) catch |err| {
                                 std.debug.panic("decoder calcSizeForSlice error: {any}\n", .{err});
                             };
-                            const decoded_buffer: []align(4) u8 = try alloc.allocWithOptions(u8, decoded_length, .@"4", null);
+                            const decoded_buffer: []align(4) u8 = try self.context.alloc.allocWithOptions(u8, decoded_length, .@"4", null);
                             decoder.decode(decoded_buffer, uri[idx + 1 .. uri.len]) catch |err| {
                                 std.debug.panic("decoder decode error: {any}\n", .{err});
                             };
@@ -403,13 +372,12 @@ pub const GltfAsset = struct {
                         }
                     } else {
                         // Handle external file URIs
-                        const path = try std.fs.path.join(alloc, &[_][]const u8{ self.directory, uri });
-                        defer alloc.free(path);
+                        const path = try std.fs.path.join(self.context.temp_alloc, &[_][]const u8{ self.directory, uri });
 
                         const buffer_file = std.Io.Dir.cwd().readFileAllocOptions(
-                            self.io,
+                            self.context.io,
                             path,
-                            self.arena.allocator(),
+                            self.context.alloc,
                             .unlimited,
                             .@"4",
                             null,
@@ -424,8 +392,8 @@ pub const GltfAsset = struct {
                         std.debug.panic("Buffer {d} has no URI and is not GLB embedded buffer\n", .{buffer_index});
                     }
                 }
-                std.debug.print("Loaded buffer {d} with {d} bytes\n", .{ buffer_index, self.buffer_data.list.items[self.buffer_data.list.items.len - 1].len });
-                std.debug.print("Total buffer size: {d}\n\n", .{self.buffer_data.list.items.len});
+                log.debug("Loaded buffer {d} with {d} bytes\n", .{ buffer_index, self.buffer_data.list.items[self.buffer_data.list.items.len - 1].len });
+                log.debug("Total buffer size: {d}\n\n", .{self.buffer_data.list.items.len});
             }
         }
     }
@@ -442,9 +410,7 @@ const GlbData = struct {
     binary_data: ?[]const u8,
 };
 
-fn parseGlbFile(allocator: Allocator, file_data: []const u8) !GlbData {
-    _ = allocator; // Currently unused, may need for future validation
-
+fn parseGlbFile(file_data: []const u8) !GlbData {
     // Validate minimum file size (12 bytes for GLB header)
     if (file_data.len < @sizeOf(GlbHeader)) {
         return GlbError.TruncatedFile;
@@ -544,9 +510,7 @@ fn getTypeSize(accessor_type: gltf_types.AccessorType) usize {
 
 // Generate simple upward-facing normals for models that don't have them
 pub fn generateSimpleNormals(gltf_asset: *GltfAsset, vertex_count: u32) []Vec3 {
-    const allocator = gltf_asset.arena.allocator();
-
-    const normals = allocator.alloc(Vec3, vertex_count) catch |err| {
+    const normals = gltf_asset.context.alloc.alloc(Vec3, vertex_count) catch |err| {
         std.debug.panic("Failed to allocate normals: {any}", .{err});
     };
 
@@ -560,8 +524,6 @@ pub fn generateSimpleNormals(gltf_asset: *GltfAsset, vertex_count: u32) []Vec3 {
 
 // Generate accurate normals calculated from triangle geometry
 pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.MeshPrimitive, vertex_count: u32) []Vec3 {
-    const allocator = gltf_asset.arena.allocator();
-
     // Get position data
     const position_accessor_id = primitive.attributes.position orelse {
         std.debug.panic("Cannot generate normals without positions", .{});
@@ -577,7 +539,7 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
     const positions = @as([*]Vec3, @ptrCast(@alignCast(@constCast(position_data))))[0..vertex_count];
 
     // Initialize normals to zero
-    const normals = allocator.alloc(Vec3, vertex_count) catch |err| {
+    const normals = gltf_asset.context.alloc.alloc(Vec3, vertex_count) catch |err| {
         std.debug.panic("Failed to allocate normals: {any}", .{err});
     };
     for (normals) |*normal| {
@@ -648,7 +610,7 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
                 }
             },
             else => {
-                std.debug.print("Unsupported index type for normal generation: {s}\n", .{@tagName(indices_accessor.component_type)});
+                log.debug("Unsupported index type for normal generation: {s}\n", .{@tagName(indices_accessor.component_type)});
                 // Fallback to upward normals
                 for (normals) |*normal| {
                     normal.* = Vec3{ .x = 0.0, .y = 1.0, .z = 0.0 };

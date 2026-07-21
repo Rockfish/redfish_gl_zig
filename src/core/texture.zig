@@ -4,8 +4,8 @@ const gl = @import("zopengl").bindings;
 const utils = @import("utils/root.zig");
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
+const Context = @import("context.zig").Context;
 
-const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 
@@ -40,19 +40,16 @@ pub const Texture = struct {
 
     // Initialize from glTF texture reference
     pub fn initFromGltf(
-        io: Io,
-        arena: *ArenaAllocator,
+        context: Context,
         gltf_asset: *GltfAsset,
         directory: []const u8,
         texture_index: usize,
     ) !*Texture {
-        const allocator = arena.allocator();
-
         const gltf_texture = gltf_asset.gltf.textures.?[texture_index];
         const source_id = gltf_texture.source orelse std.debug.panic("texture.source null not supported.", .{});
         const gltf_image = gltf_asset.gltf.images.?[source_id];
 
-        zstbi.init(io, allocator);
+        zstbi.init(context.io, context.temp_alloc);
         defer zstbi.deinit();
 
         // GLTF defines UV coordinates with a top-left origin
@@ -60,7 +57,7 @@ pub const Texture = struct {
         // So always flip vertical
         // zstbi.setFlipVerticallyOnLoad(true);  // hmm, except not for CesiumMan
 
-        var image = loadImage(allocator, gltf_asset, gltf_image, directory);
+        var image = loadImage(context, gltf_asset, gltf_image, directory);
         defer image.deinit();
 
         const sampler = blk: {
@@ -73,7 +70,7 @@ pub const Texture = struct {
 
         const gl_texture_id = createGl2DTexture(image, sampler);
 
-        const texture = try allocator.create(Texture);
+        const texture = try context.alloc.create(Texture);
         texture.* = Texture{
             .gltf_texture_id = texture_index,
             .gl_texture_id = @intCast(gl_texture_id),
@@ -86,12 +83,11 @@ pub const Texture = struct {
 
     // Initialize from custom file path with configuration (for manual texture assignment)
     pub fn initFromFile(
-        io: Io,
-        allocator: Allocator,
+        context: Context,
         file_path: [:0]const u8,
         config: TextureConfig,
     ) !*Texture {
-        zstbi.init(io, allocator);
+        zstbi.init(context.io, context.temp_alloc);
         defer zstbi.deinit();
 
         zstbi.setFlipVerticallyOnLoad(config.flip_v);
@@ -124,7 +120,7 @@ pub const Texture = struct {
 
         const gl_texture_id = createGl2DTexture(image, sampler);
 
-        const texture = try allocator.create(Texture);
+        const texture = try context.alloc.create(Texture);
         texture.* = Texture{
             .gltf_texture_id = 0, // Not from glTF
             .gl_texture_id = @intCast(gl_texture_id),
@@ -136,20 +132,19 @@ pub const Texture = struct {
         return texture;
     }
 
-    pub fn clone(self: *const Self) !*Texture {
-        const texture = try self.allocator.create(Texture);
+    pub fn clone(self: *const Self, alloc: Allocator) !*Texture {
+        const texture = try alloc.create(Texture);
         texture.* = Texture{
             .gltf_texture_id = self.gltf_texture_id,
             .gl_texture_id = self.gl_texture_id,
             .width = self.width,
             .height = self.height,
-            .allocator = self.allocator,
         };
         return texture;
     }
 };
 
-pub fn loadImage(allocator: Allocator, gltf_asset: *GltfAsset, gltf_image: gltf_types.Image, directory: []const u8) zstbi.Image {
+pub fn loadImage(context: Context, gltf_asset: *GltfAsset, gltf_image: gltf_types.Image, directory: []const u8) zstbi.Image {
     if (gltf_image.uri) |uri| {
         if (std.mem.eql(u8, uri[0..5], "data:")) {
             const comma = utils.strchr(uri, ',');
@@ -158,13 +153,13 @@ pub fn loadImage(allocator: Allocator, gltf_asset: *GltfAsset, gltf_image: gltf_
                 const decoded_length = decoder.calcSizeForSlice(uri[idx..uri.len]) catch |err| {
                     std.debug.panic("Texture base64 decoder error: {any}\n", .{err});
                 };
-                const data_buffer: []align(4) u8 = allocator.allocWithOptions(u8, decoded_length, .@"4", null) catch |err| {
+                const data_buffer: []align(4) u8 = context.temp_alloc.allocWithOptions(u8, decoded_length, .@"4", null) catch |err| {
                     std.debug.panic("Texture allocator error: {any}\n", .{err});
                 };
+                defer context.temp_alloc.free(data_buffer);
                 decoder.decode(data_buffer, uri[idx..uri.len]) catch |err| {
                     std.debug.panic("Texture base64 decoder error: {any}\n", .{err});
                 };
-                // zstbi will own the data_buffer and free it on image deinit.
                 const image = zstbi.Image.loadFromMemory(data_buffer, 0) catch |err| {
                     std.debug.print("Texture loadFromMemory error: {any}  using uri: {any}\n", .{ err, uri[0..5] });
                     @panic(@errorName(err));
@@ -174,10 +169,10 @@ pub fn loadImage(allocator: Allocator, gltf_asset: *GltfAsset, gltf_image: gltf_
             }
             std.debug.panic("Texture uri malformed. uri: {any}", .{uri});
         } else {
-            const c_path = std.fs.path.joinZ(allocator, &[_][]const u8{ directory, uri }) catch |err| {
+            const c_path = std.fs.path.joinZ(context.temp_alloc, &[_][]const u8{ directory, uri }) catch |err| {
                 std.debug.panic("Texture allocator error: {any}\n", .{err});
             };
-            defer allocator.free(c_path);
+            defer context.temp_alloc.free(c_path);
             std.debug.print("Loading texture from file: {s}\n", .{c_path});
             // Try forcing RGBA (4 channels) to handle sRGB images properly
             const image = zstbi.Image.loadFromFile(c_path, 4) catch |err| {

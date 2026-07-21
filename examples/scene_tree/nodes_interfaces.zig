@@ -33,12 +33,8 @@ pub const Node = struct {
         type_id: usize,
         update_fn: *const fn (ptr: *anyopaque, state: *anyopaque) anyerror!void,
         draw_fn: *const fn (ptr: *anyopaque, shader: *Shader) void,
+        clean_up_fn: *const fn (ptr: *anyopaque) void,
     };
-
-    pub fn deinit(self: *Self) void {
-        self.children.deinit();
-        self.allocator.destroy(self);
-    }
 
     pub fn init(allocator: Allocator, name: []const u8, object_ptr: anytype, state_ptr: anytype) !*Node {
         const gen = struct {
@@ -63,6 +59,13 @@ pub const Node = struct {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
                 return obj.draw(shader);
             }
+
+            pub fn cleanUpFn(obj_ptr: *anyopaque) void {
+                const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
+                if (std.meta.hasMethod(ObjectType, "cleanUp")) {
+                    obj.cleanUp();
+                }
+            }
         };
 
         std.debug.print("Node type: {s}\n", .{@typeName(@TypeOf(object_ptr))});
@@ -80,6 +83,7 @@ pub const Node = struct {
                 .type_id = typeId(@TypeOf(object_ptr)),
                 .update_fn = gen.updateFn,
                 .draw_fn = gen.drawFn,
+                .clean_up_fn = gen.cleanUpFn,
             },
         };
         return node;
@@ -113,6 +117,10 @@ pub const Node = struct {
         for (self.children.items()) |child| {
             child.draw(shader);
         }
+    }
+
+    pub fn cleanUp(self: *Self) void {
+        self.dispatch.clean_up_fn(self.dispatch.obj_ptr);
     }
 
     pub fn castTo(self: *Self, comptime T: type) ?*T {

@@ -34,7 +34,7 @@ pub const Turret = struct {
     const Self = @This();
 
     pub fn init(rm: *ResourceManager) !*Self {
-        const allocator = rm.allocator;
+        const allocator = rm.context.alloc;
 
         const line_shader = try rm.createShader(
             "examples/bullets/shaders/lines.vert",

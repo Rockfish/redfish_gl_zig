@@ -6,10 +6,12 @@ const Shader = @import("shader.zig").Shader;
 const AABB = @import("aabb.zig").AABB;
 const constants = @import("constants.zig");
 
+const log = std.log.scoped(.mesh);
+
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 
-const ArenaAllocator = std.heap.ArenaAllocator;
+const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
 
 const Vec3 = math.Vec3;
@@ -30,17 +32,16 @@ pub const Mesh = struct {
 
     const Self = @This();
 
-    pub fn init(arena: *ArenaAllocator, gltf_asset: *GltfAsset, gltf_mesh: gltf_types.Mesh, mesh_index: usize) !*Mesh {
-        const allocator = arena.allocator();
-        const mesh = try allocator.create(Mesh);
+    pub fn init(alloc: Allocator, gltf_asset: *GltfAsset, gltf_mesh: gltf_types.Mesh, mesh_index: usize) !*Mesh {
+        const mesh = try alloc.create(Mesh);
 
         mesh.* = Mesh{
             .name = gltf_mesh.name,
-            .primitives = ManagedArrayList(*MeshPrimitive).init(allocator),
+            .primitives = ManagedArrayList(*MeshPrimitive).init(alloc),
         };
 
         for (gltf_mesh.primitives, 0..) |primitive, primitive_index| {
-            const mesh_primitive = try MeshPrimitive.init(arena, gltf_asset, primitive, mesh_index, primitive_index, gltf_mesh.name);
+            const mesh_primitive = try MeshPrimitive.init(alloc, gltf_asset, primitive, mesh_index, primitive_index, gltf_mesh.name);
             try mesh.primitives.append(mesh_primitive);
         }
 
@@ -118,9 +119,8 @@ pub const MeshPrimitive = struct {
         }
     }
 
-    pub fn init(arena: *ArenaAllocator, gltf_asset: *GltfAsset, primitive: gltf_types.MeshPrimitive, mesh_index: usize, primitive_index: usize, mesh_name: ?[]const u8) !*MeshPrimitive {
-        const allocator = arena.allocator();
-        const mesh_primitive = try allocator.create(MeshPrimitive);
+    pub fn init(alloc: Allocator, gltf_asset: *GltfAsset, primitive: gltf_types.MeshPrimitive, mesh_index: usize, primitive_index: usize, mesh_name: ?[]const u8) !*MeshPrimitive {
+        const mesh_primitive = try alloc.create(MeshPrimitive);
         mesh_primitive.* = MeshPrimitive{
             // .allocator = allocator,
             .id = primitive_index,
@@ -140,7 +140,7 @@ pub const MeshPrimitive = struct {
 
         if (primitive.attributes.tex_coord_0) |accessor_id| {
             mesh_primitive.vbo_texcoords = createGlArrayBuffer(gltf_asset, constants.VertexAttr.TEXCOORD, accessor_id);
-            // std.debug.print("has_texcoords: accessor {d}, count {d}, component_type {d}\n", .{ accessor_id, accessor.count, @intFromEnum(accessor.component_type) });
+            // log.debug("has_texcoords: accessor {d}, count {d}, component_type {d}\n", .{ accessor_id, accessor.count, @intFromEnum(accessor.component_type) });
         }
 
         if (primitive.attributes.normal) |accessor_id| {
@@ -159,26 +159,26 @@ pub const MeshPrimitive = struct {
 
         if (primitive.attributes.tangent) |accessor_id| {
             mesh_primitive.vbo_tangents = createGlArrayBuffer(gltf_asset, constants.VertexAttr.TANGENT, accessor_id);
-            // std.debug.print("has_tangents\n", .{});
+            // log.debug("has_tangents\n", .{});
         }
 
         if (primitive.attributes.color_0) |accessor_id| {
             mesh_primitive.vbo_colors = createGlArrayBuffer(gltf_asset, constants.VertexAttr.COLOR, accessor_id);
             mesh_primitive.has_vertex_colors = true;
             // const name: []const u8 = if (mesh_name) |n| n else "none";
-            // std.debug.print("mesh: {s}  has_vertex_colors\n", .{name});
+            // log.debug("mesh: {s}  has_vertex_colors\n", .{name});
         }
 
         if (primitive.attributes.joints_0) |accessor_id| {
             mesh_primitive.vbo_joints = createGlArrayBuffer(gltf_asset, constants.VertexAttr.JOINTS, accessor_id);
             // const accessor = gltf_asset.gltf.accessors.?[accessor_id];
-            // std.debug.print("has_joints: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
+            // log.debug("has_joints: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
         }
 
         if (primitive.attributes.weights_0) |accessor_id| {
             mesh_primitive.vbo_weights = createGlArrayBuffer(gltf_asset, constants.VertexAttr.WEIGHTS, accessor_id);
             // const accessor = gltf_asset.gltf.accessors.?[accessor_id];
-            // std.debug.print("has_weights: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
+            // log.debug("has_weights: accessor {d}, count {d}, component_type {s}\n", .{ accessor_id, accessor.count, @tagName(accessor.component_type) });
         }
 
         // Set has_skin flag if both joints and weights are present
@@ -189,13 +189,13 @@ pub const MeshPrimitive = struct {
             const accessor = gltf_asset.gltf.accessors.?[accessor_id];
             mesh_primitive.indices_count = @intCast(accessor.count);
             mesh_primitive.index_type = accessor.component_type;
-            // std.debug.print("has_indices count: {d}\n", .{accessor.count});
+            // log.debug("has_indices count: {d}\n", .{accessor.count});
         }
 
         if (primitive.material) |material_id| {
             const material = gltf_asset.gltf.materials.?[material_id];
             mesh_primitive.material = material;
-            // std.debug.print("has_material: {any}\n", .{material});
+            // log.debug("has_material: {any}\n", .{material});
 
             // Set draw mode to PBR if material has PBR properties
             if (material.pbr_metallic_roughness != null) {
@@ -391,11 +391,12 @@ pub const MeshPrimitive = struct {
     fn setCustomTextures(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
         // Get the mesh name from this primitive
         const mesh_name = self.name orelse return;
+        var buf: [256:0]u8 = undefined;
 
         for (gltf_asset.custom_textures.list.items) |*custom_tex| {
             if (std.mem.eql(u8, custom_tex.mesh_name, mesh_name)) {
                 const texture = gltf_asset.loadCustomTexture(custom_tex) catch {
-                    std.debug.print("Failed to load custom texture: {s}\n", .{custom_tex.texture_path});
+                    log.debug("Failed to load custom texture: {s}\n", .{custom_tex.texture_path});
                     continue;
                 };
 
@@ -403,14 +404,11 @@ pub const MeshPrimitive = struct {
 
                 // Set a flag indicating this uniform has a texture
                 // This allows shaders to conditionally use textures
-                const flag_name = std.fmt.allocPrintSentinel(gltf_asset.arena.allocator(), "has_{s}", .{custom_tex.uniform_name}, 0) catch {
-                    std.debug.print("Failed to allocate flag name for {s}\n", .{custom_tex.uniform_name});
+                const flag_name = std.fmt.bufPrintZ(&buf, "has_{s}", .{custom_tex.uniform_name}) catch {
+                    log.debug("Failed to allocate flag name for {s}\n", .{custom_tex.uniform_name});
                     continue;
                 };
-                // Don't free - arena allocator will handle cleanup
                 shader.setBool(flag_name, true);
-
-                // std.debug.print("Applied custom texture: {s} -> {s}\n", .{ custom_tex.texture_path, custom_tex.uniform_name });
             }
         }
     }
@@ -428,7 +426,7 @@ pub fn getAABB(gltf_asset: *GltfAsset, accessor_id: usize) AABB {
     const data = buffer_data[start..end];
     const len: usize = data.len / @sizeOf(Vec3);
     std.debug.assert(len == accessor.count);
-    std.debug.print("aabb number of positions: {d}\n", .{len});
+    log.debug("aabb number of positions: {d}\n", .{len});
 
     const positions = @as([*]Vec3, @ptrCast(@alignCast(@constCast(data))))[0..len];
 
@@ -458,13 +456,13 @@ pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: u
 
     const end = start + data_size;
 
-    std.debug.print("\naccessor:  {any}\n", .{accessor});
-    std.debug.print("buffer_view:  {any}\n", .{buffer_view});
-    std.debug.print("buffer len:  {d}\n", .{buffer_data.len});
-    std.debug.print("data size:  {d}\n", .{data_size});
-    std.debug.print("start:  {d}\n", .{start});
-    std.debug.print("end:  {d}\n", .{end});
-    std.debug.print("element_size: {d}  byte_stride: {d}  type size: {d}\n", .{ element_size, byte_stride, getTypeSize(accessor.type_) });
+    log.debug("\naccessor:  {any}\n", .{accessor});
+    log.debug("buffer_view:  {any}\n", .{buffer_view});
+    log.debug("buffer len:  {d}\n", .{buffer_data.len});
+    log.debug("data size:  {d}\n", .{data_size});
+    log.debug("start:  {d}\n", .{start});
+    log.debug("end:  {d}\n", .{end});
+    log.debug("element_size: {d}  byte_stride: {d}  type size: {d}\n", .{ element_size, byte_stride, getTypeSize(accessor.type_) });
 
     const data = buffer_data[start..end];
 
@@ -522,12 +520,12 @@ pub fn createGlElementBuffer(gltf_asset: *GltfAsset, accessor_id: usize) c_uint 
     const start = accessor.byte_offset + buffer_view.byte_offset;
     const end = start + data_size; // buffer_view.byte_length;
 
-    // std.debug.print("\naccessor:  {any}\n", .{accessor});
-    // std.debug.print("buffer_view:  {any}\n", .{buffer_view});
-    // std.debug.print("buffer len:  {d}\n", .{buffer_data.len});
-    // std.debug.print("data size:  {d}\n", .{data_size});
-    // std.debug.print("start:  {d}\n", .{start});
-    // std.debug.print("end:  {d}\n", .{end});
+    // log.debug("\naccessor:  {any}\n", .{accessor});
+    // log.debug("buffer_view:  {any}\n", .{buffer_view});
+    // log.debug("buffer len:  {d}\n", .{buffer_data.len});
+    // log.debug("data size:  {d}\n", .{data_size});
+    // log.debug("start:  {d}\n", .{start});
+    // log.debug("end:  {d}\n", .{end});
 
     const data = buffer_data[start..end];
 

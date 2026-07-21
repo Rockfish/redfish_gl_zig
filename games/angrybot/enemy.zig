@@ -10,6 +10,7 @@ const vec2 = math.vec2;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 
+const Context = core.Context;
 const State = world.State;
 const Model = core.Model;
 const GltfAsset = core.asset_loader.GltfAsset;
@@ -42,16 +43,16 @@ pub const EnemySystem = struct {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self) void {
-        self.enemy_model.deinit();
+    pub fn deleteGlObjects(self: *Self) void {
+        self.enemy_model.deleteGlObjects();
     }
 
-    pub fn init(io: std.Io, allocator: Allocator) !Self {
+    pub fn init(context: Context) !Self {
         // Modern glTF path instead of .fbx
         const model_path = "assets/angrybots_assets/Models/Eeldog/EelDog.gltf";
 
         // Use GltfAsset instead of ModelBuilder
-        var gltf_asset = try GltfAsset.init(io, allocator, "enemy", model_path);
+        var gltf_asset = try GltfAsset.init(context, "enemy", model_path);
         try gltf_asset.load();
 
         // Define texture configuration (same settings as ASSIMP version)

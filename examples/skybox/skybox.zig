@@ -78,7 +78,7 @@ pub const Skybox = struct {
         };
     }
 
-    pub fn deinit(self: *const Self) void {
+    pub fn deleteGlObjects(self: *const Self) void {
         gl.deleteVertexArrays(1, &self.vao);
         gl.deleteBuffers(1, &self.vbo);
         gl.deleteTextures(1, &self.gl_texture_id);

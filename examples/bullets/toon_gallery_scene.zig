@@ -2,6 +2,7 @@ const std = @import("std");
 const core = @import("core");
 const math = @import("math");
 
+const Context = core.Context;
 const Scene = @import("scene.zig").Scene;
 const SceneCamera = @import("scene_camera.zig").SceneCamera;
 const FreeCamera = @import("scene/free_camera.zig").FreeCamera;
@@ -94,14 +95,14 @@ pub const ToonGalleryScene = struct {
 
     const Self = @This();
 
-    pub fn init(io: std.Io, allocator: Allocator, input: *core.Input) !*Scene {
+    pub fn init(context: Context, input: *core.Input) !*Scene {
         const camera = try FreeCamera.init(
-            allocator,
+            context.alloc,
             input.framebuffer_width,
             input.framebuffer_height,
         );
 
-        const rm = try ResourceManager.init(io, allocator);
+        const rm = try ResourceManager.init(context);
 
         const shader = try rm.createShader(
             "games/level_01/shaders/animated_pbr.vert",
@@ -133,7 +134,7 @@ pub const ToonGalleryScene = struct {
 
         const floor = try Floor.init(rm);
 
-        const scene = try allocator.create(Self);
+        const scene = try context.alloc.create(Self);
         scene.* = .{
             .resource_manager = rm,
             .scene_camera = camera,
@@ -146,11 +147,11 @@ pub const ToonGalleryScene = struct {
         scene.floor.update_lights(gallery_lights);
         scene.floor.plane.shape.is_visible = true;
 
-        return try Scene.init(allocator, "ToonGallery", scene, input);
+        return try Scene.init(context.alloc, "ToonGallery", scene, input);
     }
 
-    pub fn deinit(self: *Self) void {
-        self.resource_manager.deinit();
+    pub fn cleanUp(self: *Self) void {
+        self.resource_manager.cleanUp();
     }
 
     pub fn getSceneCamera(self: *Self) *SceneCamera {

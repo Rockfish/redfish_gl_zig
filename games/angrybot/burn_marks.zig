@@ -16,6 +16,7 @@ const vec2 = math.vec2;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 
+const Context = core.Context;
 const Texture = core.texture.Texture;
 const TextureConfig = core.texture.TextureConfig;
 const TextureWrap = core.texture.TextureWrap;
@@ -38,7 +39,7 @@ pub const BurnMarks = struct {
         self.marks.deinit();
     }
 
-    pub fn init(io: std.Io, allocator: Allocator, unit_square_vao: c_uint) !*Self {
+    pub fn init(context: Context, unit_square_vao: c_uint) !*Self {
         const texture_config = TextureConfig{
             .filter = .Linear,
             .wrap = .Repeat,
@@ -47,17 +48,16 @@ pub const BurnMarks = struct {
         };
 
         const mark_texture = try Texture.initFromFile(
-            io,
-            allocator,
+            context,
             "assets/angrybots_assets/Textures/Bullet/burn_mark.png",
             texture_config,
         );
 
-        const burn_marks = try allocator.create(BurnMarks);
+        const burn_marks = try context.alloc.create(BurnMarks);
         burn_marks.* = .{
             .unit_square_vao = unit_square_vao,
             .mark_texture = mark_texture,
-            .marks = ManagedArrayList(?BurnMark).init(allocator),
+            .marks = ManagedArrayList(?BurnMark).init(context.alloc),
             // .allocator = allocator,
         };
         return burn_marks;

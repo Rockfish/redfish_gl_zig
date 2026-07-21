@@ -8,13 +8,16 @@ const containers = @import("containers");
 
 const gl = zopengl.bindings;
 
+const ArenaAllocator = std.heap.ArenaAllocator;
+
+const Context = core.Context;
 const Model = core.Model;
 const GltfAsset = core.asset_loader.GltfAsset;
 const TextureConfig = core.texture.TextureConfig;
 const animation = core.animation;
 const Camera = core.Camera;
 const Shader = core.Shader;
-const String = core.string.String;
+// const String = core.string.String;
 const FrameCounter = core.FrameCounter;
 const Input = core.Input;
 
@@ -245,7 +248,7 @@ pub fn main(init: std.process.Init) !void {
         }
     }
 
-    core.string.init(allocator);
+    // core.string.init(allocator);
 
     try glfw.init();
     defer glfw.terminate();
@@ -274,16 +277,21 @@ pub fn main(init: std.process.Init) !void {
 
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
-    try run(init, allocator, window, runtime_duration);
+    try run(init, window, runtime_duration);
 }
 
-pub fn run(init: std.process.Init, allocator: std.mem.Allocator, window: *glfw.Window, max_duration: ?f32) !void {
-    //var buffer: [1024]u8 = undefined;
-    //const root_path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
-    //_ = root_path;
+pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !void {
+    var alloc_arena = ArenaAllocator.init(init.gpa);
+    var temp_alloc_arena = ArenaAllocator.init(init.gpa);
+
+    const context = Context{
+        .alloc = alloc_arena.allocator(),
+        .temp_alloc = temp_alloc_arena.allocator(),
+        .io = init.io,
+    };
 
     const camera = try Camera.init(
-        allocator,
+        context.alloc,
         .{
             .position = vec3(0.0, 0.0, 5.0),
             .target = vec3(0.0, 0.0, 0.0),
@@ -311,7 +319,7 @@ pub fn run(init: std.process.Init, allocator: std.mem.Allocator, window: *glfw.W
 
     const shader = try Shader.init(
         init.io,
-        allocator,
+        context.alloc,
         "examples/animation_example/player_shader.vert",
         "examples/animation_example/player_shader.frag",
         // "examples/animation_example/pbr.vert",
@@ -347,7 +355,7 @@ pub fn run(init: std.process.Init, allocator: std.mem.Allocator, window: *glfw.W
     std.debug.print("Main: loading model: {s}\n", .{model_path});
 
     // Create glTF asset and load model
-    var gltf_asset = try GltfAsset.init(init.io, allocator, model_name, model_path);
+    var gltf_asset = try GltfAsset.init(context, model_name, model_path);
     try gltf_asset.load();
 
     // Apply model configuration
@@ -377,8 +385,8 @@ pub fn run(init: std.process.Init, allocator: std.mem.Allocator, window: *glfw.W
         std.debug.print("Generating glTF report to: {s}\n", .{REPORT_PATH});
         const GltfReport = core.gltf_report.GltfReport;
         try GltfReport.writeDetailedReportToFile(
-            init.io,
-            allocator,
+            context.io,
+            context.alloc,
             gltf_asset,
             REPORT_PATH,
             5,
@@ -389,7 +397,7 @@ pub fn run(init: std.process.Init, allocator: std.mem.Allocator, window: *glfw.W
 
     const bullet_model_path = "assets/angrybots_assets/Models/Bullet/Bullet.gltf";
 
-    var bullet_gltf_asset = try GltfAsset.init(init.io, allocator, "bullet", bullet_model_path);
+    var bullet_gltf_asset = try GltfAsset.init(context, "bullet", bullet_model_path);
     try bullet_gltf_asset.load();
 
     bullet_gltf_asset.skipModelTextures();
@@ -401,11 +409,6 @@ pub fn run(init: std.process.Init, allocator: std.mem.Allocator, window: *glfw.W
         "Floor D.png",
         texture_config,
     );
-    var bullet_model = try bullet_gltf_asset.buildModel();
-
-    defer {
-        bullet_model.deinit();
-    }
 
     std.debug.print("Main: configuring animation\n", .{});
 
@@ -495,10 +498,10 @@ pub fn run(init: std.process.Init, allocator: std.mem.Allocator, window: *glfw.W
 
     std.debug.print("\nRun completed.\n\n", .{});
 
-    shader.deinit();
-    camera.deinit();
-    model.deinit();
-    // Texture cleanup is handled by GltfAsset.cleanUp() in defer block
+    shader.deleteGlObjects();
+    model.deleteGlObjects();
+    alloc_arena.deinit();
+    temp_alloc_arena.deinit();
 }
 
 fn keyHandler(

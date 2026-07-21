@@ -14,8 +14,9 @@ const vec4 = math.vec4;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
 
-const Allocator = std.mem.Allocator;
+const ArenaAllocator = std.heap.ArenaAllocator;
 
+const Context = core.Context;
 const Input = core.Input;
 const Camera = core.Camera;
 const Shader = core.Shader;
@@ -88,7 +89,14 @@ pub fn main(init: std.process.Init) !void {
 }
 
 pub fn run(init: std.process.Init, window: *glfw.Window) !void {
-    const allocator = init.arena.allocator();
+    var alloc_arena = ArenaAllocator.init(init.gpa);
+    var temp_alloc_arena = ArenaAllocator.init(init.gpa);
+
+    const context = Context{
+        .alloc = alloc_arena.allocator(),
+        .temp_alloc = temp_alloc_arena.allocator(),
+        .io = init.io,
+    };
 
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
@@ -97,12 +105,12 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     const scaled_width = viewport_width / window_scale[0];
     const scaled_height = viewport_height / window_scale[1];
 
-    core.string.init(allocator);
+    core.string.init(context.alloc);
 
     gl.enable(gl.DEPTH_TEST);
 
     const camera = try Camera.init(
-        allocator,
+        context.alloc,
         .{
             .position = vec3(0.0, 0.0, 3.0),
             .target = vec3(0.0, 0.0, 0.0),
@@ -124,16 +132,16 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     };
 
     const basic_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "examples/skybox/basic.vert",
         "examples/skybox/basic.frag",
     );
     defer basic_shader.deinit();
 
     const skybox_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "examples/skybox/skybox.vert",
         "examples/skybox/skybox.frag",
     );
@@ -154,8 +162,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     // defer cube_texture.deleteGlTexture();
 
     const cubemap_texture = try core.texture.Texture.initFromFile(
-        init.io,
-        allocator,
+        context,
         "assets/Textures/cubemap_template_2x3.png",
         .{
             .flip_v = false,
@@ -165,7 +172,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         },
     );
 
-    const cube = try core.shapes.createCube(allocator, .{
+    const cube = try core.shapes.createCube(context.alloc, .{
         .width = 1.0,
         .height = 1.0,
         .depth = 1.0,
@@ -174,10 +181,9 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         .num_tiles_z = 1.0,
         .texture_mapping = .Cubemap2x3,
     });
-    defer allocator.destroy(cube);
-    defer cube.deinit();
+    defer cube.deleteGlObjects();
 
-    const skybox = Skybox.init(init.io, allocator, .{
+    const skybox = Skybox.init(context.io, context.alloc, .{
         .right = "assets/textures/skybox/right.jpg",
         .left = "assets/textures/skybox/left.jpg",
         .top = "assets/textures/skybox/top.jpg",
@@ -185,7 +191,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         .front = "assets/textures/skybox/front.jpg",
         .back = "assets/textures/skybox/back.jpg",
     });
-    defer skybox.deinit();
+    defer skybox.deleteGlObjects();
 
     skybox_shader.setInt("skybox", 0);
 
@@ -220,6 +226,9 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         window.swapBuffers();
         glfw.pollEvents();
     }
+
+    alloc_arena.deinit();
+    temp_alloc_arena.deinit();
 
     glfw.terminate();
 }

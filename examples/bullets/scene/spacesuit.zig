@@ -111,7 +111,7 @@ pub const Spacesuit = struct {
     const Self = @This();
 
     pub fn init(rm: *ResourceManager) !*Spacesuit {
-        const allocator = rm.allocator;
+        const allocator = rm.context.alloc;
 
         const shader = try rm.createShader(
             "games/level_01/shaders/animated_pbr.vert",

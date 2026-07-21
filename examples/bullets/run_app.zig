@@ -19,7 +19,7 @@ pub fn run_app(init: std.process.Init, window: *glfw.Window, max_duration: ?f32)
     const input = Input.init(window);
 
     const world = try World.init(init, input);
-    defer world.deinit();
+    defer world.deinit(init);
 
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);

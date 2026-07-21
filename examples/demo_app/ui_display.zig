@@ -136,8 +136,8 @@ pub const UIState = struct {
     }
 
     fn renderModelInfo(self: *Self, model: ?*core.Model) void {
-        const current_model = state.getCurrentModel();
-        const total_models = assets_list.demo_models.len;
+        const current_model = state.getCurrentModelInfo();
+        const total_models = assets_list.model_infos.len;
         const current_index = state.state.current_model_index;
 
         // Position at top-left
@@ -274,8 +274,8 @@ pub const UIState = struct {
 
             // View type
             // const view_type_str = switch (state.state.camera.view_type) {
-                // .LookTo => "LookTo",
-                // .LookAt => "LookAt",
+            // .LookTo => "LookTo",
+            // .LookAt => "LookAt",
             // };
             // zgui.text("  View: {s}", .{view_type_str});
             zgui.text("  View: {s}", .{"LookTo"});

@@ -6,8 +6,13 @@ const math = @import("math");
 const assets_list = @import("assets_list.zig");
 const ui_display = @import("ui_display.zig");
 const screenshot = @import("screenshot.zig");
-const constants = core.constants;
 
+const Allocator = std.mem.Allocator;
+const ArenaAllocator = std.heap.ArenaAllocator;
+
+const Arenas = core.Arenas;
+const Context = core.Context;
+const constants = core.constants;
 const Camera = core.Camera;
 const asset_loader = core.asset_loader;
 
@@ -32,22 +37,74 @@ var buf2: [1024]u8 = undefined;
 // Shader debug buffers
 var debug_dump_buffer: [4096]u8 = undefined;
 
+const ModelScope = struct {
+    allocator: Allocator,
+    arenas: *Arenas,
+    context: Context,
+    model: ?*Model = null,
+
+    pub fn init(gpa: Allocator, io: std.Io) !*ModelScope {
+        const arenas = try Arenas.init(gpa);
+        const context = arenas.context(io);
+        const model_scope = try gpa.create(ModelScope);
+        model_scope.* = ModelScope{
+            .allocator = gpa,
+            .arenas = arenas,
+            .context = context,
+            .model = null,
+        };
+        return model_scope;
+    }
+
+    pub fn setModel(self: *ModelScope, model: *Model) void {
+        self.model = model;
+    }
+
+    pub fn getModel(self: *ModelScope) *Model {
+        if (self.model) |m| {
+            return m;
+        }
+        std.debug.panic("Model not initialized", .{});
+    }
+
+    pub fn cleanUp(self: *ModelScope) void {
+        self.deleteGlObjects();
+        self.model = null;
+        self.arenas.resetAll();
+    }
+
+    pub fn deleteGlObjects(self: *ModelScope) void {
+        if (self.model) |m| {
+            m.deleteGlObjects();
+        }
+    }
+
+    pub fn deinit(self: *ModelScope) void {
+        self.arenas.deinit();
+        self.allocator.destroy(self);
+    }
+};
+
+fn swapScope(current: **ModelScope, next: **ModelScope) void {
+    std.mem.swap(*ModelScope, current, next);
+    next.*.cleanUp();
+}
+
 // Model loading helper function
-fn loadModel(io: std.Io, allocator: std.mem.Allocator, model_info: assets_list.DemoModel, state: *state_.State) !*Model {
-    // const path = try std.fs.path.join(allocator, &[_][]const u8{ assets_list.root, model_info.path });
-    // defer allocator.free(path);
+fn loadModel(context: Context, model_info: assets_list.ModelInfo, state: *state_.State) !*Model {
     const path = model_info.path;
 
     std.debug.print("\nLoading model: {s} ({s}) - {s}\n", .{ model_info.name, model_info.format, model_info.description });
     std.debug.print("Path: {s}\n", .{path});
 
-    var gltf_asset = try asset_loader.GltfAsset.init(io, allocator, model_info.name, path);
+    var gltf_asset = try asset_loader.GltfAsset.init(context, model_info.name, path);
 
     // Set normal generation mode for models that need it
     gltf_asset.setNormalGenerationMode(.accurate);
 
     try gltf_asset.load();
     const model = try gltf_asset.buildModel();
+    errdefer gltf_asset.deleteGlObjects();
 
     // Check if model has animations and start appropriate animation(s)
     if (gltf_asset.gltf.animations) |animations| {
@@ -116,14 +173,47 @@ fn outputPositions(model: *Model, camera: *Camera) void {
     });
 }
 
+fn switchModel(state: *state_.State, current_scope: **ModelScope, next_scope: **ModelScope) !void {
+    const initial_model_index = state.current_model_index;
+    var next_model_index = @mod((state.current_model_index + state.model_index_increment), @as(i32, assets_list.model_infos.len));
+
+    while (next_model_index != initial_model_index) {
+        const model_info = assets_list.model_infos[@intCast(next_model_index)];
+
+        const next_model: ?*Model = loadModel(next_scope.*.context, model_info, state) catch null;
+        if (next_model) |model| {
+            next_scope.*.setModel(model);
+            swapScope(current_scope, next_scope);
+            state.current_model_index = next_model_index;
+            state.camera_reposition_requested = true;
+            break;
+        } else {
+            std.debug.print("Failed to load model: {s}\n", .{model_info.path});
+            next_scope.*.cleanUp();
+            next_model_index = @mod((next_model_index + state.model_index_increment), @as(i32, assets_list.model_infos.len));
+        }
+    } else {
+        std.debug.print("No valid model found.\n", .{});
+    }
+    state.model_reload_requested = false;
+}
+
 const camera_position = vec3(0.0, 12.0, 40.0);
 const camera_target = vec3(0.0, 12.0, 0.0);
 
-pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: usize, max_duration: ?f32) !void {
+pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i32, max_duration: ?f32) !void {
     std.debug.print("running app\n", .{});
 
-    const allocator = init.arena.allocator();
-    core.string.init(allocator);
+    var common_arenas = try Arenas.init(init.gpa);
+    const context = common_arenas.context(init.io);
+
+    var model_scope_a = try ModelScope.init(init.gpa, init.io);
+    var model_scope_b = try ModelScope.init(init.gpa, init.io);
+
+    var current_scope = model_scope_a;
+    var next_scope = model_scope_b;
+
+    core.string.init(context.alloc);
 
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
@@ -133,7 +223,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: us
     const scaled_height = viewport_height / window_scale[1];
 
     const camera = try Camera.init(
-        allocator,
+        context.alloc,
         .{
             .position = camera_position,
             .target = camera_target,
@@ -170,16 +260,16 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: us
     state_.initWindowHandlers(window);
 
     // Initialize UI system
-    var ui_state = ui_display.UIState.init(init.io, allocator, window);
-    defer ui_state.deinit();
+    var ui_state = ui_display.UIState.init(context.io, context.alloc, window);
+    // defer ui_state.deinit();
 
     // Initialize screenshot system
-    var screenshot_mgr = screenshot.ScreenshotManager.init(init.io, allocator);
-    defer screenshot_mgr.deinit();
+    var screenshot_mgr = screenshot.ScreenshotManager.init(context.io, context.alloc);
+    // defer screenshot_mgr.deinit();
 
     const shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         // "examples/demo_app/shaders/player_shader.vert",
         // "examples/demo_app/shaders/basic_model.frag",
         "examples/demo_app/shaders/pbr.vert",
@@ -194,10 +284,14 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: us
     std.debug.print("\n--- Build gltf model ----------------------\n\n", .{});
 
     // Load initial model from demo list
-    var current_model = try loadModel(init.io, allocator, state_.getCurrentModel(), state);
+    current_scope.model = try loadModel(
+        current_scope.context,
+        state_.getCurrentModelInfo(),
+        state,
+    );
 
     // Position camera for initial model
-    positionCameraForModel(current_model, camera);
+    positionCameraForModel(current_scope.getModel(), camera);
 
     std.debug.print("\n----------------------\n", .{});
 
@@ -256,43 +350,44 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: us
 
         // Check if model reload is requested
         if (state.model_reload_requested) {
-            std.debug.print("Reloading model...\n", .{});
-            const new_model: ?*Model = loadModel(init.io, allocator, state_.getCurrentModel(), state) catch null;
-            if (new_model) |model| {
-                current_model.deinit();
-                current_model = model;
-            } else {
-                std.debug.print("Failed to load model: {s}\n", .{state_.getCurrentModel().path});
-            }
+            std.debug.print("Loading next model...\n", .{});
+            // const next_model: ?*Model = loadModel(next_scope.context, state_.getCurrentModelInfo(), state) catch null;
+            // if (next_model) |model| {
+            //     next_scope.setModel(model);
+            //     swapScope(&current_scope, &next_scope);
+            // } else {
+            //     std.debug.print("Failed to load model: {s}\n", .{state_.getCurrentModelInfo().path});
+            // }
+            try switchModel(state, &current_scope, &next_scope);
             state.model_reload_requested = false;
         }
 
         // Check if camera repositioning is requested
         if (state.camera_reposition_requested) {
             std.debug.print("Repositioning camera for current model...\n", .{});
-            positionCameraForModel(current_model, camera);
+            positionCameraForModel(current_scope.getModel(), camera);
             state.camera_reposition_requested = false;
         }
 
         if (state.output_position_requested) {
-            outputPositions(current_model, state.camera);
+            outputPositions(current_scope.getModel(), state.camera);
             state.output_position_requested = false;
         }
 
         // Handle animation control requests
         if (state.animation_reset_requested) {
             if (state.animation_id >= 0) {
-                try current_model.animator.playAnimationById(@intCast(state.animation_id));
+                try current_scope.getModel().animator.playAnimationById(@intCast(state.animation_id));
                 std.debug.print("Reset animation to {d}\n", .{state.animation_id});
             }
             state.animation_reset_requested = false;
         }
 
         if (state.animation_next_requested) {
-            if (current_model.gltf_asset.gltf.animations) |animations| {
+            if (current_scope.getModel().gltf_asset.gltf.animations) |animations| {
                 if (animations.len > 0) {
                     state.animation_id = @mod(state.animation_id + 1, @as(i32, @intCast(animations.len)));
-                    try current_model.animator.playAnimationById(@intCast(state.animation_id));
+                    try current_scope.getModel().animator.playAnimationById(@intCast(state.animation_id));
                     std.debug.print("Next animation: {d}/{d}\n", .{ state.animation_id + 1, animations.len });
                 }
             }
@@ -300,13 +395,13 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: us
         }
 
         if (state.animation_prev_requested) {
-            if (current_model.gltf_asset.gltf.animations) |animations| {
+            if (current_scope.getModel().gltf_asset.gltf.animations) |animations| {
                 if (animations.len > 0) {
                     state.animation_id -= 1;
                     if (state.animation_id < 0) {
                         state.animation_id = @as(i32, @intCast(animations.len)) - 1;
                     }
-                    try current_model.animator.playAnimationById(@intCast(state.animation_id));
+                    try current_scope.getModel().animator.playAnimationById(@intCast(state.animation_id));
                     std.debug.print("Previous animation: {d}/{d}\n", .{ state.animation_id + 1, animations.len });
                 }
             }
@@ -315,7 +410,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: us
 
         // Update animation
         if (state.run_animation) {
-            try current_model.animator.updateAnimation(state.delta_time);
+            try current_scope.getModel().animator.updateAnimation(state.delta_time);
         }
 
         // frame_counter.update();
@@ -361,7 +456,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: us
         }
 
         // model.draw(shader);
-        current_model.draw(shader);
+        current_scope.getModel().draw(shader);
 
         // One-shot screenshot completion: dump data and clear flag
         if (capture_screenshot) {
@@ -382,7 +477,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: us
         }
 
         // Draw UI overlay
-        ui_state.draw(current_model);
+        ui_state.draw(current_scope.getModel());
 
         //try core.dumpModelNodes(model);
         window.swapBuffers();
@@ -392,7 +487,9 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: us
 
     std.debug.print("\nRun completed.\n\n", .{});
 
-    shader.deinit();
-    camera.deinit();
-    current_model.deinit();
+    shader.deleteGlObjects();
+    ui_state.deinit();
+    common_arenas.deinit();
+    model_scope_a.deinit();
+    model_scope_b.deinit();
 }

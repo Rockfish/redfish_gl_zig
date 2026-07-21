@@ -54,8 +54,9 @@ pub const State = struct {
     single_mesh_id: i32 = -1,
     animation_id: i32 = -1,
     motion_type: MotionType = .Orbit,
-    current_model_index: usize = 0,
+    current_model_index: i32 = 0,
     model_reload_requested: bool = false,
+    model_index_increment: i32 = 1,
     camera_reposition_requested: bool = false,
     output_position_requested: bool = false,
     ui_help_visible: bool = false,
@@ -317,12 +318,14 @@ pub fn processKeys() void {
             },
             .n => {
                 if (!state.input.key_processed.contains(.n)) {
-                    nextModel();
+                    state.model_reload_requested = true;
+                    state.model_index_increment = 1;
                 }
             },
             .b => {
                 if (!state.input.key_processed.contains(.b)) {
-                    previousModel();
+                    state.model_reload_requested = true;
+                    state.model_index_increment = -1;
                 }
             },
             .f => {
@@ -378,33 +381,13 @@ pub fn processKeys() void {
     }
 }
 
-pub fn nextModel() void {
-    state.current_model_index = (state.current_model_index + 1) % assets_list.demo_models.len;
-    state.model_reload_requested = true;
-    state.camera_reposition_requested = true;
-    const model = assets_list.demo_models[state.current_model_index];
-    std.debug.print("Next model: {s} ({s}) - {s}\n", .{ model.name, model.format, model.description });
-}
-
-pub fn previousModel() void {
-    if (state.current_model_index == 0) {
-        state.current_model_index = assets_list.demo_models.len - 1;
-    } else {
-        state.current_model_index -= 1;
-    }
-    state.model_reload_requested = true;
-    state.camera_reposition_requested = true;
-    const model = assets_list.demo_models[state.current_model_index];
-    std.debug.print("Previous model: {s} ({s}) - {s}\n", .{ model.name, model.format, model.description });
-}
-
 pub fn frameToFit() void {
     state.camera_reposition_requested = true;
     std.debug.print("Frame to fit requested\n", .{});
 }
 
-pub fn getCurrentModel() assets_list.DemoModel {
-    return assets_list.demo_models[state.current_model_index];
+pub fn getCurrentModelInfo() assets_list.ModelInfo {
+    return assets_list.model_infos[@intCast(state.current_model_index)];
 }
 
 pub fn framebufferSizeHandler(window: *glfw.Window, width: i32, height: i32) callconv(.c) void {

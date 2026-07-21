@@ -11,7 +11,7 @@ const SCR_HEIGHT: f32 = 1000.0;
 fn printUsage() void {
     std.debug.print("Usage: demo_app [options]\n", .{});
     std.debug.print("Options:\n", .{});
-    std.debug.print("  --model-index, -m <index>    Start with model at specified index (0-{d})\n", .{assets_list.demo_models.len - 1});
+    std.debug.print("  --model-index, -m <index>    Start with model at specified index (0-{d})\n", .{assets_list.model_infos.len - 1});
     std.debug.print("  --list-models, -l            List available models and their indices\n", .{});
     std.debug.print("  --duration, -d <seconds>     Run for specified duration then exit\n", .{});
     std.debug.print("  --help, -h                   Show this help message\n", .{});
@@ -19,7 +19,7 @@ fn printUsage() void {
 
 fn listModels() void {
     std.debug.print("Available models:\n", .{});
-    for (assets_list.demo_models, 0..) |model, i| {
+    for (assets_list.model_infos, 0..) |model, i| {
         std.debug.print("  {d:2}: {s} ({s}) - {s}\n", .{ i, model.name, model.format, model.description });
     }
 }
@@ -44,8 +44,8 @@ pub fn main(init: std.process.Init) !void {
                     std.debug.print("Invalid model index: {s}, error: {}\n", .{ index_str, err });
                     std.process.exit(1);
                 };
-                if (index >= assets_list.demo_models.len) {
-                    std.debug.print("Model index {d} out of range (0-{d})\n", .{ index, assets_list.demo_models.len - 1 });
+                if (index >= assets_list.model_infos.len) {
+                    std.debug.print("Model index {d} out of range (0-{d})\n", .{ index, assets_list.model_infos.len - 1 });
                     std.process.exit(1);
                 }
                 initial_model_index = index;
@@ -100,14 +100,14 @@ pub fn main(init: std.process.Init) !void {
 
     // Display initial model info
     const model_index = initial_model_index orelse 0;
-    const initial_model = assets_list.demo_models[model_index];
+    const initial_model = assets_list.model_infos[model_index];
     std.debug.print(
         "Starting with model {d}: {s} ({s}) - {s}\n",
         .{ model_index, initial_model.name, initial_model.format, initial_model.description },
     );
     std.debug.print("Press 'n' for next model, 'b' for previous model\n", .{});
 
-    try run(init, window, model_index, runtime_duration);
+    try run(init, window, @as(i32, @intCast(model_index)), runtime_duration);
 
     glfw.terminate();
 }

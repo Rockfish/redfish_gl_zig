@@ -9,6 +9,7 @@ const Animator = @import("animator.zig").Animator;
 const Transform = @import("transform.zig").Transform;
 const AABB = @import("aabb.zig").AABB;
 const constants = @import("constants.zig");
+const Context = @import("context.zig").Context;
 
 const Mat4 = math.Mat4;
 const Vec3 = math.Vec3;
@@ -17,7 +18,7 @@ const vec4 = math.vec4;
 
 const animation = @import("animator.zig");
 
-const ArenaAllocator = std.heap.ArenaAllocator;
+const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
 
 // const Animator = animation.Animator;
@@ -26,7 +27,7 @@ const ManagedArrayList = containers.ManagedArrayList;
 const MAX_JOINTS: usize = constants.MAX_JOINTS;
 
 pub const Model = struct {
-    arena: *ArenaAllocator,
+    alloc: Allocator,
     name: []const u8,
     scene: usize,
     meshes: *ManagedArrayList(*Mesh),
@@ -37,43 +38,23 @@ pub const Model = struct {
     const Self = @This();
 
     pub fn init(
-        arena: *ArenaAllocator,
+        alloc: Allocator,
         name: []const u8,
         meshes: *ManagedArrayList(*Mesh),
         animator: *Animator,
         gltf_asset: *GltfAsset,
     ) !*Self {
-        const allocator = arena.allocator();
-        const model = try allocator.create(Model);
+        const model = try alloc.create(Model);
         model.* = Model{
-            .arena = arena,
+            .alloc = alloc,
             .scene = 0,
-            .name = try allocator.dupe(u8, name),
+            .name = try alloc.dupe(u8, name),
             .meshes = meshes,
             .animator = animator,
             .gltf_asset = gltf_asset,
         };
 
         return model;
-    }
-
-    pub fn deinit(self: *Self) void {
-
-        // Cleanup GL resources first
-        for (self.meshes.list.items) |mesh| {
-            mesh.deinit();
-        }
-
-        self.gltf_asset.deinit();
-
-        // Cleanup animator
-        self.animator.deinit();
-
-        // Then free all memory at once
-        const parent_allocator = self.arena.child_allocator;
-        const arena = self.arena;
-        arena.deinit();
-        parent_allocator.destroy(arena);
     }
 
     pub fn deleteGlObjects(self: *Self) void {

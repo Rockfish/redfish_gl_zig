@@ -1,7 +1,7 @@
 const std = @import("std");
 const core = @import("core");
 const math = @import("math");
-const Camera = @import("../scene_camera.zig").SceneCamera;
+const SceneCamera = @import("../scene_camera.zig").SceneCamera;
 
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
@@ -21,7 +21,7 @@ pub const FreeCamera = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, scr_width: f32, scr_height: f32) !*Camera {
+    pub fn init(allocator: Allocator, scr_width: f32, scr_height: f32) !*SceneCamera {
         const camera = try core.Camera.init(
             allocator,
             .{
@@ -37,7 +37,7 @@ pub const FreeCamera = struct {
             .camera = camera,
         };
 
-        return Camera.init(allocator, "free_camera", free_camera);
+        return SceneCamera.init(allocator, "free_camera", free_camera);
     }
 
     pub fn update(self: *Self, input: *core.Input) !void {

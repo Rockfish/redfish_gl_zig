@@ -6,6 +6,7 @@ const core = @import("core");
 const math = @import("math");
 const nodes = @import("nodes.zig");
 const shapes = core.shapes;
+const Context = core.Context;
 
 const uniforms = core.constants.Uniforms;
 
@@ -22,6 +23,7 @@ const Ray = core.Ray;
 const AABB = core.AABB;
 
 const Allocator = std.mem.Allocator;
+const ArenaAllocator = std.heap.ArenaAllocator;
 const EnumSet = std.EnumSet;
 
 const GltfAsset = core.asset_loader.GltfAsset;
@@ -84,7 +86,16 @@ const ModelWrapper = struct {
 // pub var state: State = undefined;
 
 pub fn run(init: std.process.Init, window: *glfw.Window) !void {
-    const allocator = init.arena.allocator();
+    var alloc_arena = ArenaAllocator.init(init.gpa);
+    var temp_alloc_arena = ArenaAllocator.init(init.gpa);
+    defer alloc_arena.deinit();
+    defer temp_alloc_arena.deinit();
+
+    const context = Context{
+        .alloc = alloc_arena.allocator(),
+        .temp_alloc = temp_alloc_arena.allocator(),
+        .io = init.io,
+    };
 
     state_.initWindowHandlers(window);
 
@@ -96,7 +107,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     const scaled_height = viewport_height / window_scale[1];
 
     const camera = try Camera.init(
-        allocator,
+        context.alloc,
         .{
             .position = vec3(0.0, 4.0, 20.0),
             .target = vec3(0.0, 2.0, 0.0),
@@ -129,38 +140,37 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     const state = &state_.state;
 
-    var node_manager = try nodes.NodeManager.init(allocator);
-    defer node_manager.deinit();
+    var node_manager = try nodes.NodeManager.init(context.alloc);
+    // defer node_manager.deinit();
 
     const basic_shader = try Shader.init(
         init.io,
-        allocator,
+        context.alloc,
         "games/level_01/shaders/basic_model.vert",
         "games/level_01/shaders/basic_model.frag",
     );
-    defer basic_shader.deinit();
+    defer basic_shader.deleteGlObjects();
 
     const model_shader = try Shader.init(
         init.io,
-        allocator,
+        context.alloc,
         "games/level_01/shaders/animated_pbr.vert",
         "games/level_01/shaders/animated_pbr.frag",
     );
-    defer model_shader.deinit();
+    defer model_shader.deleteGlObjects();
 
     const cubeboid = try shapes.createCube(
-        allocator,
+        context.alloc,
         .{
             .width = 1.0,
             .height = 1.0,
             .depth = 2.0,
         },
     );
-    defer allocator.destroy(cubeboid);
-    defer cubeboid.deinit();
+    defer cubeboid.deleteGlObjects();
 
     const floor = try shapes.createCube(
-        allocator,
+        context.alloc,
         .{
             .width = 100.0,
             .height = 2.0,
@@ -170,21 +180,18 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             .num_tiles_z = 50.0,
         },
     );
-    defer allocator.destroy(floor);
-    defer floor.deinit();
+    defer floor.deleteGlObjects();
 
     const cylinder = try shapes.createCylinder(
-        allocator,
+        context.alloc,
         1.0,
         4.0,
         20.0,
     );
-    defer allocator.destroy(cylinder);
-    defer cylinder.deinit();
+    defer cylinder.deleteGlObjects();
 
-    const sphere = try shapes.createSphere(allocator, 1.0, 20, 20);
-    defer allocator.destroy(sphere);
-    defer sphere.deinit();
+    const sphere = try shapes.createSphere(context.alloc, 1.0, 20, 20);
+    defer sphere.deleteGlObjects();
 
     var texture_config = TextureConfig{
         .filter = .Linear,
@@ -194,20 +201,20 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     };
 
     const cube_texture = try Texture.initFromFile(
-        init.io,
-        allocator,
+        context,
         "assets/textures/container.jpg",
         texture_config,
     );
+    cube_texture.deleteGlObjects();
 
     texture_config.wrap = .Repeat;
 
     const surface_texture = try Texture.initFromFile(
-        init.io,
-        allocator,
+        context,
         "assets/Textures/Floor/Floor D.png",
         texture_config,
     );
+    surface_texture.deleteGlObjects();
 
     const model_paths = [_][]const u8{
         "/Users/john/Dev/Assets/spacekit_2/Models/OBJ format/alien.obj",
@@ -228,10 +235,10 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     // TODO: Fix model loading
     std.debug.print("Loading model: {s}\n", .{model_paths[7]});
-    var gltf_asset = try GltfAsset.init(init.io, allocator, "alien", model_paths[7]);
+    var gltf_asset = try GltfAsset.init(context, "alien", model_paths[7]);
     try gltf_asset.load();
     var model = try gltf_asset.buildModel();
-    defer model.deinit();
+    defer model.deleteGlObjects();
 
     var empty_obj = EmptyObject{};
 
@@ -242,8 +249,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     const root_node = try node_manager.create("root_node", &empty_obj);
 
-    const model_node = try nodes.Node.init(allocator, "robot", model);
-    defer model_node.deinit();
+    const model_node = try nodes.Node.init(context.alloc, "robot", model);
+    // defer model_node.deinit();
 
     try model.animator.playAnimationById(23); // 23 is wave, 4 is idle
     model_node.setTranslation(vec3(5.0, 0.0, 5.0));
@@ -285,7 +292,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     const barrel = try core.shapes.loadOBJ(
         init.io,
-        allocator,
+        context.alloc,
         "assets/modular_ruins/OBJ/Barrel.obj",
     );
 

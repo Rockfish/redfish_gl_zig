@@ -6,6 +6,8 @@ const math = @import("math");
 const containers = @import("containers");
 const world = @import("state.zig");
 
+const ArenaAllocator = std.heap.ArenaAllocator;
+
 const ManagedArrayList = containers.ManagedArrayList;
 const EnumSet = std.EnumSet;
 
@@ -17,6 +19,7 @@ const vec3 = math.vec3;
 const vec4 = math.vec4;
 const Mat4 = math.Mat4;
 
+const Context = core.Context;
 const State = world.State;
 const CameraType = world.CameraType;
 const Player = @import("player.zig").Player;
@@ -57,85 +60,93 @@ var horizontal_blur_fbo: fb.FrameBuffer = undefined;
 var vertical_blur_fbo: fb.FrameBuffer = undefined;
 
 pub fn run(init: std.process.Init, window: *glfw.Window) !void {
-    const allocator = init.arena.allocator();
-    const cwd = try std.process.currentPathAlloc(init.io, allocator);
+    var alloc_arena = ArenaAllocator.init(init.gpa);
+    var temp_alloc_arena = ArenaAllocator.init(init.gpa);
+
+    const context = Context{
+        .alloc = alloc_arena.allocator(),
+        .temp_alloc = temp_alloc_arena.allocator(),
+        .io = init.io,
+    };
+
+    const cwd = try std.process.currentPathAlloc(init.io, context.alloc);
     log.info("Running game. exe_dir = {s} ", .{cwd});
 
     world.initStateHandlers(window, &state);
 
     // Shaders
     const player_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/player_shader.vert",
         "games/angrybot/shaders/player_shader.frag",
     );
     const player_emissive_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/player_shader.vert",
         "games/angrybot/shaders/texture_emissive_shader.frag",
     );
 
     const enemy_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/wiggly_shader.vert",
         "games/angrybot/shaders/player_shader.frag",
     );
 
     const floor_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/basic_texture_shader.vert",
         "games/angrybot/shaders/floor_shader.frag",
     );
 
     // bullets, muzzle flash, burn marks - using matrix-based instanced shader
     const instanced_matrix_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/instanced_quat.vert",
         "games/angrybot/shaders/basic_texture_shader.frag",
     );
     const sprite_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/geom_shader2.vert",
         "games/angrybot/shaders/sprite_shader.frag",
     );
     const basic_texture_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/basic_texture_shader.vert",
         "games/angrybot/shaders/basic_texture_shader.frag",
     );
 
     // blur and scene
     const blur_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/basicer_shader.vert",
         "games/angrybot/shaders/blur_shader.frag",
     );
     const scene_draw_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/basicer_shader.vert",
         "games/angrybot/shaders/texture_merge_shader.frag",
     );
 
     // for debug
     const basicer_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/basicer_shader.vert",
         "games/angrybot/shaders/basicer_shader.frag",
     );
     // const _depth_shader = try Shader.init(alloc_arena, "games/angrybot/shaders/depth_shader.vert", "games/angrybot/shaders/depth_shader.frag");
     const _debug_depth_shader = try Shader.init(
-        init.io,
-        allocator,
+        context.io,
+        context.alloc,
         "games/angrybot/shaders/debug_depth_quad.vert",
         "games/angrybot/shaders/debug_depth_quad.frag",
     );
@@ -192,7 +203,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     // const _camera_up = vec3(0.0, 1.0, 0.0);
 
     const game_camera = try Camera.init(
-        allocator,
+        context.alloc,
         .{
             //.position = vec3(0.0, 20.0, 80.0),
             .position = vec3(4.0, 10.0, 30.0),
@@ -203,7 +214,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     );
 
     const floating_camera = try Camera.init(
-        allocator,
+        context.alloc,
         .{
             .position = vec3(0.0, 10.0, 20.0),
             .target = vec3(0.0, 0.0, 0.0),
@@ -213,7 +224,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     );
 
     const ortho_camera = try Camera.init(
-        allocator,
+        context.alloc,
         .{
             .position = vec3(0.0, 1.0, 0.0),
             .target = vec3(0.0, 0.0, 0.0),
@@ -233,12 +244,12 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     log.info("camers loaded", .{});
 
     // Models and systems (modern glTF system doesn't need global texture cache)
-    var player = try Player.init(init.io, allocator);
-    var enemy_system = try EnemySystem.init(init.io, allocator);
-    var muzzle_flash = try MuzzleFlash.init(init.io, allocator, unit_square_quad);
-    var bullet_store = try BulletStore.init(init.io, allocator, unit_square_quad);
-    var floor = try Floor.init(init.io, allocator);
-    const burn_marks = try BurnMarks.init(init.io, allocator, unit_square_quad);
+    var player = try Player.init(context);
+    var enemy_system = try EnemySystem.init(context);
+    var muzzle_flash = try MuzzleFlash.init(context, unit_square_quad);
+    var bullet_store = try BulletStore.init(context, unit_square_quad);
+    var floor = try Floor.init(context);
+    const burn_marks = try BurnMarks.init(context, unit_square_quad);
 
     log.info("models loaded", .{});
 
@@ -247,7 +258,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         .{ .clip = .GunFire, .file = "assets/angrybots_assets/Audio/Player_SFX/player_shooting.wav" },
     };
 
-    var sound_engine = try SoundEngine(world.ClipName, world.ClipData).init(allocator, &clips);
+    var sound_engine = try SoundEngine(world.ClipName, world.ClipData).init(context.alloc, &clips);
     defer sound_engine.deinit();
 
     // Initialize the world state
@@ -266,7 +277,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         // .orthographic_projection = orthographic_projection,
         // .projection_view = undefined,
         .player = player,
-        .enemies = ManagedArrayList(?Enemy).init(allocator),
+        .enemies = ManagedArrayList(?Enemy).init(context.alloc),
         .light_postion = vec3(1.2, 1.0, 2.0),
         .delta_time = 0.0,
         .frame_time = 0.0,
@@ -292,8 +303,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     log.info("state.mouse_y: {d}", .{state.mouse_y});
 
     // note: defer occurs in reverse order
-    defer player.deinit();
-    defer enemy_system.deinit();
+    defer player.deleteGlObjects();
+    defer enemy_system.deleteGlObjects();
     defer state.enemies.deinit();
 
     // Set constant shader uniforms
@@ -670,6 +681,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         window.swapBuffers();
     }
 
+    alloc_arena.deinit();
+    temp_alloc_arena.deinit();
     log.info("\nRun completed.\n", .{});
 }
 

@@ -13,7 +13,7 @@ pub const Scene = struct {
         type_id: usize,
         update_fn: *const fn (ptr: *anyopaque, state: *anyopaque) anyerror!void,
         draw_fn: *const fn (ptr: *anyopaque, time: f32) void,
-        deinit_fn: *const fn (ptr: *anyopaque) void,
+        clean_up_fn: *const fn (ptr: *anyopaque) void,
     };
 
     pub fn init(allocator: Allocator, name: []const u8, object_ptr: anytype, state_ptr: anytype) !*Scene {
@@ -35,10 +35,10 @@ pub const Scene = struct {
                 return obj.draw(time);
             }
 
-            pub fn deinitFn(obj_ptr: *anyopaque) void {
+            pub fn cleanUpFn(obj_ptr: *anyopaque) void {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
-                if (std.meta.hasMethod(ObjectType, "deinit")) {
-                    obj.deinit();
+                if (std.meta.hasMethod(ObjectType, "cleanUp")) {
+                    obj.cleanUp();
                 }
             }
         };
@@ -51,14 +51,14 @@ pub const Scene = struct {
                 .type_id = typeId(@TypeOf(object_ptr)),
                 .update_fn = gen.updateFn,
                 .draw_fn = gen.drawFn,
-                .deinit_fn = gen.deinitFn,
+                .clean_up_fn = gen.cleanUpFn,
             },
         };
         return scene;
     }
 
-    pub fn deinit(self: *Self) void {
-        self.dispatch.deinit_fn(self.dispatch.obj_ptr);
+    pub fn cleanUp(self: *Self) void {
+        self.dispatch.clean_up_fn(self.dispatch.obj_ptr);
     }
 
     //

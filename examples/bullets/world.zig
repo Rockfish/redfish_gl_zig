@@ -8,6 +8,7 @@ const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 
+const Context = core.Context;
 const Input = core.Input;
 const Scene = @import("scene.zig").Scene;
 const SceneDebug = @import("debug_scene.zig").SceneDebug;
@@ -23,9 +24,9 @@ const SceneId = enum {
 const scene_order = [_]SceneId{ .debug, .ruins_gallery, .toon_gallery };
 
 pub const World = struct {
-    io: Io,
-    root_allocator: Allocator,
-    scene_arena: ArenaAllocator,
+    alloc_arena: ArenaAllocator,
+    temp_alloc_arena: ArenaAllocator,
+    context: Context,
     input: *Input,
     scene: *Scene,
     scene_index: usize = 0,
@@ -33,33 +34,39 @@ pub const World = struct {
     const Self = @This();
 
     pub fn init(process_init: std.process.Init, input: *Input) !*Self {
+        const alloc_arena = ArenaAllocator.init(process_init.gpa);
+        const temp_alloc_arena = ArenaAllocator.init(process_init.gpa);
         const self = try process_init.gpa.create(Self);
         self.* = .{
-            .io = process_init.io,
-            .root_allocator = process_init.gpa,
-            .scene_arena = ArenaAllocator.init(process_init.gpa),
+            .alloc_arena = alloc_arena,
+            .temp_alloc_arena = temp_alloc_arena,
+            .context = .{
+                .alloc = self.alloc_arena.allocator(),
+                .temp_alloc = self.temp_alloc_arena.allocator(),
+                .io = process_init.io,
+            },
             .input = input,
             .scene = undefined,
         };
 
-        const scene_allocator = self.scene_arena.allocator();
-        self.scene = try SceneDebug.init(self.io, scene_allocator, input);
+        self.scene = try SceneDebug.init(self.context, input);
+        _ = self.temp_alloc_arena.reset(.retain_capacity);
         std.debug.print("Scene: {s}\n", .{self.scene.name});
         return self;
     }
 
     pub fn switchScene(self: *Self, scene_id: SceneId) !void {
-        // Clean up GL resources before freeing arena memory
-        self.scene.deinit();
-        self.scene_arena.deinit();
-        self.scene_arena = ArenaAllocator.init(self.root_allocator);
+        self.scene.cleanUp();
+        _ = self.alloc_arena.reset(.retain_capacity);
+        _ = self.temp_alloc_arena.reset(.retain_capacity);
 
-        const allocator = self.scene_arena.allocator();
         self.scene = switch (scene_id) {
-            .debug => try SceneDebug.init(self.io, allocator, self.input),
-            .ruins_gallery => try RuinsGalleryScene.init(self.io, allocator, self.input),
-            .toon_gallery => try ToonGalleryScene.init(self.io, allocator, self.input),
+            .debug => try SceneDebug.init(self.context, self.input),
+            .ruins_gallery => try RuinsGalleryScene.init(self.context, self.input),
+            .toon_gallery => try ToonGalleryScene.init(self.context, self.input),
         };
+        _ = self.temp_alloc_arena.reset(.retain_capacity);
+
         std.debug.print("Scene: {s}\n", .{self.scene.name});
     }
 
@@ -77,9 +84,10 @@ pub const World = struct {
         try self.switchScene(scene_order[self.scene_index]);
     }
 
-    pub fn deinit(self: *Self) void {
-        self.scene.deinit();
-        self.scene_arena.deinit();
-        self.root_allocator.destroy(self);
+    pub fn deinit(self: *Self, process_init: std.process.Init) void {
+        self.scene.cleanUp();
+        self.alloc_arena.deinit();
+        self.temp_alloc_arena.deinit();
+        process_init.gpa.destroy(self);
     }
 };

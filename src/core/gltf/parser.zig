@@ -14,8 +14,8 @@ const ParseError = error{
     InvalidIndex,
 };
 
-pub fn parseGltfJson(allocator: Allocator, json_buffer: []const u8) !GLTF {
-    var gltf_parsed = json.parseFromSlice(json.Value, allocator, json_buffer, .{}) catch {
+pub fn parseGltfJson(alloc: Allocator, temp_alloc: Allocator, json_buffer: []const u8) !GLTF {
+    var gltf_parsed = json.parseFromSlice(json.Value, temp_alloc, json_buffer, .{}) catch {
         return ParseError.InvalidJson;
     };
     defer gltf_parsed.deinit();
@@ -44,7 +44,7 @@ pub fn parseGltfJson(allocator: Allocator, json_buffer: []const u8) !GLTF {
     };
 
     const asset_json = gltf_json.object.get("asset") orelse return ParseError.MissingAsset;
-    gltf.asset = try parseAsset(allocator, asset_json);
+    gltf.asset = try parseAsset(alloc, asset_json);
 
     if (gltf_json.object.get("scene")) |scene_json| {
         if (scene_json == .integer) {
@@ -54,79 +54,79 @@ pub fn parseGltfJson(allocator: Allocator, json_buffer: []const u8) !GLTF {
 
     if (gltf_json.object.get("scenes")) |scenes_json| {
         if (scenes_json == .array) {
-            gltf.scenes = try parseScenes(allocator, scenes_json);
+            gltf.scenes = try parseScenes(alloc, scenes_json);
         }
     }
 
     if (gltf_json.object.get("nodes")) |nodes_json| {
         if (nodes_json == .array) {
-            gltf.nodes = try parseNodes(allocator, nodes_json);
+            gltf.nodes = try parseNodes(alloc, nodes_json);
         }
     }
 
     if (gltf_json.object.get("meshes")) |meshes_json| {
         if (meshes_json == .array) {
-            gltf.meshes = try parseMeshes(allocator, meshes_json);
+            gltf.meshes = try parseMeshes(alloc, meshes_json);
         }
     }
 
     if (gltf_json.object.get("accessors")) |accessors_json| {
         if (accessors_json == .array) {
-            gltf.accessors = try parseAccessors(allocator, accessors_json);
+            gltf.accessors = try parseAccessors(alloc, accessors_json);
         }
     }
 
     if (gltf_json.object.get("bufferViews")) |buffer_views_json| {
         if (buffer_views_json == .array) {
-            gltf.buffer_views = try parseBufferViews(allocator, buffer_views_json);
+            gltf.buffer_views = try parseBufferViews(alloc, buffer_views_json);
         }
     }
 
     if (gltf_json.object.get("buffers")) |buffers_json| {
         if (buffers_json == .array) {
-            gltf.buffers = try parseBuffers(allocator, buffers_json);
+            gltf.buffers = try parseBuffers(alloc, buffers_json);
         }
     }
 
     if (gltf_json.object.get("materials")) |materials_json| {
         if (materials_json == .array) {
-            gltf.materials = try parseMaterials(allocator, materials_json);
+            gltf.materials = try parseMaterials(alloc, materials_json);
         }
     }
 
     if (gltf_json.object.get("samplers")) |samplers_json| {
         if (samplers_json == .array) {
-            gltf.samplers = try parseSamplers(allocator, samplers_json);
+            gltf.samplers = try parseSamplers(alloc, samplers_json);
         }
     }
 
     if (gltf_json.object.get("textures")) |textures_json| {
         if (textures_json == .array) {
-            gltf.textures = try parseTextures(allocator, textures_json);
+            gltf.textures = try parseTextures(alloc, textures_json);
         }
     }
 
     if (gltf_json.object.get("images")) |images_json| {
         if (images_json == .array) {
-            gltf.images = try parseImages(allocator, images_json);
+            gltf.images = try parseImages(alloc, images_json);
         }
     }
 
     if (gltf_json.object.get("animations")) |animations_json| {
         if (animations_json == .array) {
-            gltf.animations = try parseAnimations(allocator, animations_json);
+            gltf.animations = try parseAnimations(alloc, animations_json);
         }
     }
 
     if (gltf_json.object.get("skins")) |skins_json| {
         if (skins_json == .array) {
-            gltf.skins = try parseSkins(allocator, skins_json);
+            gltf.skins = try parseSkins(alloc, skins_json);
         }
     }
 
     if (gltf_json.object.get("cameras")) |cameras_json| {
         if (cameras_json == .array) {
-            gltf.cameras = try parseCameras(allocator, cameras_json);
+            gltf.cameras = try parseCameras(alloc, cameras_json);
         }
     }
 

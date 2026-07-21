@@ -85,6 +85,7 @@ pub const Shader = struct {
 
     pub fn deleteGlObjects(self: *Self) void {
         gl.deleteShader(self.id);
+        texture_unit_map = null;
     }
 
     pub fn init(
@@ -483,7 +484,7 @@ pub const Shader = struct {
         var file = try std.Io.Dir.cwd().createFile(self.io, filepath, .{});
         defer file.close(self.io);
 
-        var writer =  file.writer(self.io, json_content);
+        var writer = file.writer(self.io, json_content);
         try writer.flush();
 
         std.debug.print("Shader uniforms saved: {s}\n", .{filepath});
@@ -520,7 +521,7 @@ pub const Shader = struct {
         // var writer = stream.writer();
 
         // Use provided timestamp
-        const timestamp =std.Io.Timestamp.now(self.io, .awake);
+        const timestamp = std.Io.Timestamp.now(self.io, .awake);
 
         try writer.print("{{\n", .{});
         try writer.print("  \"timestamp\": {d},\n", .{timestamp});

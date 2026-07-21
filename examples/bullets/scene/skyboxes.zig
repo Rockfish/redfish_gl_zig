@@ -22,7 +22,7 @@ pub const SkyBoxDirections = struct {
     const Self = @This();
 
     pub fn init(rm: *ResourceManager) !Self {
-        const skybox = core.shapes.Skybox.init(rm.io, rm.allocator, .{
+        const skybox = core.shapes.Skybox.init(rm.context.io, rm.context.alloc, .{
             .right = "assets/textures/skybox_forward_negZ/right.png",
             .left = "assets/textures/skybox_forward_negZ/left.png",
             .top = "assets/textures/skybox_forward_negZ/top.png",

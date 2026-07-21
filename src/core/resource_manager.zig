@@ -1,6 +1,7 @@
 const std = @import("std");
 const containers = @import("containers");
 
+const Context = @import("context.zig").Context;
 const asset_loader = @import("asset_loader.zig");
 const texture_mod = @import("texture.zig");
 const shapes = @import("shapes/root.zig");
@@ -19,8 +20,7 @@ const Model = model_mod.Model;
 const Shape = shapes.Shape;
 
 pub const ResourceManager = struct {
-    io: Io,
-    allocator: Allocator,
+    context: Context,
 
     // Typed resource storage
     shaders: ManagedArrayList(*Shader),
@@ -30,15 +30,14 @@ pub const ResourceManager = struct {
 
     const Self = @This();
 
-    pub fn init(io: Io, allocator: Allocator) !*Self {
-        const rm = try allocator.create(Self);
+    pub fn init(context: Context) !*Self {
+        const rm = try context.alloc.create(Self);
         rm.* = .{
-            .io = io,
-            .allocator = allocator,
-            .shaders = ManagedArrayList(*Shader).init(allocator),
-            .textures = ManagedArrayList(*Texture).init(allocator),
-            .models = ManagedArrayList(*Model).init(allocator),
-            .obj_shapes = ManagedArrayList(*Shape).init(allocator),
+            .context = context,
+            .shaders = ManagedArrayList(*Shader).init(context.alloc),
+            .textures = ManagedArrayList(*Texture).init(context.alloc),
+            .models = ManagedArrayList(*Model).init(context.alloc),
+            .obj_shapes = ManagedArrayList(*Shape).init(context.alloc),
         };
         return rm;
     }
@@ -50,7 +49,7 @@ pub const ResourceManager = struct {
         vert_path: []const u8,
         frag_path: []const u8,
     ) !*Shader {
-        const shader = try Shader.init(self.io, self.allocator, vert_path, frag_path);
+        const shader = try Shader.init(self.context.io, self.context.alloc, vert_path, frag_path);
         try self.shaders.append(shader);
         return shader;
     }
@@ -61,7 +60,7 @@ pub const ResourceManager = struct {
         frag_path: []const u8,
         geom_path: ?[]const u8,
     ) !*Shader {
-        const shader = try Shader.initWithGeom(self.io, self.allocator, vert_path, frag_path, geom_path);
+        const shader = try Shader.initWithGeom(self.context.io, self.context.alloc, vert_path, frag_path, geom_path);
         try self.shaders.append(shader);
         return shader;
     }
@@ -73,7 +72,7 @@ pub const ResourceManager = struct {
         path: [:0]const u8,
         config: TextureConfig,
     ) !*Texture {
-        const tex = try Texture.initFromFile(self.io, self.allocator, path, config);
+        const tex = try Texture.initFromFile(self.context, path, config);
         try self.textures.append(tex);
         return tex;
     }
@@ -87,7 +86,7 @@ pub const ResourceManager = struct {
         name: []const u8,
         path: []const u8,
     ) !*GltfAsset {
-        return try GltfAsset.init(self.io, self.allocator, name, path);
+        return try GltfAsset.init(self.context.io, self.context.alloc, name, path);
     }
 
     /// Build a model from a pre-configured GltfAsset and track it.
@@ -103,7 +102,7 @@ pub const ResourceManager = struct {
         name: []const u8,
         path: []const u8,
     ) !*Model {
-        var gltf_asset = try GltfAsset.init(self.io, self.allocator, name, path);
+        var gltf_asset = try GltfAsset.init(self.context, name, path);
         const model = try gltf_asset.buildModel();
         try self.models.append(model);
         return model;
@@ -112,42 +111,39 @@ pub const ResourceManager = struct {
     // --- Shape Factory ---
 
     pub fn loadOBJ(self: *Self, filepath: []const u8) !*Shape {
-        const shape = try shapes.loadOBJ(self.io, self.allocator, filepath);
+        const shape = try shapes.loadOBJ(self.context.io, self.context.alloc, filepath);
         try self.obj_shapes.append(shape);
         return shape;
     }
 
     pub fn createCube(self: *Self, config: shapes.CubeConfig) !*Shape {
-        const shape = try shapes.createCube(self.allocator, config);
+        const shape = try shapes.createCube(self.context.alloc, config);
         try self.obj_shapes.append(shape);
         return shape;
     }
 
     pub fn createSphere(self: *Self, radius: f32, poly_count_x: u32, poly_count_y: u32) !*Shape {
-        const shape = try shapes.createSphere(self.allocator, radius, poly_count_x, poly_count_y);
+        const shape = try shapes.createSphere(self.context.alloc, radius, poly_count_x, poly_count_y);
         try self.obj_shapes.append(shape);
         return shape;
     }
 
     pub fn createCylinder(self: *Self, radius: f32, height: f32, sides: u32) !*Shape {
-        const shape = try shapes.createCylinder(self.allocator, radius, height, sides);
+        const shape = try shapes.createCylinder(self.context.alloc, radius, height, sides);
         try self.obj_shapes.append(shape);
         return shape;
     }
 
-    // --- Cleanup ---
-
     /// Delete all tracked GL resources in the correct order.
-    /// Models first (they reference shaders), then shapes, textures, shaders.
-    pub fn deleteAll(self: *Self) void {
+    pub fn cleanUp(self: *Self) void {
         // Models own their arenas and internal textures
         for (self.models.items()) |model| {
-            model.deinit();
+            model.deleteGlObjects();
         }
 
         // Standalone shapes
         for (self.obj_shapes.items()) |shape| {
-            shape.deinit();
+            shape.deleteGlObjects();
         }
 
         // Standalone textures (not owned by models)
@@ -157,22 +153,7 @@ pub const ResourceManager = struct {
 
         // Shaders last
         for (self.shaders.items()) |shader| {
-            shader.deinit();
+            shader.deleteGlObjects();
         }
-
-        // Clear the lists
-        self.models.list.clearRetainingCapacity();
-        self.textures.list.clearRetainingCapacity();
-        self.obj_shapes.list.clearRetainingCapacity();
-        self.shaders.list.clearRetainingCapacity();
-    }
-
-    pub fn deinit(self: *Self) void {
-        self.deleteAll();
-        self.models.deinit();
-        self.textures.deinit();
-        self.obj_shapes.deinit();
-        self.shaders.deinit();
-        self.allocator.destroy(self);
     }
 };

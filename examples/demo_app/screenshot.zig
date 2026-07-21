@@ -45,7 +45,7 @@ pub const ScreenshotManager = struct {
         std.debug.print("Taking screenshot with timestamp: {s}\n", .{timestamp_str});
 
         // Ensure temp directory exists
-        std.Io.Dir.cwd().createDir(self.io, self.temp_dir, .default_file ) catch |err| switch (err) {
+        std.Io.Dir.cwd().createDir(self.io, self.temp_dir, .default_file) catch |err| switch (err) {
             error.PathAlreadyExists => {},
             else => return err,
         };

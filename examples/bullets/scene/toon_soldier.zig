@@ -82,7 +82,7 @@ pub const ToonSoldier = struct {
     const Self = @This();
 
     pub fn init(rm: *ResourceManager) !*ToonSoldier {
-        const allocator = rm.allocator;
+        const allocator = rm.context.alloc;
 
         const shader = try rm.createShader(
             "games/level_01/shaders/animated_pbr.vert",

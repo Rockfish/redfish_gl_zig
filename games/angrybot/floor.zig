@@ -10,6 +10,7 @@ const vec2 = math.vec2;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 
+const Context = core.Context;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 const gl = zopengl.bindings;
@@ -50,7 +51,7 @@ pub const Floor = struct {
         self.texture_floor_spec.deleteGlTexture();
     }
 
-    pub fn init(io: std.Io, allocator: Allocator) !Self {
+    pub fn init(context: Context) !Self {
         const texture_config = TextureConfig{
             .flip_v = false,
             .gamma_correction = false,
@@ -59,20 +60,17 @@ pub const Floor = struct {
         };
 
         const texture_floor_diffuse = try Texture.initFromFile(
-            io,
-            allocator,
+            context,
             "assets/Textures/Floor/Floor D.png",
             texture_config,
         );
         const texture_floor_normal = try Texture.initFromFile(
-            io,
-            allocator,
+            context,
             "assets/Textures/Floor/Floor N.png",
             texture_config,
         );
         const texture_floor_spec = try Texture.initFromFile(
-            io,
-            allocator,
+            context,
             "assets/Textures/Floor/Floor M.png",
             texture_config,
         );

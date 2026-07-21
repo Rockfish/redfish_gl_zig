@@ -11,6 +11,7 @@ const Vec3 = math.Vec3;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 
+const Context = core.Context;
 const Shader = core.Shader;
 const Shape = core.shapes.Shape;
 const Plane = core.shapes.Plane;
@@ -25,8 +26,7 @@ pub const Floor = struct {
 
     pub fn init(rm: *ResourceManager) !Self {
         var floor = try core.shapes.Plane.init(
-            rm.io,
-            rm.allocator,
+            rm.context,
             .{
                 .plane_size = 100.0,
                 .tile_size = 1.0,

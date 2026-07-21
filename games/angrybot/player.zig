@@ -12,6 +12,7 @@ const vec2 = math.vec2;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 
+const Context = core.Context;
 const State = world.State;
 const Model = core.Model;
 const GltfAsset = core.asset_loader.GltfAsset;
@@ -89,7 +90,6 @@ pub const AnimationWeights = struct {
 };
 
 pub const Player = struct {
-    allocator: Allocator,
     model: *Model,
     position: Vec3,
     direction: Vec2,
@@ -106,18 +106,16 @@ pub const Player = struct {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self) void {
-        self.model.deinit();
-        // self.anim_hash.deinit();
-        self.allocator.destroy(self);
+    pub fn deleteGlObjects(self: *Self) void {
+        self.model.deleteGlObjects();
     }
 
-    pub fn init(io: std.Io, allocator: Allocator) !*Self {
+    pub fn init(context: Context) !*Self {
         // Modern glTF path instead of .fbx
         const model_path = "assets/angrybots_assets/Models/Player/Player.gltf";
 
         // Use GltfAsset instead of ModelBuilder
-        var gltf_asset = try GltfAsset.init(io, allocator, "Player", model_path);
+        var gltf_asset = try GltfAsset.init(context, "Player", model_path);
         try gltf_asset.load();
 
         // Define texture configuration (same settings as ASSIMP version)
@@ -152,9 +150,8 @@ pub const Player = struct {
         // try anim_hash.put(.left, AnimationClip.init(0, 209.0 / fps, 229.0 / fps, AnimationRepeatMode.Forever));
         // try anim_hash.put(.dead, AnimationClip.init(0, 234.0 / fps, 293.0 / fps, AnimationRepeatMode.Once));
 
-        const player = try allocator.create(Player);
+        const player = try context.alloc.create(Player);
         player.* = Player{
-            .allocator = allocator,
             .model = model,
             .last_fire_time = 0.0,
             .is_trying_to_fire = false,

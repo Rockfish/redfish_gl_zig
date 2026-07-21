@@ -6,6 +6,8 @@ pub const asset_loader = @import("asset_loader.zig");
 pub const gltf_report = @import("gltf/report.zig");
 pub const constants = @import("constants.zig");
 
+pub const Arenas = @import("arenas.zig").Arenas;
+pub const Context = @import("context.zig").Context;
 pub const Camera = @import("camera.zig").Camera;
 pub const CameraGimbal = @import("camera_gimbal.zig").Camera;
 pub const ProjectionType = @import("camera.zig").ProjectionType;

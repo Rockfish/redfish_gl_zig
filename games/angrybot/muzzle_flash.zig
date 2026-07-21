@@ -9,6 +9,7 @@ const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
 
+const Context = core.Context;
 const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 const Shader = core.Shader;
@@ -33,12 +34,11 @@ pub const MuzzleFlash = struct {
         self.muzzle_flash_sprites_age.deinit();
     }
 
-    pub fn init(io: std.Io, allocator: Allocator, unit_square_vao: c_uint) !Self {
+    pub fn init(context: Context, unit_square_vao: c_uint) !Self {
         const texture_config: TextureConfig = .{ .wrap = .Repeat };
 
         const texture_muzzle_flash_sprite_sheet = try Texture.initFromFile(
-            io,
-            allocator,
+            context,
             "assets/angrybots_assets/Textures/Bullet/muzzle_spritesheet.png",
             texture_config,
         );
@@ -52,7 +52,7 @@ pub const MuzzleFlash = struct {
         return .{
             .unit_square_vao = unit_square_vao,
             .muzzle_flash_impact_sprite = muzzle_flash_impact_sprite,
-            .muzzle_flash_sprites_age = ManagedArrayList(?SpriteAge).init(allocator),
+            .muzzle_flash_sprites_age = ManagedArrayList(?SpriteAge).init(context.alloc),
         };
     }
 

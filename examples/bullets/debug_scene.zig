@@ -2,6 +2,7 @@ const std = @import("std");
 const core = @import("core");
 const math = @import("math");
 
+const Context = core.Context;
 const Scene = @import("scene.zig").Scene;
 const SceneCamera = @import("scene_camera.zig").SceneCamera;
 const ResourceManager = core.ResourceManager;
@@ -82,16 +83,16 @@ pub const SceneDebug = struct {
 
     const Self = @This();
 
-    pub fn init(io: Io, allocator: Allocator, input: *core.Input) !*Scene {
+    pub fn init(context: Context, input: *core.Input) !*Scene {
         const camera = try FreeCamera.init(
-            allocator,
+            context.alloc,
             input.framebuffer_width,
             input.framebuffer_height,
         );
 
-        const rm = try ResourceManager.init(io, allocator);
+        const rm = try ResourceManager.init(context);
 
-        const scene = try allocator.create(SceneDebug);
+        const scene = try context.alloc.create(SceneDebug);
         scene.* = .{
             .resource_manager = rm,
             .scene_camera = camera,
@@ -111,11 +112,11 @@ pub const SceneDebug = struct {
         scene.floor.plane.shape.is_visible = true;
         scene.skybox.is_visible = false;
 
-        return try Scene.init(allocator, "Debug", scene, input);
+        return try Scene.init(context.alloc, "Debug", scene, input);
     }
 
-    pub fn deinit(self: *Self) void {
-        self.resource_manager.deinit();
+    pub fn cleanUp(self: *Self) void {
+        self.resource_manager.cleanUp();
     }
 
     pub fn getSceneCamera(self: *Self) *SceneCamera {

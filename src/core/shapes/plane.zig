@@ -9,6 +9,7 @@ const uniforms = constants.Uniforms;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 
+const Context = @import("../context.zig").Context;
 const Shader = @import("../shader.zig").Shader;
 const Texture = @import("../texture.zig").Texture;
 const TextureConfig = @import("../texture.zig").TextureConfig;
@@ -25,8 +26,7 @@ pub const PlaneConfig = struct {
 };
 
 pub const Plane = struct {
-    io: std.Io,
-    allocator: Allocator,
+    context: Context,
     shape: *Shape = undefined,
     texture_diffuse: *Texture = undefined,
     texture_normal: *Texture = undefined,
@@ -34,16 +34,14 @@ pub const Plane = struct {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self) void {
+    pub fn deleteGlObjects(self: *Self) void {
         self.texture_diffuse.deleteGlObjects();
         self.texture_normal.deleteGlObjects();
         self.texture_spec.deleteGlObjects();
-        self.shape.deinit();
-        self.allocator.destroy(self.shape);
     }
 
-    pub fn init(io: std.Io, allocator: Allocator, config: PlaneConfig) !Self {
-        var self = Self{ .io = io, .allocator = allocator };
+    pub fn init(context: Context, config: PlaneConfig) !Self {
+        var self = Self{ .context = context };
 
         const positions = [_][3]f32{
             .{ -config.plane_size / 2.0, 0.0, -config.plane_size / 2.0 },
@@ -70,7 +68,7 @@ pub const Plane = struct {
         try loadTextures(&self, config);
 
         self.shape = try shape.initGLBuffers(
-            allocator,
+            self.context.alloc,
             .square,
             &positions,
             &texcoords,
@@ -93,24 +91,21 @@ pub const Plane = struct {
 
         if (config.diffuse_texture) |texture_path| {
             self.texture_diffuse = try Texture.initFromFile(
-                self.io,
-                self.allocator,
+                self.context,
                 texture_path,
                 texture_config,
             );
         }
         if (config.normal_texture) |texture_path| {
             self.texture_normal = try Texture.initFromFile(
-                self.io,
-                self.allocator,
+                self.context,
                 texture_path,
                 texture_config,
             );
         }
         if (config.specular_texture) |texture_path| {
             self.texture_spec = try Texture.initFromFile(
-                self.io,
-                self.allocator,
+                self.context,
                 texture_path,
                 texture_config,
             );

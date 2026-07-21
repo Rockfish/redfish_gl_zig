@@ -1,5 +1,5 @@
 // Curated demo model list - ordered from simple to complex
-pub const DemoModel = struct {
+pub const ModelInfo = struct {
     path: []const u8,
     name: []const u8,
     format: []const u8,
@@ -8,37 +8,21 @@ pub const DemoModel = struct {
     play_all_animations: bool = false,
 };
 
-pub const demo_models = [_]DemoModel{
+pub const model_infos = [_]ModelInfo{
     // Animated models - character movement testing
-    .{
-        .path = "assets_nas/glTF-Sample-Models/InterpolationTest/glTF/InterpolationTest.gltf",
-        .name = "Interpolation Test",
+     .{
+        .path = "assets/angrybots_assets/Models/Player/Player.gltf",
+        .name = "Player Model",
         .format = "glTF",
-        .category = "Simple",
-        .description = "Interpolation test with simple boxes",
-        .play_all_animations = true,
-    },
-    .{
-        //.path = "assets_nas/Fox/glTF-Binary/Fox.glb",
-        .path = "assets_nas/glTF-Sample-Models/Fox/glTF/Fox.gltf",
-        .name = "Fox",
-        .format = "glTF",
-        .category = "Animated",
-        .description = "Character with multiple animations",
-    },
-    .{
-        .path = "assets_nas/glTF-Sample-Models/CesiumMan/glTF-Binary/CesiumMan.glb",
-        .name = "Cesium Man glb",
-        .format = "GLB",
-        .category = "Animated",
-        .description = "Walking character animation",
-    },
-    .{
-        .path = "assets_nas/glTF-Sample-Models/BrainStem/glTF-Binary/BrainStem.glb",
-        .name = "Brain Stem",
-        .format = "GLB",
         .category = "Complex",
-        .description = "Complex organic geometry",
+        .description = "Player character model with animations converted from FBX",
+    },
+    .{
+        .path = "assets/models/Spacesuit/Spacesuit_converted.gltf",
+        .name = "Spacesuit Model",
+        .format = "glTF",
+        .category = "Complex",
+        .description = "Spacesuit character model with animations converted from FBX",
     },
     .{
         .path = "assets/angrybots_assets/Models/Player/Player.gltf",
@@ -47,6 +31,44 @@ pub const demo_models = [_]DemoModel{
         .category = "Complex",
         .description = "Player character model with animations converted from FBX",
     },
+    .{
+        .path = "assets/angrybots_assets/Models/Player/Player.gltf",
+        .name = "Player Model",
+        .format = "glTF",
+        .category = "Complex",
+        .description = "Player character model with animations converted from FBX",
+    },
+    .{
+        .path = "assets_nas/glTF-Sample-Models/2.0/InterpolationTest/glTF/InterpolationTest.gltf",
+        .name = "Interpolation Test",
+        .format = "glTF",
+        .category = "Simple",
+        .description = "Interpolation test with simple boxes",
+        .play_all_animations = true,
+    },
+    .{
+        //.path = "assets_nas/Fox/glTF-Binary/Fox.glb",
+        .path = "assets_nas/glTF-Sample-Models/2.0/Fox/glTF/Fox.gltf",
+        .name = "Fox",
+        .format = "glTF",
+        .category = "Animated",
+        .description = "Character with multiple animations",
+    },
+    .{
+        .path = "assets_nas/glTF-Sample-Models/2.0/CesiumMan/glTF-Binary/CesiumMan.glb",
+        .name = "Cesium Man glb",
+        .format = "GLB",
+        .category = "Animated",
+        .description = "Walking character animation",
+    },
+    .{
+        .path = "assets_nas/glTF-Sample-Models/2.0/BrainStem/glTF-Binary/BrainStem.glb",
+        .name = "Brain Stem",
+        .format = "GLB",
+        .category = "Complex",
+        .description = "Complex organic geometry",
+    },
+
     .{
         .path = "assets/assets/Models/Spacesuit/Spacesuit_converted.gltf",
         .name = "Spacesuit (Converted)",
@@ -62,13 +84,13 @@ pub const demo_models = [_]DemoModel{
         .description = "Spacesuit model from Modular Characters collection",
     },
     .{
-        .path = "assets_nas/glTF-Sample-Models/CesiumMan/glTF/CesiumMan.gltf",
+        .path = "assets_nas/glTF-Sample-Models/2.0/CesiumMan/glTF/CesiumMan.gltf",
         .name = "CesiumMan (original)",
         .format = "glTF",
         .category = "Basic",
         .description = "CesiumMan model glTF",
     },
-    // glTF-Sample-Models/CesiumMan/glTF/CesiumMan.gltf
+    // glTF-Sample-Models/2.0/CesiumMan/glTF/CesiumMan.gltf
     .{
         .path = "assets_nas/assets/Models/CesiumMan/CesiumMan_converted.gltf",
         .name = "CesiumMan (Converted)",
@@ -79,21 +101,21 @@ pub const demo_models = [_]DemoModel{
 
     // Simple models - good for basic testing
     .{
-        .path = "assets_nas/glTF-Sample-Models/BoxTextured/glTF-Binary/BoxTextured.glb",
+        .path = "assets_nas/glTF-Sample-Models/2.0/BoxTextured/glTF-Binary/BoxTextured.glb",
         .name = "Textured Box",
         .format = "GLB",
         .category = "Simple",
         .description = "Cube with UV mapping and texture",
     },
     .{
-        .path = "assets_nas/glTF-Sample-Models/Cube/glTF/Cube.gltf",
+        .path = "assets_nas/glTF-Sample-Models/2.0/Cube/glTF/Cube.gltf",
         .name = "Cube",
         .format = "glTF",
         .category = "Simple",
         .description = "Cube with texture",
     },
     .{
-        .path = "assets_nas/glTF-Sample-Models/Lantern/glTF/Lantern.gltf",
+        .path = "assets_nas/glTF-Sample-Models/2.0/Lantern/glTF/Lantern.gltf",
         .name = "Lantern",
         .format = "glTF",
         .category = "Moderate",
@@ -101,14 +123,14 @@ pub const demo_models = [_]DemoModel{
     },
 
     // .{
-    //     .path = "assets_nas/glTF-Sample-Models/BoxAnimated/glTF-Binary/BoxAnimated.glb",
+    //     .path = "assets_nas/glTF-Sample-Models/2.0/BoxAnimated/glTF-Binary/BoxAnimated.glb",
     //     .name = "Animated Box",
     //     .format = "GLB",
     //     .category = "Animated",
     //     .description = "Simple rotation animation",
     // },
     .{
-        .path = "assets_nas/glTF-Sample-Models/BoxAnimated/glTF/BoxAnimated.gltf",
+        .path = "assets_nas/glTF-Sample-Models/2.0/BoxAnimated/glTF/BoxAnimated.gltf",
         .name = "Animated Box",
         .format = "glTF",
         .category = "Animated",
@@ -117,14 +139,14 @@ pub const demo_models = [_]DemoModel{
 
     // Complex models - advanced rendering features
     .{
-        .path = "assets_nas/glTF-Sample-Models/DamagedHelmet/glTF-Binary/DamagedHelmet.glb",
+        .path = "assets_nas/glTF-Sample-Models/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb",
         .name = "Damaged Helmet",
         .format = "GLB",
         .category = "Complex",
         .description = "High-quality PBR showcase",
     },
     .{
-        .path = "assets_nas/glTF-Sample-Models/FlightHelmet/glTF/FlightHelmet.gltf",
+        .path = "assets_nas/glTF-Sample-Models/2.0/FlightHelmet/glTF/FlightHelmet.gltf",
         .name = "Flight Helmet",
         .format = "glTF",
         .category = "Complex",
@@ -132,28 +154,28 @@ pub const demo_models = [_]DemoModel{
     },
     // Format comparison - same model in different formats
     .{
-        .path = "assets_nas/glTF-Sample-Models/Duck/glTF/Duck.gltf",
+        .path = "assets_nas/glTF-Sample-Models/2.0/Duck/glTF/Duck.gltf",
         .name = "Duck (glTF)",
         .format = "glTF",
         .category = "Format Test",
         .description = "Classic model in glTF format",
     },
     .{
-        .path = "assets_nas/glTF-Sample-Models/Duck/glTF-Binary/Duck.glb",
+        .path = "assets_nas/glTF-Sample-Models/2.0/Duck/glTF-Binary/Duck.glb",
         .name = "Duck (GLB)",
         .format = "GLB",
         .category = "Format Test",
         .description = "Same model in binary format",
     },
     .{
-        .path = "assets_nas/glTF-Sample-Models/Avocado/glTF/Avocado.gltf",
+        .path = "assets_nas/glTF-Sample-Models/2.0/Avocado/glTF/Avocado.gltf",
         .name = "Avocado (glTF)",
         .format = "glTF",
         .category = "Format Test",
         .description = "Organic shape in glTF format",
     },
     .{
-        .path = "assets_nas/glTF-Sample-Models/Avocado/glTF-Binary/Avocado.glb",
+        .path = "assets_nas/glTF-Sample-Models/2.0/Avocado/glTF-Binary/Avocado.glb",
         .name = "Avocado (GLB)",
         .format = "GLB",
         .category = "Format Test",
@@ -162,14 +184,14 @@ pub const demo_models = [_]DemoModel{
 
     // Edge cases - special testing scenarios
     .{
-        .path = "assets_nas/glTF-Sample-Models/Unicode❤♻Test/glTF-Binary/Unicode❤♻Test.glb",
+        .path = "assets_nas/glTF-Sample-Models/2.0/Unicode❤♻Test/glTF-Binary/Unicode❤♻Test.glb",
         .name = "Unicode Test",
         .format = "GLB",
         .category = "Edge Case",
         .description = "Unicode filename handling",
     },
     .{
-        .path = "assets_nas/glTF-Sample-Models/BoxInterleaved/glTF-Binary/BoxInterleaved.glb",
+        .path = "assets_nas/glTF-Sample-Models/2.0/BoxInterleaved/glTF-Binary/BoxInterleaved.glb",
         .name = "Interleaved Box",
         .format = "GLB",
         .category = "Edge Case",

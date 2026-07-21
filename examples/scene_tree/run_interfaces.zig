@@ -20,9 +20,11 @@ const Mat4 = math.Mat4;
 const Quat = math.Quat;
 const Ray = core.Ray;
 
-const Allocator = std.mem.Allocator;
+const ArenaAllocator = std.heap.ArenaAllocator;
 const EnumSet = std.EnumSet;
 
+const Arenas = core.Arenas;
+const Context = core.Context;
 const Model = core.Model;
 const GltfAsset = core.asset_loader.GltfAsset;
 const Shader = core.Shader;
@@ -45,7 +47,8 @@ const SIZE_OF_VEC4 = @sizeOf(Vec4);
 const SIZE_OF_QUAT = @sizeOf(Quat);
 
 pub fn run(init: std.process.Init, window: *glfw.Window) !void {
-    const allocator = init.arena.allocator();
+    var common_arenas = try Arenas.init(init.gpa);
+    const context = common_arenas.context(init.io);
 
     gl.enable(gl.DEPTH_TEST);
 
@@ -57,7 +60,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     const scaled_height = viewport_height / window_scale[1];
 
     const camera = try Camera.init(
-        allocator,
+        context.alloc,
         .{
             .position = vec3(0.0, 2.0, 14.0),
             .target = vec3(0.0, 2.0, 0.0),
@@ -87,25 +90,24 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     const basic_model_shader = try Shader.init(
         init.io,
-        allocator,
+        context.alloc,
         "examples/scene_tree/basic_model.vert",
         "examples/scene_tree/basic_model.frag",
     );
     defer basic_model_shader.deinit();
 
     const cubeboid = try shapes.createCube(
-        allocator,
+        context.alloc,
         .{
             .width = 1.0,
             .height = 1.0,
             .depth = 2.0,
         },
     );
-    defer allocator.destroy(cubeboid);
-    defer cubeboid.deinit();
+    defer cubeboid.deleteGlObjects();
 
     const plane = try shapes.createCube(
-        allocator,
+        context.alloc,
         .{
             .width = 100.0,
             .height = 2.0,
@@ -115,17 +117,15 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             .num_tiles_z = 50.0,
         },
     );
-    defer allocator.destroy(plane);
-    defer plane.deinit();
+    defer plane.deleteGlObjects();
 
     const cylinder = try shapes.createCylinder(
-        allocator,
+        context.alloc,
         1.0,
         4.0,
         20.0,
     );
-    defer allocator.destroy(cylinder);
-    defer cylinder.deinit();
+    defer cylinder.deleteGlObjects();
 
     var texture_diffuse = TextureConfig{
         .filter = .Linear,
@@ -135,23 +135,23 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     };
 
     const cube_texture = try Texture.initFromFile(
-        init.io,
-        allocator,
+        context,
         "assets/textures/container.jpg",
         texture_diffuse,
     );
+    defer cube_texture.deleteGlObjects();
 
     texture_diffuse.wrap = TextureWrap.Repeat;
     const surface_texture = try Texture.initFromFile(
-        init.io,
-        allocator,
+        context,
         "assets/Textures/Floor/Floor D.png",
         texture_diffuse,
     );
+    defer surface_texture.deleteGlObjects();
 
     // const model_path = ""/Users/john/Dev/Repos/Egregoria/assets/models/pedestrian.glb"";
     const model_path = "glTF-Sample-Models/CesiumMan/glTF-Binary/CesiumMan.glb";
-    var gltf_asset = try GltfAsset.init(init.io, allocator, "alien", model_path);
+    var gltf_asset = try GltfAsset.init(context, "alien", model_path);
     try gltf_asset.load();
 
     const model = try gltf_asset.buildModel();
@@ -165,16 +165,14 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     };
     var root_placeholder = RootPlaceholder{};
 
-    const root_node = try Node.init(allocator, "root_node", &root_placeholder, &main.state);
+    const root_node = try Node.init(context.alloc, "root_node", &root_placeholder, &main.state);
 
-    const node_model = try Node.init(allocator, "node_model", model, &main.state);
-    defer node_model.deinit();
+    const node_model = try Node.init(context.alloc, "node_model", model, &main.state);
 
     node_model.transform.translation = vec3(0.0, 0.0, 2.0);
     node_model.transform.rotation = Quat.fromAxisAngle(vec3(1.0, 0.0, 0.0), math.degreesToRadians(-90.0));
 
-    const node_cylinder = try Node.init(allocator, "shape_cylinder", cylinder, &main.state);
-    defer node_cylinder.deinit();
+    const node_cylinder = try Node.init(context.alloc, "shape_cylinder", cylinder, &main.state);
 
     root_node.addChild(node_model);
     root_node.addChild(node_cylinder);
@@ -189,7 +187,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     for (cube_positions) |position| {
         const cube = try Node.init(
-            allocator,
+            context.alloc,
             "shape_cubeboid",
             cubeboid,
             &main.state,
@@ -199,23 +197,22 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     }
 
     const node_cube_spin = try Node.init(
-        allocator,
+        context.alloc,
         "shape_cubeboid",
         cubeboid,
         &main.state,
     );
-    defer node_cube_spin.deinit();
     node_cube_spin.transform.translation = vec3(0.0, 4.0, 0.0);
 
     node_cylinder.addChild(node_cube_spin);
 
     const node_cube = try Node.init(
-        allocator,
+        context.alloc,
         "shape_cubeboid",
         cubeboid,
         &main.state,
     );
-    defer node_cube.deinit();
+    defer node_cube.cleanUp();
 
     const cube_transforms = [_]Mat4{
         Mat4.fromTranslation(vec3(3.0, 0.5, 0.0)),
@@ -346,6 +343,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     }
 
     glfw.terminate();
+    common_arenas.deinit();
 }
 
 pub fn updateSpin(node: *Node, st: *State) void {

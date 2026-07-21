@@ -5,9 +5,11 @@ const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 const Transform = @import("transform.zig").Transform;
 const constants = @import("constants.zig");
+const Context = @import("context.zig").Context;
+
+const log = std.log.scoped(.animator);
 
 const Allocator = std.mem.Allocator;
-const ArenaAllocator = std.heap.ArenaAllocator;
 const ManagedArrayList = containers.ManagedArrayList;
 
 const Vec3 = math.Vec3;
@@ -241,8 +243,6 @@ pub const Node = struct {
 };
 
 pub const Animator = struct {
-    arena: *ArenaAllocator,
-
     // glTF animation data references
     gltf_asset: *const GltfAsset,
     skin_index: ?u32,
@@ -268,37 +268,35 @@ pub const Animator = struct {
 
     const Self = @This();
 
-    pub fn init(arena: *ArenaAllocator, gltf_asset: *const GltfAsset, skin_index: ?u32) !*Self {
-        const allocator = arena.allocator();
-        const animator = try allocator.create(Animator);
+    pub fn init(context: Context, gltf_asset: *const GltfAsset, skin_index: ?u32) !*Self {
+        const animator = try context.alloc.create(Animator);
 
         // Initialize joint data from skin
-        var joints = try preprocessJoints(allocator, gltf_asset, skin_index);
+        var joints = try preprocessJoints(context.alloc, gltf_asset, skin_index);
 
         // Calculate root nodes once at initialization
-        var root_nodes_list = try preprocessRootNodes(allocator, gltf_asset);
+        var root_nodes_list = try preprocessRootNodes(context.alloc, gltf_asset);
 
         // Pre-process animation channels
-        const animations = try preprocessAnimationChannels(allocator, gltf_asset);
+        const animations = try preprocessAnimationChannels(context.alloc, gltf_asset);
 
         // Pre-process initial nodes
-        const initial_nodes = preprocessNodes(allocator, gltf_asset);
+        const initial_nodes = preprocessNodes(context.alloc, gltf_asset);
 
         var buf: [500]u8 = undefined;
         for (initial_nodes, 0..) |node, i| {
-            std.debug.print(
+            log.debug(
                 "Node {d}: '{s}' transform: {s}\n",
                 .{ i, node.name orelse "unnamed", node.initial_transform.asString(&buf) },
             );
         }
 
         animator.* = Animator{
-            .arena = arena,
             .gltf_asset = gltf_asset,
             .skin_index = skin_index,
             .joints = try joints.toOwnedSlice(),
-            .active_animations = ManagedArrayList(AnimationState).init(allocator),
-            .weight_animations = ManagedArrayList(WeightedAnimation).init(allocator),
+            .active_animations = ManagedArrayList(AnimationState).init(context.alloc),
+            .weight_animations = ManagedArrayList(WeightedAnimation).init(context.alloc),
             .root_nodes = try root_nodes_list.toOwnedSlice(),
             .nodes = initial_nodes,
             .animations = animations,
@@ -308,16 +306,10 @@ pub const Animator = struct {
         return animator;
     }
 
-    pub fn deinit(self: *Self) void {
-        // All allocations are done via arena, so they'll be freed when the arena is deinitialized
-        // No need to manually free individual allocations
-        _ = self; // suppress unused parameter warning
-    }
-
     /// Play an animation clip
     pub fn playClip(self: *Self, clip: AnimationClip) !void {
         if (clip.animation_index >= self.animations.len) {
-            std.debug.print("Invalid animation index: {d}\n", .{clip.animation_index});
+            log.debug("Invalid animation index: {d}\n", .{clip.animation_index});
             return;
         }
 
@@ -331,19 +323,19 @@ pub const Animator = struct {
         );
         try self.active_animations.append(anim_state);
 
-        std.debug.print("Playing glTF animation {d}\n", .{clip.animation_index});
+        log.debug("Playing glTF animation {d}\n", .{clip.animation_index});
     }
 
     /// Play animation by index
     pub fn playAnimationById(self: *Self, animation_index: u32) !void {
         if (animation_index >= self.animations.len) {
-            std.debug.print("Invalid animation index: {d}\n", .{animation_index});
+            log.debug("Invalid animation index: {d}\n", .{animation_index});
             return;
         }
 
         const animation = self.animations[animation_index];
 
-        std.debug.print(
+        log.debug(
             "Animation {d} '{s}' duration: {d:.2}s, nodes: {d}\n",
             .{ animation_index, animation.name, animation.duration, animation.node_data.len },
         );
@@ -390,7 +382,7 @@ pub const Animator = struct {
             try self.active_animations.append(anim_state);
         }
 
-        std.debug.print("Playing {d} animations simultaneously\n", .{self.animations.len});
+        log.debug("Playing {d} animations simultaneously\n", .{self.animations.len});
     }
 
     /// Play specific animations by indices
@@ -893,7 +885,7 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                         .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                std.debug.print("Parsed cubic spline translation with {d} keyframes\\n", .{cubic_data.values.len});
+                                log.debug("Parsed cubic spline translation with {d} keyframes\\n", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -919,7 +911,7 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                         .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                std.debug.print("Parsed cubic spline rotation with {d} keyframes\\n", .{cubic_data.values.len});
+                                log.debug("Parsed cubic spline rotation with {d} keyframes\\n", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -945,7 +937,7 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                         .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                std.debug.print("Parsed cubic spline scale with {d} keyframes\\n", .{cubic_data.values.len});
+                                log.debug("Parsed cubic spline scale with {d} keyframes\\n", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -971,7 +963,7 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                         .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                std.debug.print("Parsed cubic spline weights with {d} keyframes\\n", .{cubic_data.values.len});
+                                log.debug("Parsed cubic spline weights with {d} keyframes\\n", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -1037,7 +1029,7 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                 .node_data = node_channels_list,
             };
 
-            std.debug.print(
+            log.debug(
                 "Pre-processed animation {d} '{s}': {d:.2}s duration, {d} nodes with animation data\n",
                 .{ anim_idx, animation_name, max_time, node_channels_list.len },
             );
@@ -1082,7 +1074,7 @@ fn preprocessNodes(allocator: Allocator, gltf_asset: *const GltfAsset) []Node {
             };
         }
 
-        std.debug.print("Preprocessed {d} nodes with transform data\n", .{nodes.len});
+        log.debug("Preprocessed {d} nodes with transform data\n", .{nodes.len});
         return nodes;
     }
 
