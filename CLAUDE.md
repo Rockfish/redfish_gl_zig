@@ -4,18 +4,11 @@
 
 **redfish_gl_zig** is a 3D graphics engine written in Zig focused on real-time rendering of animated glTF models with physically-based rendering (PBR). The engine supports character animation, texturing, lighting, and camera controls.
 
-### Current Status (2025-08-19)
-- ✅ **Production-Ready 3D Engine** - Complete foundation with PBR rendering pipeline
-- ✅ **Core Rendering**: OpenGL 4.0 pipeline with Cook-Torrance PBR shaders
-- ✅ **Native glTF System** - Complete glTF 2.0 support with skeletal animation
-- ✅ **Cubic Spline Animation** - glTF-compliant Hermite interpolation system
-- ✅ **Enhanced Animation Blending** - WeightedAnimation system with precision controls
-- ✅ **Multi-Game Architecture** - Successfully supports multiple game projects
-- ✅ **Game Projects**: angrybot (fully migrated), level_01 (active development)
-- ✅ **Movement System** - Precision-preserved movement with enhanced performance
-- ✅ **Development Tools**: Comprehensive debugging, profiling, and shader validation
-- ✅ **Foundation Plans Completed**: Plans 001-003 (GLB, Demo, PBR Shaders)
-- 🎯 **Current Phase**: Advanced game development and engine feature expansion
+### Current Status (2026-07)
+- Zig 0.16; OpenGL 4.0 Cook-Torrance PBR pipeline; native glTF 2.0 with skeletal + cubic-spline animation
+- Top-down memory architecture: `Context`/`Arenas` (see Memory & Context below)
+- Games: angrybot (complete port), level_01 (active); examples: demo_app, bullets, skybox, scene_tree, animation
+- History in [CHANGELOG.md](CHANGELOG.md); roadmap in `docs/plans/active-plans.md`
 
 ### Architecture
 
@@ -24,16 +17,21 @@ src/
 ├── core/           # Core engine systems
 │   ├── gltf/      # glTF parsing and model loading
 │   ├── shapes/    # Primitive geometry generators
-│   ├── movement.zig # Enhanced movement system with precision preservation
+│   ├── context.zig # Context {alloc, temp_alloc, io} capability struct
+│   ├── arenas.zig  # Arena owner: mints Contexts, holds reset authority
+│   ├── movement.zig # Movement controller (translate/turn/rotate/orbit/circle/radius)
 │   └── utils/     # Utility functions
 └── math/          # Custom math library (Vec2/3/4, Mat4, etc.)
 
-examples/
-└── demo_app/      # Main demo application with PBR shaders
+examples/          # demo_app (main demo), bullets, skybox, scene_tree, animation
 
 games/             # Game projects using the engine
 ├── angrybot/      # Fully migrated 3D shooter game
 └── level_01/      # Active game development project
+
+docs/
+├── plans/         # Numbered plans + active-plans.md roadmap
+└── review/        # Design reviews and decision records
 
 libs/              # Third-party dependencies
 ├── zglfw/         # GLFW windowing
@@ -44,6 +42,14 @@ libs/              # Third-party dependencies
 ```
 
 ### Key Components
+
+#### Memory & Context (`src/core/context.zig`, `src/core/arenas.zig`)
+- **Top-down lifetimes**: owners (World, scopes) hold `Arenas` — the concrete `ArenaAllocator`s and sole reset authority — and mint `Context` values for callees
+- **`Context { alloc, temp_alloc, io }`**: `alloc` = caller-owned result lifetime; `temp_alloc` = callee scratch flushed at the owner's checkpoint — never store pointers from it past the call
+- **Components take `Context` (or plain `Allocator`)**: they never create/own arenas and never store allocators for cleanup
+- **Cleanup policy**: memory is freed by arena reset — no memory `deinit`s. External resources use `cleanUp()` on aggregates / `deleteGlObjects()` on leaves, called **before** the owning arena resets
+- **An arena per unload unit**: independently swappable things (e.g. demo_app models) get their own arena/scope; overlapping generations need two (ping-pong)
+- Full rules and rationale: `docs/review/allocator_conventions_review.md`
 
 #### Graphics Pipeline
 - **Renderer**: OpenGL 4.0 core profile
@@ -187,8 +193,8 @@ zig build demo_app-run
 zig build check
 
 # Run tests
-zig build test
 zig build test-movement
+zig build test-glb
 
 # Format code
 zig fmt src/
@@ -213,7 +219,7 @@ zig fmt src/
 
 ## Current Active Plans
 
-See `plan/active-plans.md` for detailed project roadmap.
+See `docs/plans/active-plans.md` for detailed project roadmap.
 
 **Current Focus**: Advanced game development and engine feature expansion beyond foundation plans
 
@@ -235,7 +241,10 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 - **NEVER add signatures to commit messages**
 - When adding a large list of items within {} put a comma after that last item so that the zig formatter will fold the line nicely
 - When writing an if else statement always include {}
-- When using a pattern like self.arena.allocator(), I prefer calling it once to set a local variable at the top of the function then using the local variable instead of making multiple function calls. It reduces the clutter and makes the code easier to read.
+- When a value like `self.context.alloc` is used several times in a function, assign it once to a local variable at the top instead of repeating the field access/call. It reduces clutter and makes the code easier to read.
+- **Zig lazy analysis hides broken dead code**: unreferenced functions compile even with type errors or references to removed fields — "it builds" proves nothing about uncalled code (bit us in CameraGimbal, `Texture.clone`, `drawLocalAxis`)
+- **Delete dead code, don't comment it out** — commented-out blocks rot invisibly (they've already lied about removed fields in this codebase); git history is the archive
+- **Never run `zig fmt` on `libs/`** — vendored libraries must stay byte-identical to upstream for diffability; format only `src/`, `examples/`, `games/`
 - **Animation System Architecture**: When replacing complex legacy systems (like ASSIMP), maintain API compatibility by keeping the same public interfaces while completely rewriting the internal implementation. This allows existing code to work unchanged while modernizing the underlying technology.
 - **Type Import Patterns**: Always import types at the top of files rather than using inline `@import()` in function parameters. This improves readability and makes dependencies explicit.
 - **Wrapper Struct Avoidance**: Avoid unnecessary wrapper structs that just hold references to other data. Direct references are cleaner and reduce cognitive overhead (e.g., `gltf_asset: *const GltfAsset` vs `gltf_asset_ref: GltfAssetRef`).
@@ -256,4 +265,3 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 - **playWeightAnimations()**: Handles complex character movement with weight-based mixing
 - **Quaternion Normalization**: Proper blending mathematics for smooth rotational transitions
 - **Game Integration**: Successfully integrated into angrybot character animation system
-- Zig std.debug.print always requires args, for example std.debug.print("hello", .{})
