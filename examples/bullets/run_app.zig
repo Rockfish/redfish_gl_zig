@@ -12,9 +12,6 @@ const World = world_module.World;
 const log = std.log.scoped(.BulletsApp);
 
 pub fn run_app(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !void {
-    // var root_allocator = std.heap.PageAllocator
-    // defer _ = root_allocator.deinit();
-
     log.info("Starting simple bullets test app", .{});
     const input = Input.init(window);
 

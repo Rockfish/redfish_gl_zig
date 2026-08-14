@@ -36,12 +36,12 @@ pub const BulletSystem = struct {
     gravity: f32 = 0.0,
     x_rotations: ManagedArrayList(Quat),
     y_rotations: ManagedArrayList(Quat),
-    bullet_positions: ManagedArrayList(Vec3),
-    bullet_rotations: ManagedArrayList(Quat),
-    bullet_rotations_initial: ManagedArrayList(Quat),
+    bullet_positions: ManagedArrayList(Vec3),  // passed to GL buffer
+    bullet_rotations: ManagedArrayList(Quat),  // passed to GL buffer
     bullet_directions: ManagedArrayList(Vec3),
     bullet_velocities: ManagedArrayList(Vec3),
     bullet_right_vectors: ManagedArrayList(Vec3),
+    bullet_rotations_initial: ManagedArrayList(Quat), // used only for drawing initial path lines
     bullet_cube: *core.shapes.Shape,
     rotations_vbo: gl.Uint = 0,
     positions_vbo: gl.Uint = 0,
@@ -128,6 +128,7 @@ pub const BulletSystem = struct {
             .bullet_directions = ManagedArrayList(Vec3).init(allocator),
             .bullet_velocities = ManagedArrayList(Vec3).init(allocator),
             .bullet_right_vectors = ManagedArrayList(Vec3).init(allocator),
+            //.bullet_life = ManagedArrayList(u32).init(allocator),
             .bullet_cube = bullet_cube,
             .line_shader = lines_shader,
             .lines = lines,
@@ -279,6 +280,7 @@ pub const BulletSystem = struct {
             gl.STREAM_DRAW,
         );
 
+        // Instance id can be read from gl_InstanceID in the shader
         gl.drawElementsInstanced(
             gl.TRIANGLES,
             self.bullet_cube.num_indices,
@@ -313,7 +315,8 @@ pub const BulletSystem = struct {
             @sizeOf(Quat),
             null,
         );
-        // one rotation per bullet instance
+
+        // set one rotation per bullet instance
         gl.vertexAttribDivisor(8, 1);
 
         // per instance position offset vbo
@@ -330,7 +333,8 @@ pub const BulletSystem = struct {
             @sizeOf(Vec3),
             null,
         );
-        // one offset per bullet instance
+
+        // set one position offset per bullet instance
         gl.vertexAttribDivisor(9, 1);
 
         self.rotations_vbo = rotations_vbo;

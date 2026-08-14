@@ -8,6 +8,13 @@ const math = @import("math");
 const run_app = @import("run_app.zig").run;
 const run_animation = @import("run_animation.zig").run;
 
+pub const std_options: std.Options = .{ .log_level = .err };
+
+const Vec3 = math.Vec3;
+const vec3 = math.vec3;
+const Quat = math.Quat;
+const Mat4 = math.Mat4;
+
 const SCR_WIDTH: f32 = 1000.0;
 const SCR_HEIGHT: f32 = 1000.0;
 
@@ -45,10 +52,6 @@ pub fn main(init: std.process.Init) !void {
     // testMovementMatrix();
 }
 
-const Vec3 = math.Vec3;
-const vec3 = math.vec3;
-const Quat = math.Quat;
-const Mat4 = math.Mat4;
 var buffer1: [1024]u8 = undefined;
 var buffer2: [1024]u8 = undefined;
 

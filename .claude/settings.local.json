@@ -16,7 +16,9 @@
       "Bash(awk:*)",
       "Bash(git status:*)",
       "Bash(git push:*)",
-      "WebFetch(domain:itch.io)"
+      "WebFetch(domain:itch.io)",
+      "Bash(git -C /Users/john/Dev/Dev_Zig/redfish_gl_zig status --short)",
+      "Bash(git *)"
     ],
     "deny": []
   }

@@ -45,7 +45,7 @@ pub fn main(init: std.process.Init) !void {
     defer glfw.terminate();
 
     const gl_major = 4;
-    const gl_minor = 0;
+    const gl_minor = 1;
 
     glfw.windowHint(.context_version_major, gl_major);
     glfw.windowHint(.context_version_minor, gl_minor);
