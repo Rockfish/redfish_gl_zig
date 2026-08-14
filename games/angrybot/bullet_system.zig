@@ -117,7 +117,7 @@ const BULLET_INDICES_H_V: [12]u32 = .{
 const VERTICES = BULLET_VERTICES_H_V;
 const INDICES = BULLET_INDICES_H_V;
 
-pub const BulletStore = struct {
+pub const BulletSystem = struct {
     bullet_positions: ManagedArrayList(Vec3),
     bullet_rotations: ManagedArrayList(Quat),
     bullet_directions: ManagedArrayList(Vec3),
@@ -155,8 +155,16 @@ pub const BulletStore = struct {
             .wrap = .Repeat,
         };
 
-        const bullet_texture = try Texture.initFromFile(context, "assets/angrybots_assets/Textures/Bullet/bullet_texture_transparent.png", texture_config);
-        const texture_impact_sprite_sheet = try Texture.initFromFile(context, "assets/angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png", texture_config);
+        const bullet_texture = try Texture.initFromFile(
+            context,
+            "assets/angrybots_assets/Textures/Bullet/bullet_texture_transparent.png",
+            texture_config,
+        );
+        const texture_impact_sprite_sheet = try Texture.initFromFile(
+            context,
+            "assets/angrybots_assets/Textures/Bullet/impact_spritesheet_with_00.png",
+            texture_config,
+        );
 
         const bullet_impact_spritesheet = SpriteSheet.init(texture_impact_sprite_sheet, 11, 0.05);
 
@@ -183,7 +191,7 @@ pub const BulletStore = struct {
             try y_rotations.append(y_rot);
         }
 
-        var bullet_store: BulletStore = .{
+        var bullet_store: BulletSystem = .{
             .bullet_positions = ManagedArrayList(Vec3).init(context.alloc),
             .bullet_rotations = ManagedArrayList(Quat).init(context.alloc),
             .bullet_directions = ManagedArrayList(Vec3).init(context.alloc),
@@ -206,12 +214,11 @@ pub const BulletStore = struct {
         return bullet_store;
     }
 
-    pub fn createBullets(self: *Self, aim_theta: f32, muzzle_transform: *const Mat4) !bool {
-        const muzzle_world_position = muzzle_transform.mulVec4(vec4(0.0, 0.0, 0.0, 1.0));
-        const projectile_spawn_point = muzzle_world_position.xyz();
+    pub fn createBullets(self: *Self, aim_theta: f32, projectile_spawn_point: Vec3) !bool {
+        // const muzzle_world_position = muzzle_transform.mulVec4(vec4(0.0, 0.0, 0.0, 1.0));
+        // const projectile_spawn_point = muzzle_world_position.xyz();
 
-        var mid_dir_quat = Quat.Identity;
-        mid_dir_quat = mid_dir_quat.mulQuat(Quat.fromAxisAngle(UP_VEC, aim_theta));
+        const aim_quat = Quat.fromAxisAngle(UP_VEC, aim_theta);
 
         const current_len = self.bullet_positions.items().len;
         const bullet_group_size = world.SPREAD_AMOUNT * world.SPREAD_AMOUNT;
@@ -230,7 +237,7 @@ pub const BulletStore = struct {
             const i = @divTrunc(count, world.SPREAD_AMOUNT);
             const j = @mod(count, world.SPREAD_AMOUNT);
 
-            const y_quat = mid_dir_quat.mulQuat(self.y_rotations.items()[i]);
+            const y_quat = aim_quat.mulQuat(self.y_rotations.items()[i]);
             const rot_quat = y_quat.mulQuat(self.x_rotations.items()[j]);
 
             const direction = rot_quat.rotateVec(CANONICAL_DIR);
