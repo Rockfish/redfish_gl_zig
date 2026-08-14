@@ -534,7 +534,7 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
     const position_buffer_data = gltf_asset.buffer_data.list.items[position_buffer_view.buffer];
 
     const position_start = position_accessor.byte_offset + position_buffer_view.byte_offset;
-    const position_data_size = getComponentSize(position_accessor.component_type) * getTypeSize(position_accessor.type_) * position_accessor.count;
+    const position_data_size = getComponentSize(position_accessor.component_type) * getTypeSize(position_accessor.accessor_type) * position_accessor.count;
     const position_data = position_buffer_data[position_start .. position_start + position_data_size];
     const positions = @as([*]Vec3, @ptrCast(@alignCast(@constCast(position_data))))[0..vertex_count];
 
@@ -554,7 +554,7 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
         const indices_buffer_data = gltf_asset.buffer_data.list.items[indices_buffer_view.buffer];
 
         const indices_start = indices_accessor.byte_offset + indices_buffer_view.byte_offset;
-        const indices_data_size = getComponentSize(indices_accessor.component_type) * getTypeSize(indices_accessor.type_) * indices_accessor.count;
+        const indices_data_size = getComponentSize(indices_accessor.component_type) * getTypeSize(indices_accessor.accessor_type) * indices_accessor.count;
         const indices_data = indices_buffer_data[indices_start .. indices_start + indices_data_size];
 
         // Handle different index types

@@ -361,7 +361,7 @@ pub const Accessor = struct {
     count: u32,
 
     /// Type of elements (e.g., SCALAR, VEC3) as an enum.
-    type_: AccessorType,
+    accessor_type: AccessorType,
 
     /// Optional. Maximum values for each component.
     max: ?[]f32,

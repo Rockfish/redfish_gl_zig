@@ -419,7 +419,7 @@ pub fn getAABB(gltf_asset: *GltfAsset, accessor_id: usize) AABB {
     const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
     const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
 
-    const data_size = getComponentSize(accessor.component_type) * getTypeSize(accessor.type_) * accessor.count;
+    const data_size = getComponentSize(accessor.component_type) * getTypeSize(accessor.accessor_type) * accessor.count;
     const start = accessor.byte_offset + buffer_view.byte_offset;
     const end = start + data_size;
 
@@ -443,7 +443,7 @@ pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: u
     const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
     const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
 
-    const element_size = getComponentSize(accessor.component_type) * getTypeSize(accessor.type_);
+    const element_size = getComponentSize(accessor.component_type) * getTypeSize(accessor.accessor_type);
     const byte_stride: u32 = buffer_view.byte_stride orelse @intCast(element_size);
 
     const start = accessor.byte_offset + buffer_view.byte_offset;
@@ -462,7 +462,7 @@ pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: u
     log.debug("data size:  {d}\n", .{data_size});
     log.debug("start:  {d}\n", .{start});
     log.debug("end:  {d}\n", .{end});
-    log.debug("element_size: {d}  byte_stride: {d}  type size: {d}\n", .{ element_size, byte_stride, getTypeSize(accessor.type_) });
+    log.debug("element_size: {d}  byte_stride: {d}  type size: {d}\n", .{ element_size, byte_stride, getTypeSize(accessor.accessor_type) });
 
     const data = buffer_data[start..end];
 
@@ -490,19 +490,17 @@ pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: u
     if (gl_index == constants.VertexAttr.JOINTS) {
         gl.vertexAttribIPointer(
             gl_index,
-            @intCast(getTypeSize(accessor.type_)),
+            @intCast(getTypeSize(accessor.accessor_type)),
             gl_type,
             @intCast(byte_stride),
             @ptrFromInt(0),
         );
     } else {
-        const normalized: gl.Boolean = if (gl_type != gl.FLOAT) gl.TRUE else gl.FALSE;
-
         gl.vertexAttribPointer(
             gl_index,
-            @intCast(getTypeSize(accessor.type_)),
+            @intCast(getTypeSize(accessor.accessor_type)),
             gl_type,
-            normalized,
+            if (accessor.normalized) gl.TRUE else gl.FALSE,
             @intCast(byte_stride),
             @ptrFromInt(0),
         );
@@ -515,7 +513,7 @@ pub fn createGlElementBuffer(gltf_asset: *GltfAsset, accessor_id: usize) c_uint 
     const buffer_view = gltf_asset.gltf.buffer_views.?[accessor.buffer_view.?];
     const buffer_data = gltf_asset.buffer_data.list.items[buffer_view.buffer];
 
-    const data_size = getComponentSize(accessor.component_type) * getTypeSize(accessor.type_) * accessor.count;
+    const data_size = getComponentSize(accessor.component_type) * getTypeSize(accessor.accessor_type) * accessor.count;
 
     const start = accessor.byte_offset + buffer_view.byte_offset;
     const end = start + data_size; // buffer_view.byte_length;

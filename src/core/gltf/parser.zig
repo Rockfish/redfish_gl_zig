@@ -695,7 +695,7 @@ fn parseAccessor(allocator: Allocator, accessor_json: json.Value) !gltf_types.Ac
         .component_type = component_type,
         .normalized = normalized,
         .count = count,
-        .type_ = accessor_type,
+        .accessor_type = accessor_type,
         .max = max,
         .min = min,
         .sparse = null,

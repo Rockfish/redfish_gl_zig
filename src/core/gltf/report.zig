@@ -211,7 +211,7 @@ fn writeAccessorInfo(allocating: *std.Io.Writer.Allocating, gltf_asset: *const G
             try allocating.writer.print("Accessor {d}:\n", .{i});
 
             try writeIndent(allocating, indent + 2);
-            try allocating.writer.print("Type: {any}\n", .{accessor.type_});
+            try allocating.writer.print("Type: {any}\n", .{accessor.accessor_type});
 
             try writeIndent(allocating, indent + 2);
             try allocating.writer.print("Component Type: {any}\n", .{accessor.component_type});
