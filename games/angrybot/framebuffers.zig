@@ -10,7 +10,7 @@ pub const FrameBuffer = struct {
     framebuffer_id: u32, // framebuffer object
     texture_id: u32, // texture object
 
-    pub fn deinit(self: FrameBuffer) void {
+    pub fn deleteGlObjects(self: FrameBuffer) void {
         gl.deleteFramebuffers(1, &self.framebuffer_id);
         gl.deleteTextures(1, &self.texture_id);
     }

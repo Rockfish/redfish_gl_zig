@@ -43,11 +43,11 @@ pub const ENEMY_COLLIDER: Capsule = Capsule{ .length = 0.4, .radius = 0.08 };
 // Bullets
 pub const SPREAD_AMOUNT: i32 = 20; // bullet spread
 // pub const SPREAD_AMOUNT: i32 = 1; // bullet spread
-//pub const BULLET_SCALE: f32 = 0.3;
-pub const BULLET_SCALE: f32 = 2.0;
+pub const BULLET_SCALE: f32 = 0.3;
+// pub const BULLET_SCALE: f32 = 2.0;
 pub const BULLET_LIFETIME: f32 = 10.0;
-//pub const BULLET_SPEED: f32 = 15.0;
-pub const BULLET_SPEED: f32 = 2.0;
+pub const BULLET_SPEED: f32 = 15.0;
+// pub const BULLET_SPEED: f32 = 2.0;
 pub const ROTATION_PER_BULLET: f32 = 3.0; // in degrees
 pub const BURN_MARK_TIME: f32 = 5.0; // seconds
 pub const BULLET_COLLIDER: Capsule = Capsule{ .length = 0.3, .radius = 0.03 };
@@ -205,6 +205,7 @@ pub fn getMousePointAngle(view: *const Mat4, position: *Vec3) f32 {
 
 pub fn processInput() void {
     state.player.direction = vec2(0, 0);
+    var direction_vec = Vec3.splat(0.0);
 
     var iterator = state.input.key_presses.iterator();
     while (iterator.next()) |key| {
@@ -225,8 +226,6 @@ pub fn processInput() void {
                 else => {},
             }
         } else {
-            var direction_vec = Vec3.splat(0.0);
-
             switch (key) {
                 .a => direction_vec.addTo(vec3(-1.0, 0.0, 0.0)),
                 .d => direction_vec.addTo(vec3(1.0, 0.0, 0.0)),
@@ -238,12 +237,12 @@ pub fn processInput() void {
                 .four => state.active_camera = state.active_camera, // should be side camera
                 else => {},
             }
-
-            if (direction_vec.lengthSquared() > 0.1) {
-                state.player.position.addTo(direction_vec.toNormalized().mulScalar(state.player.speed * state.delta_time));
-                state.player.direction = vec2(direction_vec.x, direction_vec.z);
-            }
         }
+    }
+
+    if (direction_vec.lengthSquared() > 0.1 and state.player.is_alive) {
+        state.player.position.addTo(direction_vec.toNormalized().mulScalar(state.player.speed * state.delta_time));
+        state.player.direction = vec2(direction_vec.x, direction_vec.z);
     }
 }
 
@@ -330,6 +329,6 @@ fn scrollHandler(window: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.c) 
     _ = window;
     _ = xoffset;
     state.game_camera.adjustFov(@floatCast(yoffset));
-    state.game_camera.setScreenDimensions(state.viewport_width, state.viewport_height);
-    state.floating_camera.setScreenDimensions(state.viewport_width, state.viewport_height);
+    state.floating_camera.adjustFov(@floatCast(yoffset));
+    state.ortho_camera.adjustFov(@floatCast(yoffset));
 }

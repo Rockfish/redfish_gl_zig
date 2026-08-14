@@ -25,7 +25,7 @@ const CameraType = world.CameraType;
 const Player = @import("player.zig").Player;
 const Enemy = @import("enemy.zig").Enemy;
 const EnemySystem = @import("enemy.zig").EnemySystem;
-const BulletStore = @import("bullets.zig").BulletStore;
+const BulletSystem = @import("bullet_system.zig").BulletSystem;
 const BurnMarks = @import("burn_marks.zig").BurnMarks;
 const MuzzleFlash = @import("muzzle_flash.zig").MuzzleFlash;
 const Floor = @import("floor.zig").Floor;
@@ -62,6 +62,13 @@ var vertical_blur_fbo: fb.FrameBuffer = undefined;
 pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     var alloc_arena = ArenaAllocator.init(init.gpa);
     var temp_alloc_arena = ArenaAllocator.init(init.gpa);
+
+    // note: defer occurs in reverse order so these should be the last to run
+    defer {
+        log.debug("Deinitializing game arenas", .{});
+        alloc_arena.deinit();
+        temp_alloc_arena.deinit();
+    }
 
     const context = Context{
         .alloc = alloc_arena.allocator(),
@@ -102,7 +109,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         "games/angrybot/shaders/floor_shader.frag",
     );
 
-    // bullets, muzzle flash, burn marks - using matrix-based instanced shader
+    // bullets, muzzle flash, burn marks - use matrix-based instanced shader
     const instanced_matrix_shader = try Shader.init(
         context.io,
         context.alloc,
@@ -152,28 +159,31 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     );
     _ = _debug_depth_shader;
 
-    defer player_shader.deinit();
-    defer player_emissive_shader.deinit();
-    defer enemy_shader.deinit();
-    defer floor_shader.deinit();
-    defer instanced_matrix_shader.deinit();
-    defer sprite_shader.deinit();
-    defer basic_texture_shader.deinit();
-    defer blur_shader.deinit();
-    defer scene_draw_shader.deinit();
-    defer basicer_shader.deinit();
+    defer player_shader.deleteGlObjects();
+    defer player_emissive_shader.deleteGlObjects();
+    defer enemy_shader.deleteGlObjects();
+    defer floor_shader.deleteGlObjects();
+    defer instanced_matrix_shader.deleteGlObjects();
+    defer sprite_shader.deleteGlObjects();
+    defer basic_texture_shader.deleteGlObjects();
+    defer blur_shader.deleteGlObjects();
+    defer scene_draw_shader.deleteGlObjects();
+    defer basicer_shader.deleteGlObjects();
 
     log.info("games/angrybot/shaders loaded", .{});
-    // --- Lighting ---
 
-    const light_dir = vec3(-0.8, 0.0, -1.0).toNormalized();
+    // --- Lighting ---
+    //const floor_light_dir = vec3(-0.8, 0.0, -1.0).toNormalized();
+    const floor_light_dir = vec3(10.0, 0.0, -10.0).toNormalized();
+
     const player_light_dir = vec3(-1.0, -1.0, -1.0).toNormalized();
     const muzzle_point_light_color = vec3(1.0, 0.2, 0.0);
 
     const light_color = vec3(NON_BLUE * 0.406, NON_BLUE * 0.723, 1.0).mulScalar(LIGHT_FACTOR * 1.0);
     const ambient_color = vec3(NON_BLUE * 0.7, NON_BLUE * 0.7, 0.7).mulScalar(LIGHT_FACTOR * 0.10);
 
-    const floor_light_color = vec3(FLOOR_NON_BLUE * 0.406, FLOOR_NON_BLUE * 0.723, 1.0).mulScalar(FLOOR_LIGHT_FACTOR * 1.0);
+    // const floor_light_color = vec3(FLOOR_NON_BLUE * 0.406, FLOOR_NON_BLUE * 0.723, 1.0).mulScalar(FLOOR_LIGHT_FACTOR * 1.0);
+    const floor_light_color = vec3(1, 1, 1.0).mulScalar(FLOOR_LIGHT_FACTOR * 1.0);
     const floor_ambient_color = vec3(FLOOR_NON_BLUE * 0.7, FLOOR_NON_BLUE * 0.7, 0.7).mulScalar(FLOOR_LIGHT_FACTOR * 0.50);
 
     const window_scale = window.getContentScale();
@@ -198,7 +208,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     // --- Cameras ---
 
-    // const camera_follow_vec = vec3(-4.0, 4.3, 0.0); //original
+    const camera_follow_vec = vec3(2.0, 4.3, 4.0);
 
     // const _camera_up = vec3(0.0, 1.0, 0.0);
 
@@ -206,36 +216,34 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         context.alloc,
         .{
             //.position = vec3(0.0, 20.0, 80.0),
-            .position = vec3(4.0, 10.0, 30.0),
+            .position = camera_follow_vec,
             .target = vec3(0.0, 0.0, 0.0),
             .scr_width = VIEW_PORT_WIDTH,
             .scr_height = VIEW_PORT_HEIGHT,
         },
     );
 
+    // Side camera
     const floating_camera = try Camera.init(
         context.alloc,
         .{
-            .position = vec3(0.0, 10.0, 20.0),
+            .position = vec3(0.0, 0.5, 5.0),
             .target = vec3(0.0, 0.0, 0.0),
             .scr_width = VIEW_PORT_WIDTH,
             .scr_height = VIEW_PORT_HEIGHT,
         },
     );
 
+    // top camera
     const ortho_camera = try Camera.init(
         context.alloc,
         .{
-            .position = vec3(0.0, 1.0, 0.0),
+            .position = vec3(0.0, 5.0, 0.0),
             .target = vec3(0.0, 0.0, 0.0),
             .scr_width = VIEW_PORT_WIDTH,
             .scr_height = VIEW_PORT_HEIGHT,
         },
     );
-
-    defer game_camera.deinit();
-    defer floating_camera.deinit();
-    defer ortho_camera.deinit();
 
     // const game_projection = game_camera.getProjectionMatrixWithType(.Perspective);
     // const floating_projection = floating_camera.getProjectionMatrixWithType(.Perspective);
@@ -243,11 +251,11 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     log.info("camers loaded", .{});
 
-    // Models and systems (modern glTF system doesn't need global texture cache)
+    // Models and systems
     var player = try Player.init(context);
     var enemy_system = try EnemySystem.init(context);
     var muzzle_flash = try MuzzleFlash.init(context, unit_square_quad);
-    var bullet_store = try BulletStore.init(context, unit_square_quad);
+    var bullet_system = try BulletSystem.init(context, unit_square_quad);
     var floor = try Floor.init(context);
     const burn_marks = try BurnMarks.init(context, unit_square_quad);
 
@@ -255,11 +263,17 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     const clips = [2]world.ClipData{
         .{ .clip = .Explosion, .file = "assets/angrybots_assets/Audio/Enemy_SFX/enemy_Spider_DestroyedExplosion.wav" },
-        .{ .clip = .GunFire, .file = "assets/angrybots_assets/Audio/Player_SFX/player_shooting.wav" },
+        .{ .clip = .GunFire, .file = "assets/angrybots_assets/Audio/Player_SFX/player_shooting_one.wav" },
     };
 
-    var sound_engine = try SoundEngine(world.ClipName, world.ClipData).init(context.alloc, &clips);
-    defer sound_engine.deinit();
+    var sound_engine = try SoundEngine(world.ClipName, world.ClipData).init(
+        context.alloc,
+        &clips,
+    );
+    defer {
+        log.debug("Deinitializing sound engine", .{});
+        sound_engine.deinit();
+    }
 
     // Initialize the world state
     state = State{
@@ -302,10 +316,9 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     log.info("state.mouse_x: {d}", .{state.mouse_x});
     log.info("state.mouse_y: {d}", .{state.mouse_y});
 
-    // note: defer occurs in reverse order
     defer player.deleteGlObjects();
     defer enemy_system.deleteGlObjects();
-    defer state.enemies.deinit();
+    // defer state.enemies.deinit();
 
     // Set constant shader uniforms
 
@@ -317,7 +330,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     // player_shader.bindTextureAuto("shadow_map", depth_map_fbo.texture_id);
 
     floor_shader.useShader();
-    floor_shader.setVec3("directionLight.dir", light_dir);
+    floor_shader.setVec3("directionLight.dir", floor_light_dir);
     floor_shader.setVec3("directionLight.color", floor_light_color);
     floor_shader.setVec3("ambient", floor_ambient_color);
 
@@ -373,6 +386,12 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
         state.game_camera.movement.target = state.player.position;
         state.active_camera.movement.target = state.player.position;
+
+        state.game_camera.reset(
+            state.player.position.add(camera_follow_vec),
+            state.player.position,
+        );
+
         // world.updateCameras();
         //
         // const game_view = Mat4.lookAtRhGl(
@@ -381,7 +400,10 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         // &state.game_camera.movement.up,
         // );
 
-        aim_angle = world.getMousePointAngle(&state.game_camera.getView(), &state.player.position);
+        if (player.is_alive) {
+            aim_angle = world.getMousePointAngle(&state.game_camera.getView(), &state.player.position);
+        }
+
         const aim_rotation_matrix = Mat4.fromAxisAngle(vec3(0.0, 1.0, 0.0), aim_angle);
 
         const player_scale = Vec3.splat(world.PLAYER_MODEL_SCALE);
@@ -389,13 +411,16 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
         var player_transform = Mat4.fromTranslation(player.position);
         player_transform = player_transform.mulMat4(&scale_mat4);
-        player_transform = player_transform.mulMat4(&aim_rotation_matrix);
 
-        const muzzle_transform = player.getMuzzlePosition(&player_transform);
+        if (player.is_alive) {
+            player_transform = player_transform.mulMat4(&aim_rotation_matrix);
+        }
+
+        const projectile_spawn_point = player.getMuzzlePosition(&player_transform);
 
         if (player.is_alive and player.is_trying_to_fire and (player.last_fire_time + world.FIRE_INTERVAL) < state.frame_time) {
             player.last_fire_time = state.frame_time;
-            if (try bullet_store.createBullets(aim_angle, &muzzle_transform)) {
+            if (try bullet_system.createBullets(aim_angle, projectile_spawn_point)) {
                 try muzzle_flash.addFlash();
                 state.sound_engine.playSound(.GunFire);
             }
@@ -403,7 +428,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
         muzzle_flash.update(state.delta_time);
 
-        try bullet_store.updateBullets(&state);
+        try bullet_system.updateBullets(&state);
 
         if (player.is_alive) {
             try enemy_system.update(&state);
@@ -413,19 +438,18 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         try player.update(&state, aim_angle);
 
         var use_point_light = false;
-        var muzzle_world_position = Vec3.Zero;
+        // var muzzle_world_position = Vec3.Zero;
 
         if (muzzle_flash.muzzle_flash_sprites_age.list.items.len != 0) {
             const min_age = muzzle_flash.getMinAge();
-            const muzzle_world_position_vec4 = muzzle_transform.mulVec4(vec4(0.0, 0.0, 0.0, 1.0));
-
-            muzzle_world_position = vec3(
-                muzzle_world_position_vec4.x / muzzle_world_position_vec4.w,
-                muzzle_world_position_vec4.y / muzzle_world_position_vec4.w,
-                muzzle_world_position_vec4.z / muzzle_world_position_vec4.w,
-            );
-
             use_point_light = min_age < 0.03;
+            // const muzzle_world_position_vec4 = muzzle_transform.mulVec4(vec4(0.0, 0.0, 0.0, 1.0));
+
+            // muzzle_world_position = vec3(
+            // muzzle_world_position_vec4.x / muzzle_world_position_vec4.w,
+            // muzzle_world_position_vec4.y / muzzle_world_position_vec4.w,
+            // muzzle_world_position_vec4.z / muzzle_world_position_vec4.w,
+            // );
         }
 
         const near_plane: f32 = 1.0;
@@ -454,14 +478,15 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         player_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
         player_shader.setBool("usePointLight", use_point_light);
         player_shader.setVec3("pointLight.color", muzzle_point_light_color);
-        player_shader.setVec3("pointLight.worldPos", muzzle_world_position);
+        player_shader.setVec3("pointLight.worldPos", projectile_spawn_point);
 
         floor_shader.useShader();
         floor_shader.setVec3("viewPos", state.game_camera.movement.transform.translation);
         floor_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
-        floor_shader.setBool("usePointLight", use_point_light);
+        // floor_shader.setBool("usePointLight", use_point_light);
+        floor_shader.setBool("usePointLight", false);
         floor_shader.setVec3("pointLight.color", muzzle_point_light_color);
-        floor_shader.setVec3("pointLight.worldPos", muzzle_world_position);
+        floor_shader.setVec3("pointLight.worldPos", projectile_spawn_point);
 
         //
         // shadows start - write to depth map fbo
@@ -525,7 +550,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             // }
 
             // log.info("drawing bullet_store ", .{});
-            bullet_store.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
+            bullet_system.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
 
             // const debug_emission = false;
             // if (debug_emission) {
@@ -591,7 +616,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         // log.info("drawing player", .{});
         player.draw(player_shader);
 
-        muzzle_flash.draw(sprite_shader, &state.active_camera.getProjectionView(), &muzzle_transform);
+        muzzle_flash.draw(sprite_shader, &state.active_camera.getProjectionView(), projectile_spawn_point);
 
         enemy_shader.useShader();
         enemy_shader.setBool("useLight", true);
@@ -605,10 +630,10 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         state.burn_marks.drawMarks(basic_texture_shader, &state.active_camera.getProjectionView(), state.delta_time);
 
         // log.info("drawing bullet_impacts", .{});
-        bullet_store.drawBulletImpacts(sprite_shader, &state.active_camera.getProjectionView());
+        bullet_system.drawBulletImpacts(sprite_shader, &state.active_camera.getProjectionView());
 
         if (!use_framebuffers) {
-            bullet_store.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
+            bullet_system.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
         }
 
         if (use_framebuffers) {
@@ -681,8 +706,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         window.swapBuffers();
     }
 
-    alloc_arena.deinit();
-    temp_alloc_arena.deinit();
     log.info("\nRun completed.\n", .{});
 }
 
@@ -696,10 +719,10 @@ fn framebufferCreate(viewport_width: f32, viewport_height: f32) void {
 
 fn framebufferUpdate(viewport_width: f32, viewport_height: f32, use_framebuffers: bool) void {
     if (use_framebuffers) {
-        emissions_fbo.deinit();
-        scene_fbo.deinit();
-        horizontal_blur_fbo.deinit();
-        vertical_blur_fbo.deinit();
+        emissions_fbo.deleteGlObjects();
+        scene_fbo.deleteGlObjects();
+        horizontal_blur_fbo.deleteGlObjects();
+        vertical_blur_fbo.deleteGlObjects();
 
         emissions_fbo = fb.createEmissionFbo(viewport_width, viewport_height);
         scene_fbo = fb.createSceneFbo(viewport_width, viewport_height);

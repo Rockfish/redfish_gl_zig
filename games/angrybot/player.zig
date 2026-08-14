@@ -10,6 +10,7 @@ const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
 const vec2 = math.vec2;
 const vec3 = math.vec3;
+const vec4 = math.vec4;
 const Mat4 = math.Mat4;
 
 const Context = core.Context;
@@ -192,17 +193,23 @@ pub const Player = struct {
     }
 
     pub fn update(self: *Self, state: *State, aim_theta: f32) !void {
-        const weight_animations = self.updateAnimationWeights(self.direction, aim_theta, state.frame_time);
+        const weight_animations = self.updateAnimationWeights(
+            self.direction,
+            aim_theta,
+            state.frame_time,
+        );
         // Use the new glTF animation blending system
         try self.model.updateWeightedAnimations(&weight_animations, state.frame_time);
     }
 
-    pub fn getMuzzlePosition(self: *Self, player_transform: *const Mat4) Mat4 {
+    pub fn getMuzzlePosition(self: *Self, player_transform: *const Mat4) Vec3 {
         _ = self; // Suppress unused parameter warning
         // Simple muzzle offset - adjust these values as needed for gun positioning
-        const muzzle_offset = vec3(0.0, 120, 100); // Forward and up from player center
+        const muzzle_offset = vec3(-29, 120, 92); // Forward and up from player center
         const muzzle_translation = Mat4.fromTranslation(muzzle_offset);
-        return player_transform.mulMat4(&muzzle_translation);
+        const muzzle_world_position = player_transform.mulMat4(&muzzle_translation).mulVec4(vec4(0.0, 0.0, 0.0, 1.0));
+        const projectile_spawn_point = muzzle_world_position.xyz();
+        return projectile_spawn_point;
     }
 
     fn updateAnimationWeights(self: *Self, direction: Vec2, aim_theta: f32, frame_time: f32) [6]WeightedAnimation {

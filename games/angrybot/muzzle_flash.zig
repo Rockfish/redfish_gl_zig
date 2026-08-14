@@ -10,13 +10,15 @@ const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
 
 const Context = core.Context;
-const vec3 = math.vec3;
 const Mat4 = math.Mat4;
 const Shader = core.Shader;
 const Texture = core.texture.Texture;
 const TextureConfig = core.texture.TextureConfig;
 const TextureWrap = core.texture.TextureWrap;
 const TextureFilter = core.texture.TextureFilter;
+
+const vec3 = math.vec3;
+const Vec3 = math.Vec3;
 
 const SpriteAge = struct {
     age: f32,
@@ -82,7 +84,7 @@ pub const MuzzleFlash = struct {
     }
 
     pub fn getMinAge(self: *const Self) f32 {
-        var min_age: f32 = 1000;
+        var min_age: f32 = 5000;
         for (self.muzzle_flash_sprites_age.list.items) |spriteAge| {
             min_age = @min(min_age, spriteAge.?.age);
         }
@@ -94,7 +96,7 @@ pub const MuzzleFlash = struct {
         try self.muzzle_flash_sprites_age.append(sprite_age);
     }
 
-    pub fn draw(self: *const Self, sprite_shader: *Shader, projection_view: *const Mat4, muzzle_transform: *const Mat4) void {
+    pub fn draw(self: *const Self, sprite_shader: *Shader, projection_view: *const Mat4, projectile_spawn_point: Vec3) void {
         if (self.muzzle_flash_sprites_age.list.items.len == 0) {
             return;
         }
@@ -113,7 +115,7 @@ pub const MuzzleFlash = struct {
 
         const scale: f32 = 50.0;
 
-        var model = muzzle_transform.mulMat4(&Mat4.fromScale(vec3(scale, scale, scale)));
+        var model = Mat4.fromTranslation(projectile_spawn_point).mulMat4(&Mat4.fromScale(vec3(scale, scale, scale)));
 
         model = model.mulMat4(&Mat4.fromRotationX(math.degreesToRadians(-90.0)));
         model = model.mulMat4(&Mat4.fromRotationZ(math.degreesToRadians(-90.0)));
