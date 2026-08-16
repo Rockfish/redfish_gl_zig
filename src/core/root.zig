@@ -5,6 +5,7 @@ pub const utils = @import("utils/root.zig");
 pub const asset_loader = @import("asset_loader.zig");
 pub const gltf_report = @import("gltf/report.zig");
 pub const constants = @import("constants.zig");
+pub const gl_debug = @import("gl_debug.zig");
 
 pub const Arenas = @import("arenas.zig").Arenas;
 pub const Context = @import("context.zig").Context;

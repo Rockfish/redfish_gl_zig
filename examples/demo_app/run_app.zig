@@ -15,6 +15,7 @@ const Context = core.Context;
 const constants = core.constants;
 const Camera = core.Camera;
 const asset_loader = core.asset_loader;
+const gl_debug = core.gl_debug;
 
 const gl = zopengl.bindings;
 
@@ -304,6 +305,10 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
 
     shader.useShader();
 
+    // Drain setup-time errors (asset load, texture upload, shader link) so they
+    // are not attributed to the first frame.
+    gl_debug.check("setup");
+
     // gl.enable(gl.CULL_FACE); // Temporarily disabled to fix Fox lighting issue
 
     var buf: [1024]u8 = undefined;
@@ -457,6 +462,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
 
         // model.draw(shader);
         current_scope.getModel().draw(shader);
+        gl_debug.check("model pass");
 
         // One-shot screenshot completion: dump data and clear flag
         if (capture_screenshot) {
@@ -478,6 +484,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
 
         // Draw UI overlay
         ui_state.draw(current_scope.getModel());
+        gl_debug.check("ui pass");
 
         //try core.dumpModelNodes(model);
         window.swapBuffers();

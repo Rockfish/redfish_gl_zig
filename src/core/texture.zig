@@ -2,6 +2,7 @@ const std = @import("std");
 const zstbi = @import("zstbi");
 const gl = @import("zopengl").bindings;
 const utils = @import("utils/root.zig");
+const gl_debug = @import("gl_debug.zig");
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 const Context = @import("context.zig").Context;
@@ -222,7 +223,7 @@ pub fn createGl2DTexture(image: zstbi.Image, sampler: gltf_types.Sampler) c_uint
         gl.UNSIGNED_BYTE,
         image.data.ptr,
     );
-    glSuccess("glTexImage2D");
+    gl_debug.check("glTexImage2D");
 
     gl.generateMipmap(gl.TEXTURE_2D);
 
@@ -271,14 +272,4 @@ pub fn createGl2DTexture(image: zstbi.Image, sampler: gltf_types.Sampler) c_uint
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, mag_filter);
 
     return gl_texture_id;
-}
-
-pub fn glSuccess(func_name: []const u8) void {
-    for (0..8) |_| {
-        const error_code = gl.getError();
-        if (error_code == gl.NO_ERROR) {
-            break;
-        }
-        std.debug.print("GL error for function: {s}  error code: {d}\n", .{ func_name, error_code });
-    }
 }

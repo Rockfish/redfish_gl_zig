@@ -20,6 +20,7 @@ const vec4 = math.vec4;
 const Mat4 = math.Mat4;
 
 const Context = core.Context;
+const gl_debug = core.gl_debug;
 const State = world.State;
 const CameraType = world.CameraType;
 const Player = @import("player.zig").Player;
@@ -341,7 +342,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     log.info("games/angrybot/shaders initilized", .{});
     // --------------------------------
 
-    const use_framebuffers = false;
+    const use_framebuffers = true;
 
     var aim_angle: f32 = 0.0;
     // var quad_vao: gl.Uint = 0;
@@ -351,6 +352,10 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     var frame_counter = core.FrameCounter.init(init.io);
 
     log.info("Starting game loop!", .{});
+
+    // Drain setup-time errors (asset load, texture upload, shader link, fbo setup)
+    // so they are not attributed to the first frame.
+    gl_debug.check("setup");
 
     while (!window.shouldClose()) {
         glfw.pollEvents();
@@ -506,6 +511,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         //
         // shadows end
         //
+        gl_debug.check("shadow pass");
 
         if (use_framebuffers) {
             // draw to emission buffer
@@ -543,6 +549,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
             // log.info("drawing bullet_store ", .{});
             bullet_system.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
+
+            gl_debug.check("emission pass");
 
             // const debug_emission = false;
             // if (debug_emission) {
@@ -625,6 +633,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             bullet_system.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
         }
 
+        gl_debug.check("scene pass");
+
         if (use_framebuffers) {
             // generated blur and combine with emission and scene for final draw to framebuffer 0
             // gl.Disable(gl.DEPTH_TEST);
@@ -642,6 +652,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             blur_shader.setBool("horizontal", true);
 
             gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl_debug.check("horizontal blur pass");
 
             // Draw vertical blur
             gl.bindFramebuffer(gl.FRAMEBUFFER, vertical_blur_fbo.framebuffer_id);
@@ -653,6 +664,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             blur_shader.setBool("horizontal", false);
 
             gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl_debug.check("vertical blur pass");
 
             // view port for final draw combining everything
             gl.viewport(0, 0, @intFromFloat(viewport_width), @intFromFloat(viewport_height));
@@ -667,6 +679,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             scene_draw_shader.bindTextureAuto("bright_texture", emissions_fbo.texture_id);
 
             gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl_debug.check("composite pass");
 
             // gl.Enable(gl.DEPTH_TEST);
 
