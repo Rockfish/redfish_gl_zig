@@ -18,6 +18,8 @@ const TextureConfig = core.texture.TextureConfig;
 const Shader = core.Shader;
 const Random = core.Random;
 
+const log = std.log.scoped(.enemy);
+
 pub const Enemy = struct {
     position: Vec3,
     dir: Vec3,
@@ -69,9 +71,9 @@ pub const EnemySystem = struct {
         // no normal in shader, so we can skip this
         //try gltf_asset.addTexture("EelDog", "texture_normal", "Eeldog_Normal.png", texture_config);
 
-        std.debug.print("EnemySystem: glTF asset loaded and configured\n", .{});
+        log.info("EnemySystem: glTF asset loaded and configured", .{});
         const enemy_model = try gltf_asset.buildModel();
-        std.debug.print("EnemySystem: model built successfully\n", .{});
+        log.info("EnemySystem: model built successfully", .{});
 
         return .{
             .count_down = world.ENEMY_SPAWN_INTERVAL,

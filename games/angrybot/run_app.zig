@@ -37,7 +37,7 @@ const Camera = core.Camera;
 const Shader = core.Shader;
 const SoundEngine = core.SoundEngine;
 
-const log = std.log.scoped(.Run_App);
+const log = std.log.scoped(.run_app);
 
 const Window = glfw.Window;
 
@@ -708,7 +708,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         window.swapBuffers();
     }
 
-    log.info("\nRun completed.\n", .{});
+    log.info("Run completed.", .{});
 }
 
 fn framebufferCreate(viewport_width: f32, viewport_height: f32) void {

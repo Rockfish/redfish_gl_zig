@@ -19,6 +19,8 @@ const StringHashMap = std.StringHashMap;
 
 const readFileToEndZ = utils.readFileToEndZ;
 
+const log = std.log.scoped(.shader);
+
 // const ShaderError = error{
 //     CompileError,
 //     LinkError,
@@ -364,7 +366,7 @@ pub const Shader = struct {
             map.put(owned_key, unit) catch @panic("Failed to store texture unit mapping");
             next_available_unit += 1;
 
-            std.debug.print("Shader {d} uniform: '{s}' -> texture unit {d}\n", .{ self.id, uniform_name, unit });
+            log.debug("Shader {d} uniform: '{s}' -> texture unit {d}", .{ self.id, uniform_name, unit });
 
             return unit;
         }
@@ -461,7 +463,7 @@ pub const Shader = struct {
         var writer = file.writer(self.io, json_content);
         try writer.flush();
 
-        std.debug.print("Shader uniforms saved: {s}\n", .{filepath});
+        log.debug("Shader uniforms saved: {s}", .{filepath});
     }
 
     pub fn dumpDebugUniforms(self: *Self, buffer: []u8) ![]u8 {

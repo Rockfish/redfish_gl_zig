@@ -23,6 +23,8 @@ const AnimationClip = core.AnimationClip;
 const AnimationRepeatMode = core.AnimationRepeatMode;
 const WeightedAnimation = core.WeightedAnimation;
 
+const log = std.log.scoped(.player);
+
 pub const AnimationName = enum {
     idle,
     right,
@@ -137,9 +139,9 @@ pub const Player = struct {
         try gltf_asset.addTexture("Gun", "texture_emissive", "Textures/Gun_E.tga", texture_config);
         try gltf_asset.addTexture("Gun", "texture_normal", "Textures/Gun_NRM.tga", texture_config);
 
-        std.debug.print("Player: glTF asset loaded and configured\n", .{});
+        log.info("Player: glTF asset loaded and configured", .{});
         const model = try gltf_asset.buildModel();
-        std.debug.print("Player: model built successfully\n", .{});
+        log.info("Player: model built successfully", .{});
 
         // Convert frame-based animation data to time-based for glTF
         // const fps = 24.0;

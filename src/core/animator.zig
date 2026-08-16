@@ -286,7 +286,7 @@ pub const Animator = struct {
         var buf: [500]u8 = undefined;
         for (initial_nodes, 0..) |node, i| {
             log.debug(
-                "Node {d}: '{s}' transform: {s}\n",
+                "Node {d}: '{s}' transform: {s}",
                 .{ i, node.name orelse "unnamed", node.initial_transform.asString(&buf) },
             );
         }
@@ -309,7 +309,7 @@ pub const Animator = struct {
     /// Play an animation clip
     pub fn playClip(self: *Self, clip: AnimationClip) !void {
         if (clip.animation_index >= self.animations.len) {
-            log.debug("Invalid animation index: {d}\n", .{clip.animation_index});
+            log.debug("Invalid animation index: {d}", .{clip.animation_index});
             return;
         }
 
@@ -323,20 +323,20 @@ pub const Animator = struct {
         );
         try self.active_animations.append(anim_state);
 
-        log.debug("Playing glTF animation {d}\n", .{clip.animation_index});
+        log.debug("Playing glTF animation {d}", .{clip.animation_index});
     }
 
     /// Play animation by index
     pub fn playAnimationById(self: *Self, animation_index: u32) !void {
         if (animation_index >= self.animations.len) {
-            log.debug("Invalid animation index: {d}\n", .{animation_index});
+            log.debug("Invalid animation index: {d}", .{animation_index});
             return;
         }
 
         const animation = self.animations[animation_index];
 
         log.debug(
-            "Animation {d} '{s}' duration: {d:.2}s, nodes: {d}\n",
+            "Animation {d} '{s}' duration: {d:.2}s, nodes: {d}",
             .{ animation_index, animation.name, animation.duration, animation.node_data.len },
         );
 
@@ -382,7 +382,7 @@ pub const Animator = struct {
             try self.active_animations.append(anim_state);
         }
 
-        log.debug("Playing {d} animations simultaneously\n", .{self.animations.len});
+        log.debug("Playing {d} animations simultaneously", .{self.animations.len});
     }
 
     /// Play specific animations by indices
@@ -885,7 +885,7 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                         .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                log.debug("Parsed cubic spline translation with {d} keyframes\\n", .{cubic_data.values.len});
+                                log.debug("Parsed cubic spline translation with {d} keyframes", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -911,7 +911,7 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                         .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                log.debug("Parsed cubic spline rotation with {d} keyframes\\n", .{cubic_data.values.len});
+                                log.debug("Parsed cubic spline rotation with {d} keyframes", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -937,7 +937,7 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                         .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                log.debug("Parsed cubic spline scale with {d} keyframes\\n", .{cubic_data.values.len});
+                                log.debug("Parsed cubic spline scale with {d} keyframes", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -963,7 +963,7 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
                                         .out_tangents = cubic_data.out_tangents,
                                     },
                                 };
-                                log.debug("Parsed cubic spline weights with {d} keyframes\\n", .{cubic_data.values.len});
+                                log.debug("Parsed cubic spline weights with {d} keyframes", .{cubic_data.values.len});
                             },
                         }
                     },
@@ -1030,7 +1030,7 @@ fn preprocessAnimationChannels(allocator: Allocator, gltf_asset: *const GltfAsse
             };
 
             log.debug(
-                "Pre-processed animation {d} '{s}': {d:.2}s duration, {d} nodes with animation data\n",
+                "Pre-processed animation {d} '{s}': {d:.2}s duration, {d} nodes with animation data",
                 .{ anim_idx, animation_name, max_time, node_channels_list.len },
             );
         }
@@ -1074,7 +1074,7 @@ fn preprocessNodes(allocator: Allocator, gltf_asset: *const GltfAsset) []Node {
             };
         }
 
-        log.debug("Preprocessed {d} nodes with transform data\n", .{nodes.len});
+        log.debug("Preprocessed {d} nodes with transform data", .{nodes.len});
         return nodes;
     }
 

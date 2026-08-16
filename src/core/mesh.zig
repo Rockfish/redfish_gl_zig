@@ -396,7 +396,7 @@ pub const MeshPrimitive = struct {
         for (gltf_asset.custom_textures.list.items) |*custom_tex| {
             if (std.mem.eql(u8, custom_tex.mesh_name, mesh_name)) {
                 const texture = gltf_asset.loadCustomTexture(custom_tex) catch {
-                    log.debug("Failed to load custom texture: {s}\n", .{custom_tex.texture_path});
+                    log.debug("Failed to load custom texture: {s}", .{custom_tex.texture_path});
                     continue;
                 };
 
@@ -405,7 +405,7 @@ pub const MeshPrimitive = struct {
                 // Set a flag indicating this uniform has a texture
                 // This allows shaders to conditionally use textures
                 const flag_name = std.fmt.bufPrintZ(&buf, "has_{s}", .{custom_tex.uniform_name}) catch {
-                    log.debug("Failed to allocate flag name for {s}\n", .{custom_tex.uniform_name});
+                    log.debug("Failed to allocate flag name for {s}", .{custom_tex.uniform_name});
                     continue;
                 };
                 shader.setBool(flag_name, true);
@@ -426,7 +426,7 @@ pub fn getAABB(gltf_asset: *GltfAsset, accessor_id: usize) AABB {
     const data = buffer_data[start..end];
     const len: usize = data.len / @sizeOf(Vec3);
     std.debug.assert(len == accessor.count);
-    log.debug("aabb number of positions: {d}\n", .{len});
+    log.debug("aabb number of positions: {d}", .{len});
 
     const positions = @as([*]Vec3, @ptrCast(@alignCast(@constCast(data))))[0..len];
 
@@ -456,13 +456,13 @@ pub fn createGlArrayBuffer(gltf_asset: *GltfAsset, gl_index: u32, accessor_id: u
 
     const end = start + data_size;
 
-    log.debug("\naccessor:  {any}\n", .{accessor});
-    log.debug("buffer_view:  {any}\n", .{buffer_view});
-    log.debug("buffer len:  {d}\n", .{buffer_data.len});
-    log.debug("data size:  {d}\n", .{data_size});
-    log.debug("start:  {d}\n", .{start});
-    log.debug("end:  {d}\n", .{end});
-    log.debug("element_size: {d}  byte_stride: {d}  type size: {d}\n", .{ element_size, byte_stride, getTypeSize(accessor.accessor_type) });
+    log.debug("array buffer: accessor:  {any}", .{accessor});
+    log.debug("array buffer: buffer_view:  {any}", .{buffer_view});
+    log.debug("array buffer: buffer len:  {d}", .{buffer_data.len});
+    log.debug("array buffer: data size:  {d}", .{data_size});
+    log.debug("array buffer: start:  {d}", .{start});
+    log.debug("array buffer: end:  {d}", .{end});
+    log.debug("array buffer: element_size: {d}  byte_stride: {d}  type size: {d}", .{ element_size, byte_stride, getTypeSize(accessor.accessor_type) });
 
     const data = buffer_data[start..end];
 
@@ -518,12 +518,12 @@ pub fn createGlElementBuffer(gltf_asset: *GltfAsset, accessor_id: usize) c_uint 
     const start = accessor.byte_offset + buffer_view.byte_offset;
     const end = start + data_size; // buffer_view.byte_length;
 
-    // log.debug("\naccessor:  {any}\n", .{accessor});
-    // log.debug("buffer_view:  {any}\n", .{buffer_view});
-    // log.debug("buffer len:  {d}\n", .{buffer_data.len});
-    // log.debug("data size:  {d}\n", .{data_size});
-    // log.debug("start:  {d}\n", .{start});
-    // log.debug("end:  {d}\n", .{end});
+    log.debug("element buffer: accessor:  {any}", .{accessor});
+    log.debug("element buffer: buffer_view:  {any}", .{buffer_view});
+    log.debug("element buffer: buffer len:  {d}", .{buffer_data.len});
+    log.debug("element buffer: data size:  {d}", .{data_size});
+    log.debug("element buffer: start:  {d}", .{start});
+    log.debug("element buffer: end:  {d}", .{end});
 
     const data = buffer_data[start..end];
 

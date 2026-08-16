@@ -10,6 +10,8 @@ const Context = @import("context.zig").Context;
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 
+const log = std.log.scoped(.texture);
+
 pub const TextureConfig = struct {
     filter: TextureFilter = .Linear,
     wrap: TextureWrap = .Clamp,
@@ -78,7 +80,7 @@ pub const Texture = struct {
             .width = image.width,
             .height = image.height,
         };
-        // std.debug.print("Texture loaded: {any}, image components: {d}\n", .{ texture, image.num_components });
+        log.debug("Texture loaded: {any}, image components: {d}", .{ texture, image.num_components });
         return texture;
     }
 
@@ -94,7 +96,7 @@ pub const Texture = struct {
         zstbi.setFlipVerticallyOnLoad(config.flip_v);
 
         var image = zstbi.Image.loadFromFile(file_path, 0) catch |err| {
-            std.debug.print("Custom texture loadFromFile error: {any}  filepath: {s}\n", .{ err, file_path });
+            log.debug("Custom texture loadFromFile error: {any}  filepath: {s}", .{ err, file_path });
             return err;
         };
         defer image.deinit();
@@ -129,7 +131,7 @@ pub const Texture = struct {
             .height = image.height,
         };
 
-        std.debug.print("Custom texture loaded: {s}, dimensions: {d}x{d}\n", .{ file_path, texture.width, texture.height });
+        log.debug("Custom texture loaded: {s}, dimensions: {d}x{d}", .{ file_path, texture.width, texture.height });
         return texture;
     }
 
@@ -162,10 +164,10 @@ pub fn loadImage(context: Context, gltf_asset: *GltfAsset, gltf_image: gltf_type
                     std.debug.panic("Texture base64 decoder error: {any}\n", .{err});
                 };
                 const image = zstbi.Image.loadFromMemory(data_buffer, 0) catch |err| {
-                    std.debug.print("Texture loadFromMemory error: {any}  using uri: {any}\n", .{ err, uri[0..5] });
+                    log.debug("Texture loadFromMemory error: {any}  using uri: {any}", .{ err, uri[0..5] });
                     @panic(@errorName(err));
                 };
-                std.debug.print("Image loaded from uri: {s}\n", .{uri});
+                log.debug("Image loaded from uri: {s}", .{uri});
                 return image;
             }
             std.debug.panic("Texture uri malformed. uri: {any}", .{uri});
@@ -174,10 +176,10 @@ pub fn loadImage(context: Context, gltf_asset: *GltfAsset, gltf_image: gltf_type
                 std.debug.panic("Texture allocator error: {any}\n", .{err});
             };
             defer context.temp_alloc.free(c_path);
-            std.debug.print("Loading texture from file: {s}\n", .{c_path});
+            log.debug("Loading texture from file: {s}", .{c_path});
             // Try forcing RGBA (4 channels) to handle sRGB images properly
             const image = zstbi.Image.loadFromFile(c_path, 4) catch |err| {
-                std.debug.print("Texture loadFromFile error: {any}  filepath: {s}\n", .{ err, c_path });
+                log.debug("Texture loadFromFile error: {any}  filepath: {s}", .{ err, c_path });
                 @panic(@errorName(err));
             };
             return image;
@@ -190,7 +192,7 @@ pub fn loadImage(context: Context, gltf_asset: *GltfAsset, gltf_image: gltf_type
         const data = gltf_asset.buffer_data.list.items[buffer_view.buffer][buffer_view.byte_offset .. buffer_view.byte_offset + buffer_view.byte_length];
 
         const image = zstbi.Image.loadFromMemory(data, 0) catch |err| {
-            std.debug.print("Texture loadFromMemory error: {any}  bufferview: {any}\n", .{ err, buffer_view });
+            log.debug("Texture loadFromMemory error: {any}  bufferview: {any}", .{ err, buffer_view });
             @panic(@errorName(err));
         };
         return image;

@@ -206,7 +206,7 @@ pub const GltfAsset = struct {
 
                     // Get vertex count from position accessor
                     const position_accessor_id = primitive.attributes.position orelse {
-                        log.debug("Primitive {d}.{d} has no position data, skipping normal generation\n", .{ mesh_index, primitive_index });
+                        log.debug("Primitive {d}.{d} has no position data, skipping normal generation", .{ mesh_index, primitive_index });
                         continue;
                     };
 
@@ -224,7 +224,7 @@ pub const GltfAsset = struct {
                     const key = (@as(u64, @intCast(mesh_index)) << 32) | @as(u64, @intCast(primitive_index));
                     try self.generated_normals.put(key, normals);
 
-                    log.debug("Generated {s} normals for mesh {d} primitive {d} ({d} vertices)\n", .{ @tagName(self.normal_generation_mode), mesh_index, primitive_index, vertex_count });
+                    log.debug("Generated {s} normals for mesh {d} primitive {d} ({d} vertices)", .{ @tagName(self.normal_generation_mode), mesh_index, primitive_index, vertex_count });
                 }
             }
         }
@@ -289,7 +289,7 @@ pub const GltfAsset = struct {
                     for (nodes, 0..) |node, node_idx| {
                         if (node.mesh != null and node.skin != null) {
                             skin_index = node.skin.?;
-                            log.debug("Found {d} skins, using skin {d} with {d} joints (from node {d})\n", .{ skins.len, skin_index.?, skins[skin_index.?].joints.len, node_idx });
+                            log.debug("Found {d} skins, using skin {d} with {d} joints (from node {d})", .{ skins.len, skin_index.?, skins[skin_index.?].joints.len, node_idx });
                             break;
                         }
                     }
@@ -298,11 +298,11 @@ pub const GltfAsset = struct {
                 // Fallback to first skin if no node with both mesh and skin found
                 if (skin_index == null) {
                     skin_index = 0;
-                    log.debug("Found {d} skins, using fallback skin 0 with {d} joints\n", .{ skins.len, skins[0].joints.len });
+                    log.debug("Found {d} skins, using fallback skin 0 with {d} joints", .{ skins.len, skins[0].joints.len });
                 }
             }
         } else {
-            log.debug("No skins found in model\n", .{});
+            log.debug("No skins found in model", .{});
         }
 
         // Create animator
@@ -341,7 +341,7 @@ pub const GltfAsset = struct {
     fn loadBufferData(self: *Self) !void {
         const buffer_count = if (self.gltf.buffers) |buf| buf.len else 0;
 
-        log.debug("Loading buffer data for {d} buffers\n", .{buffer_count});
+        log.debug("Loading buffer data for {d} buffers", .{buffer_count});
 
         if (self.gltf.buffers) |buffers| {
             for (buffers, 0..) |buffer, buffer_index| {
@@ -392,8 +392,8 @@ pub const GltfAsset = struct {
                         std.debug.panic("Buffer {d} has no URI and is not GLB embedded buffer\n", .{buffer_index});
                     }
                 }
-                log.debug("Loaded buffer {d} with {d} bytes\n", .{ buffer_index, self.buffer_data.list.items[self.buffer_data.list.items.len - 1].len });
-                log.debug("Total buffer size: {d}\n\n", .{self.buffer_data.list.items.len});
+                log.debug("Loaded buffer {d} with {d} bytes", .{ buffer_index, self.buffer_data.list.items[self.buffer_data.list.items.len - 1].len });
+                log.debug("Total buffer size: {d}", .{self.buffer_data.list.items.len});
             }
         }
     }
@@ -610,7 +610,7 @@ pub fn generateAccurateNormals(gltf_asset: *GltfAsset, primitive: gltf_types.Mes
                 }
             },
             else => {
-                log.debug("Unsupported index type for normal generation: {s}\n", .{@tagName(indices_accessor.component_type)});
+                log.debug("Unsupported index type for normal generation: {s}", .{@tagName(indices_accessor.component_type)});
                 // Fallback to upward normals
                 for (normals) |*normal| {
                     normal.* = Vec3{ .x = 0.0, .y = 1.0, .z = 0.0 };
