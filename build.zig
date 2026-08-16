@@ -86,6 +86,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "bullets", .exe_name = "bullets", .source = "examples/bullets/main.zig" },
         .{ .name = "skybox", .exe_name = "skybox", .source = "examples/skybox/main.zig" },
         .{ .name = "scene_tree", .exe_name = "scene_tree", .source = "examples/scene_tree/main.zig" },
+        .{ .name = "gl_caps", .exe_name = "gl_caps", .source = "examples/gl_caps/main.zig" },
         // .{ .name = "converter", .exe_name = "fbx_gltf_converter", .source = "converter/main.zig" },
         .{ .name = "angrybot", .exe_name = "angrybot", .source = "games/angrybot/main.zig" },
         .{ .name = "level_01", .exe_name = "level_01", .source = "games/level_01/main.zig" },

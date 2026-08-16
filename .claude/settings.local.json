@@ -18,7 +18,9 @@
       "Bash(git push:*)",
       "WebFetch(domain:itch.io)",
       "Bash(git -C /Users/john/Dev/Dev_Zig/redfish_gl_zig status --short)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(echo \"=== check exit: $? ===\")",
+      "Bash(echo \"exit: $?\")"
     ],
     "deny": []
   }
