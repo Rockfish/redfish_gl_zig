@@ -322,21 +322,18 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     // Set constant shader uniforms
 
-    player_shader.useShader();
     player_shader.setVec3("directionLight.dir", player_light_dir);
     player_shader.setVec3("directionLight.color", light_color);
     player_shader.setVec3("ambient", ambient_color);
 
     // player_shader.bindTextureAuto("shadow_map", depth_map_fbo.texture_id);
 
-    floor_shader.useShader();
     floor_shader.setVec3("directionLight.dir", floor_light_dir);
     floor_shader.setVec3("directionLight.color", floor_light_color);
     floor_shader.setVec3("ambient", floor_ambient_color);
 
     // floor_shader.bindTextureAuto("shadow_map", depth_map_fbo.texture_id);
 
-    enemy_shader.useShader();
     enemy_shader.setVec3("directionLight.dir", player_light_dir);
     enemy_shader.setVec3("directionLight.color", light_color);
     enemy_shader.setVec3("ambient", ambient_color);
@@ -469,8 +466,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         // });
 
         // log.info("updating shaders", .{});
-        player_shader.useShader();
-
         player_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
         player_shader.setMat4("model", &player_transform);
         player_shader.setMat4("aimRot", &aim_rotation_matrix);
@@ -480,7 +475,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         player_shader.setVec3("pointLight.color", muzzle_point_light_color);
         player_shader.setVec3("pointLight.worldPos", projectile_spawn_point);
 
-        floor_shader.useShader();
         floor_shader.setVec3("viewPos", state.game_camera.movement.transform.translation);
         floor_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
         // floor_shader.setBool("usePointLight", use_point_light);
@@ -496,7 +490,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         gl.viewport(0, 0, fb.SHADOW_WIDTH, fb.SHADOW_HEIGHT);
         gl.clear(gl.DEPTH_BUFFER_BIT);
 
-        player_shader.useShader();
         player_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
         player_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
         player_shader.setBool("depth_mode", true);
@@ -504,7 +497,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
         player.draw(player_shader);
 
-        enemy_shader.useShader();
         enemy_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
         enemy_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
         enemy_shader.setBool("depth_mode", true);
@@ -601,14 +593,12 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         floor_shader.bindTextureAuto("shadow_map", depth_map_fbo.texture_id);
         player_shader.bindTextureAuto("shadow_map", depth_map_fbo.texture_id);
 
-        floor_shader.useShader();
         floor_shader.setBool("useLight", true);
         floor_shader.setBool("useSpec", true);
 
         // log.info("drawing floor", .{});
         floor.draw(floor_shader, &state.active_camera.getProjectionView());
 
-        player_shader.useShader();
         player_shader.setBool("useLight", true);
         player_shader.setBool("useEmissive", true);
         player_shader.setBool("depth_mode", false);
@@ -618,7 +608,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
         muzzle_flash.draw(sprite_shader, &state.active_camera.getProjectionView(), projectile_spawn_point);
 
-        enemy_shader.useShader();
         enemy_shader.setBool("useLight", true);
         enemy_shader.setBool("useEmissive", false);
         enemy_shader.setBool("depth_mode", false);

@@ -42,7 +42,6 @@ pub const Shader = struct {
     debug_uniforms: *StringHashMap([]const u8),
 
     const Self = @This();
-    var current_shader_id: ?u32 = null;
 
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.vert_file);
@@ -187,16 +186,7 @@ pub const Shader = struct {
     }
 
     pub fn useShader(self: *const Shader) void {
-        if (Shader.current_shader_id != self.id) {
-            gl.useProgram(self.id);
-            Shader.current_shader_id = self.id;
-        }
-    }
-
-    pub fn useShaderWith(self: *const Shader, projection: *Mat4, view: *Mat4) void {
-        self.useShader();
-        self.set_mat4("projection", projection);
-        self.set_mat4("view", view);
+        gl.useProgram(self.id);
     }
 
     pub fn getUniformLocation(self: *const Shader, uniform: [:0]const u8, value: anytype) c_int {
@@ -220,110 +210,97 @@ pub const Shader = struct {
     }
 
     pub fn setBool(self: *const Shader, uniform: [:0]const u8, value: bool) void {
-        self.useShader();
         const v: u8 = if (value) 1 else 0;
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
-            gl.uniform1i(location, v);
+            gl.programUniform1i(self.id, location, v);
         }
     }
 
     pub fn setInt(self: *const Shader, uniform: [:0]const u8, value: i32) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
-            gl.uniform1i(location, value);
+            gl.programUniform1i(self.id, location, value);
         }
     }
 
     pub fn setUint(self: *const Shader, uniform: [:0]const u8, value: u32) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
-            gl.uniform1ui(location, value);
+            gl.programUniform1ui(self.id, location, value);
         }
     }
 
     pub fn setFloat(self: *const Shader, uniform: [:0]const u8, value: f32) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
-            gl.uniform1f(location, value);
+            gl.programUniform1f(self.id, location, value);
         }
     }
 
     pub fn set2Float(self: *const Shader, uniform: [:0]const u8, value: *const [2]f32) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
-            gl.uniform2fv(location, 1, value);
+            gl.programUniform2fv(self.id, location, 1, value);
         }
     }
 
     pub fn set3Float(self: *const Shader, uniform: [:0]const u8, value: *const [3]f32) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
-            gl.uniform3fv(location, 1, value);
+            gl.programUniform3fv(self.id, location, 1, value);
         }
     }
 
     pub fn set4Float(self: *const Shader, uniform: [:0]const u8, value: *const [4]f32) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
-            gl.uniform4fv(location, 1, value);
+            gl.programUniform4fv(self.id, location, 1, value);
         }
     }
 
     pub fn setVec2(self: *const Shader, uniform: [:0]const u8, value: Vec2) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
             const arr = value.asArray();
-            gl.uniform2fv(location, 1, &arr);
+            gl.programUniform2fv(self.id, location, 1, &arr);
         }
     }
 
     pub fn setXY(self: *const Shader, uniform: [:0]const u8, x: f32, y: f32) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, vec2(x, y));
         if (location != -1) {
-            gl.uniform2f(location, x, y);
+            gl.programUniform2f(self.id, location, x, y);
         }
     }
 
     pub fn setVec3(self: *const Shader, uniform: [:0]const u8, value: Vec3) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
             const arr = value.asArray();
-            gl.uniform3fv(location, 1, &arr);
+            gl.programUniform3fv(self.id, location, 1, &arr);
         }
     }
 
     pub fn setXYZ(self: *const Shader, uniform: [:0]const u8, x: f32, y: f32, z: f32) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, vec3(x, y, z));
         if (location != -1) {
-            gl.uniform3f(location, x, y, z);
+            gl.programUniform3f(self.id, location, x, y, z);
         }
     }
 
     pub fn setVec4(self: *const Shader, uniform: [:0]const u8, value: Vec4) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, value);
         if (location != -1) {
             const arr = value.asArray();
-            gl.uniform4fv(location, 1, &arr);
+            gl.programUniform4fv(self.id, location, 1, &arr);
         }
     }
 
     pub fn setXYZW(self: *const Shader, uniform: [:0]const u8, x: f32, y: f32, z: f32, w: f32) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, vec4(x, y, z, w));
         if (location != -1) {
-            gl.uniform4f(location, x, y, z, w);
+            gl.programUniform4f(self.id, location, x, y, z, w);
         }
     }
 
@@ -334,37 +311,34 @@ pub const Shader = struct {
     // }
 
     pub fn setMat3(self: *const Shader, uniform: [:0]const u8, mat: *const Mat3) void {
-        self.useShader();
         const location = gl.getUniformLocation(self.id, uniform);
         if (location != -1) {
-            gl.uniformMatrix3fv(location, 1, gl.FALSE, mat);
+            gl.programUniformMatrix3fv(self.id, location, 1, gl.FALSE, mat);
         }
     }
 
     pub fn setMat4(self: *const Shader, uniform: [:0]const u8, mat: *const Mat4) void {
-        self.useShader();
         const location = self.getUniformLocation(uniform, mat);
         if (location != -1) {
-            gl.uniformMatrix4fv(location, 1, gl.FALSE, mat.toArrayPtr());
+            gl.programUniformMatrix4fv(self.id, location, 1, gl.FALSE, mat.toArrayPtr());
         }
     }
 
-    pub fn xsetTextureUnit(self: *const Shader, texture_unit: u32, gl_texture_id: u32) void {
-        self.useShader();
-        gl.activeTexture(gl.TEXTURE0 + texture_unit);
-        gl.bindTexture(gl.TEXTURE_2D, gl_texture_id);
-    }
-
-    pub fn xbindTexture(self: *const Shader, texture_unit: i32, uniform_name: [:0]const u8, gl_texture_id: u32) void {
-        self.useShader();
-        gl.activeTexture(gl.TEXTURE0 + @as(c_uint, @intCast(texture_unit)));
-        gl.bindTexture(gl.TEXTURE_2D, gl_texture_id);
-        self.setInt(uniform_name, texture_unit);
+    pub fn setMat4Array(self: *const Shader, uniform: [:0]const u8, mat_array: []const Mat4) void {
+        const location = self.getUniformLocation(uniform, mat_array);
+        if (location != -1) {
+            gl.programUniformMatrix4fv(
+                self.id,
+                location,
+                @intCast(mat_array.len),
+                gl.FALSE,
+                @ptrCast(mat_array.ptr),
+            );
+        }
     }
 
     // Texture unit auto-allocation methods
     pub fn bindTextureAuto(self: *const Shader, uniform_name: [:0]const u8, gl_texture_id: u32) void {
-        self.useShader();
         const unit = self.allocateTextureUnit(uniform_name);
         gl.activeTexture(gl.TEXTURE0 + unit);
         gl.bindTexture(gl.TEXTURE_2D, gl_texture_id);

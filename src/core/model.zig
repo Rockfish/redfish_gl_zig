@@ -21,11 +21,6 @@ const animation = @import("animator.zig");
 const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
 
-// const Animator = animation.Animator;
-// const WeightedAnimation = animation.WeightedAnimation;
-
-const MAX_JOINTS: usize = constants.MAX_JOINTS;
-
 pub const Model = struct {
     alloc: Allocator,
     name: []const u8,
@@ -93,12 +88,7 @@ pub const Model = struct {
 
     pub fn draw(self: *Self, shader: *const Shader) void {
         shader.useShader();
-        var buf: [256:0]u8 = undefined;
-        for (0..MAX_JOINTS) |i| {
-            const joint_transform = self.animator.joint_matrices[i];
-            const uniform = std.fmt.bufPrintZ(&buf, "{s}[{d}]", .{ constants.Uniforms.Joint_Matrices, i }) catch @panic("bufPrintZ error");
-            shader.setMat4(uniform, &joint_transform);
-        }
+        shader.setMat4Array(constants.Uniforms.Joint_Matrices, &self.animator.joint_matrices);
 
         const scene = self.gltf_asset.gltf.scenes.?[self.scene];
 

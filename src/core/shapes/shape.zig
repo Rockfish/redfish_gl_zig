@@ -336,8 +336,10 @@ pub const Shape = struct {
         if (!self.is_depth_write) gl.depthMask(gl.TRUE);
     }
 
-    pub fn drawInstanced(self: *const Self, instance_count: usize, instanceTransforms: []Mat4) void {
+    pub fn drawInstanced(self: *const Self, shader: *Shader, instance_count: usize, instanceTransforms: []Mat4) void {
         if (!self.is_visible) return;
+
+        shader.useShader();
 
         if (self.is_depth_test) gl.enable(gl.DEPTH_TEST) else gl.disable(gl.DEPTH_TEST);
         if (!self.is_depth_write) gl.depthMask(gl.FALSE);

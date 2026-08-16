@@ -120,7 +120,6 @@ pub const Floor = struct {
 
     pub fn draw(self: *const Self, shader: *const Shader, projection_view: *const Mat4) void {
         shader.useShader();
-
         shader.bindTextureAuto("texture_diffuse", self.texture_floor_diffuse.gl_texture_id);
         shader.bindTextureAuto("texture_normal", self.texture_floor_normal.gl_texture_id);
         shader.bindTextureAuto("texture_spec", self.texture_floor_spec.gl_texture_id);

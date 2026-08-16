@@ -113,6 +113,7 @@ pub const Plane = struct {
     }
 
     pub fn draw(self: *Self, shader: *Shader, projection: *const Mat4, view: *const Mat4) void {
+        shader.useShader();
         shader.setMat4(uniforms.Mat_Projection, projection);
         shader.setMat4(uniforms.Mat_View, view);
         shader.setMat4(uniforms.Mat_Model, &Mat4.Identity);
