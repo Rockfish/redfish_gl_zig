@@ -10,7 +10,12 @@ does reading floats from a texture force normalization?
 Prompted by a full read of the GLSL 4.10 Specification and by the
 animation-texture approach mentioned in a video.
 
-No code changes in this note.
+**Status (revised 2026-08-16).** Path 1 has landed — commit `4147f1e`
+added `Shader.setMat4Array` and `Model.draw` now uploads the whole
+palette in one `glProgramUniformMatrix4fv`. The sections below marked
+*done* are kept for the reasoning, not as pending work. The revision
+also adds the engine-level blocker that the original note missed: the
+GL limits were never the thing standing between this tree and a crowd.
 
 ---
 
@@ -52,17 +57,123 @@ skinning matrices.
 
 Recommended ladder, when this becomes a plan:
 
-1. **Now (same shader):** one `glUniformMatrix4fv` for
-   `jointMatrices[0]` with `count = MAX_JOINTS`. Cache that one
-   location. Drop the `bufPrintZ("jointMatrices[{d}]", i)` loop.
-2. **A handful of characters:** move the palette into a `std140` UBO
-   and `glBindBufferRange` per draw. Frees default-block uniform
-   components (100 mat4s is already over the spec-minimum vertex
-   uniform budget).
+0. **Done (`4147f1e`):** one `glProgramUniformMatrix4fv` for
+   `jointMatrices` with `count = MAX_JOINTS`. One cached location.
+   The `bufPrintZ("jointMatrices[{d}]", i)` loop is gone.
+1. **The actual blocker — engine, not GL:** `Model` owns both the GPU
+   buffers *and* the `Animator`, so instances cannot have independent
+   poses without duplicating VAOs/VBOs. Split per-instance state out
+   of `Model` before any texture work. See
+   [The engine blocker](#the-engine-blocker-model-owns-too-much).
+2. **Free win available today:** `EnemySystem.drawEnemies` re-uploads
+   an identical palette and re-walks the node tree once per enemy.
+   Hoist it. See [Redundant per-instance upload](#redundant-per-instance-upload).
 3. **Hundreds of instances:** one `RGBA32F` texture buffer or 2D
    texture holding every instance's palette (or every baked clip
    frame), one `glDrawElementsInstanced`. Instance id selects the
-   row; joint id selects the columns.
+   row; joint id selects the columns. Costs vertex-stage bandwidth —
+   see [What the texture path costs](#what-the-texture-path-costs).
+
+A `std140` UBO sits between 0 and 3 in most write-ups. On this machine
+it is not worth the complexity — see [Path 2](#path-2--uniform-buffer-gl-31-already-in-41).
+
+**Measure before building any of this.** The caps table below shows GL
+is not the constraint. The CPU animator probably is, and the texture
+paths do not help with animation math. See
+[Measure first](#measure-first).
+
+---
+
+## The engine blocker: `Model` owns too much
+
+Everything below about TBOs and pose atlases assumes "instance id
+selects a row." This tree has no instance id, because it has no
+instance. `src/core/model.zig`:
+
+```zig
+pub const Model = struct {
+    meshes: *ManagedArrayList(*Mesh),   // GPU buffers  — shareable
+    animator: *Animator,                // pose state   — per-instance
+    gltf_asset: *GltfAsset,             // source data  — shareable
+```
+
+Three different lifetimes in one struct. The consequence is visible in
+`games/angrybot/enemy.zig`: `EnemySystem` holds a single
+`enemy_model: *Model` and `drawEnemies` loops over `state.enemies`,
+setting a per-enemy `model` transform and calling
+`self.enemy_model.draw(shader)` each time. GPU buffers are shared —
+good — but so is the one `Animator`, so **every enemy is locked to the
+same pose at the same phase**. The crowd already exists; it is just
+frozen in lockstep.
+
+So today the engine offers exactly two shapes, neither of which is a
+crowd:
+
+| Shape | GPU buffers | Poses | Cost |
+|-------|-------------|-------|------|
+| One `Model`, N draws (angrybot enemies) | shared | **one, shared** | cheap, but every instance identical |
+| N `Model`s, N draws | **duplicated per instance** | independent | N× VAO/VBO/EBO for identical geometry |
+
+No GL feature fixes that. The fix is to separate per-instance state
+from shared resources:
+
+```zig
+// shared, loaded once
+Model { meshes, gltf_asset }
+
+// per instance
+ModelInstance { model: *Model, animator: *Animator, transform: Mat4,
+                clip: u32, time: f32 }
+```
+
+`Animator` already holds only per-instance data (`active_animations`,
+`weight_animations`, `joint_matrices`, node transforms), so the split
+is mostly mechanical — move the field, thread an explicit animator
+through `Model.draw` and `drawNodes` instead of reading
+`self.animator`. Do this first. Every later option — TBO rows, atlas
+rows, `gl_InstanceID` — becomes expressible only after it exists.
+
+---
+
+## Redundant per-instance upload
+
+Available now, independent of the split above.
+
+`Model.draw` uploads the full 100-matrix palette
+(`setMat4Array`, 6400 bytes) and then `drawNodes` walks the whole node
+tree issuing a `setMat4(Node_Transform, …)` per node. `drawEnemies`
+calls it once per enemy. Because the animator is shared, **every one
+of those uploads is byte-identical across enemies**.
+
+For N enemies that is N × (one `glUseProgram` + 6400-byte palette
+upload + a full node-tree walk with a matrix upload per node) to send
+the same data N times. Hoisting the palette and the node walk out of
+the per-enemy loop — leaving only `model` / `aimRot` inside — is a
+small, local change with no architectural commitment.
+
+This is the highest benefit-to-effort item in the whole note.
+
+---
+
+## Measure first
+
+The caps table below shows GL is not the limit on this machine: 671k
+palettes fit in a TBO, 16,384 rows fit in a 2D atlas. Before building
+a texture pipeline, find out which of these is actually the wall at
+your target instance count:
+
+- **Draw calls** — one per instance today. Fixed by instancing.
+- **Uniform uploads** — see [Redundant per-instance upload](#redundant-per-instance-upload);
+  much of the current cost is duplicate data, not necessary data.
+- **CPU animation** — `Animator` per instance per frame: keyframe
+  interpolation, node-tree walk, one `mulMat4` per joint against the
+  inverse bind matrix. **No texture path helps here** unless you bake
+  (which removes the animator from the loop entirely).
+- **Vertex processing** — skinning math per vertex, plus texel fetches
+  if you move the palette into a texture.
+
+The first three point at different fixes. Guessing wrong means
+building a TBO pipeline to solve a problem that was CPU-side.
 
 ---
 
@@ -90,37 +201,55 @@ Two easy traps that follow from that split:
 
 - Sequential elements do **not** have sequential locations. You cannot
   take `loc(jointMatrices[0])` and add `i`. Either query each name, or
-  pass `count > 1` at the first element's location. The current loop
-  does the first; the API prefers the second.
+  pass `count > 1` at the first element's location. The old loop did
+  the first; the API prefers the second.
+  (The guarantee people remember does exist — but only for *explicit*
+  locations, `layout(location = 2) uniform mat4 mats[10]`, which
+  assigns the half-open range [2, 12). That is
+  `ARB_explicit_uniform_location` / GL 4.3, so it is unavailable under
+  the macOS 4.1 ceiling. With queried locations,
+  `loc("a[0]") + 1` may name an entirely different uniform.)
 - `glGetUniformLocation(program, "jointMatrices")` and
   `"jointMatrices[0]"` are both defined to return the first element.
   That is the location the count-form call uses.
 
 ---
 
-## Current cost in this tree
+## Cost in this tree — before and after `4147f1e`
 
-`Model.draw` (`src/core/model.zig`) for every skinned draw:
+**Before.** `Model.draw` (`src/core/model.zig`) for every skinned draw:
 
-1. Formats `"jointMatrices[0]"` … `"jointMatrices[99]"` with
+1. Formatted `"jointMatrices[0]"` … `"jointMatrices[99]"` with
    `bufPrintZ`.
-2. Looks each name up in `Shader.locations` (and on first use calls
-   `glGetUniformLocation` 100 times).
+2. Looked each name up in `Shader.locations` (and on first use called
+   `glGetUniformLocation` 100 times, storing 100 duped string keys per
+   shader).
 3. `setMat4` → `useShader()` + `glUniformMatrix4fv(..., count = 1, ...)`.
-4. Copies each `Mat4` onto the stack (`const joint_transform = ...`)
+4. Copied each `Mat4` onto the stack (`const joint_transform = ...`)
    before taking its address.
 
-`Animator.joint_matrices` is already `[MAX_JOINTS]Mat4` and `Mat4` is
-column-major, 64 bytes, no padding — the same layout
-`glUniformMatrix4fv` with `transpose = GL_FALSE` expects. The
-contiguous upload is a pointer + a count, not a packing problem.
+**After.** One cached location, one call:
 
-`Shader.setMat4` hard-codes `count = 1`. There is no
-`setMat4Array` today. That is why the loop exists.
+```zig
+shader.setMat4Array(constants.Uniforms.Joint_Matrices, &self.animator.joint_matrices);
+```
+
+`Shader.setMat4Array` takes `[]const Mat4` and derives `count` from
+`.len`, so the count and the pointer cannot disagree.
+
+`Animator.joint_matrices` is `[MAX_JOINTS]Mat4` and `Mat4` is
+column-major, 64 bytes, no padding — the same layout
+`glProgramUniformMatrix4fv` with `transpose = GL_FALSE` expects. The
+contiguous upload was a pointer + a count, never a packing problem.
+
+Note what this did *not* fix: the palette is still uploaded once per
+`Model.draw`, so N instances sharing one animator still pay N uploads
+of identical bytes. See
+[Redundant per-instance upload](#redundant-per-instance-upload).
 
 ---
 
-## Path 1 — same declaration, one API call
+## Path 1 — same declaration, one API call — **done (`4147f1e`)**
 
 OpenGL 4.1 `glUniform` / `UniformMatrix4fv`:
 
@@ -128,24 +257,24 @@ OpenGL 4.1 `glUniform` / `UniformMatrix4fv`:
 > modify. This should be 1 if the targeted uniform is not an array of
 > matrices, and 1 or more if it is.
 
-Host sketch (not applied):
+As shipped, in `Shader.setMat4Array`:
 
 ```zig
-const loc = shader.getUniformLocation("jointMatrices", {});
-gl.uniformMatrix4fv(
-    loc,
-    @intCast(constants.MAX_JOINTS),
+gl.programUniformMatrix4fv(
+    self.id,
+    location,
+    @intCast(mat_array.len),
     gl.FALSE,
-    @ptrCast(&self.animator.joint_matrices),
+    @ptrCast(mat_array.ptr),
 );
 ```
 
 Shader is unchanged: `uniform mat4 jointMatrices[MAX_JOINTS];`.
 
-This is the right first move. It does not change the instancing
-story: default-block uniforms are program state, so instance B
-overwrites instance A's palette. Hundreds of unique poses still mean
-hundreds of uploads and hundreds of draws.
+This was the right first move, and it changed nothing about the
+instancing story: default-block uniforms are program state, so
+instance B overwrites instance A's palette. Hundreds of unique poses
+still mean hundreds of uploads and hundreds of draws.
 
 ### Uniform-component budget
 
@@ -154,13 +283,17 @@ A `mat4` is 16 components. `jointMatrices[100]` is **1600**, before
 `matProjection` / `matView` / `matModel` / `nodeTransform` /
 `matLightSpace`. Desktop NVIDIA/AMD/Intel (and macOS GL 4.1) typically
 report 4096+, which is why 100 joints compiles here. It is not
-portable to a spec-minimum vertex stage, and it is the reason a UBO
-is the better home even for a single character.
+portable to a spec-minimum vertex stage.
 
 This machine was measured 2026-08-16 (`zig build gl_caps-run`):
 **4096** components, so 100 mat4s fit with 2496 left. The spec-minimum
 scare is not the local constraint. See [Measured caps](#measured-caps-this-mac)
 for the rest.
+
+The original note used this budget as the argument for moving to a
+UBO even for a single character. With 2496 components spare on the
+only GPU this engine targets, that argument does not hold here — see
+the verdict at the end of Path 2.
 
 ---
 
@@ -195,6 +328,15 @@ So a UBO is:
 - Not the crowd / instancing solution, unless you batch by "how
   many palettes fit in one bind" and pass a per-instance palette
   offset — still a small multiple, not hundreds.
+
+**Verdict for this engine: skip it.** The two things a UBO buys are
+component-budget relief (not needed — 2496 components spare, and this
+tree only ever runs on Apple GL 4.1) and cheaper rebinds for a handful
+of characters (which Path 1 already made cheap: one call, 6400 bytes).
+It adds `std140` layout rules, buffer lifetime, and a binding-point
+allocation scheme in exchange for neither. Go straight from Path 1 to
+Path 3 when the crowd arrives. Revisit only if a non-Apple, spec-
+minimum target ever appears.
 
 ---
 
@@ -277,11 +419,113 @@ This is what most "we put animation in a texture" talks mean, and
 it is the right path when hundreds of instances share a few clips
 and only differ by phase.
 
-Frame interpolation: fetch two adjacent rows and lerp the matrices
-(or, better, lerp the underlying TRS and rebuild — lerp of matrices
-is an approximation). Do not rely on `GL_LINEAR` across a matrix
-stored as four pixels; the four columns would filter independently
-and produce a garbage matrix.
+The bake is an offline (or load-time) pass that runs the existing
+`Animator` once per clip:
+
+1. Step the clip at a fixed rate — say 30 Hz — from 0 to
+   `clip.duration`.
+2. At each step, run the normal `updateAnimation` and copy the
+   resulting `joint_matrices` into one **row** of the texture.
+3. Row `f` of clip `c` therefore holds the entire 100-joint palette
+   at frame `f`. Width stays `joints × 4` texels; height grows by
+   `ceil(duration × 30)` rows per clip. Clips stack vertically, and
+   each instance carries the row offset where its clip begins.
+
+At draw time the shader converts the instance's playback time to a
+fractional frame, fetches the two bracketing rows, and blends:
+
+```glsl
+float f      = instanceTime * bakedFps;      // fractional frame
+int   f0     = int(floor(f));
+int   f1     = min(f0 + 1, clipLastFrame);
+float t      = fract(f);
+mat4  m      = mix(fetchJoint(clipRow + f0, joint),
+                   fetchJoint(clipRow + f1, joint), t);
+```
+
+That fixed bake rate is exactly the tradeoff — the clip is no longer
+continuous, it is sampled, and the shader reconstructs between
+samples. Two consequences worth knowing before committing:
+
+- **Lerping matrices is an approximation.** A linear blend of two
+  rotation matrices is not a rotation; it shears and shrinks slightly
+  mid-blend. At 30 Hz the per-frame rotation delta is small enough
+  that the artifact is invisible on a background character. It is not
+  something to ship on a hero model in close-up. Baking TRS instead
+  of matrices (translation `vec3`, rotation `quat`, scale `vec3`) and
+  rebuilding in the shader gives correct slerp at the cost of more
+  vertex math and a different texture layout.
+- **Bake rate versus memory is cheap.** One row = 100 joints × 4
+  texels × 16 bytes = **6400 bytes**. A 2-second clip at 30 Hz is 60
+  rows ≈ **384 KB**. Ten clips ≈ **3.8 MB**. Doubling to 60 Hz to
+  halve the interpolation error still lands under 8 MB. Memory is not
+  the reason to keep the bake rate low.
+
+Do not rely on `GL_LINEAR` to do the blend for you. Sampling across a
+matrix stored as four adjacent pixels filters the four columns
+independently and produces a garbage matrix — set `GL_NEAREST` and
+blend explicitly, as above.
+
+### Fidelity tiers — hero versus horde
+
+This is the right way to use the technique, and it does not have to be
+all-or-nothing. Animation admits an LOD ladder the same way geometry
+does:
+
+| Tier | Path | Pose source | Cost |
+|------|------|-------------|------|
+| Hero / player | Path 1 uniform palette | live `Animator`, full blending, IK | one upload + one draw per character |
+| Mid — a few named NPCs | live `Animator` → TBO row | live, unique | one upload per actor, one instanced draw |
+| Horde / background | baked clip sheet | sampled + lerped | zero animation cost per instance |
+
+The player keeps `updateWeightedAnimations`, cubic-spline interpolation,
+and whatever IK or ragdoll arrives later — none of which survives a
+bake. The horde gets sampled clips with linear blending, and nobody
+looks closely enough to notice that a rotation was approximated. The
+two paths share the same mesh and the same shader if the shader
+branches on a uniform (or, better, is compiled twice).
+
+Deciding per model — not per engine — is what keeps the technique
+cheap. It also means the bake pipeline only has to handle the simple
+playback case; it never has to reproduce weighted blending.
+
+### What the texture path costs
+
+The caps table reports `MAX_VERTEX_TEXTURE_IMAGE_UNITS = 16`, which
+says the vertex stage *can* sample a palette texture. It does not say
+the sample is free, and the original note treated the texture paths as
+pure win. They are not — they move cost, they do not remove it.
+
+A uniform array lives in constant memory: small, cached, broadcast to
+every invocation, effectively free to read. A palette texture is a
+memory fetch per column:
+
+- One `mat4` = **4** `texelFetch` calls (one per column).
+- glTF skinning uses up to **4** joint influences per vertex.
+- So up to **16** texel fetches per vertex, replacing what were
+  constant-memory reads.
+
+For a 10k-vertex character at 100 instances that is ~16M texel
+fetches per frame. An M1 Pro will absorb that, but it is real
+bandwidth, and on Apple's GL-on-Metal translation it is the part
+least likely to match desktop-GL intuition.
+
+The trade is therefore:
+
+| | Uniform palette | Texture palette |
+|---|---|---|
+| Per-draw CPU cost | one 6400 B upload | none (or one shared upload) |
+| Draw calls | one per instance | one instanced draw |
+| Vertex-stage reads | constant memory (~free) | up to 16 fetches/vertex |
+
+It pays when upload count and draw-call count dominate — i.e. at the
+instance counts this note is about. It is a *loss* for a handful of
+characters, which is the other reason hero models should stay on
+Path 1.
+
+If the fetch count becomes the problem, the compaction options below
+attack it directly: `mat3x4` drops 4 fetches to 3 (−25%),
+dual-quaternion skinning drops it to 2 (−50%).
 
 ---
 
@@ -415,23 +659,81 @@ the 100s-of-instances shape.
 
 ---
 
-## Two crowd problems, two texture answers
+## Three crowd problems, three answers
 
-"Hundreds of instances at different points in their animation"
-splits:
+"Hundreds of instances at different points in their animation" is
+really three different problems, and they want different machinery.
+Ordered by cost to build, cheapest first:
 
-1. **Same clips, different times** (horde, wildlife, background
-   NPCs). Bake sampled frames into a 2D `RGBA32F` texture once.
-   Per instance: clip row-base + frame (or time). GPU fetch, maybe
-   lerp two frames. CPU animator is not in the per-instance loop.
-2. **Unique blends / IK / ragdoll / weighted clips per actor.**
-   Each pose must be evaluated. Keep `Animator` on the CPU, write
-   every palette into one TBO or one atlas row, draw instanced.
-   The win is draw-call and uniform-call count, not animation
-   math.
+### 1. Pose pool — N instances, K distinct poses (K ≪ N)
 
-A third case — a handful of hero characters — does not need
-textures at all. Path 1 or a per-character UBO is enough.
+**The cheapest thing that works, and the smallest step from what this
+tree already does.**
+
+The observation: hundreds of instances rarely need hundreds of
+*distinct* poses. A horde of 200 enemies might be in 3 animation
+states, and within a state the eye cannot distinguish 200 phases from
+12. So evaluate **K** palettes per frame on the CPU, upload K rows,
+and give each instance a pose index.
+
+```
+K = states × phase_buckets     // e.g. 3 × 8 = 24
+CPU cost: 24 animator updates/frame, not 200
+GPU:      24 rows in a TBO or atlas; instance attribute = pose index
+```
+
+Note what this is: `angrybot` today is **K = 1**. `EnemySystem` has
+one shared `Animator`, so every enemy is in lockstep. This case is
+that exact architecture generalized from one shared pose to a small
+pool of them. No bake pipeline, no offline step, no fixed frame rate,
+no matrix lerp — the live `Animator` keeps running with cubic-spline
+interpolation and weighted blending fully intact. You just run it K
+times instead of N.
+
+Tuning is a single number. K = 1 is today's lockstep. K = 24 already
+looks like a crowd. K = N degrades gracefully into case 3.
+
+The visible cost: instances sharing a bucket are pose-identical.
+Vary position, facing, and scale (angrybot already varies all three
+per enemy) and raise `phase_buckets` until it reads as a crowd.
+Assigning each instance a stable random bucket at spawn, rather than
+by index, avoids visible banding.
+
+Build this first. It needs the [engine split](#the-engine-blocker-model-owns-too-much)
+and nothing else — not even a texture, if K is small enough that K
+uniform uploads per frame is acceptable.
+
+### 2. Same clips, different times — baked clip sheet
+
+Horde, wildlife, background NPCs, all playing from a fixed clip
+library. Bake sampled frames into a 2D `RGBA32F` texture once
+(see [3b](#3b-2d-float-texture-the-usual-video)). Per instance: clip
+row-base + time. GPU fetches two rows and blends. The CPU animator
+leaves the per-instance loop entirely.
+
+Choose this over the pose pool when you want genuinely continuous,
+per-instance phase — every instance at its own point in the clip —
+and you can accept sampled fidelity. The cost is an offline bake step
+and losing runtime blending for those models.
+
+### 3. Unique blends / IK / ragdoll per actor
+
+Each pose must actually be evaluated. Keep `Animator` on the CPU,
+write every palette into one TBO or one atlas row, draw instanced.
+The win is draw-call and uniform-call count, **not** animation math —
+the CPU still runs N animators, which is exactly what
+[Measure first](#measure-first) warns will be the wall.
+
+Only reach for this when the poses are genuinely unique. If they are
+not, case 1 does the same job for a fraction of the CPU.
+
+### And the hero
+
+A handful of principal characters need none of the above. Path 1 — one
+uniform palette upload, one draw — is both simpler and *faster* per
+character than a texture fetch path (see
+[What the texture path costs](#what-the-texture-path-costs)). Keep the
+player on it.
 
 ---
 
@@ -439,11 +741,25 @@ textures at all. Path 1 or a per-character UBO is enough.
 
 If the uniform / UBO budget ever hurts for a single palette:
 
-- Skinning matrices are affine. The last row is `0 0 0 1`. Store
-  three `vec4` columns (`mat3x4` in `std140` is 48 bytes) and
-  rebuild the fourth in the shader. 25% less data. In `std140` a
-  `mat4x3` does **not** shrink (each `vec3` column pads to 16
-  bytes → still 64).
+- Skinning matrices are affine: the last **row** is `0 0 0 1`, so one
+  row of the 4×4 is redundant. Dropping a row is not the same as
+  dropping a column, and this is where the trick is usually
+  implemented wrong — **store the transpose.** The transposed
+  matrix's columns are the original's rows, so discarding the
+  original's last row means discarding the transpose's last column,
+  leaving three `vec4` columns: a `mat3x4`, which is 48 bytes in
+  `std140` (three 16-byte-aligned `vec4`s). The shader reads three
+  `vec4`s and transposes back, or equivalently builds
+  `mat4(c0, c1, c2, vec4(0,0,0,1))` from the transposed rows and uses
+  it accordingly. 25% less data, and one fewer `texelFetch` per joint
+  on the texture path.
+
+  Storing it the naive way — three of the original's *columns* — loses
+  real data, because the discarded fourth column is the translation.
+
+  Note the asymmetry: in `std140` a `mat4x3` does **not** shrink
+  (four `vec3` columns, each padded to 16 bytes → still 64). Only the
+  `mat3x4` orientation saves anything.
 - Dual-quaternion skinning is two `vec4`s per joint. Half the
   bandwidth, different shader math, no scale unless you add a
   third vector.
@@ -456,33 +772,70 @@ Neither is required to escape the 100-call loop.
 
 Stay on `#version 400 core` / OpenGL 4.1.
 
-1. Treat the current loop as an API-wrapper gap, not a spec limit.
-   One `glUniformMatrix4fv` with `count = MAX_JOINTS` is legal, matches
-   the existing shader, and matches `Animator.joint_matrices` layout.
-2. Do not fear textures for this. The GLSL 4.10 lookup rules
-   return raw floats from `RGBA32F` / `RGBA16F`. Use `texelFetch`.
-   That is the technique from the video, and it is the one that
-   scales to hundreds of instances.
-3. Pick the texture layout from the crowd type: baked clip sheet
-   when instances share clips; TBO / pose atlas when every pose is
-   unique.
-4. Keep UBOs in mind for hero characters and for getting 100 mat4s
-   out of the default uniform block before a spec-minimum GPU (or
-   a busier vertex shader) refuses to compile.
-5. Leave SSBOs until there is a non-macOS / GL 4.3+ target.
-6. Do not switch to Vulkan/wgpu to unlock instance counts on this
-   Mac. The 4.1 TBO/atlas limits already cover hundreds of poses.
+**Done**
+
+0. The 100-call loop was an API-wrapper gap, not a spec limit. One
+   `glProgramUniformMatrix4fv` with `count = MAX_JOINTS` — shipped in
+   `4147f1e`.
+
+**Do next, in this order**
+
+1. **Hoist the redundant per-enemy upload** in
+   `EnemySystem.drawEnemies`. Local, no architecture, immediate.
+2. **Split per-instance state out of `Model`.** `Animator` and the
+   instance transform move to a `ModelInstance`; `Model` keeps the
+   shared meshes and `GltfAsset`. Nothing else on this list is
+   expressible until this exists.
+3. **Measure.** Draw calls, uniform uploads, CPU animation, vertex
+   processing — find which one is the wall at your target count
+   before building for it.
+4. **Pose pool (K distinct poses, K ≪ N).** The cheapest crowd, and
+   the smallest delta from today's shared-animator `EnemySystem`.
+   Keeps the live animator and all its blending. Try this before any
+   texture work.
+
+**Then, if measurement says so**
+
+5. Pick the texture layout from the crowd type: baked clip sheet when
+   instances share clips and you want continuous per-instance phase;
+   TBO / pose atlas when every pose is genuinely unique. Do not fear
+   the texture itself — GLSL 4.10 lookup rules return raw floats from
+   `RGBA32F` / `RGBA16F`; use `texelFetch`. But price the vertex-stage
+   fetches first; the path is a loss for small instance counts.
+6. Tier by fidelity, not by engine. Hero characters stay on the
+   uniform palette; the horde takes the sampled path. Matrix lerp
+   between baked frames is an approximation that is invisible at
+   distance and wrong in close-up.
+
+**Do not**
+
+7. Do not add a `std140` UBO. On this machine it buys neither
+   component headroom (2496 spare) nor a meaningfully cheaper rebind
+   than Path 1 already provides. Revisit only for a non-Apple,
+   spec-minimum target.
+8. Leave SSBOs until there is a non-macOS / GL 4.3+ target.
+9. Do not switch to Vulkan/wgpu to unlock instance counts on this
+   Mac. The 4.1 TBO/atlas limits already cover hundreds of poses, and
+   the blocker was never the API — it was `Model` owning the animator.
    A backend change is a separate, much larger bet.
 
 ---
 
 ## Pointers
 
-- Current upload: `src/core/model.zig` `Model.draw` (the
-  `jointMatrices[{d}]` loop).
-- Wrapper: `src/core/shader.zig` `setMat4` (`count` hard-coded to 1).
+- Current upload: `src/core/model.zig` `Model.draw` — one
+  `setMat4Array` call, then `drawNodes` walks the tree.
+- Wrapper: `src/core/shader.zig` `setMat4Array` (takes `[]const Mat4`,
+  derives `count` from `.len`). `setMat4` remains for single matrices.
+- Instance coupling: `src/core/model.zig` `Model` struct (owns
+  `meshes` *and* `animator`); `games/angrybot/enemy.zig`
+  `EnemySystem.enemy_model` + `drawEnemies` — the shared-pose case.
 - Storage: `src/core/animator.zig` `joint_matrices: [MAX_JOINTS]Mat4`,
   `src/math/mat4.zig` (`extern struct`, column-major).
+- Joint count: `src/core/constants.zig` `MAX_JOINTS = 100` — must match
+  `const int MAX_JOINTS` in every animated shader, or the single
+  count-form upload fails with `GL_INVALID_OPERATION` (the old
+  per-element loop degraded silently instead).
 - Shader declaration: `examples/animation_example/player_shader.vert`
   line 15, and the copies in `examples/demo_app/shaders/`,
   `games/level_01/shaders/`, `games/angrybot/shaders/`.

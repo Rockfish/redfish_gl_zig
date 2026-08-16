@@ -5,7 +5,7 @@
 **redfish_gl_zig** is a 3D graphics engine written in Zig focused on real-time rendering of animated glTF models with physically-based rendering (PBR). The engine supports character animation, texturing, lighting, and camera controls.
 
 ### Current Status (2026-07)
-- Zig 0.16; OpenGL 4.0 Cook-Torrance PBR pipeline; native glTF 2.0 with skeletal + cubic-spline animation
+- Zig 0.16; OpenGL 4.1 Cook-Torrance PBR pipeline; native glTF 2.0 with skeletal + cubic-spline animation
 - Top-down memory architecture: `Context`/`Arenas` (see Memory & Context below)
 - Games: angrybot (complete port), level_01 (active); examples: demo_app, bullets, skybox, scene_tree, animation
 - History in [CHANGELOG.md](CHANGELOG.md); roadmap in `docs/plans/active-plans.md`
@@ -63,8 +63,8 @@ libs/              # Third-party dependencies
 - **Cubic Spline Interpolation**: glTF-compliant Hermite interpolation for smooth animation curves
 - **Linear Interpolation**: Standard Vec3 linear and quaternion spherical (slerp) interpolation
 - **WeightedAnimation**: Enhanced multi-animation blending with precision controls
-- **playWeightAnimations**: Sophisticated animation mixing for complex character movement
-- **Usage**: `model.playWeightAnimations(&weight_animations, frame_time)` for directional character animation
+- **updateWeightedAnimations**: Sophisticated animation mixing for complex character movement
+- **Usage**: `try model.updateWeightedAnimations(&weight_animations, frame_time)` for directional character animation
 
 #### Math Library (`src/math/`)
 - Custom Zig implementations with column-major matrix conventions
@@ -262,6 +262,6 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 
 ### Enhanced Animation Blending
 - **WeightedAnimation**: Sophisticated multi-animation blending with precision controls
-- **playWeightAnimations()**: Handles complex character movement with weight-based mixing
+- **updateWeightedAnimations()**: Handles complex character movement with weight-based mixing
 - **Quaternion Normalization**: Proper blending mathematics for smooth rotational transitions
 - **Game Integration**: Successfully integrated into angrybot character animation system
