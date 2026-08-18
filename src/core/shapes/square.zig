@@ -31,7 +31,6 @@ pub const Square = struct {
             &normals,
             &.{},
             &indices,
-            false,
         );
     }
 };

@@ -29,7 +29,6 @@ pub const VertexAttr = struct {
     pub const COLOR: u32 = 4;
     pub const JOINTS: u32 = 5;
     pub const WEIGHTS: u32 = 6;
-    pub const INSTANCE_MATRIX: u32 = 7;
 };
 
 /// Standard uniform names used across shaders

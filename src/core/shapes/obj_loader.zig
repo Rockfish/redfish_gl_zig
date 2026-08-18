@@ -28,7 +28,7 @@ pub fn loadOBJ(io: Io, allocator: Allocator, filepath: []const u8) !*Shape {
         mats.deinit();
     }
 
-    var builder = ShapeBuilder.init(allocator, .custom, false);
+    var builder = ShapeBuilder.init(allocator, .custom);
     defer builder.deinit();
 
     var positions = ManagedArrayList([3]f32).init(allocator);

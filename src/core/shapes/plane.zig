@@ -75,7 +75,6 @@ pub const Plane = struct {
             &normals,
             &.{},
             &indices,
-            false,
         );
 
         return self;

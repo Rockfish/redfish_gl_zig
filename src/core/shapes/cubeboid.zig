@@ -25,7 +25,6 @@ pub const CubeConfig = struct {
     num_tiles_x: f32 = 1.0,
     num_tiles_y: f32 = 1.0,
     num_tiles_z: f32 = 1.0,
-    is_instanced: bool = false,
     texture_mapping: TextureMapping = .Repeating,
 };
 
@@ -271,7 +270,6 @@ pub const Cubeboid = struct {
             &normals,
             &.{},
             &indices,
-            config.is_instanced,
         );
     }
 };

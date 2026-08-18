@@ -21,7 +21,7 @@ pub const Sphere = struct {
     }
 
     fn build(allocator: Allocator, radius: f32, poly_countX: u32, poly_countY: u32) !shape.ShapeBuilder {
-        var builder = shape.ShapeBuilder.init(allocator, .cylinder, false);
+        var builder = shape.ShapeBuilder.init(allocator, .cylinder);
 
         // we are creating the sphere mesh here.
         var polyCountX = poly_countX;

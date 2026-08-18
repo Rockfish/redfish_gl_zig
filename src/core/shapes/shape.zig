@@ -11,8 +11,6 @@ const ManagedArrayList = containers.ManagedArrayList;
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
-const Vec4 = math.Vec4;
-const Mat4 = math.Mat4;
 
 const vec2 = math.vec2;
 const vec3 = math.vec3;
@@ -29,12 +27,11 @@ pub const ShapeBuilder = struct {
     normals: ManagedArrayList([3]f32),
     colors: ManagedArrayList([4]f32),
     indices: ManagedArrayList(u32),
-    is_instanced: bool,
     aabb: AABB,
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, shape_type: ShapeType, is_instanced: bool) ShapeBuilder {
+    pub fn init(allocator: Allocator, shape_type: ShapeType) ShapeBuilder {
         return .{
             .allocator = allocator,
             .shape_type = shape_type,
@@ -43,7 +40,6 @@ pub const ShapeBuilder = struct {
             .normals = ManagedArrayList([3]f32).init(allocator),
             .colors = ManagedArrayList([4]f32).init(allocator),
             .indices = ManagedArrayList(u32).init(allocator),
-            .is_instanced = is_instanced,
             .aabb = AABB.init(),
         };
     }
@@ -85,7 +81,6 @@ pub const ShapeBuilder = struct {
             self.normals.list.items,
             self.colors.list.items,
             self.indices.list.items,
-            self.is_instanced,
         );
     }
 };
@@ -98,14 +93,12 @@ pub fn initGLBuffers(
     normals: []const [3]f32,
     colors: []const [4]f32,
     indices: []const u32,
-    is_instanced: bool,
 ) !*Shape {
     var vao: u32 = 0;
     var position_vbo: u32 = 0;
     var texcoord_vbo: u32 = 0;
     var normal_vbo: u32 = 0;
     var color_vbo: u32 = 0;
-    var transforms_vbo: u32 = 0;
     var ebo: u32 = 0;
 
     gl.genVertexArrays(1, &vao);
@@ -209,27 +202,6 @@ pub fn initGLBuffers(
         gl.STATIC_DRAW,
     );
 
-    if (is_instanced) {
-        // Per instance transform matrix (4 locations)
-        gl.genBuffers(1, &transforms_vbo);
-        gl.bindBuffer(gl.ARRAY_BUFFER, transforms_vbo);
-        // Mat4 is 4 Vec4s, so we need 4 attribute locations
-        for (0..4) |i| {
-            const location: c_uint = constants.VertexAttr.INSTANCE_MATRIX + @as(u32, @intCast(i));
-            gl.enableVertexAttribArray(location);
-            gl.vertexAttribPointer(
-                location,
-                4,
-                gl.FLOAT,
-                gl.FALSE,
-                @sizeOf(math.Mat4),
-                @ptrFromInt(i * @sizeOf(math.Vec4)),
-            );
-            // one matrix per instance
-            gl.vertexAttribDivisor(location, 1);
-        }
-    }
-
     const aabb = AABB.initWithPositions(positions);
 
     const s = try allocator.create(Shape);
@@ -240,7 +212,6 @@ pub fn initGLBuffers(
         .ebo = ebo,
         .color_vbo = color_vbo,
         .has_vertex_colors = colors.len > 0,
-        .transforms_vbo = transforms_vbo,
         .num_indices = @intCast(indices.len),
         .aabb = aabb,
     };
@@ -264,7 +235,6 @@ pub const Shape = struct {
     ebo: u32 = 0,
     color_vbo: u32 = 0,
     has_vertex_colors: bool = false,
-    transforms_vbo: u32,
     num_indices: i32 = 0,
     aabb: AABB,
     gl_texture_id: u32 = 0, // Perhaps the original type should manage these and deinit them
@@ -299,7 +269,6 @@ pub const Shape = struct {
         if (self.color_vbo != 0) {
             gl.deleteBuffers(1, &self.color_vbo);
         }
-        gl.deleteBuffers(1, &self.transforms_vbo);
         gl.deleteTextures(1, &self.gl_texture_id);
     }
 
