@@ -483,7 +483,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         // std.debug.print("Main: draw\n", .{});
         try model.updateAnimation(state.delta_time);
         // try model.playTick(140.0);
-        model.draw(shader);
+        model.draw(shader, 1);
         // try core.dumpModelNodes(model);
 
         // const bulletTransform = Mat4.fromScale(&vec3(2.0, 2.0, 2.0));

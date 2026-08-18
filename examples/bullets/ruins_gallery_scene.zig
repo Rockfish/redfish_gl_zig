@@ -204,7 +204,7 @@ pub const RuinsGalleryScene = struct {
         self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
         for (self.shapes, 0..) |shape, i| {
             self.shader.setMat4(uniforms.Mat_Model, &self.model_matrices[i]);
-            shape.draw(self.shader);
+            shape.draw(self.shader, 1);
         }
 
         self.floor.draw(ctx);

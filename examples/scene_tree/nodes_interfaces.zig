@@ -32,7 +32,7 @@ pub const Node = struct {
         obj_ptr: *anyopaque,
         type_id: usize,
         update_fn: *const fn (ptr: *anyopaque, state: *anyopaque) anyerror!void,
-        draw_fn: *const fn (ptr: *anyopaque, shader: *Shader) void,
+        draw_fn: *const fn (ptr: *anyopaque, shader: *Shader, instance_count: u32) void,
         clean_up_fn: *const fn (ptr: *anyopaque) void,
     };
 
@@ -55,9 +55,9 @@ pub const Node = struct {
                 }
             }
 
-            pub fn drawFn(obj_ptr: *anyopaque, shader: *Shader) void {
+            pub fn drawFn(obj_ptr: *anyopaque, shader: *Shader, instance_count: u32) void {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
-                return obj.draw(shader);
+                return obj.draw(shader, instance_count);
             }
 
             pub fn cleanUpFn(obj_ptr: *anyopaque) void {
@@ -110,12 +110,12 @@ pub const Node = struct {
         try self.dispatch.update_fn(self.dispatch.obj_ptr, state);
     }
 
-    pub fn draw(self: *Node, shader: *Shader) void {
+    pub fn draw(self: *Node, shader: *Shader, instance_count: u32) void {
         const mat = self.global_transform.toMatrix();
         shader.setMat4("model", &mat);
-        self.dispatch.draw_fn(self.dispatch.obj_ptr, shader);
+        self.dispatch.draw_fn(self.dispatch.obj_ptr, shader, instance_count);
         for (self.children.items()) |child| {
-            child.draw(shader);
+            child.draw(shader, instance_count);
         }
     }
 

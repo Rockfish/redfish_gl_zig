@@ -51,9 +51,10 @@ const SIZE_OF_QUAT = @sizeOf(Quat);
 
 // Wrapper types for objects that implement the Node interface
 const EmptyObject = struct {
-    pub fn draw(self: *EmptyObject, shader: *Shader) void {
+    pub fn draw(self: *EmptyObject, shader: *Shader, instance_count: u32) void {
         _ = self;
         _ = shader;
+        _ = instance_count;
     }
 };
 
@@ -61,9 +62,9 @@ const ShapeWithTexture = struct {
     shape: *shapes.Shape,
     texture: *Texture,
 
-    pub fn draw(self: *ShapeWithTexture, shader: *Shader) void {
+    pub fn draw(self: *ShapeWithTexture, shader: *Shader, instance_count: u32) void {
         shader.bindTextureAuto("texture_diffuse", self.texture.gl_texture_id);
-        self.shape.draw(shader);
+        self.shape.draw(shader, instance_count);
     }
 
     pub fn getBoundingBox(self: *ShapeWithTexture) AABB {
@@ -74,8 +75,8 @@ const ShapeWithTexture = struct {
 const ModelWrapper = struct {
     model: *core.Model,
 
-    pub fn draw(self: *ModelWrapper, shader: *Shader) void {
-        self.model.draw(shader);
+    pub fn draw(self: *ModelWrapper, shader: *Shader, instance_count: u32) void {
+        self.model.draw(shader, instance_count);
     }
 
     pub fn updateAnimation(self: *ModelWrapper, delta_time: f32) !void {
@@ -375,7 +376,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         }
 
         model_node.updateAnimation(state.delta_time);
-        model_node.draw(model_shader);
+        model_node.draw(model_shader, 1);
 
         root_node.setTranslation(state.current_position);
 
@@ -416,7 +417,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             if (picked.id != null and picked.id == @as(u32, @intCast(id))) {
                 basic_shader.setVec4("hitColor", vec4(1.0, 0.0, 0.0, 0.0));
             }
-            n.draw(basic_shader);
+            n.draw(basic_shader, 1);
             basic_shader.setVec4("hitColor", vec4(0.0, 0.0, 0.0, 0.0));
         }
 
@@ -425,7 +426,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         basic_shader.setMat4(uniforms.Mat_Model, &plane_transform);
         basic_shader.setBool("hasTexture", true);
         basic_shader.bindTextureAuto("textureDiffuse", surface_texture.gl_texture_id);
-        floor.draw(basic_shader);
+        floor.draw(basic_shader, 1);
 
         if (state.spin) {
             state.camera.movement.processMovement(.circle_right, state.delta_time * 1.0);
@@ -434,7 +435,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         const barrel_transform = Mat4.fromTranslation(vec3(-4.0, 1.0, 5.0));
         basic_shader.setMat4(uniforms.Mat_Model, &barrel_transform);
         basic_shader.setBool("hasTexture", false);
-        barrel.draw(basic_shader);
+        barrel.draw(basic_shader, 1);
 
         window.swapBuffers();
         glfw.pollEvents();

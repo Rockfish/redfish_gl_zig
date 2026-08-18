@@ -30,7 +30,7 @@ pub const Node = struct {
     const Dispatch = struct {
         obj_ptr: *anyopaque,
         type_id: usize,
-        draw_fn: *const fn (ptr: *anyopaque, shader: *Shader) void,
+        draw_fn: *const fn (ptr: *anyopaque, shader: *Shader, instance_count: u32) void,
         update_animation_fn: *const fn (ptr: *anyopaque, delta_time: f32) void,
         get_bounding_box_fn: *const fn (ptr: *anyopaque) ?AABB,
     };
@@ -39,10 +39,10 @@ pub const Node = struct {
         const gen = struct {
             const ObjectType = @TypeOf(object_ptr);
 
-            pub fn drawFn(obj_ptr: *anyopaque, shader: *Shader) void {
+            pub fn drawFn(obj_ptr: *anyopaque, shader: *Shader, instance_count: u32) void {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
                 if (std.meta.hasMethod(ObjectType, "draw")) {
-                    return obj.draw(shader);
+                    return obj.draw(shader, instance_count);
                 }
             }
 
@@ -169,10 +169,10 @@ pub const Node = struct {
         self.updateTransforms(null);
     }
 
-    pub fn draw(self: *Node, shader: *Shader) void {
+    pub fn draw(self: *Node, shader: *Shader, instance_count: u32) void {
         const model_mat = self.global_transform.toMatrix();
         shader.setMat4(uniforms.Mat_Model, &model_mat);
-        self.dispatch.draw_fn(self.dispatch.obj_ptr, shader);
+        self.dispatch.draw_fn(self.dispatch.obj_ptr, shader, instance_count);
     }
 
     pub fn updateAnimation(self: *Node, delta_time: f32) void {

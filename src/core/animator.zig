@@ -268,8 +268,33 @@ pub const Animator = struct {
 
     const Self = @This();
 
-    pub fn init(context: Context, gltf_asset: *const GltfAsset, skin_index: ?u32) !*Self {
+    pub fn init(context: Context, gltf_asset: *const GltfAsset) !*Self {
         const animator = try context.alloc.create(Animator);
+
+        // Find the skin used by a mesh with skinning data
+        var skin_index: ?u32 = null;
+        if (gltf_asset.gltf.skins) |skins| {
+            if (skins.len > 0) {
+                // Find which skin is actually used by checking scene nodes
+                if (gltf_asset.gltf.nodes) |nodes| {
+                    for (nodes, 0..) |node, node_idx| {
+                        if (node.mesh != null and node.skin != null) {
+                            skin_index = node.skin.?;
+                            log.debug("Found {d} skins, using skin {d} with {d} joints (from node {d})", .{ skins.len, skin_index.?, skins[skin_index.?].joints.len, node_idx });
+                            break;
+                        }
+                    }
+                }
+
+                // Fallback to first skin if no node with both mesh and skin found
+                if (skin_index == null) {
+                    skin_index = 0;
+                    log.debug("Found {d} skins, using fallback skin 0 with {d} joints", .{ skins.len, skins[0].joints.len });
+                }
+            }
+        } else {
+            log.debug("No skins found in model", .{});
+        }
 
         // Initialize joint data from skin
         var joints = try preprocessJoints(context.alloc, gltf_asset, skin_index);

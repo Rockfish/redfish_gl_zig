@@ -171,7 +171,7 @@ pub const ToonGalleryScene = struct {
         self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
         for (self.models, 0..) |model, i| {
             self.shader.setMat4(uniforms.Mat_Model, &self.model_matrices[i]);
-            model.draw(self.shader);
+            model.draw(self.shader, 1);
         }
 
         self.floor.draw(ctx);

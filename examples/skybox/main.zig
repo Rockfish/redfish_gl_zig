@@ -218,7 +218,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         basic_shader.setMat4("view", &view);
         basic_shader.bindTextureAuto("textureDiffuse", cubemap_texture.gl_texture_id);
 
-        cube.draw(basic_shader);
+        cube.draw(basic_shader, 1);
 
         skybox_shader.setMat4("view", &view.removeTranslation());
         skybox.draw();

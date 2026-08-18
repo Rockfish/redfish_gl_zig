@@ -153,7 +153,7 @@ pub const EnemySystem = struct {
             shader.setMat4("aimRot", &rot_only);
             shader.setMat4("model", &model_transform);
 
-            self.enemy_model.draw(shader);
+            self.enemy_model.draw(shader, 1);
         }
     }
 };

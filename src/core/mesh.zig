@@ -58,10 +58,10 @@ pub const Mesh = struct {
         }
     }
 
-    pub fn draw(self: *Self, gltf_asset: *GltfAsset, shader: *const Shader) void {
+    pub fn draw(self: *Self, gltf_asset: *GltfAsset, shader: *const Shader, instance_count: u32) void {
         if (!self.is_visible) return;
         for (self.primitives.list.items) |primitive| {
-            primitive.draw(gltf_asset, shader);
+            primitive.draw(gltf_asset, shader, instance_count);
         }
     }
 };
@@ -254,7 +254,7 @@ pub const MeshPrimitive = struct {
         return mesh_primitive;
     }
 
-    pub fn draw(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
+    pub fn draw(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader, instance_count: u32) void {
         // First, apply custom textures (these override material textures)
         self.setCustomTextures(gltf_asset, shader);
 
@@ -279,18 +279,20 @@ pub const MeshPrimitive = struct {
                 else => gl.UNSIGNED_SHORT, // fallback for other types
             };
 
-            gl.drawElements(
+            gl.drawElementsInstanced(
                 gl.TRIANGLES,
                 @intCast(self.indices_count),
                 gl_index_type,
                 null,
+                @intCast(instance_count),
             );
         } else {
             // Non-indexed rendering - use drawArrays
-            gl.drawArrays(
+            gl.drawArraysInstanced(
                 gl.TRIANGLES,
                 0,
                 @intCast(self.vertex_count),
+                @intCast(instance_count),
             );
         }
         gl.bindVertexArray(0);

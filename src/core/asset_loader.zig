@@ -6,7 +6,6 @@ const parser = @import("gltf/parser.zig");
 const texture = @import("texture.zig");
 const utils = @import("utils/root.zig");
 const Model = @import("model.zig").Model;
-const Mesh = @import("mesh.zig").Mesh;
 const Animator = @import("animator.zig").Animator;
 const Context = @import("context.zig").Context;
 
@@ -260,59 +259,23 @@ pub const GltfAsset = struct {
             // Load external buffer data from URIs
             try self.loadBufferData();
         }
+
+        // Generate normals for missing ones based on configuration
+        try self.generateMissingNormals();
+
         self.is_loaded = true;
     }
 
     pub fn buildModel(self: *Self) !*Model {
         if (!self.is_loaded) try self.load();
 
-        // Generate normals for missing ones based on configuration
-        try self.generateMissingNormals();
-
-        // Create meshes
-        const meshes = try self.context.alloc.create(ManagedArrayList(*Mesh));
-        meshes.* = ManagedArrayList(*Mesh).init(self.context.alloc);
-
-        if (self.gltf.meshes) |gltf_meshes| {
-            for (gltf_meshes, 0..) |gltf_mesh, mesh_index| {
-                const mesh = try Mesh.init(self.context.alloc, self, gltf_mesh, mesh_index);
-                try meshes.append(mesh);
-            }
-        }
-
-        // Find the skin used by a mesh with skinning data
-        var skin_index: ?u32 = null;
-        if (self.gltf.skins) |skins| {
-            if (skins.len > 0) {
-                // Find which skin is actually used by checking scene nodes
-                if (self.gltf.nodes) |nodes| {
-                    for (nodes, 0..) |node, node_idx| {
-                        if (node.mesh != null and node.skin != null) {
-                            skin_index = node.skin.?;
-                            log.debug("Found {d} skins, using skin {d} with {d} joints (from node {d})", .{ skins.len, skin_index.?, skins[skin_index.?].joints.len, node_idx });
-                            break;
-                        }
-                    }
-                }
-
-                // Fallback to first skin if no node with both mesh and skin found
-                if (skin_index == null) {
-                    skin_index = 0;
-                    log.debug("Found {d} skins, using fallback skin 0 with {d} joints", .{ skins.len, skins[0].joints.len });
-                }
-            }
-        } else {
-            log.debug("No skins found in model", .{});
-        }
-
         // Create animator
-        const animator = try Animator.init(self.context, self, skin_index);
+        const animator = try Animator.init(self.context, self);
 
         // Create model
         const model = try Model.init(
             self.context.alloc,
             self.name,
-            meshes,
             animator,
             self,
         );

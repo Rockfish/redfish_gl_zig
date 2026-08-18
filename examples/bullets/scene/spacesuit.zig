@@ -150,7 +150,7 @@ pub const Spacesuit = struct {
 
         self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
         self.shader.setMat4(uniforms.Mat_Model, &model_mat);
-        self.model.draw(self.shader);
+        self.model.draw(self.shader, 1);
     }
 
     pub fn processInput(self: *Self, input: *core.Input) !void {

@@ -461,7 +461,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
         }
 
         // model.draw(shader);
-        current_scope.getModel().draw(shader);
+        current_scope.getModel().draw(shader, 1);
         gl_debug.check("model pass");
 
         // One-shot screenshot completion: dump data and clear flag

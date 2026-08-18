@@ -158,9 +158,10 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     // Simple placeholder object for root node (no update or draw methods)
     const RootPlaceholder = struct {
-        pub fn draw(self: *@This(), shader: *Shader) void {
+        pub fn draw(self: *@This(), shader: *Shader, instance_count: u32) void {
             _ = self;
             _ = shader;
+            _ = instance_count;
         }
     };
     var root_placeholder = RootPlaceholder{};
@@ -314,7 +315,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
             node_cube.transform.translation = t;
             node_cube.updateTransform(null);
-            node_cube.draw(basic_model_shader);
+            node_cube.draw(basic_model_shader, 1);
 
             basic_model_shader.setVec4("hit_color", vec4(0.0, 0.0, 0.0, 0.0));
         }
@@ -327,12 +328,12 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
         root_node.transform.translation = main.state.target_position;
         root_node.updateTransform(null);
-        root_node.draw(basic_model_shader);
+        root_node.draw(basic_model_shader, 1);
 
         const plane_transform = Mat4.fromTranslation(vec3(0.0, -1.0, 0.0));
         basic_model_shader.setMat4("matModel", &plane_transform);
         basic_model_shader.bindTextureAuto("textureDiffuse", surface_texture.gl_texture_id);
-        plane.draw(basic_model_shader);
+        plane.draw(basic_model_shader, 1);
 
         if (main.state.spin) {
             main.state.camera.movement.processMovement(.orbit_right, main.state.delta_time * 1.0);

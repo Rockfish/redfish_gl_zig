@@ -191,7 +191,7 @@ pub const Player = struct {
     }
 
     pub fn draw(self: *Self, shader: *const Shader) void {
-        self.model.draw(shader);
+        self.model.draw(shader, 1);
     }
 
     pub fn update(self: *Self, state: *State, aim_theta: f32) !void {

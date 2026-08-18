@@ -65,6 +65,6 @@ pub const Floor = struct {
         self.shader.bindTextureAuto(uniforms.Texture_Diffuse, self.plane.texture_diffuse.gl_texture_id);
         self.shader.bindTextureAuto(uniforms.Texture_Normal, self.plane.texture_normal.gl_texture_id);
         self.shader.bindTextureAuto(uniforms.Texture_Spec, self.plane.texture_spec.gl_texture_id);
-        self.plane.shape.draw(self.shader);
+        self.plane.shape.draw(self.shader, 1);
     }
 };

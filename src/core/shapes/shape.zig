@@ -303,7 +303,7 @@ pub const Shape = struct {
         gl.deleteTextures(1, &self.gl_texture_id);
     }
 
-    pub fn draw(self: *const Self, shader: *Shader) void {
+    pub fn draw(self: *const Self, shader: *Shader, instance_count: u32) void {
         if (!self.is_visible) return;
 
         shader.useShader();
@@ -322,46 +322,6 @@ pub const Shape = struct {
         gl.disable(gl.CULL_FACE);
 
         gl.bindVertexArray(self.vao);
-        gl.drawElements(
-            gl.TRIANGLES,
-            self.num_indices,
-            gl.UNSIGNED_INT,
-            null,
-        );
-        gl.bindVertexArray(0);
-
-        if (self.is_wireframe) gl.polygonMode(gl.FRONT_AND_BACK, gl.FILL);
-        if (self.is_transparent) gl.disable(gl.BLEND);
-        if (self.is_double_sided) gl.enable(gl.CULL_FACE);
-        if (!self.is_depth_write) gl.depthMask(gl.TRUE);
-    }
-
-    pub fn drawInstanced(self: *const Self, shader: *Shader, instance_count: usize, instanceTransforms: []Mat4) void {
-        if (!self.is_visible) return;
-
-        shader.useShader();
-
-        if (self.is_depth_test) gl.enable(gl.DEPTH_TEST) else gl.disable(gl.DEPTH_TEST);
-        if (!self.is_depth_write) gl.depthMask(gl.FALSE);
-        if (self.is_double_sided) gl.disable(gl.CULL_FACE);
-
-        if (self.is_transparent) {
-            gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        }
-
-        if (self.is_wireframe) gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
-
-        gl.bindVertexArray(self.vao);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, self.transforms_vbo);
-        gl.bufferData(
-            gl.ARRAY_BUFFER,
-            @intCast(instanceTransforms.len * @sizeOf(Mat4)),
-            instanceTransforms.ptr,
-            gl.STREAM_DRAW,
-        );
-
         gl.drawElementsInstanced(
             gl.TRIANGLES,
             self.num_indices,
