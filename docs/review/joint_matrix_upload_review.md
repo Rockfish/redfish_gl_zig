@@ -252,22 +252,80 @@ not put it back in.
 Swapping in `glDrawElementsInstanced` is the easy part. The real work is
 that the per-instance model matrix must stop being a uniform. Today the
 caller sets it (`drawEnemies` → `shader.setMat4("model", …)` per enemy),
-which is exactly what instancing removes: it becomes a vertex attribute
-with `glVertexAttribDivisor(slot, 1)`, and `MeshPrimitive.init` grows an
-instance buffer next to the existing VBOs.
+and a uniform is constant for the whole draw call by definition — it
+cannot differ between instance 0 and instance 1. There are exactly two
+ways to supply per-instance data, and the engine should pick one.
 
-Two things make that cheaper than it sounds:
+#### Decision: index by `gl_InstanceID` (route b)
 
-- **The slot is already reserved.**
-  `constants.VertexAttr.INSTANCE_MATRIX = 7` is declared and currently
-  unused by `mesh.zig`. A `mat4` attribute consumes four consecutive
-  slots (7–10); positions through weights occupy only 0–6, leaving five
-  spare.
-- **There is a working reference in-tree.**
-  `examples/bullets/projectiles/bullet_system.zig` already does
-  divisor-based instancing (`vertexAttribDivisor` at 332 and 349,
-  `drawElementsInstanced` at 296), though it passes rotation and
-  position separately rather than one matrix.
+**Chosen 2026-08-18.** Shaders read instance data by indexing a buffer
+with `gl_InstanceID`, rather than having GL feed each instance its own
+attribute values.
+
+| | (a) Divisor attributes | **(b) `gl_InstanceID` indexing** |
+|---|---|---|
+| Mechanism | `glVertexAttribDivisor(loc, 1)` | `texelFetch(tbo, gl_InstanceID * stride + …)` |
+| Setup | per-VAO attribute wiring, on **every** `MeshPrimitive` | bind one buffer per shader; VAOs untouched |
+| Reachable by a caller | no — the VAO is private to `MeshPrimitive` | yes — bind a buffer, set a base-offset uniform |
+| Per-instance payload | ≤ `MAX_VERTEX_ATTRIBS` (16 `vec4`s) | unbounded |
+| Instance count | unbounded | bounded by the backing store (see below) |
+| Per-vertex cost | fixed-function fetch (essentially free) | explicit `texelFetch`es |
+
+Route (b) wins on the thing that matters structurally: the instance
+buffer is bound once at the shader level, independent of how many VAOs
+a model contains. Route (a) would need the instance attribute wired
+into every primitive's VAO, and a caller outside `Model` has no handle
+to those VAOs at all. It also composes with the pose-source work — the
+same buffer can carry model matrices and joint palettes, both indexed
+by `gl_InstanceID`, so instancing and skinning land on one mechanism.
+
+Consequences of the decision:
+
+- `Shape.drawInstanced` and its divisor wiring
+  (`src/core/shapes/shape.zig`, `vertexAttribDivisor` around 218–229)
+  are removed. One convention, engine-wide.
+- `constants.VertexAttr.INSTANCE_MATRIX = 7` becomes dead once that
+  goes; delete it rather than leaving a reserved slot for a route not
+  taken.
+- `examples/bullets/projectiles/bullet_system.zig` still uses divisor
+  attributes (332, 349). It is a self-contained example, not core, so
+  it can migrate later or stay as a counter-example — but it should
+  not be cited as the pattern to copy.
+
+#### Does route (b) hit a size cap sooner?
+
+Only if it is backed by a **uniform buffer**. The cap is a property of
+the storage, not of the indexing:
+
+| Backing store | Cap on this Mac | Instances at 64 B each (one `mat4`) |
+|---------------|-----------------|-------------------------------------|
+| UBO array | `MAX_UNIFORM_BLOCK_SIZE` = 65,536 B | **1,024** — a real ceiling |
+| Texture buffer (`samplerBuffer`, `RGBA32F`) | `MAX_TEXTURE_BUFFER_SIZE` = 268,435,456 texels ≈ 4 GiB | ~67,000,000 — no practical limit |
+| 2D `RGBA32F` texture | 16,384 × 16,384 texels ≈ 4 GiB | same order |
+
+So: back it with a **TBO**, not a UBO, and route (b) has *more*
+headroom than route (a), not less — unbounded per-instance payload and
+an instance count that memory exhausts long before GL does. Choosing a
+UBO would reintroduce the 65 KiB box for no benefit; see
+[Path 2](#path-2--uniform-buffer-gl-31-already-in-41).
+
+What route (b) genuinely costs is vertex-stage bandwidth. The model
+matrix becomes four more `texelFetch`es per vertex on top of the
+palette fetches, where route (a) would have had the hardware fetch it
+through the fixed-function attribute path. That is the same trade
+priced in
+[What the texture path costs](#what-the-texture-path-costs), now
+extended to the model matrix. Worth measuring at the target instance
+count; not worth pre-optimising into two conventions.
+
+One clarification, since the setup saving is easy to overstate: route
+(b) still creates and uploads a buffer. What disappears is the
+*per-VAO attribute wiring* — the `vertexAttribPointer` and
+`vertexAttribDivisor` calls that route (a) needs on every
+`MeshPrimitive`. For a model with many primitives that is the bulk of
+the setup, but the buffer itself remains.
+
+#### What stays a uniform
 
 `nodeTransform` stays a uniform — it is per-node and shared across all
 instances — so `drawNodes` still walks the tree and issues one
@@ -279,8 +337,11 @@ without conflict.
 1. Split node-hierarchy state out of `Animator`.
 2. Inject the pose source at `buildModel` instead of constructing it
    there; `union(enum)` with `active` and `static` first.
-3. Instance attribute + `num_instances` parameter — usable immediately,
-   at one shared pose per batch.
+3. `instance_count` parameter on `draw` (landed) plus a `gl_InstanceID`
+   -indexed TBO for model matrices — usable immediately, at one shared
+   pose per batch. Delete `Shape.drawInstanced` and
+   `VertexAttr.INSTANCE_MATRIX` as part of this step so only one
+   instancing convention survives.
 4. Add `baked` as a third arm once there is a bake pipeline and a shader
    to match.
 
