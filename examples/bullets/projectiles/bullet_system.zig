@@ -29,6 +29,18 @@ pub const Bullet_Speed: f32 = 2.0;
 pub const Bullets_Per_Side: i32 = 3;
 pub const Spread_Degrees: f32 = 10.0;
 
+pub const BulletShaderData = struct {
+    rotation: Quat,
+    position: Vec3,
+    pad: f32,
+};
+
+pub const BulletCalcData = struct {
+    direction: Vec3,
+    velocity: Vec3,
+    right_vec: Vec3,
+};
+
 var buf: [500]u8 = undefined;
 pub const BulletSystem = struct {
     allocator: Allocator,
@@ -36,8 +48,8 @@ pub const BulletSystem = struct {
     gravity: f32 = 0.0,
     x_rotations: ManagedArrayList(Quat),
     y_rotations: ManagedArrayList(Quat),
-    bullet_positions: ManagedArrayList(Vec3),  // passed to GL buffer
-    bullet_rotations: ManagedArrayList(Quat),  // passed to GL buffer
+    bullet_positions: ManagedArrayList(Vec3), // passed to GL buffer
+    bullet_rotations: ManagedArrayList(Quat), // passed to GL buffer
     bullet_directions: ManagedArrayList(Vec3),
     bullet_velocities: ManagedArrayList(Vec3),
     bullet_right_vectors: ManagedArrayList(Vec3),
@@ -97,7 +109,6 @@ pub const BulletSystem = struct {
             .num_tiles_y = 1.0,
             .num_tiles_z = 1.0,
             .texture_mapping = .Cubemap2x3,
-            .is_instanced = false,
         };
 
         const bullet_cube = try rm.createCube(cube_config);

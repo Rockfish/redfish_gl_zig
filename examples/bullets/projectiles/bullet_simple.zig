@@ -105,7 +105,6 @@ pub const BulletSystem = struct {
             .num_tiles_y = 1.0,
             .num_tiles_z = 1.0,
             .texture_mapping = .Cubemap2x3,
-            .is_instanced = false, // bullet is handling instancing
         };
 
         const bullet_cube = try core.shapes.createCube(allocator, cube_config);
