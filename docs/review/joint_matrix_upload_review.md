@@ -64,10 +64,16 @@ Recommended ladder, when this becomes a plan:
    buffers *and* the `Animator`, so instances cannot have independent
    poses without duplicating VAOs/VBOs. Split per-instance state out
    of `Model` before any texture work. See
-   [The engine blocker](#the-engine-blocker-model-owns-too-much).
-2. **Free win available today:** `EnemySystem.drawEnemies` re-uploads
-   an identical palette and re-walks the node tree once per enemy.
-   Hoist it. See [Redundant per-instance upload](#redundant-per-instance-upload).
+   [The engine blocker](#the-engine-blocker-model-owns-too-much) for the
+   problem and
+   [Shaping the split](#shaping-the-split-pose-source-and-instancing)
+   for the pose-source union and instancing design.
+2. **Free wins available today:** `Model.draw` uploads a joint palette
+   even for unskinned models — 6400 bytes of identity matrices per
+   prop per frame, fixable with a one-line `skin_index` guard. And
+   `EnemySystem.drawEnemies` re-uploads an identical palette and
+   re-walks the node tree once per enemy; hoist both out of the loop.
+   See [Redundant per-instance upload](#redundant-per-instance-upload).
 3. **Hundreds of instances:** one `RGBA32F` texture buffer or 2D
    texture holding every instance's palette (or every baked clip
    frame), one `glDrawElementsInstanced`. Instance id selects the
@@ -135,9 +141,171 @@ rows, `gl_InstanceID` — becomes expressible only after it exists.
 
 ---
 
+## Shaping the split: pose source and instancing
+
+Design notes on *how* to make that split, added 2026-08-18.
+
+### Inject the pose source, don't construct it
+
+`GltfAsset.buildModel` currently does skin discovery and then
+`Animator.init(self.context, self, skin_index)`, handing back a `Model`
+with the animator already baked in. That makes the asset loader the
+thing deciding animation policy, which is not its job. Passing the
+pose source in — as a parameter, or as a setting on `GltfAsset`
+alongside `setNormalGenerationMode` — is an improvement independent of
+everything else here.
+
+### `Animator` is two responsibilities, and only one of them varies
+
+Before adding variants, notice what `Model.draw` actually reads:
+
+```zig
+if (!self.animator.nodes[node_index].is_visible) return;                  // model.zig:108
+const transform = self.animator.nodes[node_index].calculated_transform.?; // model.zig:111
+```
+
+That is the glTF node hierarchy, and **every** model needs it —
+skinned or not. Today a static prop still gets a full `Animator`
+constructed purely to hold its node transforms.
+
+| Responsibility | Who needs it | Varies by strategy? |
+|----------------|--------------|---------------------|
+| Node hierarchy state (`calculated_transform`, `is_visible`) | every model | no |
+| Skinning palette production | skinned models only | **yes — this is the strategy** |
+
+So a "null" pose source cannot be null until the hierarchy state moves
+out. Pull it into something `Model` always owns, and only then does the
+palette side become swappable with a genuinely empty variant. (This is
+compatible with the `ModelInstance` split above — node transforms are
+still per-instance state; they just are not *animation* state.)
+
+### The strategy is a tagged union, and its seam is `bind`
+
+```zig
+const PoseSource = union(enum) {
+    active: *Animator,   // live CPU evaluation — blending, cubic spline, IK
+    baked:  BakedClip,   // clip row + time; shader texelFetches the palette
+    static,              // no skinning at all
+
+    pub fn bind(self: PoseSource, shader: *const Shader) void { ... }
+};
+```
+
+Two design points behind that shape:
+
+**Tagged union, not a vtable.** Exhaustive compile-time dispatch, no
+indirection, and it matches the union-based interpolation dispatch this
+codebase already uses for cubic-spline selection.
+
+**The seam is "bind what you need", not "return a palette."** `baked`
+is not a drop-in implementation of `active` — it does not produce
+`joint_matrices` on the CPU at all. It uploads a clip row and a time and
+lets the vertex shader fetch the matrices, which also means a different
+shader. An interface defined as "give me `[MAX_JOINTS]Mat4`" cannot
+express that; an interface defined as "set up the uniforms for this
+draw" can.
+
+**What `static` is actually worth — a real per-frame saving.**
+`Model.draw` uploads the palette unconditionally:
+
+```zig
+shader.setMat4Array(constants.Uniforms.Joint_Matrices, &self.animator.joint_matrices);
+```
+
+There is no skin check. Every unskinned model therefore sends **6400
+bytes of identity matrices to the GPU on every draw of every frame**,
+plus the `glProgramUniformMatrix4fv` call itself. At 100 static props
+and 60 fps that is ~38 MB/s and 6000 uniform calls per second, all of
+it pure waste — and on a GL-to-Metal translation layer a uniform
+update between draws costs more than the bytes suggest, since the
+translation has to version constant storage per draw.
+
+It is tempting to argue this is harmless because the shaders already
+branch on `hasSkin`. That is about the *shader* not doing wasted
+work; it says nothing about the upload, which happens either way.
+
+`static` also avoids constructing an `Animator` for props at all, so
+the init-time and resident-memory saving is real too — but the
+per-frame upload is the larger and more immediate win.
+
+**This one does not need the refactor.** `Animator.skin_index` is
+already `?u32` and is null whenever the glTF declares no skins, so the
+guard is available today:
+
+```zig
+if (self.animator.skin_index != null) {
+    shader.setMat4Array(constants.Uniforms.Joint_Matrices, &self.animator.joint_matrices);
+}
+```
+
+The `static` union arm makes it structural rather than a runtime
+branch, which is the right end state. The guard captures most of the
+benefit immediately.
+
+### Instancing on `Model`
+
+`num_instances` as a **parameter to `draw`** is right. As a **field on
+`Model`** it works against the split above — instance count is
+per-draw-call state, and `Model` is becoming the shared resource. Do
+not put it back in.
+
+Swapping in `glDrawElementsInstanced` is the easy part. The real work is
+that the per-instance model matrix must stop being a uniform. Today the
+caller sets it (`drawEnemies` → `shader.setMat4("model", …)` per enemy),
+which is exactly what instancing removes: it becomes a vertex attribute
+with `glVertexAttribDivisor(slot, 1)`, and `MeshPrimitive.init` grows an
+instance buffer next to the existing VBOs.
+
+Two things make that cheaper than it sounds:
+
+- **The slot is already reserved.**
+  `constants.VertexAttr.INSTANCE_MATRIX = 7` is declared and currently
+  unused by `mesh.zig`. A `mat4` attribute consumes four consecutive
+  slots (7–10); positions through weights occupy only 0–6, leaving five
+  spare.
+- **There is a working reference in-tree.**
+  `examples/bullets/projectiles/bullet_system.zig` already does
+  divisor-based instancing (`vertexAttribDivisor` at 332 and 349,
+  `drawElementsInstanced` at 296), though it passes rotation and
+  position separately rather than one matrix.
+
+`nodeTransform` stays a uniform — it is per-node and shared across all
+instances — so `drawNodes` still walks the tree and issues one
+*instanced* draw per mesh node. The node walk and instancing compose
+without conflict.
+
+### Order to build it
+
+1. Split node-hierarchy state out of `Animator`.
+2. Inject the pose source at `buildModel` instead of constructing it
+   there; `union(enum)` with `active` and `static` first.
+3. Instance attribute + `num_instances` parameter — usable immediately,
+   at one shared pose per batch.
+4. Add `baked` as a third arm once there is a bake pipeline and a shader
+   to match.
+
+Steps 1–3 are mechanical and none of them requires deciding anything
+about textures. Step 3 alone converts angrybot's N enemy draws into one
+instanced draw, still in lockstep — which is
+[pose pool](#1-pose-pool--n-instances-k-distinct-poses-k--n) with K = 1,
+and the natural place to raise K afterwards.
+
+---
+
 ## Redundant per-instance upload
 
-Available now, independent of the split above.
+Two uploads that should not be happening. Both are fixable now,
+independent of the split above.
+
+### a. Unskinned models still upload a joint palette
+
+`Model.draw` calls `setMat4Array` with no skin check, so every static
+prop pushes 6400 bytes of identity matrices per frame. `skin_index`
+is already `?u32` and null for unskinned glTFs, so the fix is a
+one-line guard — details and cost in
+[What `static` is actually worth](#the-strategy-is-a-tagged-union-and-its-seam-is-bind).
+
+### b. Shared-animator instances upload identical data N times
 
 `Model.draw` uploads the full 100-matrix palette
 (`setMat4Array`, 6400 bytes) and then `drawNodes` walks the whole node
@@ -780,12 +948,20 @@ Stay on `#version 400 core` / OpenGL 4.1.
 
 **Do next, in this order**
 
-1. **Hoist the redundant per-enemy upload** in
-   `EnemySystem.drawEnemies`. Local, no architecture, immediate.
+1. **Stop the two uploads that should not happen.** Guard the palette
+   upload in `Model.draw` on `skin_index != null` (one line; every
+   static prop currently sends 6400 bytes of identity matrices per
+   frame), and hoist the palette and node walk out of the per-enemy
+   loop in `EnemySystem.drawEnemies`. Local, no architecture,
+   immediate.
 2. **Split per-instance state out of `Model`.** `Animator` and the
    instance transform move to a `ModelInstance`; `Model` keeps the
    shared meshes and `GltfAsset`. Nothing else on this list is
-   expressible until this exists.
+   expressible until this exists. Build order and the
+   `active` / `baked` / `static` pose-source union are in
+   [Shaping the split](#shaping-the-split-pose-source-and-instancing);
+   instancing lands there too, and step 3 of that list is worth doing
+   before the pose pool.
 3. **Measure.** Draw calls, uniform uploads, CPU animation, vertex
    processing — find which one is the wall at your target count
    before building for it.
