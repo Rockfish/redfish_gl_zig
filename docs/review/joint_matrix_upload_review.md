@@ -269,6 +269,7 @@ attribute values.
 | Reachable by a caller | no — the VAO is private to `MeshPrimitive` | yes — bind a buffer, set a base-offset uniform |
 | Per-instance payload | ≤ `MAX_VERTEX_ATTRIBS` (16 `vec4`s) | unbounded |
 | Instance count | unbounded | bounded by the backing store (see below) |
+| Per-draw instance offset | needs `glDrawElementsInstancedBaseInstance` — **GL 4.2, unavailable** | a base-offset uniform |
 | Per-vertex cost | fixed-function fetch (essentially free) | explicit `texelFetch`es |
 
 Route (b) wins on the thing that matters structurally: the instance
@@ -279,18 +280,108 @@ to those VAOs at all. It also composes with the pose-source work — the
 same buffer can carry model matrices and joint palettes, both indexed
 by `gl_InstanceID`, so instancing and skinning land on one mechanism.
 
-Consequences of the decision:
+Consequences of the decision — all applied in `61e1d74` / `7abe59e`:
 
-- `Shape.drawInstanced` and its divisor wiring
-  (`src/core/shapes/shape.zig`, `vertexAttribDivisor` around 218–229)
-  are removed. One convention, engine-wide.
-- `constants.VertexAttr.INSTANCE_MATRIX = 7` becomes dead once that
-  goes; delete it rather than leaving a reserved slot for a route not
-  taken.
+- `Shape.drawInstanced`, the `transforms_vbo` buffer and its four
+  divisor attribute bindings are gone from `src/core/shapes/shape.zig`.
+  One convention, engine-wide.
+- `constants.VertexAttr.INSTANCE_MATRIX` is deleted, rather than left
+  as a reserved slot for a route not taken.
+- The `is_instanced` flag existed only to gate that block, so it went
+  too — from `ShapeBuilder`, `initGLBuffers`, `CubeConfig` and every
+  call site.
 - `examples/bullets/projectiles/bullet_system.zig` still uses divisor
-  attributes (332, 349). It is a self-contained example, not core, so
-  it can migrate later or stay as a counter-example — but it should
-  not be cited as the pattern to copy.
+  attributes for its own bullet quads. It is a self-contained example,
+  not core, so it can migrate later or stay as a counter-example — but
+  it should not be cited as the pattern to copy.
+
+#### Per-draw instance offsets need GL 4.2
+
+The strongest argument against route (a) is not bandwidth — it is a
+capability GL 4.1 does not have.
+
+`Model.draw` walks the node tree and issues one draw per mesh node. With
+a single shared instance buffer, each of those draws needs to start
+reading at a different point in that buffer. The API for that is
+`glDrawElementsInstancedBaseInstance`, from `ARB_base_instance`, which
+is **OpenGL 4.2** — on the wrong side of the macOS ceiling, exactly like
+DSA and SSBOs.
+
+Without it, route (a) leaves only two workarounds at 4.1:
+
+- Re-call `glVertexAttribPointer` with a new offset before each draw.
+  That mutates VAO state every frame, which puts the per-primitive work
+  back into the hot path — the very thing the VAO was meant to hoist out
+  of it.
+- Keep one instance buffer per batch, which multiplies buffers instead
+  of offsets.
+
+Route (b) has no equivalent problem: the base offset is an integer
+uniform and the shader indexes `gl_InstanceID + baseOffset`. No API
+support required.
+
+#### VAO and VBO are independent objects
+
+Worth stating plainly, because assuming a tighter coupling leads to a
+wrong cost model for route (a).
+
+A VAO is a container of *configuration*, nothing more. It holds, per
+attribute slot: enabled flag, format (size, type, normalized, stride,
+offset), divisor, and **the buffer object captured at
+`glVertexAttribPointer` time** — plus one per-VAO
+`GL_ELEMENT_ARRAY_BUFFER` binding. It does not hold the current program,
+uniform values, texture bindings, the `GL_ARRAY_BUFFER` binding itself,
+or any depth/blend/cull state.
+
+Two consequences that matter here:
+
+**One VBO can back many VAOs.** `glVertexAttribPointer` captures
+whatever is bound to `GL_ARRAY_BUFFER` *at that moment* into that VAO's
+slot; nothing stops N VAOs from capturing the same buffer object. So
+route (a) would not have meant N uploads per frame:
+
+```zig
+// setup, once per primitive — the same buffer every time
+gl.bindVertexArray(p.vao);
+gl.bindBuffer(gl.ARRAY_BUFFER, instance_vbo);
+// vertexAttribPointer + vertexAttribDivisor …
+
+// per frame — once, not once per primitive
+gl.bindBuffer(gl.ARRAY_BUFFER, instance_vbo);
+gl.bufferSubData(gl.ARRAY_BUFFER, 0, size, data);
+```
+
+Every VAO references the same buffer object, not a copy. **Per-frame
+upload cost is identical between the two routes.** The real differences
+are setup complexity, caller reachability, payload size, and the
+base-instance gap above — not bandwidth.
+
+**Attribute bindings do not rebind like textures.** A texture binding is
+context state consulted at draw time, so `glBindTexture` before a draw
+redirects the sampler. An attribute's buffer reference lives *inside the
+VAO*. Binding a different VBO to `GL_ARRAY_BUFFER` before a draw changes
+nothing — `glDrawElements` never consults it. Re-pointing an attribute
+means re-binding the VAO, binding the new buffer, and calling
+`glVertexAttribPointer` again, which rewrites VAO state.
+
+The 4.1 way to switch data sources cheaply is therefore **pre-built VAO
+variants**: VAOs are cheap to bind (though not free to create — build
+them up front, never per frame), so make several, each capturing a
+different buffer combination, and swap with one `glBindVertexArray`.
+
+GL 4.3's separate attribute format is the API that would make buffer
+swapping work the way textures do — `glVertexAttribFormat` declares the
+layout once and `glBindVertexBuffer` re-points a binding slot without
+re-specifying anything. Out of reach here, same ceiling as everything
+else in [Path 4](#path-4--not-available-on-41).
+
+One place this pattern could pay off independently of instancing:
+angrybot's shadow pass renders depth only, so it needs position (plus
+joints and weights when skinned) and nothing else — yet the VAO has all
+seven attributes enabled. A second depth-only VAO per primitive would
+drop the rest. Measure before building it: modern drivers often already
+elide fetches for attributes the linked program does not consume, and it
+doubles the VAO count per primitive.
 
 #### Does route (b) hit a size cap sooner?
 
