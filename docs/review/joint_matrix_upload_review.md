@@ -786,6 +786,90 @@ matrix stored as four adjacent pixels filters the four columns
 independently and produces a garbage matrix — set `GL_NEAREST` and
 blend explicitly, as above.
 
+### Bake node transforms too, not just the joint palette
+
+A full bake needs more than `joint_matrices`. Joints are a *derived*
+quantity — `animator.zig:529` computes them as
+`node_matrix.mulMat4(&joint.inverse_bind_matrix)`. The thing animation
+actually drives is `nodes[i].calculated_transform`, and for an
+**unskinned** mesh that transform is the entire animation. Baking only
+the palette would silently drop every rigid-body animation: a rotating
+propeller, a sliding door, a mechanical assembly.
+
+The shader already treats these as mutually exclusive.
+`examples/demo_app/shaders/pbr.vert`:
+
+```glsl
+if (hasSkin) {
+    // jointMatrices only — nodeTransform is never applied
+    vec4 localPosition = jointMatrices[inJointIds[i]] * vec4(inPosition, 1.0);
+    ...
+} else {
+    totalPosition = nodeTransform * vec4(inPosition, 1.0);
+}
+```
+
+So `hasSkin` selects which region of the baked row to read, and shader
+*semantics* do not change at all — only the source of the matrices.
+This also matches the glTF spec, which requires a skinned mesh node's
+own transform to be ignored: placement is already carried by the joint
+hierarchy and the inverse bind matrices.
+
+**`hasSkin` is per-primitive, not per-model.** It is set on each
+`MeshPrimitive` from attribute presence (`mesh.zig:185`) and uploaded
+per primitive at draw (`mesh.zig:267`), so one model can take both
+branches in the same frame — a character with a skinned body and a
+rigid prop mesh. The flag is therefore a *runtime region selector*, not
+a bake-time either/or: a mixed model bakes both regions.
+
+**The uniform becomes an index.** `drawNodes` already knows the node
+index — it is the loop variable — so `setMat4(Node_Transform, …)`
+becomes a `setInt` at the same call site:
+
+```glsl
+uniform int nodeIndex;   // replaces uniform mat4 nodeTransform
+```
+
+The joint side needs no index uniform; `inJointIds[i]` already supplies
+it.
+
+**`is_visible` does not get baked.** It is written only by the explicit
+setters in `model.zig:220-256` and never touched by the animator, so it
+is engine state rather than animation state and stays a CPU-side check
+in `drawNodes`.
+
+#### Layout: store every node, or compact and remap?
+
+Storing transforms only for mesh-bearing nodes is tempting — `drawNodes`
+reads `calculated_transform` only when `node.mesh != null`, and joint
+nodes are already folded into the palette. But then the glTF node index
+no longer addresses the texture directly and needs a remap.
+
+Per frame, for a rigged character with ~100 nodes of which ~8 carry
+meshes:
+
+| Layout | Joints | Transforms | Row total | 10 clips @ 30 Hz, 2 s |
+|--------|--------|-----------|-----------|------------------------|
+| All nodes | 6,400 B | 6,400 B | 12,800 B | ~7.7 MB |
+| Mesh nodes only | 6,400 B | 512 B | 6,912 B | ~4.1 MB |
+
+Compaction nearly halves the bake — but both numbers are trivial
+against 16 GB of unified memory and a 4 GiB TBO ceiling, so **store
+every node**. The texture layout then mirrors the glTF node array
+exactly, which is worth more in debugging than 3 MB is in memory.
+
+Two notes for whenever that stops being true:
+
+- The remap is cheaper than it looks. Because `nodeIndex` is a uniform
+  set per draw from the CPU, the indirection lives entirely on the host
+  — `drawNodes` passes `node_row[node_index]` instead of the raw index.
+  No shader-side lookup table, no per-frame cost, one static array
+  built at bake time.
+- The waste is worst exactly where it matters most. A heavily rigged
+  character is the model with the most nodes *and* the fewest that need
+  a stored transform, so the all-nodes region is nearly pure padding for
+  precisely the assets a crowd is made of.
+
 ### Fidelity tiers — hero versus horde
 
 This is the right way to use the technique, and it does not have to be
