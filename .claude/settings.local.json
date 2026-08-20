@@ -20,7 +20,14 @@
       "Bash(git -C /Users/john/Dev/Dev_Zig/redfish_gl_zig status --short)",
       "Bash(git *)",
       "Bash(echo \"=== check exit: $? ===\")",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"demo_app exit: $?\")",
+      "Bash(echo \"angrybot exit: $?\")",
+      "WebFetch(domain:www.khronos.org)",
+      "WebFetch(domain:wikis.khronos.org)",
+      "WebSearch",
+      "Bash(echo \"bullets: $?\")",
+      "Bash(echo \"check: $?\")"
     ],
     "deny": []
   }
