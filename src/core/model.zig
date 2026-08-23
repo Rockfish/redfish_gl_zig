@@ -114,10 +114,6 @@ pub const Model = struct {
         }
     }
 
-    pub fn debugPrintNodeStructure(self: *Self) void {
-        debugPrintModelNodeStructure(self);
-    }
-
     fn drawNodes(self: *Self, shader: *const Shader, node: gltf_types.Node, node_index: usize, instance_count: u32) void {
         if (!self.animator.nodes[node_index].is_visible) return;
 

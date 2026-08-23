@@ -18,7 +18,6 @@ const Mat4 = math.Mat4;
 const Quat = math.Quat;
 const quat = math.quat;
 
-pub const MAX_JOINTS: usize = constants.MAX_JOINTS;
 pub const DEFAULT_ANIMATION_DURATION: f32 = 1.0;
 
 pub const AnimationRepeatMode = enum {
@@ -56,6 +55,7 @@ pub const AnimationState = struct {
         self.current_time += delta_time;
 
         if (self.current_time > self.end_time) {
+            self.repeat_completions +%= 1;
             switch (self.repeat_mode) {
                 .Once => {
                     self.current_time = self.end_time;
@@ -63,7 +63,6 @@ pub const AnimationState = struct {
                 .Count => {
                     // TODO: implement count-based repeating
                     self.current_time = self.start_time;
-                    self.repeat_completions += 1;
                 },
                 .Forever => {
                     // Loop back to start
@@ -264,7 +263,7 @@ pub const Animator = struct {
     weight_animations: ManagedArrayList(WeightedAnimation),
 
     // Final matrices for rendering
-    joint_matrices: [MAX_JOINTS]Mat4,
+    joint_matrices: [constants.MAX_JOINTS]Mat4,
 
     const Self = @This();
 
@@ -325,7 +324,7 @@ pub const Animator = struct {
             .root_nodes = try root_nodes_list.toOwnedSlice(),
             .nodes = initial_nodes,
             .animations = animations,
-            .joint_matrices = [_]Mat4{Mat4.Identity} ** MAX_JOINTS,
+            .joint_matrices = [_]Mat4{Mat4.Identity} ** constants.MAX_JOINTS,
         };
 
         return animator;
@@ -546,7 +545,7 @@ pub const Animator = struct {
     /// Set final matrices for shader rendering
     fn setShaderMatrices(self: *Self) void {
         // Update joint matrices for skinned meshes
-        for (0..@min(self.joints.len, MAX_JOINTS)) |i| {
+        for (0..@min(self.joints.len, constants.MAX_JOINTS)) |i| {
             const joint = self.joints[i];
 
             if (joint.node_index < self.nodes.len) {
@@ -558,7 +557,7 @@ pub const Animator = struct {
         }
 
         // Fill remaining slots with identity matrices
-        for (self.joints.len..MAX_JOINTS) |i| {
+        for (self.joints.len..constants.MAX_JOINTS) |i| {
             self.joint_matrices[i] = Mat4.Identity;
         }
     }

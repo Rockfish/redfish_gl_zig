@@ -347,6 +347,13 @@ pub const Shader = struct {
         self.setInt(uniform_name, @intCast(unit));
     }
 
+    pub fn bindTexture1DAuto(self: *const Shader, uniform_name: [:0]const u8, gl_texture_id: u32) void {
+        const unit = self.allocateTextureUnit(uniform_name);
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_1D, gl_texture_id);
+        self.setInt(uniform_name, @intCast(unit));
+    }
+
     fn allocateTextureUnit(self: *const Shader, uniform_name: [:0]const u8) u32 {
         // Create composite key: shader_id:uniform_name to avoid collisions between shader instances
         var key_buffer: [256]u8 = undefined;

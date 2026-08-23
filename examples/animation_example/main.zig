@@ -6,9 +6,13 @@ const core = @import("core");
 const math = @import("math");
 const containers = @import("containers");
 
+const BakedAnimation = @import("bake_animation.zig").BakedAnimation;
+const BakedAnimator = @import("bake_animation.zig").BakedAnimator;
+
 const gl = zopengl.bindings;
 
 const ArenaAllocator = std.heap.ArenaAllocator;
+const print = std.debug.print;
 
 const Context = core.Context;
 const Model = core.Model;
@@ -72,8 +76,9 @@ const State = struct {
     scr_width: f32 = SCR_WIDTH,
     scr_height: f32 = SCR_HEIGHT,
     current_action: u8 = 0, // 0=idle, 1=forward, 2=backwards, 3=right, 4=left, 5=dying
-    current_clip_index: usize = 0, // Index into player_clips array
+    current_clip_index: usize = 2, // Index into player_clips array
     model: ?*Model = null, // Reference to the model for animation updates
+    baked: bool = true,
 };
 
 const content_dir = "assets";
@@ -184,11 +189,12 @@ const model_configs = [_]ModelConfig{
     // Spacesuit configuration
     .{
         .choice = .spacesuit,
-        .path = "assets/angrybots_assets/Models/Player/Spacesuit.gltf",
+        // .path = "assets/models/Spacesuit/Spacesuit_converted.gltf",
+        .path = "assets_nas/modular_characters/Individual Characters/glTF/Spacesuit.gltf",
         .name = "Spacesuit",
         .transform = blk: {
             var transform = Mat4.Identity;
-            transform.scale(vec3(0.5, 0.5, 0.5));
+            transform.scale(vec3(8.5, 8.5, 8.5));
             break :blk transform;
         },
         .addTextures = &[_]TexConfigs{},
@@ -198,7 +204,7 @@ const model_configs = [_]ModelConfig{
     // Security Bot configuration
     .{
         .choice = .securitybot,
-        .path = "assets/angrybots_assets/security_bot_7/scene.gltf",
+        .path = "assets/models/Security_bot_7/scene.gltf",
         .name = "Security_Bot",
         .transform = Mat4.Identity,
         .addTextures = &[_]TexConfigs{},
@@ -266,7 +272,7 @@ pub fn main(init: std.process.Init) !void {
     const window = try glfw.Window.create(
         600,
         600,
-        "Angry ",
+        "Animation Tester",
         null,
         null,
     );
@@ -317,13 +323,18 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     gl.enable(gl.DEPTH_TEST);
 
-    const shader = try Shader.init(
+    const shader = if (SELECTED_MODEL == .player)
+        try Shader.init(
         init.io,
         context.alloc,
-        "examples/animation_example/player_shader.vert",
+        "examples/animation_example/player_shader_baked.vert",
         "examples/animation_example/player_shader.frag",
-        // "examples/animation_example/pbr.vert",
-        // "examples/animation_example/pbr.frag",
+        )
+    else try Shader.init(
+        init.io,
+        context.alloc,
+    "examples/animation_example/pbr.vert",
+    "examples/animation_example/pbr.frag",
     );
 
     std.debug.print("Shader id: {d}\n", .{shader.id});
@@ -337,7 +348,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     // const floorLightColor: Vec3 = FLOOR_LIGHT_FACTOR * 1.0 * vec3(FLOOR_NON_BLUE * 0.406, FLOOR_NON_BLUE * 0.723, 1.0);
     // const floorAmbientColor: Vec3 = FLOOR_LIGHT_FACTOR * 0.50 * vec3(FLOOR_NON_BLUE * 0.7, FLOOR_NON_BLUE * 0.7, 0.7);
 
-    const ambientColor: Vec3 = vec3(NON_BLUE * 0.7, NON_BLUE * 0.7, 0.7);
+    const ambientColor: Vec3 = vec3(1.0, 1.0, 1.0);
 
     // Find the configuration for the selected model
     const model_config = blk: {
@@ -445,6 +456,23 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     const start_time = state.last_frame;
 
+    // var bake = true;
+    // const completions = model.animator.active_animations.list.items[0].repeat_completions;
+    // var frames: u32 = 0;
+
+    // try model.updateAnimation(0.0);
+
+    const baked_animation = try BakedAnimation.bakeAnimation(context, model.animator, fps);
+    var baked_animator = BakedAnimator.init(model, baked_animation);
+
+    const baked_data = try baked_animator.getTextureData(context.alloc);
+    const baked_texture = baked_animator.createTexture(baked_data);
+    print("baked data length: {d}  bake texture id: {d}\n", .{baked_data.len, baked_texture});
+    baked_animator.gl_texture_id = baked_texture;
+
+
+    baked_animation.printData();
+
     while (!window.shouldClose()) {
         const currentFrame: f32 = @floatCast(glfw.getTime());
         state.delta_time = currentFrame - state.last_frame;
@@ -480,10 +508,15 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         shader.setMat4("aimRot", &identity);
         shader.setMat4("matLightSpace", &identity);
 
-        // std.debug.print("Main: draw\n", .{});
-        try model.updateAnimation(state.delta_time);
-        // try model.playTick(140.0);
-        model.draw(shader, 1);
+        if (state.baked) {
+            // baked_animator.draw(shader, 1, state.delta_time);
+            // baked_animator.drawData(shader, 1, state.delta_time, baked_data);
+            baked_animator.drawWithTexture(shader, 1, state.delta_time);
+        } else {
+            try model.updateAnimation(state.delta_time);
+            model.draw(shader, 1);
+        }
+
         // try core.dumpModelNodes(model);
 
         // const bulletTransform = Mat4.fromScale(&vec3(2.0, 2.0, 2.0));
