@@ -328,6 +328,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         init.io,
         context.alloc,
         "examples/animation_example/player_shader_baked.vert",
+            // "examples/animation_example/player_shader.vert",
         "examples/animation_example/player_shader.frag",
         )
     else try Shader.init(
@@ -368,6 +369,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     // Create glTF asset and load model
     var gltf_asset = try GltfAsset.init(context, model_name, model_path);
     try gltf_asset.load();
+
+    std.debug.print("gltf_asset.directory: {s}\n", .{gltf_asset.directory});
 
     // Apply model configuration
     const model_transform = model_config.transform;
@@ -456,23 +459,34 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     const start_time = state.last_frame;
 
-    // var bake = true;
-    // const completions = model.animator.active_animations.list.items[0].repeat_completions;
-    // var frames: u32 = 0;
-
-    // try model.updateAnimation(0.0);
-
     const baked_animation = try BakedAnimation.bakeAnimation(context, model.animator, fps);
-    var baked_animator = BakedAnimator.init(model, baked_animation);
-
-    const baked_data = try baked_animator.getTextureData(context.alloc);
-    const baked_texture = baked_animator.createTexture(baked_data);
-    print("baked data length: {d}  bake texture id: {d}\n", .{baked_data.len, baked_texture});
-    baked_animator.gl_texture_id = baked_texture;
-
-
     baked_animation.printData();
 
+    var baked_animator = BakedAnimator.init(model, baked_animation);
+    const baked_data = try baked_animator.getBakedData(context.alloc);
+    // _ = baked_data;
+
+    const baked_texture = core.TextureBuffer.createTextureBuffer(math.Mat4, baked_data);
+    print("baked data length: {d}  bake texture id: {d}\n", .{baked_data.len, baked_texture.gl_texture_id});
+    baked_animator.gl_texture_id = baked_texture.gl_texture_id;
+
+    const instance_count: usize = 10;
+
+    var model_transforms: [instance_count]Mat4 = undefined;
+    for (0..instance_count) |count| {
+        const i: f32 = @floatFromInt(count);
+        const translation_matrix = Mat4.fromTranslation(vec3(i * 90.0 - 200.0, 0.0, 0.0));
+        const mat_model = model_transform.mulMat4(&translation_matrix);
+        model_transforms[count] = mat_model;
+    }
+
+    const model_transforms_texture = core.TextureBuffer.createTextureBuffer(math.Mat4, &model_transforms);
+    std.debug.print("model_transfrom gl_buffer_id: {d}\n", .{model_transforms_texture.gl_texture_id});
+
+    shader.bindTextureBufferAuto("animationData", baked_animator.gl_texture_id);
+    shader.bindTextureBufferAuto("modelMatrixes", model_transforms_texture.gl_texture_id);
+
+    print("Run starting---\n", .{});
     while (!window.shouldClose()) {
         const currentFrame: f32 = @floatCast(glfw.getTime());
         state.delta_time = currentFrame - state.last_frame;
@@ -511,7 +525,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         if (state.baked) {
             // baked_animator.draw(shader, 1, state.delta_time);
             // baked_animator.drawData(shader, 1, state.delta_time, baked_data);
-            baked_animator.drawWithTexture(shader, 1, state.delta_time);
+            baked_animator.drawWithTexture(shader, @intCast(instance_count), state.delta_time);
         } else {
             try model.updateAnimation(state.delta_time);
             model.draw(shader, 1);

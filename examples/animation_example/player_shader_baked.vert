@@ -20,7 +20,8 @@ uniform int frameID;
 int animationID = 0;
 // Instance ID: gl_InstanceID
 
-uniform sampler1D animationData;
+uniform samplerBuffer animationData;
+uniform samplerBuffer modelMatrixes;
 
 uniform mat4 matProjection;
 uniform mat4 matView;
@@ -35,11 +36,11 @@ out vec3 fragWorldPos;
 
 vec3 localNormal = vec3(0.0f);
 
-mat4 fetchMatrix(int index) {
-    vec4 col1 = texelFetch(animationData, index * 4 + 0, 0);
-    vec4 col2 = texelFetch(animationData, index * 4 + 1, 0);
-    vec4 col3 = texelFetch(animationData, index * 4 + 2, 0);
-    vec4 col4 = texelFetch(animationData, index * 4 + 3, 0);
+mat4 fetchMatrix(samplerBuffer data, int index) {
+    vec4 col1 = texelFetch(data, index * 4 + 0);
+    vec4 col2 = texelFetch(data, index * 4 + 1);
+    vec4 col3 = texelFetch(data, index * 4 + 2);
+    vec4 col4 = texelFetch(data, index * 4 + 3);
     return mat4(col1, col2, col3, col4);
 }
 
@@ -63,7 +64,7 @@ void main() {
                 break;
             }
 
-            mat4 jointMatrix = fetchMatrix(jointOffset + inJointIds[i]);
+            mat4 jointMatrix = fetchMatrix(animationData, jointOffset + inJointIds[i]);
 
             vec4 localPosition = jointMatrix * vec4(inPosition, 1.0f);
             totalPosition += localPosition * inWeights[i];
@@ -72,11 +73,13 @@ void main() {
         }
     } else {
         // Use node transform for non-skinned models
-        mat4 nodeTransform = fetchMatrix(frameOffset + meshID);
+        mat4 nodeTransform = fetchMatrix(animationData, frameOffset + meshID);
         totalPosition = nodeTransform * vec4(inPosition, 1.0f);
     }
 
-    gl_Position = matProjection * matView * matModel * totalPosition;
+    mat4 modelTransform = fetchMatrix(modelMatrixes, gl_InstanceID);
+
+    gl_Position = matProjection * matView * modelTransform * totalPosition;
 
     fragTexCoord = inTexCoord;
     fragColor = inColor;
@@ -84,6 +87,6 @@ void main() {
     mat4 matNormal = transpose(inverse(matModel));
     fragNormal = normalize(vec3(matNormal * vec4(inNormal, 1.0)));
 
-    fragWorldPos = vec3(matModel * vec4(inPosition, 1.0));
+    fragWorldPos = vec3(modelTransform * vec4(inPosition, 1.0));
     fragPosLightSpace = matLightSpace * vec4(fragWorldPos, 1.0);
 }

@@ -209,6 +209,9 @@ pub fn createGl2DTexture(image: zstbi.Image, sampler: gltf_types.Sampler) c_uint
         else => gl.RED,
     };
 
+    gl.bindTexture(gl.TEXTURE_2D, 0);
+    gl.bindTexture(gl.TEXTURE_BUFFER, 0);
+
     var gl_texture_id: gl.Uint = undefined;
 
     gl.genTextures(1, &gl_texture_id);
@@ -225,7 +228,7 @@ pub fn createGl2DTexture(image: zstbi.Image, sampler: gltf_types.Sampler) c_uint
         gl.UNSIGNED_BYTE,
         image.data.ptr,
     );
-    gl_debug.check("glTexImage2D");
+    gl_debug.check("createGl2DTexture - glTexImage2D");
 
     gl.generateMipmap(gl.TEXTURE_2D);
 

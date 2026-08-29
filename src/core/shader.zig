@@ -3,6 +3,7 @@ const utils = @import("utils/root.zig");
 const containers = @import("containers");
 const gl = @import("zopengl").bindings;
 const math = @import("math");
+const gl_debug = @import("gl_debug.zig");
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
@@ -351,6 +352,13 @@ pub const Shader = struct {
         const unit = self.allocateTextureUnit(uniform_name);
         gl.activeTexture(gl.TEXTURE0 + unit);
         gl.bindTexture(gl.TEXTURE_1D, gl_texture_id);
+        self.setInt(uniform_name, @intCast(unit));
+    }
+
+    pub fn bindTextureBufferAuto(self: *const Shader, uniform_name: [:0]const u8, gl_texture_id: u32) void {
+        const unit = self.allocateTextureUnit(uniform_name);
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_BUFFER, gl_texture_id);
         self.setInt(uniform_name, @intCast(unit));
     }
 

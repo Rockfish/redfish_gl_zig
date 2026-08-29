@@ -1,12 +1,12 @@
 const std = @import("std");
-const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
-const zstbi = @import("zstbi");
+const gl = zopengl.bindings;
 const core = @import("core");
 const math = @import("math");
-const containers = @import("containers");
 
-const gl = zopengl.bindings;
+const glfw = @import("zglfw");
+const zstbi = @import("zstbi");
+const containers = @import("containers");
 
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
@@ -36,6 +36,62 @@ const AnimationClip = animation.AnimationClip;
 const AnimationRepeat = animation.AnimationRepeatMode;
 
 const print = std.debug.print;
+
+const TextureBuffer = struct {
+    gl_texture_id: c_uint,
+    gl_buffer_id: c_uint,
+
+    const Self = @This();
+
+    pub fn createTextureBuffer(data: []Mat4) TextureBuffer {
+        // 1. Create a regular Buffer Object (VBO) to hold the matrix data
+        var tbo_buffer: gl.Uint = undefined;
+        gl.genBuffers(1, &tbo_buffer);
+        gl.bindBuffer(gl.TEXTURE_BUFFER, tbo_buffer);
+
+        // Upload raw matrix data size = data.len * 64 bytes
+        gl.bufferData(
+            gl.TEXTURE_BUFFER,
+            @intCast(data.len * @sizeOf(Mat4)),
+            data.ptr,
+            gl.STATIC_DRAW
+        );
+
+        // 2. Create the Buffer Texture
+        var gl_texture_id: gl.Uint = undefined;
+        gl.genTextures(1, &gl_texture_id);
+        gl.bindTexture(gl.TEXTURE_BUFFER, gl_texture_id);
+
+        // Attach the buffer storage to the texture target using RGBA32F
+        // Each Mat4 takes exactly 4 texels (16 floats total)
+        gl.texBuffer(gl.TEXTURE_BUFFER, gl.RGBA32F, tbo_buffer);
+
+        gl.bindBuffer(gl.TEXTURE_BUFFER, 0);
+        gl.bindTexture(gl.TEXTURE_BUFFER, 0);
+
+        core.gl_debug.check("glTexBuffer");
+        return TextureBuffer{
+            .gl_texture_id = gl_texture_id,
+            .gl_buffer_id = tbo_buffer,
+        };
+    }
+
+    pub fn updateTextureBuffer(self: *Self, data: []Mat4) void {
+        gl.bindBuffer(gl.TEXTURE_BUFFER, self.gl_buffer_id);
+        gl.bufferData(
+            gl.TEXTURE_BUFFER,
+            @intCast(data.len * @sizeOf(Mat4)),
+            data.ptr,
+            gl.STATIC_DRAW
+        );
+        gl.bindBuffer(gl.TEXTURE_BUFFER, 0);
+    }
+
+    pub fn deleteGlObjects(self: *Self) void {
+        gl.deleteBuffers(1, &self.gl_buffer_id);
+        gl.deleteTextures(1, &self.gl_texture_id);
+    }
+};
 
 const MeshAnimationData = struct {
     node_index: usize,
@@ -82,7 +138,7 @@ pub const BakedAnimator = struct {
             self.current_time = 0;
             frame_index = 0;
         }
-        print("frame: {d} current time: {d}\n", .{frame_index, self.current_time});
+        // print("frame: {d} current time: {d}\n", .{frame_index, self.current_time});
         return frame_index;
     }
 
@@ -104,7 +160,7 @@ pub const BakedAnimator = struct {
         }
     }
 
-    pub fn getTextureData(self: *Self, alloc: Allocator) ![]Mat4 {
+    pub fn getBakedData(self: *Self, alloc: Allocator) ![]Mat4 {
         const data_size = self.baked_animation.header.num_frames * (self.baked_animation.header.num_meshes + self.baked_animation.header.num_joints);
         const data = try alloc.alloc(Mat4, data_size);
         var index: usize = 0;
@@ -150,7 +206,8 @@ pub const BakedAnimator = struct {
         shader.setInt("frameID", @intCast(frame_index));
         shader.setInt("numMeshes", @intCast(self.baked_animation.header.num_meshes));
         shader.setInt("numJoints", @intCast(self.baked_animation.header.num_joints));
-        shader.bindTexture1DAuto("animationData", self.gl_texture_id);
+
+        shader.bindTextureBufferAuto("animationData", self.gl_texture_id);
 
         for (0..num_meshes) |index| {
             shader.setInt("meshID", @intCast(index));
@@ -159,33 +216,6 @@ pub const BakedAnimator = struct {
         }
     }
 
-    pub fn createTexture(self: *Self, data: []Mat4) c_uint {
-        _ = self;
-
-        var gl_texture_id: gl.Uint = undefined;
-        gl.genTextures(1, &gl_texture_id);
-        gl.bindTexture(gl.TEXTURE_1D, gl_texture_id);
-
-        gl.texImage1D(
-            gl.TEXTURE_1D,
-            0,
-            gl.RGBA32F,
-            @intCast(data.len * 4),
-            @intCast(0),
-            gl.RGBA,
-            gl.FLOAT,
-            data.ptr,
-        );
-
-        gl.texParameteri(gl.TEXTURE_1D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_1D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_1D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-
-        gl.bindTexture(gl.TEXTURE_1D, 0);
-
-        core.gl_debug.check("glTexImage1D");
-        return gl_texture_id;
-    }
 };
 
 pub const BakedAnimation = struct {
