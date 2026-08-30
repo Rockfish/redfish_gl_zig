@@ -26,10 +26,9 @@ out vec4 fragColor;
 out vec4 fragPosLightSpace;
 out vec3 fragWorldPos;
 
-vec3 localNormal = vec3(0.0f);
-
 void main() {
     vec4 totalPosition = vec4(0.0f);
+    vec3 totalNormal = vec3(0.0f);
 
     if (hasSkin) {
         // Use joint skinning for animated models
@@ -40,17 +39,20 @@ void main() {
 
             if (inJointIds[i] >= MAX_JOINTS) {
                 totalPosition = vec4(inPosition, 1.0f);
+                totalNormal = inNormal;
                 break;
             }
 
             vec4 localPosition = jointMatrices[inJointIds[i]] * vec4(inPosition, 1.0f);
             totalPosition += localPosition * inWeights[i];
 
-            localNormal = mat3(jointMatrices[inJointIds[i]]) * inNormal;
+            vec3 localNormal = mat3(jointMatrices[inJointIds[i]]) * inNormal;
+            totalNormal += localNormal * inWeights[i];
         }
     } else {
         // Use node transform for non-skinned models
         totalPosition = nodeTransform * vec4(inPosition, 1.0f);
+        totalNormal = mat3(nodeTransform) * inNormal;
     }
 
     gl_Position = matProjection * matView * matModel * totalPosition;
@@ -58,9 +60,9 @@ void main() {
     fragTexCoord = inTexCoord;
     fragColor = inColor;
 
-    mat4 matNormal = transpose(inverse(matModel));
-    fragNormal = normalize(vec3(matNormal * vec4(inNormal, 1.0)));
+    mat3 matNormal = transpose(inverse(mat3(matModel)));
+    fragNormal = normalize(matNormal * totalNormal);
 
-    fragWorldPos = vec3(matModel * vec4(inPosition, 1.0));
+    fragWorldPos = vec3(matModel * totalPosition);
     fragPosLightSpace = matLightSpace * vec4(fragWorldPos, 1.0);
 }

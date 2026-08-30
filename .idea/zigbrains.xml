@@ -68,6 +68,16 @@
       "kind": "run"
     },
     {
+      "name": "gl_caps",
+      "description": "Build 'gl_caps' app",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "gl_caps-run",
+      "description": "Run 'gl_caps' app",
+      "kind": "run"
+    },
+    {
       "name": "angrybot",
       "description": "Build 'angrybot' app",
       "kind": "install_artifact"
@@ -146,6 +156,11 @@
     },
     {
       "root": "examples/scene_tree/main.zig",
+      "public": false,
+      "imports": []
+    },
+    {
+      "root": "examples/gl_caps/main.zig",
       "public": false,
       "imports": []
     },

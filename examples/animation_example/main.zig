@@ -325,18 +325,20 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     const shader = if (SELECTED_MODEL == .player)
         try Shader.init(
-        init.io,
-        context.alloc,
-        "examples/animation_example/player_shader_baked.vert",
+            init.io,
+            context.alloc,
+            "examples/animation_example/player_shader_baked.vert",
             // "examples/animation_example/player_shader.vert",
-        "examples/animation_example/player_shader.frag",
+            "examples/animation_example/player_shader.frag",
         )
-    else try Shader.init(
-        init.io,
-        context.alloc,
-    "examples/animation_example/pbr.vert",
-    "examples/animation_example/pbr.frag",
-    );
+    else
+        try Shader.init(
+            init.io,
+            context.alloc,
+            //"examples/animation_example/pbr.vert",
+            "examples/animation_example/pbr_anim_baked.vert",
+            "examples/animation_example/pbr.frag",
+        );
 
     std.debug.print("Shader id: {d}\n", .{shader.id});
 
@@ -349,7 +351,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     // const floorLightColor: Vec3 = FLOOR_LIGHT_FACTOR * 1.0 * vec3(FLOOR_NON_BLUE * 0.406, FLOOR_NON_BLUE * 0.723, 1.0);
     // const floorAmbientColor: Vec3 = FLOOR_LIGHT_FACTOR * 0.50 * vec3(FLOOR_NON_BLUE * 0.7, FLOOR_NON_BLUE * 0.7, 0.7);
 
-    const ambientColor: Vec3 = vec3(1.0, 1.0, 1.0);
+    const ambientColor: Vec3 = vec3(0.8, 0.7, 0.8);
 
     // Find the configuration for the selected model
     const model_config = blk: {
@@ -467,12 +469,13 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     // _ = baked_data;
 
     const baked_texture = core.TextureBuffer.createTextureBuffer(math.Mat4, baked_data);
-    print("baked data length: {d}  bake texture id: {d}\n", .{baked_data.len, baked_texture.gl_texture_id});
+
+    print("baked data length: {d}  bake texture id: {d}\n", .{ baked_data.len, baked_texture.gl_texture_id });
     baked_animator.gl_texture_id = baked_texture.gl_texture_id;
 
-    const instance_count: usize = 10;
+    const instance_count: usize = 1000;
 
-    var model_transforms: [instance_count]Mat4 = undefined;
+    const model_transforms = try context.alloc.alloc(Mat4, instance_count);
     for (0..instance_count) |count| {
         const i: f32 = @floatFromInt(count);
         const translation_matrix = Mat4.fromTranslation(vec3(i * 90.0 - 200.0, 0.0, 0.0));
@@ -480,7 +483,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         model_transforms[count] = mat_model;
     }
 
-    const model_transforms_texture = core.TextureBuffer.createTextureBuffer(math.Mat4, &model_transforms);
+    const model_transforms_texture = core.TextureBuffer.createTextureBuffer(math.Mat4, model_transforms);
     std.debug.print("model_transfrom gl_buffer_id: {d}\n", .{model_transforms_texture.gl_texture_id});
 
     shader.bindTextureBufferAuto("animationData", baked_animator.gl_texture_id);

@@ -37,62 +37,6 @@ const AnimationRepeat = animation.AnimationRepeatMode;
 
 const print = std.debug.print;
 
-const TextureBuffer = struct {
-    gl_texture_id: c_uint,
-    gl_buffer_id: c_uint,
-
-    const Self = @This();
-
-    pub fn createTextureBuffer(data: []Mat4) TextureBuffer {
-        // 1. Create a regular Buffer Object (VBO) to hold the matrix data
-        var tbo_buffer: gl.Uint = undefined;
-        gl.genBuffers(1, &tbo_buffer);
-        gl.bindBuffer(gl.TEXTURE_BUFFER, tbo_buffer);
-
-        // Upload raw matrix data size = data.len * 64 bytes
-        gl.bufferData(
-            gl.TEXTURE_BUFFER,
-            @intCast(data.len * @sizeOf(Mat4)),
-            data.ptr,
-            gl.STATIC_DRAW
-        );
-
-        // 2. Create the Buffer Texture
-        var gl_texture_id: gl.Uint = undefined;
-        gl.genTextures(1, &gl_texture_id);
-        gl.bindTexture(gl.TEXTURE_BUFFER, gl_texture_id);
-
-        // Attach the buffer storage to the texture target using RGBA32F
-        // Each Mat4 takes exactly 4 texels (16 floats total)
-        gl.texBuffer(gl.TEXTURE_BUFFER, gl.RGBA32F, tbo_buffer);
-
-        gl.bindBuffer(gl.TEXTURE_BUFFER, 0);
-        gl.bindTexture(gl.TEXTURE_BUFFER, 0);
-
-        core.gl_debug.check("glTexBuffer");
-        return TextureBuffer{
-            .gl_texture_id = gl_texture_id,
-            .gl_buffer_id = tbo_buffer,
-        };
-    }
-
-    pub fn updateTextureBuffer(self: *Self, data: []Mat4) void {
-        gl.bindBuffer(gl.TEXTURE_BUFFER, self.gl_buffer_id);
-        gl.bufferData(
-            gl.TEXTURE_BUFFER,
-            @intCast(data.len * @sizeOf(Mat4)),
-            data.ptr,
-            gl.STATIC_DRAW
-        );
-        gl.bindBuffer(gl.TEXTURE_BUFFER, 0);
-    }
-
-    pub fn deleteGlObjects(self: *Self) void {
-        gl.deleteBuffers(1, &self.gl_buffer_id);
-        gl.deleteTextures(1, &self.gl_texture_id);
-    }
-};
-
 const MeshAnimationData = struct {
     node_index: usize,
     node_transform: Mat4,
@@ -215,7 +159,6 @@ pub const BakedAnimator = struct {
             mesh.draw(self.model.gltf_asset, shader, instance_count);
         }
     }
-
 };
 
 pub const BakedAnimation = struct {
@@ -225,12 +168,11 @@ pub const BakedAnimation = struct {
     const Self = @This();
 
     pub fn bakeAnimation(context: Context, animator: *Animator, frame_rate: f32) !*Self {
-
         const animation_state = &animator.active_animations.list.items[0];
 
         const state_duration = animation_state.end_time - animation_state.start_time;
         const frame_delta = 1.0 / frame_rate;
-        const num_frames: u32 = @as(u32, @ceil(state_duration/frame_delta)) + 1;
+        const num_frames: u32 = @as(u32, @ceil(state_duration / frame_delta)) + 1;
 
         const self = try context.alloc.create(BakedAnimation);
         self.* = .{
@@ -251,14 +193,14 @@ pub const BakedAnimation = struct {
         var frame_time: f32 = 0;
         var frames: u32 = 0;
 
-        std.debug.print("Frame rate; {d}  frame_delta: {d}\n", .{frame_rate, self.header.frame_delta});
+        std.debug.print("Frame rate; {d}  frame_delta: {d}\n", .{ frame_rate, self.header.frame_delta });
         std.debug.print("Number joints: {d}\n", .{self.header.num_joints});
 
         const completions = animation_state.repeat_completions;
 
         // while (completions == animation_state.repeat_completions) {
         for (0..self.header.num_frames) |frame_index| {
-            std.debug.print("Frame number: {d}  frame_time: {d}  animation_state.current_time: {d}\n", .{frame_index, frame_time, animation_state.current_time});
+            std.debug.print("Frame number: {d}  frame_time: {d}  animation_state.current_time: {d}\n", .{ frame_index, frame_time, animation_state.current_time });
             try animator.updateAnimation(delta_time);
             try self.generateFrameData(context, animator, frame_index, frame_time);
             frames += 1;
@@ -266,7 +208,7 @@ pub const BakedAnimation = struct {
             frame_time += self.header.frame_delta;
         } else {
             std.debug.print("Animation completed, stopping bake\n", .{});
-       }
+        }
 
         // Assert frame count is correct. One more update should bump completions
         try animator.updateAnimation(delta_time);
@@ -277,7 +219,6 @@ pub const BakedAnimation = struct {
     }
 
     pub fn generateFrameData(self: *BakedAnimation, context: Context, animator: *Animator, frame_index: usize, frame_time: f32) !void {
-
         var mesh_animation_data = try context.alloc.alloc(MeshAnimationData, self.header.num_meshes);
         const joint_data = try context.alloc.alloc(Mat4, self.header.num_joints);
 
@@ -295,14 +236,14 @@ pub const BakedAnimation = struct {
 
         // var buf0: [256]u8 = undefined;
         // for (mesh_animation_data, 0..) |data, mesh_id| {
-            // const animator_node = animator.nodes[data.node_index];
-            // std.debug.print("Node: {d:2}  name: {s}  mesh: {d}  NodeTransform: {s}\n", .{data.node_index, animator_node.name.?, mesh_id, data.node_transform.asString(&buf0)});
+        // const animator_node = animator.nodes[data.node_index];
+        // std.debug.print("Node: {d:2}  name: {s}  mesh: {d}  NodeTransform: {s}\n", .{data.node_index, animator_node.name.?, mesh_id, data.node_transform.asString(&buf0)});
         // }
 
         // for (0..num_joints) |joint_index| {
-            // const joint_matrix = animator.joint_matrices[joint_index];
-            // std.debug.print("Joint: {d:2}  matrix: {s}\n", .{joint_index, joint_matrix.asString(&buf0)});
-            // joint_data[joint_index] = joint_matrix;
+        // const joint_matrix = animator.joint_matrices[joint_index];
+        // std.debug.print("Joint: {d:2}  matrix: {s}\n", .{joint_index, joint_matrix.asString(&buf0)});
+        // joint_data[joint_index] = joint_matrix;
         // }
 
         std.mem.copyForwards(Mat4, joint_data, animator.joint_matrices[0..num_joints]);
