@@ -3,6 +3,8 @@ const math = @import("math");
 const containers = @import("containers");
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
+const ModelInstance = @import("model_instance.zig").ModelInstance;
+const Shader = @import("shader.zig").Shader;
 const Transform = @import("transform.zig").Transform;
 const constants = @import("constants.zig");
 const Context = @import("context.zig").Context;
@@ -253,6 +255,9 @@ pub const Animator = struct {
     // Preprocessed initial node data with transforms extracted from TRS or matrix
     nodes: []Node,
 
+    // Preprocessed map of mesh to node
+    meshToNode: []usize,
+
     // Pre-processed animations with names, durations, and node data
     animations: []Animation,
 
@@ -307,6 +312,9 @@ pub const Animator = struct {
         // Pre-process initial nodes
         const initial_nodes = preprocessNodes(context.alloc, gltf_asset);
 
+        // Map mesh to Node
+        const meshToNode = preprocessMeshes(context.alloc, gltf_asset, initial_nodes);
+
         var buf: [500]u8 = undefined;
         for (initial_nodes, 0..) |node, i| {
             log.debug(
@@ -323,6 +331,7 @@ pub const Animator = struct {
             .weight_animations = ManagedArrayList(WeightedAnimation).init(context.alloc),
             .root_nodes = try root_nodes_list.toOwnedSlice(),
             .nodes = initial_nodes,
+            .meshToNode = meshToNode,
             .animations = animations,
             .joint_matrices = [_]Mat4{Mat4.Identity} ** constants.MAX_JOINTS,
         };
@@ -443,6 +452,26 @@ pub const Animator = struct {
         self.updateNodeTransformationsWeighted(weighted_animations, frame_time);
         self.calculateWorldTransforms();
         self.setShaderMatrices();
+    }
+
+    // work in progress - probably should be in Animator
+    pub fn draw(self: *Self, model: *ModelInstance, shader: *Shader, instance_count: u32) void {
+        shader.useShader();
+
+        if (self.skin_index != null) {
+            shader.setMat4Array(constants.Uniforms.Joint_Matrices, &self.joint_matrices);
+        }
+
+        for (0..model.meshes.len) |index| {
+            const node_index = self.meshToNode[index];
+            const transform = self.nodes[node_index].calculated_transform.?;
+            const local_matrix = transform.toMatrix();
+            shader.setMat4(constants.Uniforms.Node_Transform, &local_matrix);
+
+            shader.setInt("meshID", @intCast(index));
+            const mesh = model.meshes[index];
+            mesh.draw(model.gltf_asset, shader, instance_count);
+        }
     }
 
     /// Reset all node transforms to their default values using preprocessed initial nodes
@@ -1106,6 +1135,27 @@ fn preprocessNodes(allocator: Allocator, gltf_asset: *const GltfAsset) []Node {
         std.debug.panic("Failed to allocate memory for nodes\n", .{});
     };
     return nodes;
+}
+
+// Create an array of mesh to node indexes
+fn preprocessMeshes(allocator: Allocator, gltf_asset: *const GltfAsset, nodes: []Node) []usize {
+    if (gltf_asset.gltf.meshes) |gltf_meshes| {
+        var meshToNode = allocator.alloc(usize, gltf_meshes.len) catch {
+            std.debug.panic("Failed to allocate memory for mesh to nodes array\n", .{});
+        };
+
+        for (0..nodes.len) |node_index| {
+            if (nodes[node_index].mesh) |mesh_index| {
+                meshToNode[mesh_index] = node_index;
+            }
+        }
+        return meshToNode;
+    }
+
+    const meshToNode = allocator.alloc(usize, 0) catch {
+        std.debug.panic("Failed to allocate memory for mesh to nodes array\n", .{});
+    };
+    return meshToNode;
 }
 
 /// Preprocess joint data from glTF skin information

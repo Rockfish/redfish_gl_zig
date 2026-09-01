@@ -6,8 +6,9 @@ const core = @import("core");
 const math = @import("math");
 const containers = @import("containers");
 
-const BakedAnimation = @import("bake_animation.zig").BakedAnimation;
-const BakedAnimator = @import("bake_animation.zig").BakedAnimator;
+const BakedAnimation = core.BakedAnimation;
+const BakedAnimator = core.BakedAnimator;
+const ModelInstance = core.ModelInstance;
 
 const gl = zopengl.bindings;
 
@@ -77,7 +78,8 @@ const State = struct {
     scr_height: f32 = SCR_HEIGHT,
     current_action: u8 = 0, // 0=idle, 1=forward, 2=backwards, 3=right, 4=left, 5=dying
     current_clip_index: usize = 2, // Index into player_clips array
-    model: ?*Model = null, // Reference to the model for animation updates
+    // model: ?*Model = null, // Reference to the model for animation updates
+    model: *ModelInstance = undefined, // Reference to the model for animation updates
     baked: bool = true,
 };
 
@@ -394,7 +396,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     }
 
     std.debug.print("Main: building model: {s}\n", .{model_path});
-    var model = try gltf_asset.buildModel();
+    // var model = try gltf_asset.buildModel();
 
     // Generate report if enabled
     if (DUMP_REPORT) {
@@ -428,26 +430,25 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     std.debug.print("Main: configuring animation\n", .{});
 
-    // Store model reference for key handler
-    state.model = model;
+    const animator = try Animator.init(context, gltf_asset);
 
     // Apply animation from configuration
     if (model_config.animationPlayAll) {
         std.debug.print("Model configured for multi-animation - playing all animations simultaneously\n", .{});
-        try model.playAllAnimations();
+        try animator.playAllAnimations();
     } else if (SELECTED_MODEL == .player) {
         // For player model, use the first clip from our array
         const initial_clip = player_clips[state.current_clip_index];
         std.debug.print("Playing player animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ initial_clip.name, initial_clip.clip.start_time, initial_clip.clip.end_time });
-        try model.animator.playClip(initial_clip.clip);
+        try animator.playClip(initial_clip.clip);
     } else if (model_config.animationClip) |animation_clip| {
         std.debug.print("Playing single animation clip\n", .{});
-        try model.animator.playClip(animation_clip);
+        try animator.playClip(animation_clip);
     }
 
     std.debug.print(
         "animation state: active_animations={d}\n",
-        .{model.animator.active_animations.list.items.len},
+        .{animator.active_animations.list.items.len},
     );
 
     // --- event loop
@@ -461,17 +462,20 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     const start_time = state.last_frame;
 
-    const baked_animation = try BakedAnimation.bakeAnimation(context, model.animator, fps);
+    const baked_animation = try BakedAnimation.bakeAnimation(context.alloc, animator, fps);
     baked_animation.printData();
 
-    var baked_animator = BakedAnimator.init(model, baked_animation);
-    const baked_data = try baked_animator.getBakedData(context.alloc);
+    var baked_animator = try BakedAnimator.init(context.alloc, baked_animation.header);
+    const baked_data = try baked_animation.getBakedData(context.alloc);
     // _ = baked_data;
 
     const baked_texture = core.TextureBuffer.createTextureBuffer(math.Mat4, baked_data);
 
     print("baked data length: {d}  bake texture id: {d}\n", .{ baked_data.len, baked_texture.gl_texture_id });
     baked_animator.gl_texture_id = baked_texture.gl_texture_id;
+
+    var model = try ModelInstance.init(context.alloc, model_name, .{ .baked_animator = baked_animator }, gltf_asset);
+    state.model = model;
 
     const instance_count: usize = 1000;
 
@@ -525,12 +529,13 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         shader.setMat4("aimRot", &identity);
         shader.setMat4("matLightSpace", &identity);
 
+        try model.updateAnimation(state.delta_time);
+
         if (state.baked) {
             // baked_animator.draw(shader, 1, state.delta_time);
             // baked_animator.drawData(shader, 1, state.delta_time, baked_data);
-            baked_animator.drawWithTexture(shader, @intCast(instance_count), state.delta_time);
+            baked_animator.draw(model, shader, @intCast(instance_count));
         } else {
-            try model.updateAnimation(state.delta_time);
             model.draw(shader, 1);
         }
 
@@ -587,11 +592,11 @@ pub fn processKeys() void {
             },
             .n => {
                 if (!state.input.key_processed.contains(.n)) {
-                    if (SELECTED_MODEL == .player and state.model != null) {
+                    if (SELECTED_MODEL == .player) {
                         state.current_clip_index = (state.current_clip_index + 1) % player_clips.len;
                         const current_clip = player_clips[state.current_clip_index];
                         std.debug.print("Switching to animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ current_clip.name, current_clip.clip.start_time, current_clip.clip.end_time });
-                        state.model.?.animator.playClip(current_clip.clip) catch |err| {
+                        state.model.playClip(current_clip.clip) catch |err| {
                             std.debug.print("Failed to play animation clip: {}\n", .{err});
                         };
                     }

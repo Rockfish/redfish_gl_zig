@@ -35,6 +35,10 @@ pub const AnimationRepeatMode = @import("animator.zig").AnimationRepeatMode;
 pub const WeightedAnimation = @import("animator.zig").WeightedAnimation;
 pub const AnimationStateMachine = @import("animation_fsm.zig").AnimationStateMachine;
 
+pub const BakedAnimation = @import("bake_animation.zig").BakedAnimation;
+pub const BakedAnimator = @import("bake_animation.zig").BakedAnimator;
+pub const ModelInstance = @import("model_instance.zig").ModelInstance;
+
 pub const TextureBuffer = @import("texture_buffer.zig").TextureBuffer;
 
 pub const lights = @import("lights.zig");

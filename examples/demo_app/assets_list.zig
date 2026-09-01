@@ -10,7 +10,7 @@ pub const ModelInfo = struct {
 
 pub const model_infos = [_]ModelInfo{
     // Animated models - character movement testing
-     .{
+    .{
         .path = "assets/angrybots_assets/Models/Player/Player.gltf",
         .name = "Player Model",
         .format = "glTF",
