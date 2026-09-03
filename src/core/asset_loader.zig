@@ -6,6 +6,7 @@ const parser = @import("gltf/parser.zig");
 const texture = @import("texture.zig");
 const utils = @import("utils/root.zig");
 const Model = @import("model.zig").Model;
+const Mesh = @import("mesh.zig").Mesh;
 const Animator = @import("animator.zig").Animator;
 const Context = @import("context.zig").Context;
 
@@ -63,6 +64,10 @@ const GlbError = error{
     MissingJsonChunk,
 };
 
+const GltAssetError = error{
+    TextureNotLoaded,
+};
+
 pub const GltfAsset = struct {
     context: Context,
 
@@ -70,6 +75,7 @@ pub const GltfAsset = struct {
     gltf: GLTF,
 
     // Runtime support data
+    meshes: []*Mesh,
     buffer_data: ManagedArrayList([]align(4) const u8),
     loaded_textures: std.AutoHashMap(u32, *texture.Texture),
     generated_normals: std.AutoHashMap(u64, []Vec3), // Key: mesh_index << 32 | primitive_index
@@ -92,7 +98,8 @@ pub const GltfAsset = struct {
         const asset: *GltfAsset = try context.alloc.create(Self);
         asset.* = GltfAsset{
             .context = context,
-            .gltf = undefined, // Will be set during load
+            .gltf = undefined,
+            .meshes = &[_]*Mesh{},
             .buffer_data = ManagedArrayList([]align(4) const u8).init(context.alloc),
             .loaded_textures = std.AutoHashMap(u32, *texture.Texture).init(context.alloc),
             .generated_normals = std.AutoHashMap(u64, []Vec3).init(context.alloc),
@@ -139,7 +146,9 @@ pub const GltfAsset = struct {
     }
 
     // Add custom texture assignment for models without material definitions
-    pub fn addTexture(self: *Self, mesh_name: []const u8, uniform_name: []const u8, texture_path: []const u8, config: texture.TextureConfig) !void {
+    pub fn addCustomTexture(self: *Self, mesh_name: []const u8, uniform_name: []const u8, texture_path: []const u8, config: texture.TextureConfig) !void {
+        if (self.is_loaded) log.err("Cannot add texture to already loaded asset", .{});
+
         const allocator = self.context.alloc;
 
         const custom_texture = CustomTexture{
@@ -151,35 +160,6 @@ pub const GltfAsset = struct {
         };
 
         try self.custom_textures.append(custom_texture);
-    }
-
-    // Load custom texture on demand with caching
-    pub fn loadCustomTexture(self: *Self, custom_tex: *CustomTexture) !*texture.Texture {
-        if (custom_tex.texture) |tex| {
-            return tex; // Already loaded
-        }
-
-        // Load texture using custom configuration
-        const tex = try self.loadCustomTextureFromFile(custom_tex.texture_path, custom_tex.config);
-        custom_tex.texture = tex;
-        return tex;
-    }
-
-    // Load custom texture from file with configuration
-    fn loadCustomTextureFromFile(self: *Self, texture_path: []const u8, config: texture.TextureConfig) !*texture.Texture {
-
-        // Create full path
-        const full_path = try std.fs.path.joinZ(self.context.temp_alloc, &[_][]const u8{ self.directory, texture_path });
-        defer self.context.temp_alloc.free(full_path);
-
-        // Load texture manually (similar to ASSIMP system)
-        const tex = try texture.Texture.initFromFile(
-            self.context,
-            full_path,
-            config,
-        );
-
-        return tex;
     }
 
     // Get pre-generated normals for a specific mesh primitive
@@ -263,6 +243,24 @@ pub const GltfAsset = struct {
         // Generate normals for missing ones based on configuration
         try self.generateMissingNormals();
 
+        // Load custom textures
+        for (self.custom_textures.list.items) |*custom_tex| {
+            const tex = self.loadTextureFromFile(custom_tex.texture_path, custom_tex.config) catch {
+                log.debug("Failed to load custom texture: {s}", .{custom_tex.texture_path});
+                continue;
+            };
+            custom_tex.texture = tex;
+        }
+
+        if (self.gltf.meshes) |meshes| {
+            self.meshes = try self.context.alloc.alloc(*Mesh, meshes.len);
+            if (self.gltf.meshes) |gltf_meshes| {
+                for (gltf_meshes, 0..) |gltf_mesh, mesh_index| {
+                    self.meshes[mesh_index] = try Mesh.init(self.context.alloc, self, gltf_mesh, mesh_index);
+                }
+            }
+        }
+
         self.is_loaded = true;
     }
 
@@ -288,7 +286,23 @@ pub const GltfAsset = struct {
             return tex;
         }
 
-        // Load texture on demand
+        return GltAssetError.TextureNotLoaded;
+    }
+
+    pub fn loadTextureFromFile(self: *Self, texture_path: []const u8, config: texture.TextureConfig) !*texture.Texture {
+        const full_path = try std.fs.path.joinZ(self.context.temp_alloc, &[_][]const u8{ self.directory, texture_path });
+        defer self.context.temp_alloc.free(full_path);
+
+        const tex = try texture.Texture.initFromFile(
+            self.context,
+            full_path,
+            config,
+        );
+
+        return tex;
+    }
+
+    pub fn loadTextureFromGltf(self: *Self, texture_index: u32) !void {
         const tex = try texture.Texture.initFromGltf(
             self.context,
             self,
@@ -297,7 +311,6 @@ pub const GltfAsset = struct {
         );
 
         try self.loaded_textures.put(texture_index, tex);
-        return tex;
     }
 
     // Load buffer data from URIs or embedded data

@@ -23,7 +23,6 @@ pub const AnimatorType = union(enum) {
 pub const ModelInstance = struct {
     alloc: Allocator,
     name: []const u8,
-    meshes: []*Mesh,
     animator: AnimatorType,
     gltf_asset: *GltfAsset,
 
@@ -35,19 +34,10 @@ pub const ModelInstance = struct {
         animator: AnimatorType,
         gltf_asset: *GltfAsset,
     ) !*Self {
-        const meshes = try alloc.alloc(*Mesh, gltf_asset.gltf.meshes.?.len);
-
-        if (gltf_asset.gltf.meshes) |gltf_meshes| {
-            for (gltf_meshes, 0..) |gltf_mesh, mesh_index| {
-                meshes[mesh_index] = try Mesh.init(alloc, gltf_asset, gltf_mesh, mesh_index);
-            }
-        }
-
         const model = try alloc.create(ModelInstance);
         model.* = ModelInstance{
             .alloc = alloc,
             .name = try alloc.dupe(u8, name),
-            .meshes = meshes,
             .animator = animator,
             .gltf_asset = gltf_asset,
         };
@@ -56,7 +46,7 @@ pub const ModelInstance = struct {
     }
 
     pub fn deleteGlObjects(self: *Self) void {
-        for (self.meshes) |mesh| {
+        for (self.gltf_asset.meshes) |mesh| {
             mesh.deleteGlObjects();
         }
 
@@ -84,7 +74,7 @@ pub const ModelInstance = struct {
             .animator => |obj| obj.draw(self, shader, instance_count),
             .baked_animator => |obj| obj.draw(self, shader, instance_count),
             else => {
-                for (self.meshes, 0..) |mesh, index| {
+                for (self.gltf_asset.meshes, 0..) |mesh, index| {
                     shader.setInt("meshID", @intCast(index));
                     mesh.draw(self.gltf_asset, shader, instance_count);
                 }

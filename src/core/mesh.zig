@@ -204,28 +204,28 @@ pub const MeshPrimitive = struct {
 
             if (material.pbr_metallic_roughness) |pbr| {
                 if (pbr.base_color_texture) |base_color_texture| {
-                    _ = gltf_asset.getTexture(base_color_texture.index) catch |err| {
+                    gltf_asset.loadTextureFromGltf(base_color_texture.index) catch |err| {
                         std.debug.panic("Error loading base color texture: {any}", .{err});
                     };
                 }
                 if (pbr.metallic_roughness_texture) |metallic_roughness_texture| {
-                    _ = gltf_asset.getTexture(metallic_roughness_texture.index) catch |err| {
+                    gltf_asset.loadTextureFromGltf(metallic_roughness_texture.index) catch |err| {
                         std.debug.panic("Error loading metallic roughness texture: {any}", .{err});
                     };
                 }
             }
             if (material.normal_texture) |normal_texture| {
-                _ = gltf_asset.getTexture(normal_texture.index) catch |err| {
+                gltf_asset.loadTextureFromGltf(normal_texture.index) catch |err| {
                     std.debug.panic("Error loading normal texture: {any}", .{err});
                 };
             }
             if (material.emissive_texture) |emissive_texture| {
-                _ = gltf_asset.getTexture(emissive_texture.index) catch |err| {
+                gltf_asset.loadTextureFromGltf(emissive_texture.index) catch |err| {
                     std.debug.panic("Error loading emissive texture: {any}", .{err});
                 };
             }
             if (material.occlusion_texture) |occlusion_texture| {
-                _ = gltf_asset.getTexture(occlusion_texture.index) catch |err| {
+                gltf_asset.loadTextureFromGltf(occlusion_texture.index) catch |err| {
                     std.debug.panic("Error loading occlusion texture: {any}", .{err});
                 };
             }
@@ -389,28 +389,19 @@ pub const MeshPrimitive = struct {
         }
     }
 
-    // Apply custom textures that override material textures
     fn setCustomTextures(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader) void {
-        // Get the mesh name from this primitive
         const mesh_name = self.name orelse return;
         var buf: [256:0]u8 = undefined;
 
         for (gltf_asset.custom_textures.list.items) |*custom_tex| {
             if (std.mem.eql(u8, custom_tex.mesh_name, mesh_name)) {
-                const texture = gltf_asset.loadCustomTexture(custom_tex) catch {
-                    log.debug("Failed to load custom texture: {s}", .{custom_tex.texture_path});
-                    continue;
-                };
-
-                shader.bindTextureAuto(custom_tex.uniform_name, texture.gl_texture_id);
-
-                // Set a flag indicating this uniform has a texture
-                // This allows shaders to conditionally use textures
-                const flag_name = std.fmt.bufPrintZ(&buf, "has_{s}", .{custom_tex.uniform_name}) catch {
-                    log.debug("Failed to allocate flag name for {s}", .{custom_tex.uniform_name});
-                    continue;
-                };
-                shader.setBool(flag_name, true);
+                if (custom_tex.texture) |texture| {
+                    shader.bindTextureAuto(custom_tex.uniform_name, texture.gl_texture_id);
+                    const flag_name = std.fmt.bufPrintZ(&buf, "has_{s}", .{custom_tex.uniform_name}) catch "";
+                    shader.setBool(flag_name, true);
+                } else {
+                    log.warn("Custom texture not set: {s}", .{custom_tex.texture_path});
+                }
             }
         }
     }

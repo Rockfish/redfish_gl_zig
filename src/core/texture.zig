@@ -131,7 +131,7 @@ pub const Texture = struct {
             .height = image.height,
         };
 
-        log.debug("Custom texture loaded: {s}, dimensions: {d}x{d}", .{ file_path, texture.width, texture.height });
+        log.debug("Texture loaded: {s}, dimensions: {d}x{d}", .{ file_path, texture.width, texture.height });
         return texture;
     }
 

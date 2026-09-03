@@ -6,6 +6,8 @@ const core = @import("core");
 const math = @import("math");
 const containers = @import("containers");
 
+const log = std.log.scoped(.main);
+
 const BakedAnimation = core.BakedAnimation;
 const BakedAnimator = core.BakedAnimator;
 const ModelInstance = core.ModelInstance;
@@ -13,7 +15,7 @@ const ModelInstance = core.ModelInstance;
 const gl = zopengl.bindings;
 
 const ArenaAllocator = std.heap.ArenaAllocator;
-const print = std.debug.print;
+const print = log.info;
 
 const Context = core.Context;
 const Model = core.Model;
@@ -192,7 +194,7 @@ const model_configs = [_]ModelConfig{
     .{
         .choice = .spacesuit,
         // .path = "assets/models/Spacesuit/Spacesuit_converted.gltf",
-        .path = "assets_nas/modular_characters/Individual Characters/glTF/Spacesuit.gltf",
+        .path = "assets/modular_characters/Individual Characters/glTF/Spacesuit.gltf",
         .name = "Spacesuit",
         .transform = blk: {
             var transform = Mat4.Identity;
@@ -234,7 +236,7 @@ const SELECTED_MODEL: ModelChoice = .player;
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const cwd = try std.process.currentPathAlloc(init.io, allocator);
-    std.debug.print("Running sample_animation. cwd = {s}\n", .{cwd});
+    log.info("Running sample_animation. cwd = {s}", .{cwd});
 
     var args = init.minimal.args.iterate();
     _ = args.skip(); // Skip program name
@@ -245,18 +247,16 @@ pub fn main(init: std.process.Init) !void {
         if (std.mem.eql(u8, arg, "--duration") or std.mem.eql(u8, arg, "-d")) {
             if (args.next()) |duration_str| {
                 runtime_duration = std.fmt.parseFloat(f32, duration_str) catch |err| {
-                    std.debug.print("Invalid duration: {s}, error: {}\n", .{ duration_str, err });
+                    log.info("Invalid duration: {s}, error: {}", .{ duration_str, err });
                     std.process.exit(1);
                 };
-                std.debug.print("Runtime duration set to: {d} seconds\n", .{runtime_duration.?});
+                log.info("Runtime duration set to: {d} seconds", .{runtime_duration.?});
             } else {
-                std.debug.print("Error: --duration requires a value\n", .{});
+                log.info("Error: --duration requires a value", .{});
                 std.process.exit(1);
             }
         }
     }
-
-    // core.string.init(allocator);
 
     try glfw.init();
     defer glfw.terminate();
@@ -268,8 +268,7 @@ pub fn main(init: std.process.Init) !void {
     glfw.windowHint(.opengl_profile, .opengl_core_profile);
     glfw.windowHint(.client_api, .opengl_api);
     glfw.windowHint(.doublebuffer, true);
-    // For MacOS
-    glfw.windowHint(.opengl_forward_compat, true);
+    glfw.windowHint(.opengl_forward_compat, true); // For MacOS
 
     const window = try glfw.Window.create(
         600,
@@ -289,6 +288,11 @@ pub fn main(init: std.process.Init) !void {
 }
 
 pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !void {
+    _ = window.setKeyCallback(keyHandler);
+    _ = window.setFramebufferSizeCallback(framebufferSizeHandler);
+    _ = window.setCursorPosCallback(cursorPositionHandler);
+    _ = window.setScrollCallback(scrollHandler);
+
     var alloc_arena = ArenaAllocator.init(init.gpa);
     var temp_alloc_arena = ArenaAllocator.init(init.gpa);
 
@@ -308,10 +312,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         },
     );
 
-    // const debug_camera = try Camera.camera_vec3(allocator, vec3(0.0, 40.0, 120.0));
-    // defer debug_camera.deinit();
-
-    // Initialize the world state
     state = State{
         .camera = camera,
         .input = Input.init(window),
@@ -342,7 +342,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
             "examples/animation_example/pbr.frag",
         );
 
-    std.debug.print("Shader id: {d}\n", .{shader.id});
+    log.info("Shader id: {d}", .{shader.id});
 
     // const lightDir: Vec3 = vec3(-0.8, 0.0, -1.0).normalize_or_zero();
     // const playerLightDir: Vec3 = vec3(-1.0, -1.0, -1.0).normalize_or_zero();
@@ -368,13 +368,24 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     const model_path = model_config.path;
     const model_name = model_config.name;
 
-    std.debug.print("Main: loading model: {s}\n", .{model_path});
+    log.info("Main: loading model: {s}", .{model_path});
 
     // Create glTF asset and load model
     var gltf_asset = try GltfAsset.init(context, model_name, model_path);
+
+    log.info("Main: adding custom textures", .{});
+    for (model_config.addTextures) |texture_config_item| {
+        try gltf_asset.addCustomTexture(
+            texture_config_item.mesh_name,
+            texture_config_item.uniform_name,
+            texture_config_item.texture_path,
+            texture_config_item.config,
+        );
+    }
+
     try gltf_asset.load();
 
-    std.debug.print("gltf_asset.directory: {s}\n", .{gltf_asset.directory});
+    log.info("gltf_asset.directory: {s}", .{gltf_asset.directory});
 
     // Apply model configuration
     const model_transform = model_config.transform;
@@ -384,23 +395,12 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         state.camera.movement.reset(cam_pos.position, cam_pos.target);
     }
 
-    std.debug.print("Main: adding custom textures\n", .{});
-    // Apply textures from configuration
-    for (model_config.addTextures) |texture_config_item| {
-        try gltf_asset.addTexture(
-            texture_config_item.mesh_name,
-            texture_config_item.uniform_name,
-            texture_config_item.texture_path,
-            texture_config_item.config,
-        );
-    }
-
-    std.debug.print("Main: building model: {s}\n", .{model_path});
+    log.info("Main: loaded gltf asset: {s}", .{model_path});
     // var model = try gltf_asset.buildModel();
 
     // Generate report if enabled
     if (DUMP_REPORT) {
-        std.debug.print("Generating glTF report to: {s}\n", .{REPORT_PATH});
+        log.info("Generating glTF report to: {s}", .{REPORT_PATH});
         const GltfReport = core.gltf_report.GltfReport;
         try GltfReport.writeDetailedReportToFile(
             context.io,
@@ -410,44 +410,44 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
             5,
             5,
         );
-        std.debug.print("Report generated successfully\n", .{});
+        log.info("Report generated successfully", .{});
     }
 
     const bullet_model_path = "assets/angrybots_assets/Models/Bullet/Bullet.gltf";
 
     var bullet_gltf_asset = try GltfAsset.init(context, "bullet", bullet_model_path);
-    try bullet_gltf_asset.load();
-
     bullet_gltf_asset.skipModelTextures();
 
     // Add custom texture for bullet
-    try bullet_gltf_asset.addTexture(
+    try bullet_gltf_asset.addCustomTexture(
         "Plane001",
         "texture_diffuse",
         "Floor D.png",
         texture_config,
     );
 
-    std.debug.print("Main: configuring animation\n", .{});
+    try bullet_gltf_asset.load();
+
+    log.info("Main: configuring animation", .{});
 
     const animator = try Animator.init(context, gltf_asset);
 
     // Apply animation from configuration
     if (model_config.animationPlayAll) {
-        std.debug.print("Model configured for multi-animation - playing all animations simultaneously\n", .{});
+        log.info("Model configured for multi-animation - playing all animations simultaneously", .{});
         try animator.playAllAnimations();
     } else if (SELECTED_MODEL == .player) {
         // For player model, use the first clip from our array
         const initial_clip = player_clips[state.current_clip_index];
-        std.debug.print("Playing player animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ initial_clip.name, initial_clip.clip.start_time, initial_clip.clip.end_time });
+        log.info("Playing player animation clip: {s} (start: {d:.3}, end: {d:.3})", .{ initial_clip.name, initial_clip.clip.start_time, initial_clip.clip.end_time });
         try animator.playClip(initial_clip.clip);
     } else if (model_config.animationClip) |animation_clip| {
-        std.debug.print("Playing single animation clip\n", .{});
+        log.info("Playing single animation clip", .{});
         try animator.playClip(animation_clip);
     }
 
-    std.debug.print(
-        "animation state: active_animations={d}\n",
+    log.info(
+        "animation state: active_animations={d}",
         .{animator.active_animations.list.items.len},
     );
 
@@ -455,26 +455,24 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     state.last_frame = @floatCast(glfw.getTime());
     var frame_counter = FrameCounter.init(init.io);
 
-    _ = window.setKeyCallback(keyHandler);
-    _ = window.setFramebufferSizeCallback(framebufferSizeHandler);
-    _ = window.setCursorPosCallback(cursorPositionHandler);
-    _ = window.setScrollCallback(scrollHandler);
-
     const start_time = state.last_frame;
 
-    const baked_animation = try BakedAnimation.bakeAnimation(context.alloc, animator, fps);
-    baked_animation.printData();
+    const baked_animator = try BakedAnimator.init(
+        context,
+        animator,
+        .{
+            .frame_rate = 30.0,
+            .capture = .all,
+        },
+    );
 
-    var baked_animator = try BakedAnimator.init(context.alloc, baked_animation.header);
-    const baked_data = try baked_animation.getBakedData(context.alloc);
-    // _ = baked_data;
-
-    const baked_texture = core.TextureBuffer.createTextureBuffer(math.Mat4, baked_data);
-
-    print("baked data length: {d}  bake texture id: {d}\n", .{ baked_data.len, baked_texture.gl_texture_id });
-    baked_animator.gl_texture_id = baked_texture.gl_texture_id;
-
-    var model = try ModelInstance.init(context.alloc, model_name, .{ .baked_animator = baked_animator }, gltf_asset);
+    var model = try ModelInstance.init(
+        context.alloc,
+        model_name,
+        .{ .baked_animator = baked_animator },
+        // .{ .animator = animator },
+        gltf_asset,
+    );
     state.model = model;
 
     const instance_count: usize = 1000;
@@ -488,13 +486,16 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     }
 
     const model_transforms_texture = core.TextureBuffer.createTextureBuffer(math.Mat4, model_transforms);
-    std.debug.print("model_transfrom gl_buffer_id: {d}\n", .{model_transforms_texture.gl_texture_id});
+    log.info("model_transfrom gl_buffer_id: {d}", .{model_transforms_texture.gl_texture_id});
 
     shader.bindTextureBufferAuto("animationData", baked_animator.gl_texture_id);
     shader.bindTextureBufferAuto("modelMatrixes", model_transforms_texture.gl_texture_id);
 
-    print("Run starting---\n", .{});
+    log.info("Run starting---", .{});
+
     while (!window.shouldClose()) {
+        _ = temp_alloc_arena.reset(.retain_capacity);
+
         const currentFrame: f32 = @floatCast(glfw.getTime());
         state.delta_time = currentFrame - state.last_frame;
         state.last_frame = currentFrame;
@@ -502,7 +503,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         // Check if we've exceeded the maximum duration
         if (max_duration) |duration| {
             if (currentFrame - start_time >= duration) {
-                std.debug.print("Reached maximum duration of {d} seconds, exiting\n", .{duration});
+                log.info("Reached maximum duration of {d} seconds, exiting\n", .{duration});
                 break;
             }
         }
@@ -531,13 +532,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
         try model.updateAnimation(state.delta_time);
 
-        if (state.baked) {
-            // baked_animator.draw(shader, 1, state.delta_time);
-            // baked_animator.drawData(shader, 1, state.delta_time, baked_data);
-            baked_animator.draw(model, shader, @intCast(instance_count));
-        } else {
-            model.draw(shader, 1);
-        }
+        model.draw(shader, @intCast(instance_count));
 
         // try core.dumpModelNodes(model);
 
@@ -547,11 +542,9 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         // bullet_model.draw(shader);
 
         window.swapBuffers();
-
-        //break;
     }
 
-    std.debug.print("\nRun completed.\n\n", .{});
+    log.info("\nRun completed.\n\n", .{});
 
     shader.deleteGlObjects();
     model.deleteGlObjects();
@@ -577,7 +570,7 @@ pub fn processKeys() void {
     var iterator = state.input.key_presses.iterator();
     while (iterator.next()) |k| {
         switch (k) {
-            .t => std.debug.print("time: {d}\n", .{state.delta_time}),
+            .t => log.info("time: {d}\n", .{state.delta_time}),
             .w => {
                 state.camera.movement.processMovement(.forward, state.delta_time);
             },
@@ -595,9 +588,9 @@ pub fn processKeys() void {
                     if (SELECTED_MODEL == .player) {
                         state.current_clip_index = (state.current_clip_index + 1) % player_clips.len;
                         const current_clip = player_clips[state.current_clip_index];
-                        std.debug.print("Switching to animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ current_clip.name, current_clip.clip.start_time, current_clip.clip.end_time });
+                        log.info("Switching to animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ current_clip.name, current_clip.clip.start_time, current_clip.clip.end_time });
                         state.model.playClip(current_clip.clip) catch |err| {
-                            std.debug.print("Failed to play animation clip: {}\n", .{err});
+                            log.info("Failed to play animation clip: {}\n", .{err});
                         };
                     }
                 }

@@ -462,14 +462,14 @@ pub const Animator = struct {
             shader.setMat4Array(constants.Uniforms.Joint_Matrices, &self.joint_matrices);
         }
 
-        for (0..model.meshes.len) |index| {
+        for (0..model.gltf_asset.meshes.len) |index| {
             const node_index = self.meshToNode[index];
             const transform = self.nodes[node_index].calculated_transform.?;
             const local_matrix = transform.toMatrix();
             shader.setMat4(constants.Uniforms.Node_Transform, &local_matrix);
 
             shader.setInt("meshID", @intCast(index));
-            const mesh = model.meshes[index];
+            const mesh = model.gltf_asset.meshes[index];
             mesh.draw(model.gltf_asset, shader, instance_count);
         }
     }
