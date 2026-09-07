@@ -12,13 +12,12 @@ const int MAX_JOINTS = 100;
 const int MAX_JOINT_INFLUENCE = 4;
 
 uniform bool hasSkin;
+
+uniform int meshId;
+uniform int frameId;
 uniform int numMeshes;
 uniform int numJoints;
-uniform int meshID;
-uniform int frameID;
-
-int animationID = 0;
-// Instance ID: gl_InstanceID
+uniform int animationOffset;
 
 uniform samplerBuffer animationData;
 uniform samplerBuffer modelMatrixes;
@@ -46,12 +45,10 @@ void main() {
     vec4 totalPosition = vec4(0.0f);
     vec3 totalNormal = vec3(0.0f);
 
-    int frameSize = (numMeshes + numJoints);
-    int frameOffset = frameID * frameSize;
+    int frameOffset = frameId * (numMeshes + numJoints) + animationOffset;
     int jointOffset = frameOffset + numMeshes;
 
     if (hasSkin) {
-
         // Use joint skinning for animated models
         for (int i = 0; i < MAX_JOINT_INFLUENCE; i++) {
             if (inJointIds[i] == -1) {
@@ -74,7 +71,7 @@ void main() {
         }
     } else {
         // Use node transform for non-skinned models
-        mat4 nodeTransform = fetchMatrix(animationData, frameOffset + meshID);
+        mat4 nodeTransform = fetchMatrix(animationData, frameOffset + meshId);
         totalPosition = nodeTransform * vec4(inPosition, 1.0f);
         totalNormal = mat3(nodeTransform) * inNormal;
     }

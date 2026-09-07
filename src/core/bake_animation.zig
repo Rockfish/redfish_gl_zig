@@ -49,6 +49,7 @@ pub const BakedHeader = struct {
     num_frames: u32,
     num_meshes: u32,
     num_joints: u32,
+    animation_offset: u32,
 };
 
 pub const BakedAnimationConfig = struct {
@@ -56,32 +57,34 @@ pub const BakedAnimationConfig = struct {
     // Todo: implement capturing sets of animations
     capture: union(enum) {
         all,
-        indexes: []u32,
-        clips: []AnimationClip,
+        indexes: []const u32,
+        clips: []const AnimationClip,
     },
 };
 
 pub const BakedAnimator = struct {
+    anim_id: usize,
     start_time: f32,
     delta_time: f32,
     current_time: f32,
-    header: BakedHeader,
+    headers: []BakedHeader,
     gl_texture_id: c_uint = 0,
 
     const Self = @This();
 
     pub fn init(context: Context, animator: *Animator, config: BakedAnimationConfig) !*BakedAnimator {
-        const baked_animation = try BakedAnimation.bakeAnimation(context.temp_alloc, animator, config);
+        log.debug("config: {any}", .{config});
 
-        const baked_data = try baked_animation.getBakedData(context.alloc);
-        const baked_texture = TextureBuffer.createTextureBuffer(math.Mat4, baked_data);
+        const baked_data = try BakedAnimation.bakeCapture(context.alloc, animator, config);
+        const baked_texture = TextureBuffer.createTextureBuffer(math.Mat4, baked_data.data);
 
         const bakedAnimator = try context.alloc.create(BakedAnimator);
         bakedAnimator.* = BakedAnimator{
+            .anim_id = 0,
             .start_time = 0,
             .delta_time = 0,
             .current_time = 0,
-            .header = baked_animation.header,
+            .headers = baked_data.headers,
             .gl_texture_id = baked_texture.gl_texture_id,
         };
         return bakedAnimator;
@@ -92,6 +95,11 @@ pub const BakedAnimator = struct {
         _ = clip;
     }
 
+    pub fn playAnimationById(self: *Self, anim_id: u32) void {
+        self.anim_id = @intCast(anim_id);
+        self.current_time = 0;
+    }
+
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
         self.delta_time = delta_time;
     }
@@ -100,29 +108,51 @@ pub const BakedAnimator = struct {
         shader.useShader();
 
         const frame_index = self.getFrame(self.delta_time);
-        shader.setInt("frameID", @intCast(frame_index));
-        shader.setInt("numMeshes", @intCast(self.header.num_meshes));
-        shader.setInt("numJoints", @intCast(self.header.num_joints));
+        shader.setInt("frameId", @intCast(frame_index));
+
+        shader.setInt("numMeshes", @intCast(self.headers[self.anim_id].num_meshes));
+        shader.setInt("numJoints", @intCast(self.headers[self.anim_id].num_joints));
+        shader.setInt("animationOffset", @intCast(self.headers[self.anim_id].animation_offset));
 
         shader.bindTextureBufferAuto("animationData", self.gl_texture_id);
 
-        for (0..self.header.num_meshes) |index| {
-            shader.setInt("meshID", @intCast(index));
+        // var buf: [5000]u8 = undefined;
+        // const dump = shader.dumpDebugUniforms(&buf) catch "error";
+        // log.debug("Shader dump: {s}", .{dump});
+
+        // log.debug("frame: {d} current time: {d}", .{frame_index, self.current_time});
+        // log.debug("anim_id: {d}  header: {any}", .{self.anim_id, self.headers[self.anim_id]});
+        //
+        // log.debug("anim_id: {d}  frameOffset = frameId * (numMeshes + numJoints) + animationOffset = {d} * ({d} + {d}) + {d} = {d}", .{
+        //     self.anim_id,
+        //     frame_index,
+        //     self.headers[self.anim_id].num_meshes,
+        //     self.headers[self.anim_id].num_joints,
+        //     self.headers[self.anim_id].animation_offset,
+        //     frame_index * (self.headers[self.anim_id].num_meshes + self.headers[self.anim_id].num_joints) + self.headers[self.anim_id].animation_offset
+        // });
+
+        for (0..self.headers[self.anim_id].num_meshes) |index| {
+            shader.setInt("meshId", @intCast(index));
             const mesh = model.gltf_asset.meshes[index];
             mesh.draw(model.gltf_asset, shader, instance_count);
         }
     }
 
     fn getFrame(self: *Self, delta_time: f32) u32 {
-        var frame_index: u32 = @intFromFloat(@round(self.current_time / self.header.frame_delta));
+        var frame_index: u32 = @intFromFloat(@round(self.current_time / self.headers[self.anim_id].frame_delta));
         self.current_time += delta_time;
-        if (frame_index > self.header.num_frames - 1) {
+        if (frame_index > self.headers[self.anim_id].num_frames - 1) {
             self.current_time = 0;
             frame_index = 0;
         }
-        // log.debug("frame: {d} current time: {d}", .{frame_index, self.current_time});
         return frame_index;
     }
+};
+
+const BakedData = struct {
+    headers: []BakedHeader,
+    data: []Mat4,
 };
 
 pub const BakedAnimation = struct {
@@ -131,22 +161,87 @@ pub const BakedAnimation = struct {
 
     const Self = @This();
 
-    pub fn bakeAnimation(allocator: Allocator, animator: *Animator, config: BakedAnimationConfig) !*Self {
+    pub fn bakeCapture(allocator: Allocator, animator: *Animator, config: BakedAnimationConfig) !*BakedData {
+        var baked_animations: []*BakedAnimation = undefined;
+
+        switch (config.capture) {
+            .all => {
+                const num_animations = animator.animations.len;
+                baked_animations = try allocator.alloc(*BakedAnimation, num_animations);
+
+                for (0..num_animations) |id| {
+                    try animator.playAnimationById(@intCast(id));
+                    const bake_anim = try Self.bakeAnimation(allocator, animator, config.frame_rate);
+                    baked_animations[id] = bake_anim;
+                }
+            },
+            .indexes => |indexes| {
+                const num_animations = indexes.len;
+                baked_animations = try allocator.alloc(*BakedAnimation, num_animations);
+
+                for (indexes, 0..) |index, i| {
+                    try animator.playAnimationById(index);
+                    const bake_anim = try Self.bakeAnimation(allocator, animator, config.frame_rate);
+                    baked_animations[i] = bake_anim;
+                }
+            },
+            .clips => |clips| {
+                const num_animations = clips.len;
+                baked_animations = try allocator.alloc(*BakedAnimation, num_animations);
+
+                for (0..num_animations) |i| {
+                    try animator.playClip(clips[i]);
+                    const bake_anim = try Self.bakeAnimation(allocator, animator, config.frame_rate);
+                    baked_animations[i] = bake_anim;
+                }
+            },
+        }
+        const baked_data = try allocator.create(BakedData);
+
+        baked_data.*.headers = try allocator.alloc(BakedHeader, baked_animations.len);
+
+        for (0..baked_animations.len) |i| {
+            baked_data.*.headers[i] = baked_animations[i].header;
+        }
+
+        var data_size: u32 = 0;
+
+        for (baked_animations) |baked_anim| {
+            data_size += baked_anim.header.num_frames * (baked_anim.header.num_meshes + baked_anim.header.num_joints);
+        }
+
+        baked_data.*.data = try allocator.alloc(Mat4, data_size);
+
+        var offset: usize = 0;
+        for (baked_animations, 0..) |baked_anim, i| {
+            baked_data.headers[i].animation_offset = @intCast(offset);
+            const baked_anim_data = try baked_anim.getBakedData(allocator);
+            log.debug("baked_anim.header: {any}  data.len: {d}", .{ baked_anim.header, baked_anim_data.len });
+            std.mem.copyForwards(Mat4, baked_data.data[offset .. offset + baked_anim_data.len], baked_anim_data);
+            offset += baked_anim_data.len;
+        }
+
+        return baked_data;
+    }
+
+    // At this point tha animator is all ready configured for a particular animation.
+    pub fn bakeAnimation(allocator: Allocator, animator: *Animator, frame_rate: f32) !*Self {
         const animation_state = &animator.active_animations.list.items[0];
 
         const state_duration = animation_state.end_time - animation_state.start_time;
-        const frame_delta = 1.0 / config.frame_rate;
+        const frame_delta = 1.0 / frame_rate;
         const num_frames: u32 = @as(u32, @ceil(state_duration / frame_delta)) + 1;
 
         const self = try allocator.create(BakedAnimation);
         self.* = .{
             .header = .{
-                .frame_rate = config.frame_rate,
+                .frame_rate = frame_rate,
                 .frame_delta = frame_delta,
                 .duration = state_duration,
                 .num_frames = num_frames,
                 .num_meshes = @intCast(animator.gltf_asset.gltf.meshes.?.len),
                 .num_joints = @intCast(animator.gltf_asset.gltf.skins.?[0].joints.len),
+                .animation_offset = 0,
             },
             .frames = try allocator.alloc(FrameData, num_frames),
         };
@@ -155,18 +250,18 @@ pub const BakedAnimation = struct {
 
         var delta_time: f32 = 0;
         var frame_time: f32 = 0;
-        var frames: u32 = 0;
+        // var frames: u32 = 0;
 
-        log.debug("Frame rate; {d}  frame_delta: {d}", .{ config.frame_rate, self.header.frame_delta });
+        log.debug("Frame rate; {d}  frame_delta: {d}", .{ frame_rate, self.header.frame_delta });
         log.debug("Number joints: {d}", .{self.header.num_joints});
 
-        const completions = animation_state.repeat_completions;
+        const completions = animation_state.num_completions;
 
         for (0..self.header.num_frames) |frame_index| {
             log.debug("Frame number: {d}  frame_time: {d}  animation_state.current_time: {d}", .{ frame_index, frame_time, animation_state.current_time });
             try animator.updateAnimation(delta_time);
             try self.generateFrameData(allocator, animator, frame_index, frame_time);
-            frames += 1;
+            // frames += 1;
             delta_time = self.header.frame_delta;
             frame_time += self.header.frame_delta;
         } else {
@@ -175,7 +270,7 @@ pub const BakedAnimation = struct {
 
         // Assert frame count is correct. One more update should bump completions
         try animator.updateAnimation(delta_time);
-        std.debug.assert(animation_state.repeat_completions > completions); // Animation frame count is incorrect;
+        std.debug.assert(animation_state.num_completions > completions); // Animation frame count is incorrect;
 
         return self;
     }

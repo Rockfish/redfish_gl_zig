@@ -22,9 +22,9 @@ const quat = math.quat;
 
 pub const DEFAULT_ANIMATION_DURATION: f32 = 1.0;
 
-pub const AnimationRepeatMode = enum {
+pub const AnimationRepeatMode = union(enum) {
     Once,
-    Count,
+    Count: u32,
     Forever,
 };
 
@@ -35,7 +35,7 @@ pub const AnimationState = struct {
     start_time: f32,
     end_time: f32,
     repeat_mode: AnimationRepeatMode,
-    repeat_completions: u32,
+    num_completions: u32,
 
     pub fn init(
         animation_index: u32,
@@ -49,7 +49,7 @@ pub const AnimationState = struct {
             .start_time = start_time,
             .end_time = end_time,
             .repeat_mode = repeat_mode,
-            .repeat_completions = 0,
+            .num_completions = 0,
         };
     }
 
@@ -57,14 +57,19 @@ pub const AnimationState = struct {
         self.current_time += delta_time;
 
         if (self.current_time > self.end_time) {
-            self.repeat_completions +%= 1;
+            self.num_completions +%= 1;
             switch (self.repeat_mode) {
                 .Once => {
                     self.current_time = self.end_time;
                 },
-                .Count => {
-                    // TODO: implement count-based repeating
-                    self.current_time = self.start_time;
+                .Count => |max_repeats| {
+                    if (self.num_completions >= max_repeats) {
+                        self.current_time = self.end_time;
+                    } else {
+                        // Loop back to start
+                        const duration = self.end_time - self.start_time;
+                        self.current_time = self.start_time + @mod(self.current_time - self.start_time, duration);
+                    }
                 },
                 .Forever => {
                     // Loop back to start
@@ -356,7 +361,7 @@ pub const Animator = struct {
         );
         try self.active_animations.append(anim_state);
 
-        log.debug("Playing glTF animation {d}", .{clip.animation_index});
+        log.debug("Playing clip animation {any}", .{clip});
     }
 
     /// Play animation by index
@@ -382,6 +387,8 @@ pub const Animator = struct {
             .Forever,
         );
         try self.active_animations.append(anim_state);
+
+        log.debug("Playing glTF animation {d}", .{animation_index});
     }
 
     /// Play animation at specific time

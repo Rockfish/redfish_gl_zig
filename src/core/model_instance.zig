@@ -69,6 +69,14 @@ pub const ModelInstance = struct {
         }
     }
 
+    pub fn playAnimationById(self: *Self, anim_id: u32) !void {
+        switch (self.animator) {
+            .animator => |obj| try obj.playAnimationById(anim_id),
+            .baked_animator => |obj| obj.playAnimationById(anim_id),
+            else => {},
+        }
+    }
+
     pub fn draw(self: *Self, shader: *Shader, instance_count: u32) void {
         switch (self.animator) {
             .animator => |obj| obj.draw(self, shader, instance_count),

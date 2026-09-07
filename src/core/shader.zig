@@ -106,6 +106,11 @@ pub const Shader = struct {
         frag_file_path: []const u8,
         optional_geom_file: ?[]const u8,
     ) !*Shader {
+        log.debug("vert_file_path: {s}", .{vert_file_path});
+        log.debug("frag_file_path: {s}", .{frag_file_path});
+        if (optional_geom_file) |geom_file_path| {
+            log.debug("geom_file_path: {s}", .{geom_file_path});
+        }
 
         // Initialize texture unit map if not already done
         if (texture_unit_map == null) {

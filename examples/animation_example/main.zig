@@ -177,15 +177,25 @@ const model_configs = [_]ModelConfig{
             transform.scale(vec3(0.1, 0.1, 0.1));
             break :blk transform;
         },
+        // .addTextures = &[_]TexConfigs{
+        // .{ .mesh_name = "Player", .uniform_name = "texture_diffuse", .texture_path = "Textures/Player_D.tga", .config = texture_config },
+        // .{ .mesh_name = "Player", .uniform_name = "texture_specular", .texture_path = "Textures/Player_M.tga", .config = texture_config },
+        // .{ .mesh_name = "Player", .uniform_name = "texture_emissive", .texture_path = "Textures/Player_E.tga", .config = texture_config },
+        // .{ .mesh_name = "Player", .uniform_name = "texture_normal", .texture_path = "Textures/Player_NRM.tga", .config = texture_config },
+        // .{ .mesh_name = "Gun", .uniform_name = "texture_diffuse", .texture_path = "Textures/Gun_D.tga", .config = texture_config },
+        // .{ .mesh_name = "Gun", .uniform_name = "texture_specular", .texture_path = "Textures/Gun_M.tga", .config = texture_config },
+        // .{ .mesh_name = "Gun", .uniform_name = "texture_emissive", .texture_path = "Textures/Gun_E.tga", .config = texture_config },
+        // .{ .mesh_name = "Gun", .uniform_name = "texture_normal", .texture_path = "Textures/Gun_NRM.tga", .config = texture_config },
+        // },
         .addTextures = &[_]TexConfigs{
-            .{ .mesh_name = "Player", .uniform_name = "texture_diffuse", .texture_path = "Textures/Player_D.tga", .config = texture_config },
-            .{ .mesh_name = "Player", .uniform_name = "texture_specular", .texture_path = "Textures/Player_M.tga", .config = texture_config },
-            .{ .mesh_name = "Player", .uniform_name = "texture_emissive", .texture_path = "Textures/Player_E.tga", .config = texture_config },
-            .{ .mesh_name = "Player", .uniform_name = "texture_normal", .texture_path = "Textures/Player_NRM.tga", .config = texture_config },
-            .{ .mesh_name = "Gun", .uniform_name = "texture_diffuse", .texture_path = "Textures/Gun_D.tga", .config = texture_config },
-            .{ .mesh_name = "Gun", .uniform_name = "texture_specular", .texture_path = "Textures/Gun_M.tga", .config = texture_config },
-            .{ .mesh_name = "Gun", .uniform_name = "texture_emissive", .texture_path = "Textures/Gun_E.tga", .config = texture_config },
-            .{ .mesh_name = "Gun", .uniform_name = "texture_normal", .texture_path = "Textures/Gun_NRM.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "baseColorTexture", .texture_path = "Textures/Player_D.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "metallicRoughnessTexture", .texture_path = "Textures/Player_M.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "emissiveTexture", .texture_path = "Textures/Player_E.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "normalTexture", .texture_path = "Textures/Player_NRM.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "baseColorTexture", .texture_path = "Textures/Gun_D.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "metallicRoughnessTexture", .texture_path = "Textures/Gun_M.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "emissiveTexture", .texture_path = "Textures/Gun_E.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "normalTexture", .texture_path = "Textures/Gun_NRM.tga", .config = texture_config },
         },
         .animationClip = AnimationClip.init(0, 0.0, 294.0 / 30.0, AnimationRepeat.Forever),
         .cameraPosition = CameraPosition{ .position = vec3(0.0, 10.0, 30.0), .target = vec3(0.0, 10.0, 0.0) },
@@ -198,7 +208,7 @@ const model_configs = [_]ModelConfig{
         .name = "Spacesuit",
         .transform = blk: {
             var transform = Mat4.Identity;
-            transform.scale(vec3(8.5, 8.5, 8.5));
+            transform.scale(vec3(10, 10, 10));
             break :blk transform;
         },
         .addTextures = &[_]TexConfigs{},
@@ -231,7 +241,8 @@ const model_configs = [_]ModelConfig{
 // glTF-Sample-Models/InterpolationTest/glTF/InterpolationTest.gltf
 
 // Select model based on enum
-const SELECTED_MODEL: ModelChoice = .player;
+const SELECTED_MODEL: ModelChoice = .spacesuit;
+// const SELECTED_MODEL: ModelChoice = .player;
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -287,6 +298,9 @@ pub fn main(init: std.process.Init) !void {
     try run(init, window, runtime_duration);
 }
 
+const camera_position = vec3(0.0, 12.0, 40.0);
+const camera_target = vec3(0.0, 12.0, 0.0);
+
 pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !void {
     _ = window.setKeyCallback(keyHandler);
     _ = window.setFramebufferSizeCallback(framebufferSizeHandler);
@@ -325,7 +339,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     gl.enable(gl.DEPTH_TEST);
 
-    const shader = if (SELECTED_MODEL == .player)
+    const shader = if (SELECTED_MODEL == .securitybot)
         try Shader.init(
             init.io,
             context.alloc,
@@ -342,6 +356,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
             "examples/animation_example/pbr.frag",
         );
 
+    shader.debug_enabled = true;
     log.info("Shader id: {d}", .{shader.id});
 
     // const lightDir: Vec3 = vec3(-0.8, 0.0, -1.0).normalize_or_zero();
@@ -355,7 +370,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     const ambientColor: Vec3 = vec3(0.8, 0.7, 0.8);
 
-    // Find the configuration for the selected model
     const model_config = blk: {
         for (model_configs) |config| {
             if (config.choice == SELECTED_MODEL) {
@@ -370,7 +384,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     log.info("Main: loading model: {s}", .{model_path});
 
-    // Create glTF asset and load model
     var gltf_asset = try GltfAsset.init(context, model_name, model_path);
 
     log.info("Main: adding custom textures", .{});
@@ -383,12 +396,11 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         );
     }
 
+    gltf_asset.normal_generation_mode = .accurate;
+
     try gltf_asset.load();
 
     log.info("gltf_asset.directory: {s}", .{gltf_asset.directory});
-
-    // Apply model configuration
-    const model_transform = model_config.transform;
 
     // Apply camera position if specified
     if (model_config.cameraPosition) |cam_pos| {
@@ -396,7 +408,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     }
 
     log.info("Main: loaded gltf asset: {s}", .{model_path});
-    // var model = try gltf_asset.buildModel();
 
     // Generate report if enabled
     if (DUMP_REPORT) {
@@ -413,38 +424,44 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         log.info("Report generated successfully", .{});
     }
 
-    const bullet_model_path = "assets/angrybots_assets/Models/Bullet/Bullet.gltf";
-
-    var bullet_gltf_asset = try GltfAsset.init(context, "bullet", bullet_model_path);
-    bullet_gltf_asset.skipModelTextures();
-
-    // Add custom texture for bullet
-    try bullet_gltf_asset.addCustomTexture(
-        "Plane001",
-        "texture_diffuse",
-        "Floor D.png",
-        texture_config,
-    );
-
-    try bullet_gltf_asset.load();
+    // const bullet_model_path = "assets/angrybots_assets/Models/Bullet/Bullet.gltf";
+    //
+    // var bullet_gltf_asset = try GltfAsset.init(context, "bullet", bullet_model_path);
+    // bullet_gltf_asset.skipModelTextures();
+    //
+    // // Add custom texture for bullet
+    // try bullet_gltf_asset.addCustomTexture(
+    //     "Plane001",
+    //     "texture_diffuse",
+    //     "Floor D.png",
+    //     texture_config,
+    // );
+    //
+    // try bullet_gltf_asset.load();
 
     log.info("Main: configuring animation", .{});
 
     const animator = try Animator.init(context, gltf_asset);
 
-    // Apply animation from configuration
-    if (model_config.animationPlayAll) {
-        log.info("Model configured for multi-animation - playing all animations simultaneously", .{});
-        try animator.playAllAnimations();
-    } else if (SELECTED_MODEL == .player) {
-        // For player model, use the first clip from our array
-        const initial_clip = player_clips[state.current_clip_index];
-        log.info("Playing player animation clip: {s} (start: {d:.3}, end: {d:.3})", .{ initial_clip.name, initial_clip.clip.start_time, initial_clip.clip.end_time });
-        try animator.playClip(initial_clip.clip);
-    } else if (model_config.animationClip) |animation_clip| {
-        log.info("Playing single animation clip", .{});
-        try animator.playClip(animation_clip);
-    }
+    // // Apply animation from configuration
+    // if (model_config.animationPlayAll) {
+    //     log.info("Model configured for multi-animation - playing all animations simultaneously", .{});
+    //     // try animator.playAllAnimations();
+    // } else if (SELECTED_MODEL == .player) {
+    //     // For player model, use the first clip from our array
+    //     const initial_clip = player_clips[state.current_clip_index];
+    //     log.info("Playing player animation clip: {s} (start: {d:.3}, end: {d:.3})", .{ initial_clip.name, initial_clip.clip.start_time, initial_clip.clip.end_time });
+    //     // try animator.playClip(initial_clip.clip);
+    // } else if (model_config.animationClip) |animation_clip| {
+    //     log.info("Playing single animation clip", .{});
+    //     // try animator.playClip(animation_clip);
+    // }
+
+    // PBR shader
+    // shader.setVec3("lightPosition", vec3(1.0, 20.0, 4.0));
+    shader.setVec3("lightPosition", vec3(camera_position.x + 50.0, camera_position.y + 50.0, camera_position.z + 50.0));
+    shader.setVec3("lightColor", vec3(1.0, 1.0, 1.0));
+    shader.setFloat("lightIntensity", 100.0);
 
     log.info(
         "animation state: active_animations={d}",
@@ -457,12 +474,27 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     const start_time = state.last_frame;
 
+    const clips = &[_]AnimationClip{
+        player_clips[0].clip,
+        player_clips[1].clip,
+        player_clips[2].clip,
+        player_clips[3].clip,
+        player_clips[4].clip,
+    };
+
+    const c: []const AnimationClip = clips[0..];
+    std.debug.print("c: {any}\n", .{@TypeOf(c)});
+
+    // const indexes = [_]u32{ 0 };
+
     const baked_animator = try BakedAnimator.init(
         context,
         animator,
         .{
             .frame_rate = 30.0,
             .capture = .all,
+            // .capture = .{ .clips = clips[0..] },
+            // .capture = .{ .indexes = indexes[0..] },
         },
     );
 
@@ -480,18 +512,20 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     const model_transforms = try context.alloc.alloc(Mat4, instance_count);
     for (0..instance_count) |count| {
         const i: f32 = @floatFromInt(count);
-        const translation_matrix = Mat4.fromTranslation(vec3(i * 90.0 - 200.0, 0.0, 0.0));
-        const mat_model = model_transform.mulMat4(&translation_matrix);
+        const translation_matrix = Mat4.fromTranslation(vec3(i * 9.0 - 200.0, 0.0, 0.0));
+        //const mat_model = model_config.transform.mulMat4(&translation_matrix);
+        const mat_model = translation_matrix.mulMat4(&model_config.transform);
         model_transforms[count] = mat_model;
     }
 
     const model_transforms_texture = core.TextureBuffer.createTextureBuffer(math.Mat4, model_transforms);
     log.info("model_transfrom gl_buffer_id: {d}", .{model_transforms_texture.gl_texture_id});
 
-    shader.bindTextureBufferAuto("animationData", baked_animator.gl_texture_id);
     shader.bindTextureBufferAuto("modelMatrixes", model_transforms_texture.gl_texture_id);
 
     log.info("Run starting---", .{});
+
+    try model.playAnimationById(16);
 
     while (!window.shouldClose()) {
         _ = temp_alloc_arena.reset(.retain_capacity);
@@ -521,7 +555,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
         shader.setMat4("matProjection", &projection);
         shader.setMat4("matView", &view);
-        shader.setMat4("matModel", &model_transform);
+        // shader.setMat4("matModel", &model_transform);
 
         shader.setBool("useLight", true);
         shader.setVec3("ambient", ambientColor);
@@ -529,6 +563,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         const identity = Mat4.Identity;
         shader.setMat4("aimRot", &identity);
         shader.setMat4("matLightSpace", &identity);
+
+        shader.setVec3("viewPosition", state.camera.movement.transform.translation);
 
         try model.updateAnimation(state.delta_time);
 

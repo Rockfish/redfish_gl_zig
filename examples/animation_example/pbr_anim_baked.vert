@@ -12,16 +12,20 @@ layout(location = 6) in vec4 inWeights;
 const int MAX_JOINTS = 100;
 const int MAX_JOINT_INFLUENCE = 4;
 
-// Texture buffers
+uniform bool hasSkin;
+
+uniform int meshId;
+uniform int frameId;
+uniform int numMeshes;
+uniform int numJoints;
+uniform int animationOffset;
+
 uniform samplerBuffer animationData;
 uniform samplerBuffer modelMatrixes;
 
-// Uniforms
 uniform mat4 matProjection;
 uniform mat4 matView;
 uniform mat4 matModel;
-
-uniform bool hasSkin;
 
 // Outputs to the fragment shader
 out vec3 fragWorldPosition;
@@ -44,6 +48,9 @@ void main() {
     vec3 totalNormal = vec3(0.0);
     vec3 totalTangent = vec3(0.0);
 
+    int frameOffset = frameId * (numMeshes + numJoints) + animationOffset;
+    int jointOffset = frameOffset + numMeshes;
+
     if (hasSkin) {
         // Use joint skinning for animated models
         for (int i = 0; i < MAX_JOINT_INFLUENCE; i++) {
@@ -59,6 +66,7 @@ void main() {
             }
 
             mat4 jointMatrix = fetchMatrix(animationData, jointOffset + inJointIds[i]);
+
             vec4 localPosition = jointMatrix * vec4(inPosition, 1.0);
             totalPosition += localPosition * inWeights[i];
 
@@ -70,9 +78,12 @@ void main() {
         }
     } else {
         // Use node transform for non-skinned models
+        mat4 nodeTransform = fetchMatrix(animationData, frameOffset + meshId);
         totalPosition = nodeTransform * vec4(inPosition, 1.0);
-        totalNormal = inNormal;
-        totalTangent = inTangent;
+         totalNormal = inNormal;
+         totalTangent = inTangent;
+//        totalNormal = mat3(nodeTransform) * inNormal;
+//        totalTangent = mat3(nodeTransform) * inTangent;
     }
 
     mat4 modelTransform = fetchMatrix(modelMatrixes, gl_InstanceID);

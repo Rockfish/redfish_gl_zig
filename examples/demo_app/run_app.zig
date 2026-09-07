@@ -438,7 +438,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
         shader.setVec3("light_dir", vec3(10.0, 10.0, 2.0));
 
         // PBR shader
-        shader.setVec3("lightPosition", vec3(state.camera.movement.transform.translation.x + 50.0, state.camera.movement.transform.translation.y + 50.0, state.camera.movement.transform.translation.z + 50.0));
+        // shader.setVec3("lightPosition", vec3(state.camera.movement.transform.translation.x + 50.0, state.camera.movement.transform.translation.y + 50.0, state.camera.movement.transform.translation.z + 50.0));
+        shader.setVec3("lightPosition", vec3(state.camera_initial_position.x + 50.0, state.camera_initial_position.y + 50.0, state.camera_initial_position.z + 50.0));
         shader.setVec3("lightColor", vec3(1.0, 1.0, 1.0));
         shader.setFloat("lightIntensity", 100.0);
 
