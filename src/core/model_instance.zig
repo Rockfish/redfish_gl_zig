@@ -16,14 +16,14 @@ const ArenaAllocator = std.heap.ArenaAllocator;
 
 pub const AnimatorType = union(enum) {
     none: void,
-    animator: *Animator,
+    live_animator: *Animator,
     baked_animator: *BakedAnimator,
 };
 
 pub const ModelInstance = struct {
     alloc: Allocator,
     name: []const u8,
-    animator: AnimatorType,
+    animator_type: AnimatorType,
     gltf_asset: *GltfAsset,
 
     const Self = @This();
@@ -38,7 +38,7 @@ pub const ModelInstance = struct {
         model.* = ModelInstance{
             .alloc = alloc,
             .name = try alloc.dupe(u8, name),
-            .animator = animator,
+            .animator_type = animator,
             .gltf_asset = gltf_asset,
         };
 
@@ -54,32 +54,32 @@ pub const ModelInstance = struct {
     }
 
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
-        switch (self.animator) {
-            .animator => |obj| try obj.updateAnimation(delta_time),
+        switch (self.animator_type) {
+            .live_animator => |obj| try obj.updateAnimation(delta_time),
             .baked_animator => |obj| try obj.updateAnimation(delta_time),
             else => {},
         }
     }
 
     pub fn playClip(self: *Self, clip: AnimationClip) !void {
-        switch (self.animator) {
-            .animator => |obj| try obj.playClip(clip),
+        switch (self.animator_type) {
+            .live_animator => |obj| try obj.playClip(clip),
             .baked_animator => |obj| obj.playClip(clip),
             else => {},
         }
     }
 
     pub fn playAnimationById(self: *Self, anim_id: u32) !void {
-        switch (self.animator) {
-            .animator => |obj| try obj.playAnimationById(anim_id),
+        switch (self.animator_type) {
+            .live_animator => |obj| try obj.playAnimationById(anim_id),
             .baked_animator => |obj| obj.playAnimationById(anim_id),
             else => {},
         }
     }
 
     pub fn draw(self: *Self, shader: *Shader, instance_count: u32) void {
-        switch (self.animator) {
-            .animator => |obj| obj.draw(self, shader, instance_count),
+        switch (self.animator_type) {
+            .live_animator => |obj| obj.draw(self, shader, instance_count),
             .baked_animator => |obj| obj.draw(self, shader, instance_count),
             else => {
                 for (self.gltf_asset.meshes, 0..) |mesh, index| {

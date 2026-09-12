@@ -78,10 +78,9 @@ const State = struct {
     last_y: f32,
     scr_width: f32 = SCR_WIDTH,
     scr_height: f32 = SCR_HEIGHT,
-    current_action: u8 = 0, // 0=idle, 1=forward, 2=backwards, 3=right, 4=left, 5=dying
-    current_clip_index: usize = 2, // Index into player_clips array
-    // model: ?*Model = null, // Reference to the model for animation updates
-    model: *ModelInstance = undefined, // Reference to the model for animation updates
+    current_action: u8 = 0,
+    model: *ModelInstance = undefined,
+    animation_index: u32 = 4,
     baked: bool = true,
 };
 
@@ -459,9 +458,10 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     // PBR shader
     // shader.setVec3("lightPosition", vec3(1.0, 20.0, 4.0));
-    shader.setVec3("lightPosition", vec3(camera_position.x + 50.0, camera_position.y + 50.0, camera_position.z + 50.0));
+    shader.setVec3("lightPosition", vec3(0.0, 200.0, 0.0));
     shader.setVec3("lightColor", vec3(1.0, 1.0, 1.0));
     shader.setFloat("lightIntensity", 100.0);
+    shader.setVec3("viewPosition", state.camera.movement.transform.translation);
 
     log.info(
         "animation state: active_animations={d}",
@@ -507,25 +507,33 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     );
     state.model = model;
 
-    const instance_count: usize = 1000;
+    try model.playAnimationById(state.animation_index);
+
+    const x_size: usize = 4;
+    const y_size: usize = 4;
+    const x_offset = @as(f32, @floatFromInt(x_size)) * 12.0 * 0.5;
+    const y_offset = @as(f32, @floatFromInt(y_size)) * 12.0 * 0.5;
+    const instance_count: usize = x_size * y_size;
 
     const model_transforms = try context.alloc.alloc(Mat4, instance_count);
-    for (0..instance_count) |count| {
-        const i: f32 = @floatFromInt(count);
-        const translation_matrix = Mat4.fromTranslation(vec3(i * 9.0 - 200.0, 0.0, 0.0));
-        //const mat_model = model_config.transform.mulMat4(&translation_matrix);
-        const mat_model = translation_matrix.mulMat4(&model_config.transform);
-        model_transforms[count] = mat_model;
+    var count: usize = 0;
+    for (0..x_size) |x| {
+        for (0..y_size) |y| {
+            const i: f32 = @floatFromInt(x);
+            const j: f32 = @floatFromInt(y);
+            const translation_matrix = Mat4.fromTranslation(vec3(i * 12.0 - x_offset, 0.0, j * 12.0 - y_offset));
+            const mat_model = translation_matrix.mulMat4(&model_config.transform);
+            model_transforms[count] = mat_model;
+            count += 1;
+        }
     }
 
     const model_transforms_texture = core.TextureBuffer.createTextureBuffer(math.Mat4, model_transforms);
-    log.info("model_transfrom gl_buffer_id: {d}", .{model_transforms_texture.gl_texture_id});
-
     shader.bindTextureBufferAuto("modelMatrixes", model_transforms_texture.gl_texture_id);
 
-    log.info("Run starting---", .{});
+    log.info("model_transfrom gl_buffer_id: {d}", .{model_transforms_texture.gl_texture_id});
 
-    try model.playAnimationById(16);
+    log.info("Run starting---", .{});
 
     while (!window.shouldClose()) {
         _ = temp_alloc_arena.reset(.retain_capacity);
@@ -534,7 +542,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         state.delta_time = currentFrame - state.last_frame;
         state.last_frame = currentFrame;
 
-        // Check if we've exceeded the maximum duration
         if (max_duration) |duration| {
             if (currentFrame - start_time >= duration) {
                 log.info("Reached maximum duration of {d} seconds, exiting\n", .{duration});
@@ -564,7 +571,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
         shader.setMat4("aimRot", &identity);
         shader.setMat4("matLightSpace", &identity);
 
-        shader.setVec3("viewPosition", state.camera.movement.transform.translation);
+        // shader.setVec3("viewPosition", state.camera.movement.transform.translation);
 
         try model.updateAnimation(state.delta_time);
 
@@ -621,14 +628,27 @@ pub fn processKeys() void {
             },
             .n => {
                 if (!state.input.key_processed.contains(.n)) {
-                    if (SELECTED_MODEL == .player) {
-                        state.current_clip_index = (state.current_clip_index + 1) % player_clips.len;
-                        const current_clip = player_clips[state.current_clip_index];
-                        log.info("Switching to animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ current_clip.name, current_clip.clip.start_time, current_clip.clip.end_time });
-                        state.model.playClip(current_clip.clip) catch |err| {
-                            log.info("Failed to play animation clip: {}\n", .{err});
-                        };
+                    if (state.baked) {
+                        switch (state.model.animator) {
+                            .baked_animator => |baked| {
+                                state.animation_index += 1;
+                                if (state.animation_index >= baked.headers.len) {
+                                    state.animation_index = 0;
+                                }
+                                baked.playAnimationById(state.animation_index);
+                                log.info("animation: {d}", .{state.animation_index});
+                            },
+                            else => {},
+                        }
                     }
+                    // else if (SELECTED_MODEL == .player) {
+                        // state.animation_index = (state.animation_index + 1) % player_clips.len;
+                        // const current_clip = player_clips[state.animation_index];
+                        // log.info("Switching to animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ current_clip.name, current_clip.clip.start_time, current_clip.clip.end_time });
+                        // state.model.playClip(current_clip.clip) catch |err| {
+                            // log.info("Failed to play animation clip: {}\n", .{err});
+                        // };
+                    // }
                 }
             },
             else => {},
