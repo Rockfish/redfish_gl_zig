@@ -268,4 +268,4 @@ Changing which model file "soldier" uses becomes a config change, not a code cha
 - `examples/bullets/debug_scene.zig` -- first migration target
 - `examples/bullets/scene/*.zig` -- scene objects to migrate
 - `src/core/shader.zig` -- most commonly wrapped factory call
-- `src/core/asset_loader.zig` -- GltfAsset/Model creation flow
+- `../../src/core/gltf_asset.zig` -- GltfAsset/Model creation flow

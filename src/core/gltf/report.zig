@@ -1,6 +1,6 @@
 const std = @import("std");
 const containers = @import("containers");
-const GltfAsset = @import("../asset_loader.zig").GltfAsset;
+const GltfAsset = @import("../gltf_asset.zig").GltfAsset;
 const gltf_types = @import("gltf.zig");
 
 const Io = std.Io;

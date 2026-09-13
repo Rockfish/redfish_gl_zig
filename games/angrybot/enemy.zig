@@ -55,7 +55,6 @@ pub const EnemySystem = struct {
 
         // Use GltfAsset instead of ModelBuilder
         var gltf_asset = try GltfAsset.init(context, "enemy", model_path);
-        try gltf_asset.load();
 
         // Define texture configuration (same settings as ASSIMP version)
         const texture_config = TextureConfig{
@@ -66,12 +65,14 @@ pub const EnemySystem = struct {
         };
 
         // Modern glTF texture assignment using string uniform names
-        try gltf_asset.addTexture("Eeldog", "texture_diffuse", "Eeldog_Albedo.png", texture_config);
-        try gltf_asset.addTexture("Eeldog", "texture_emissive", "Eeldog_Albedo.png", texture_config);
+        try gltf_asset.addCustomTexture("Eeldog", "texture_diffuse", "Eeldog_Albedo.png", texture_config);
+        try gltf_asset.addCustomTexture("Eeldog", "texture_emissive", "Eeldog_Albedo.png", texture_config);
         // no normal in shader, so we can skip this
-        //try gltf_asset.addTexture("EelDog", "texture_normal", "Eeldog_Normal.png", texture_config);
+        //try gltf_asset.addCustomTexture("EelDog", "texture_normal", "Eeldog_Normal.png", texture_config);
 
+        try gltf_asset.load();
         log.info("EnemySystem: glTF asset loaded and configured", .{});
+
         const enemy_model = try gltf_asset.buildModel();
         log.info("EnemySystem: model built successfully", .{});
 

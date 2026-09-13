@@ -108,7 +108,7 @@ Chunks:
 ```
 
 ### Key Files Modified
-- `src/core/asset_loader.zig` - Main GLB implementation
+- `../../src/core/gltf_asset.zig` - Main GLB implementation
 - `src/core/gltf/parser.zig` - Array initialization fixes
 - `src/core/main.zig` - Asset loader export
 - `build.zig` - GLB test target
@@ -132,7 +132,7 @@ GLB format support is complete. Next: **Plan 002: Demo Application** - Create in
 
 ## Related Files
 
-- `src/core/asset_loader.zig` - Main GLB implementation location
+- `../../src/core/gltf_asset.zig` - Main GLB implementation location
 - `src/core/gltf/parser.zig` - JSON parsing (updated for compatibility)
 - `tests/integration/glb_loading_test.zig` - GLB validation tests
 - `build.zig` - Test infrastructure

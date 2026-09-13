@@ -89,7 +89,7 @@ libs/              # Third-party dependencies
 - **Output Location**: `/tmp/redfish_screenshots/` with format `YYYY-MM-DD_HH.MM.SS.mmm_pbr_{screenshot|uniforms}.{png|json}`
 - **Usage**: Press F12 during demo_app runtime for coordinated capture of visuals and shader state
 
-#### Asset Loading System (`src/core/asset_loader.zig`)
+#### Asset Loading System (`src/core/gltf_asset.zig`)
 - **ASSIMP-Style Configuration**: Set loading options before calling `buildModel()`
 - **Normal Generation Modes**: `skip` (shader fallback), `simple` (upward normals), `accurate` (calculated from geometry)
 - **Centralized Preprocessing**: Normal generation happens at asset level, not during mesh creation
@@ -156,7 +156,7 @@ This applies to scenarios where referencing nested fields directly in function c
 - This helps maintain consistency and reduces dependencies
 
 ### Model Loading
-- glTF models should be loaded through `GltfAsset` in `src/core/asset_loader.zig`
+- glTF models should be loaded through `GltfAsset` in `src/core/gltf_asset.zig`
 - Textures are cached and managed centrally
 - Use descriptive material names for texture associations
 
@@ -231,7 +231,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed project history and recent updates
 - **Active demo**: `examples/demo_app/main.zig` (build target: `demo_app`)
 - **Shaders**: Located in `examples/demo_app/shaders/`
 - **Math Library**: Pure Zig implementation in `src/math/` - add missing functions here
-- **Asset Loading**: Use `GltfAsset` from `src/core/asset_loader.zig` for all model loading
+- **Asset Loading**: Use `GltfAsset` from `src/core/gltf_asset.zig` for all model loading
 - **glTF Analysis**: Use `core.gltf_report.GltfReport` for model inspection and debugging
 - **Development Workflow**: Use `zig build <target>-run` for direct builds, or watch scripts for auto-rebuild
 - **Complete Guide**: See `DEVELOPMENT.md` for comprehensive workflow documentation

@@ -4,7 +4,7 @@ const Mesh = @import("mesh.zig").Mesh;
 const Animator = @import("animator.zig").Animator;
 const AnimationClip = @import("animator.zig").AnimationClip;
 const gltf_types = @import("gltf/gltf.zig");
-const GltfAsset = @import("asset_loader.zig").GltfAsset;
+const GltfAsset = @import("gltf_asset.zig").GltfAsset;
 const constants = @import("constants.zig");
 
 const BakedAnimator = @import("baked_animator.zig").BakedAnimator;

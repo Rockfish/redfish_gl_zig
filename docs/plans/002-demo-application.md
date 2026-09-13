@@ -217,7 +217,7 @@ animator.updateAnimation(delta_time);
 
 **Files Modified**:
 - **MAJOR REWRITE**: `src/core/animator.zig` - Complete glTF implementation
-- **UPDATED**: `src/core/asset_loader.zig` - Animator constructor integration
+- **UPDATED**: `../../src/core/gltf_asset.zig` - Animator constructor integration
 - **UPDATED**: `build.zig` - Build options fix for content_dir
 
 **Performance Characteristics**:
@@ -407,7 +407,7 @@ animator.updateAnimation(delta_time);
 ## Related Files
 
 - `examples/demo_app/` - Demo application source directory
-- `src/core/asset_loader.zig` - GLB/glTF loading backend
+- `../../src/core/gltf_asset.zig` - GLB/glTF loading backend
 - `plan/001-glb-support.md` - Prerequisite GLB implementation
 - `tests/integration/glb_loading_test.zig` - GLB validation tests
 

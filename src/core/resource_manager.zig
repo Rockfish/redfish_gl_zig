@@ -2,7 +2,7 @@ const std = @import("std");
 const containers = @import("containers");
 
 const Context = @import("context.zig").Context;
-const asset_loader = @import("asset_loader.zig");
+const asset_loader = @import("gltf_asset.zig");
 const texture_mod = @import("texture.zig");
 const shapes = @import("shapes/root.zig");
 const shader_mod = @import("shader.zig");

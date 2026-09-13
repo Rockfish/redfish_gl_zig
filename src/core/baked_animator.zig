@@ -11,7 +11,7 @@ const ArenaAllocator = std.heap.ArenaAllocator;
 const ModelInstance = @import("model_instance.zig").ModelInstance;
 const Context = @import("context.zig").Context;
 const Model = @import("model.zig").Model;
-const GltfAsset = @import("asset_loader.zig").GltfAsset;
+const GltfAsset = @import("gltf_asset.zig").GltfAsset;
 
 const animation = @import("animator.zig");
 const Shader = @import("shader.zig").Shader;

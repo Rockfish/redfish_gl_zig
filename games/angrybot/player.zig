@@ -119,7 +119,6 @@ pub const Player = struct {
 
         // Use GltfAsset instead of ModelBuilder
         var gltf_asset = try GltfAsset.init(context, "Player", model_path);
-        try gltf_asset.load();
 
         // Define texture configuration (same settings as ASSIMP version)
         const texture_config = TextureConfig{
@@ -130,16 +129,18 @@ pub const Player = struct {
         };
 
         // Modern glTF texture assignment using string uniform names
-        try gltf_asset.addTexture("Player", "texture_diffuse", "Textures/Player_D.tga", texture_config);
-        try gltf_asset.addTexture("Player", "texture_specular", "Textures/Player_M.tga", texture_config);
-        try gltf_asset.addTexture("Player", "texture_emissive", "Textures/Player_E.tga", texture_config);
-        try gltf_asset.addTexture("Player", "texture_normal", "Textures/Player_NRM.tga", texture_config);
-        try gltf_asset.addTexture("Gun", "texture_diffuse", "Textures/Gun_D.tga", texture_config);
-        try gltf_asset.addTexture("Gun", "texture_specular", "Textures/Gun_M.tga", texture_config);
-        try gltf_asset.addTexture("Gun", "texture_emissive", "Textures/Gun_E.tga", texture_config);
-        try gltf_asset.addTexture("Gun", "texture_normal", "Textures/Gun_NRM.tga", texture_config);
+        try gltf_asset.addCustomTexture("Player", "texture_diffuse", "Textures/Player_D.tga", texture_config);
+        try gltf_asset.addCustomTexture("Player", "texture_specular", "Textures/Player_M.tga", texture_config);
+        try gltf_asset.addCustomTexture("Player", "texture_emissive", "Textures/Player_E.tga", texture_config);
+        try gltf_asset.addCustomTexture("Player", "texture_normal", "Textures/Player_NRM.tga", texture_config);
+        try gltf_asset.addCustomTexture("Gun", "texture_diffuse", "Textures/Gun_D.tga", texture_config);
+        try gltf_asset.addCustomTexture("Gun", "texture_specular", "Textures/Gun_M.tga", texture_config);
+        try gltf_asset.addCustomTexture("Gun", "texture_emissive", "Textures/Gun_E.tga", texture_config);
+        try gltf_asset.addCustomTexture("Gun", "texture_normal", "Textures/Gun_NRM.tga", texture_config);
 
+        try gltf_asset.load();
         log.info("Player: glTF asset loaded and configured", .{});
+
         const model = try gltf_asset.buildModel();
         log.info("Player: model built successfully", .{});
 

@@ -546,7 +546,7 @@ long-term. Open items:
 
 ### Tier 2 — arena owners (keep concrete type, tidy the seam)
 
-- [ ] **`asset_loader.zig`** (`GltfAsset`) — creator of the arena; keeps the
+- [ ] **`gltf_asset.zig`** (`GltfAsset`) — creator of the arena; keeps the
       `*ArenaAllocator` field. Fixes:
   - [ ] pass `arena.allocator()` (as `Allocator`) down to Mesh/Animator/
         Texture instead of the concrete pointer

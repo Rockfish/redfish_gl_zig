@@ -9,7 +9,7 @@ const constants = @import("constants.zig");
 const log = std.log.scoped(.mesh);
 
 const gltf_types = @import("gltf/gltf.zig");
-const GltfAsset = @import("asset_loader.zig").GltfAsset;
+const GltfAsset = @import("gltf_asset.zig").GltfAsset;
 
 const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;

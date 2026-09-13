@@ -4,7 +4,7 @@ const gl = @import("zopengl").bindings;
 const utils = @import("utils/root.zig");
 const gl_debug = @import("gl_debug.zig");
 const gltf_types = @import("gltf/gltf.zig");
-const GltfAsset = @import("asset_loader.zig").GltfAsset;
+const GltfAsset = @import("gltf_asset.zig").GltfAsset;
 const Context = @import("context.zig").Context;
 
 const Allocator = std.mem.Allocator;

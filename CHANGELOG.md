@@ -83,7 +83,7 @@
   - Maintains ASSIMP-style developer control while leveraging glTF's modern architecture
   - Essential foundation for porting existing ASSIMP-based games to glTF
 - **Files Implemented**:
-  - `src/core/asset_loader.zig` - Core custom texture system with TextureConfig and CustomTexture
+  - `src/core/gltf_asset.zig` - Core custom texture system with TextureConfig and CustomTexture
   - `src/core/texture.zig` - Added `initFromFile()` method for custom texture loading
   - `src/core/mesh.zig` - Added `setCustomTextures()` for mesh-primitive texture application
   - `examples/animation_example/main.zig` - Complete ASSIMP to glTF port demonstrating the system
@@ -103,7 +103,7 @@
   - Centralized preprocessing at asset level, not during mesh creation
   - Automatic detection - only generates normals for mesh primitives that lack them
 - **Technical Implementation**:
-  - Moved `NormalGenerationMode` enum from `mesh.zig` to `asset_loader.zig`
+  - Moved `NormalGenerationMode` enum from `mesh.zig` to `gltf_asset.zig`
   - Added `generated_normals` HashMap to `GltfAsset` with composite keys `(mesh_index << 32 | primitive_index)`
   - Implemented `generateMissingNormals()` called during `buildModel()` preprocessing
   - Updated mesh initialization to use pre-generated normals via `getGeneratedNormals()`
@@ -114,7 +114,7 @@
   - Test output: "Generated accurate normals for mesh 0 primitive 0 (1728 vertices)"
 - **Extensible Pattern**: Established foundation for additional asset loading options (future texture settings, optimization flags, etc.)
 - **Files Modified**:
-  - `src/core/asset_loader.zig` - Added normal generation system and ASSIMP-style configuration
+  - `src/core/gltf_asset.zig` - Added normal generation system and ASSIMP-style configuration
   - `src/core/mesh.zig` - Removed duplicate normal generation, updated to use pre-generated normals
   - `examples/demo_app/run_app.zig` - Configured accurate normal generation for all models
 - **Memory Management**: Pre-generated normals stored efficiently in HashMap, cleaned up with asset lifecycle
