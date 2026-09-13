@@ -55,9 +55,8 @@ pub const BakedAnimationConfig = struct {
 
 pub const BakedAnimator = struct {
     anim_id: usize,
-    start_time: f32,
-    delta_time: f32,
     current_time: f32,
+    current_frame: u32,
     headers: []BakedHeader,
     gl_texture_id: c_uint = 0,
 
@@ -75,39 +74,47 @@ pub const BakedAnimator = struct {
         const bakedAnimator = try context.alloc.create(BakedAnimator);
         bakedAnimator.* = BakedAnimator{
             .anim_id = 0,
-            .start_time = 0,
-            .delta_time = 0,
             .current_time = 0,
+            .current_frame = 0,
             .headers = headers,
             .gl_texture_id = baked_texture.gl_texture_id,
         };
         return bakedAnimator;
     }
 
+    pub fn deleteGlObjects(self: *Self) void {
+        gl.deleteTextures(1, &self.gl_texture_id);
+    }
+
     pub fn playClip(self: *Self, clip: AnimationClip) void {
+        if (@as(usize, @intCast(clip.animation_index)) >= self.headers.len) {
+            log.err("BakedAnimator: Invalid animation id {d}, max is {d}", .{ clip.animation_index, self.headers.len - 1 });
+            return;
+        }
         self.anim_id = clip.animation_index;
         self.current_time = clip.start_time;
     }
 
     pub fn playAnimationById(self: *Self, anim_id: u32) void {
+        if (@as(usize, @intCast(anim_id)) >= self.headers.len) {
+            log.err("BakedAnimator: Invalid animation id {d}, max is {d}", .{ anim_id, self.headers.len - 1 });
+            return;
+        }
         self.anim_id = @intCast(anim_id);
         self.current_time = 0;
     }
 
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
-        self.delta_time = delta_time;
+        self.current_frame = self.getFrame(delta_time);
     }
 
     pub fn draw(self: *Self, model: *ModelInstance, shader: *Shader, instance_count: u32) void {
         shader.useShader();
 
-        const frame_index = self.getFrame(self.delta_time);
-        shader.setInt("frameId", @intCast(frame_index));
-
+        shader.setInt("frameId", @intCast(self.current_frame));
         shader.setInt("numMeshes", @intCast(self.headers[self.anim_id].num_meshes));
         shader.setInt("numJoints", @intCast(self.headers[self.anim_id].num_joints));
         shader.setInt("animationOffset", @intCast(self.headers[self.anim_id].animation_offset));
-
         shader.bindTextureBufferAuto("animationData", self.gl_texture_id);
 
         for (0..self.headers[self.anim_id].num_meshes) |index| {

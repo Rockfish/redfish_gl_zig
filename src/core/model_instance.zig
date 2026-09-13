@@ -7,7 +7,7 @@ const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("asset_loader.zig").GltfAsset;
 const constants = @import("constants.zig");
 
-const BakedAnimator = @import("bake_animation.zig").BakedAnimator;
+const BakedAnimator = @import("baked_animator.zig").BakedAnimator;
 
 const log = std.log.scoped(.model_instance);
 

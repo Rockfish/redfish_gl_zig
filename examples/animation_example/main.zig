@@ -81,6 +81,7 @@ const State = struct {
     current_action: u8 = 0,
     model: *ModelInstance = undefined,
     animation_index: u32 = 4,
+    run_animation: bool = true,
     baked: bool = true,
 };
 
@@ -536,6 +537,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     log.info("Run starting---", .{});
 
     while (!window.shouldClose()) {
+        glfw.pollEvents();
+
         _ = temp_alloc_arena.reset(.retain_capacity);
 
         const currentFrame: f32 = @floatCast(glfw.getTime());
@@ -551,8 +554,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
         frame_counter.update();
         processKeys();
-
-        glfw.pollEvents();
 
         gl.clearColor(0.05, 0.1, 0.05, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -573,7 +574,9 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
         // shader.setVec3("viewPosition", state.camera.movement.transform.translation);
 
-        try model.updateAnimation(state.delta_time);
+        if (state.run_animation) {
+            try model.updateAnimation(state.delta_time);
+        }
 
         model.draw(shader, @intCast(instance_count));
 
@@ -612,6 +615,7 @@ fn keyHandler(
 pub fn processKeys() void {
     var iterator = state.input.key_presses.iterator();
     while (iterator.next()) |k| {
+
         switch (k) {
             .t => log.info("time: {d}\n", .{state.delta_time}),
             .w => {
@@ -626,10 +630,21 @@ pub fn processKeys() void {
             .d => {
                 state.camera.movement.processMovement(.circle_right, state.delta_time);
             },
+            else => {},
+        }
+
+
+        // One-shot keys: fire once per press
+        if (state.input.key_processed.contains(k)) {
+            continue;
+        }
+        state.input.key_processed.insert(k);
+
+        switch (k) {
             .n => {
-                if (!state.input.key_processed.contains(.n)) {
+                // if (!state.input.key_processed.contains(.n)) {
                     if (state.baked) {
-                        switch (state.model.animator) {
+                        switch (state.model.animator_type) {
                             .baked_animator => |baked| {
                                 state.animation_index += 1;
                                 if (state.animation_index >= baked.headers.len) {
@@ -649,7 +664,11 @@ pub fn processKeys() void {
                             // log.info("Failed to play animation clip: {}\n", .{err});
                         // };
                     // }
-                }
+                // }
+            },
+            .space => {
+                state.run_animation = !state.run_animation;
+                log.debug("run_animation: {any}", .{state.run_animation});
             },
             else => {},
         }
