@@ -208,6 +208,13 @@ zig fmt src/
 - **cglm**: C math library (present but unused - prefer local math library)
 - **miniaudio**: Audio playback support
 
+### macOS Toolchain Note (Xcode 27 / Zig 0.16)
+- The macOS 27 SDK `math.h` no longer defines `INFINITY` directly; it includes `<float.h>` with `__need_infinity_nan` set (LLVM 22 behavior)
+- Zig 0.16 bundles LLVM 21 clang headers whose `float.h` ignores that macro, so Zig's libc++ sub-compilation fails with `use of undeclared identifier 'INFINITY'` in `__random/clamp_to_integral.h` (the real error is at the top of the log, above hundreds of nullability notes)
+- **Fix**: `~/zig/<version>/lib/include/float.h` is patched to handle `__need_infinity_nan` (original kept as `float.h.orig`). Re-apply after any Zig upgrade until Zig ships LLVM 22 headers
+- Zig ignores `SDKROOT`; it always uses `xcrun --sdk macosx --show-sdk-path`. `--sysroot <old sdk>` gets past libc++ but breaks system_sdk link paths
+- After an Xcode update, accept the license (`sudo xcodebuild -license accept`) or all SDK headers report "file not found"; open a fresh terminal so `.zshrc` recomputes `SDKROOT`
+
 ## Future Development Areas
 
 ### Potential Enhancements
