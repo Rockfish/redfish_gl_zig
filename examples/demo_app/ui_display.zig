@@ -114,7 +114,7 @@ pub const UIState = struct {
         );
     }
 
-    pub fn draw(self: *Self, current_model: ?*core.Model) void {
+    pub fn draw(self: *Self, current_model: ?*core.ModelInstance) void {
         if (self.show_model_info) {
             self.renderModelInfo(current_model);
         }
@@ -135,7 +135,7 @@ pub const UIState = struct {
         zgui.backend.draw();
     }
 
-    fn renderModelInfo(self: *Self, model: ?*core.Model) void {
+    fn renderModelInfo(self: *Self, model: ?*core.ModelInstance) void {
         const current_model = state.getCurrentModelInfo();
         const total_models = assets_list.model_infos.len;
         const current_index = state.state.current_model_index;
@@ -182,10 +182,10 @@ pub const UIState = struct {
                 zgui.separator();
 
                 // Get statistics from the runtime model
-                const vertex_count = runtime_model.getVertexCount();
-                const texture_count = runtime_model.getTextureCount();
+                const vertex_count = runtime_model.gltf_asset.getVertexCount();
+                const texture_count = runtime_model.gltf_asset.getTextureCount();
                 const animation_count = runtime_model.getAnimationCount();
-                const primitive_count = runtime_model.getMeshPrimitiveCount();
+                const primitive_count = runtime_model.gltf_asset.getMeshPrimitiveCount();
 
                 zgui.textColored(.{ 0.9, 0.7, 0.3, 1.0 }, "Statistics:", .{});
                 zgui.text("  Vertices: {d}", .{vertex_count});

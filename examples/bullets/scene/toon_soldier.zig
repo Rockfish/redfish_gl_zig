@@ -112,10 +112,10 @@ pub const ToonSoldier = struct {
     pub fn equipWeapon(self: *Self, weapon: Weapon) void {
         // Hide all weapons
         inline for (std.meta.fields(Weapon)) |field| {
-            self.model.setNodeVisibility(field.name, false);
+            self.model.gltf_asset.setNodeVisibility(field.name, false);
         }
         // Show the selected weapon
-        self.model.setNodeVisibility(@tagName(weapon), true);
+        self.model.gltf_asset.setNodeVisibility(@tagName(weapon), true);
         self.current_weapon = weapon;
     }
 

@@ -53,7 +53,7 @@ pub const State = struct {
     camera_initial_target: Vec3,
     single_mesh_id: i32 = -1,
     animation_id: i32 = -1,
-    motion_type: MotionType = .Orbit,
+    motion_type: MotionType = .Circle,
     current_model_index: i32 = 0,
     model_reload_requested: bool = false,
     model_index_increment: i32 = 1,

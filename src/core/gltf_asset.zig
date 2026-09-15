@@ -9,10 +9,15 @@ const Model = @import("model.zig").Model;
 const Mesh = @import("mesh.zig").Mesh;
 const Animator = @import("animator.zig").Animator;
 const Context = @import("context.zig").Context;
+const AABB = @import("aabb.zig").AABB;
+const Transform = @import("transform.zig").Transform;
 
 const log = std.log.scoped(.asset_loader);
 
 const Vec3 = math.Vec3;
+const vec3 = math.vec3;
+const vec4 = math.vec4;
+const Mat4 = math.Mat4;
 
 // Normal generation options for asset loading
 pub const NormalGenerationMode = enum {
@@ -98,6 +103,7 @@ pub const GltfAsset = struct {
         const asset: *GltfAsset = try context.alloc.create(Self);
         asset.* = GltfAsset{
             .context = context,
+            .name = try context.alloc.dupe(u8, name),
             .gltf = undefined,
             .meshes = &[_]*Mesh{},
             .buffer_data = ManagedArrayList([]align(4) const u8).init(context.alloc),
@@ -105,7 +111,6 @@ pub const GltfAsset = struct {
             .generated_normals = std.AutoHashMap(u64, []Vec3).init(context.alloc),
             .custom_textures = ManagedArrayList(CustomTexture).init(context.alloc),
             .directory = try context.alloc.dupe(u8, Path.dirname(path) orelse ""),
-            .name = try context.alloc.dupe(u8, name),
             .filepath = try context.alloc.dupeZ(u8, path),
             .gamma_correction = false,
             .flip_v = false,
@@ -160,6 +165,158 @@ pub const GltfAsset = struct {
         };
 
         try self.custom_textures.append(custom_texture);
+    }
+
+    pub fn calculateBoundingBox(self: *Self, scene_id: u32) AABB {
+        var bbox = AABB.init();
+
+        // Get the scene nodes and calculate bounds
+        const scene = self.gltf.scenes.?[@intCast(scene_id)];
+        if (scene.nodes) |nodes| {
+            for (nodes) |node_index| {
+                const node = self.gltf.nodes.?[node_index];
+                self.calculateNodeBounds(&bbox, node, Mat4.Identity);
+            }
+        }
+
+        return bbox;
+    }
+
+    fn calculateNodeBounds(self: *Self, bbox: *AABB, node: gltf_types.Node, parent_transform: Mat4) void {
+        const transform = Transform{
+            .translation = node.translation orelse vec3(0.0, 0.0, 0.0),
+            .rotation = node.rotation orelse math.quat(0.0, 0.0, 0.0, 1.0),
+            .scale = node.scale orelse vec3(1.0, 1.0, 1.0),
+        };
+        const local_matrix = transform.toMatrix();
+        const global_matrix = parent_transform.mulMat4(&local_matrix);
+
+        // If this node has a mesh, calculate its bounds
+        if (node.mesh) |mesh_index| {
+            if (self.gltf.meshes) |meshes| {
+                const mesh = meshes[mesh_index];
+                self.calculateMeshBounds(bbox, mesh, global_matrix);
+            }
+        }
+
+        // Process child nodes
+        if (node.children) |children| {
+            for (children) |child_index| {
+                const child_node = self.gltf.nodes.?[child_index];
+                self.calculateNodeBounds(bbox, child_node, global_matrix);
+            }
+        }
+    }
+
+    fn calculateMeshBounds(self: *Self, bbox: *AABB, mesh: gltf_types.Mesh, transform: Mat4) void {
+        for (mesh.primitives) |primitive| {
+            if (primitive.attributes.position) |position_accessor_index| {
+                const accessor = self.gltf.accessors.?[position_accessor_index];
+
+                // Use accessor min/max if available (optimized path)
+                if (accessor.min != null and accessor.max != null) {
+                    const min_pos = vec3(accessor.min.?[0], accessor.min.?[1], accessor.min.?[2]);
+                    const max_pos = vec3(accessor.max.?[0], accessor.max.?[1], accessor.max.?[2]);
+
+                    // Transform the min/max corners and expand bounding box
+                    const corners = [_]Vec3{
+                        min_pos,
+                        vec3(min_pos.x, min_pos.y, max_pos.z),
+                        vec3(min_pos.x, max_pos.y, min_pos.z),
+                        vec3(min_pos.x, max_pos.y, max_pos.z),
+                        vec3(max_pos.x, min_pos.y, min_pos.z),
+                        vec3(max_pos.x, min_pos.y, max_pos.z),
+                        vec3(max_pos.x, max_pos.y, min_pos.z),
+                        max_pos,
+                    };
+
+                    for (corners) |corner| {
+                        const transformed_pos = transform.mulVec4(vec4(corner.x, corner.y, corner.z, 1.0)).toVec3();
+                        bbox.expandWithVec3(transformed_pos);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn setMeshVisibility(self: *Self, mesh_name: []const u8, visible: bool) void {
+        for (self.meshes) |mesh| {
+            if (mesh.name) |name| {
+                if (std.mem.eql(u8, name, mesh_name)) {
+                    mesh.is_visible = visible;
+                }
+            }
+        }
+    }
+
+    pub fn hideAllMeshes(self: *Self) void {
+        for (self.meshes) |mesh| {
+            mesh.is_visible = false;
+        }
+    }
+
+    pub fn showAllMeshes(self: *Self) void {
+        for (self.meshes) |mesh| {
+            mesh.is_visible = true;
+        }
+    }
+
+    pub fn setNodeVisibility(self: *Self, node_name: []const u8, visible: bool) void {
+        if (self.gltf.nodes) |nodes| {
+            for (nodes) |*node| {
+                if (node.name) |name| {
+                    if (std.mem.eql(u8, name, node_name)) {
+                        self.setNodeMeshesVisibility(node, visible);
+                    }
+                }
+            }
+        }
+    }
+
+    fn setNodeMeshesVisibility(self: *GltfAsset, node: *const gltf_types.Node, visible: bool) void {
+        if (node.mesh) |mesh_index| {
+            self.meshes[mesh_index].is_visible = visible;
+        }
+        if (node.children) |children| {
+            for (children) |child_index| {
+                const child_node = self.gltf.nodes.?[child_index];
+                self.setNodeMeshesVisibility(&child_node, visible);
+            }
+        }
+    }
+
+    pub fn hideAllNodes(self: *Self) void {
+        for (self.animator.nodes) |*node| {
+            node.is_visible = false;
+        }
+    }
+
+    pub fn showAllNodes(self: *Self) void {
+        for (self.animator.nodes) |*node| {
+            node.is_visible = true;
+        }
+    }
+
+    pub fn getVertexCount(self: *Self) u32 {
+        var total_vertices: u32 = 0;
+        for (self.meshes) |mesh| {
+            for (mesh.primitives.list.items) |primitive| {
+                total_vertices += primitive.vertex_count;
+            }
+        }
+        return total_vertices;
+    }
+
+    pub fn getTextureCount(self: *Self) u32 {
+        return @intCast(self.loaded_textures.count());
+    }
+
+    pub fn getMeshPrimitiveCount(self: *Self) u32 {
+        var total_primitives: u32 = 0;
+        for (self.meshes) |mesh| {
+            total_primitives += @intCast(mesh.primitives.list.items.len);
+        }
+        return total_primitives;
     }
 
     // Get pre-generated normals for a specific mesh primitive

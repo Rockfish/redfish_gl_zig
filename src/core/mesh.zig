@@ -15,6 +15,7 @@ const Allocator = std.mem.Allocator;
 const ManagedArrayList = containers.ManagedArrayList;
 
 const Vec3 = math.Vec3;
+const gl_debug = @import("gl_debug.zig");
 
 pub const MeshPrimitiveError = error{
     AccessorError,
@@ -255,7 +256,6 @@ pub const MeshPrimitive = struct {
     }
 
     pub fn draw(self: *MeshPrimitive, gltf_asset: *GltfAsset, shader: *const Shader, instance_count: u32) void {
-        // First, apply custom textures (these override material textures)
         self.setCustomTextures(gltf_asset, shader);
 
         switch (self.draw_mode) {

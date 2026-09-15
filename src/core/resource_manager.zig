@@ -16,7 +16,8 @@ const GltfAsset = asset_loader.GltfAsset;
 const Texture = texture_mod.Texture;
 const TextureConfig = texture_mod.TextureConfig;
 const Shader = shader_mod.Shader;
-const Model = model_mod.Model;
+// const Model = model_mod.Model;
+const ModelInstance = @import("model_instance.zig").ModelInstance;
 const Shape = shapes.Shape;
 
 pub const ResourceManager = struct {
@@ -25,7 +26,7 @@ pub const ResourceManager = struct {
     // Typed resource storage
     shaders: ManagedArrayList(*Shader),
     textures: ManagedArrayList(*Texture),
-    models: ManagedArrayList(*Model),
+    model_instances: ManagedArrayList(*ModelInstance),
     obj_shapes: ManagedArrayList(*Shape),
 
     const Self = @This();
@@ -36,7 +37,7 @@ pub const ResourceManager = struct {
             .context = context,
             .shaders = ManagedArrayList(*Shader).init(context.alloc),
             .textures = ManagedArrayList(*Texture).init(context.alloc),
-            .models = ManagedArrayList(*Model).init(context.alloc),
+            .model_instances = ManagedArrayList(*ModelInstance).init(context.alloc),
             .obj_shapes = ManagedArrayList(*Shape).init(context.alloc),
         };
         return rm;
@@ -90,9 +91,9 @@ pub const ResourceManager = struct {
     }
 
     /// Build a model from a pre-configured GltfAsset and track it.
-    pub fn buildModel(self: *Self, gltf_asset: *GltfAsset) !*Model {
+    pub fn buildModel(self: *Self, gltf_asset: *GltfAsset) !*ModelInstance {
         const model = try gltf_asset.buildModel();
-        try self.models.append(model);
+        try self.model_instances.append(model);
         return model;
     }
 
@@ -101,10 +102,15 @@ pub const ResourceManager = struct {
         self: *Self,
         name: []const u8,
         path: []const u8,
-    ) !*Model {
-        var gltf_asset = try GltfAsset.init(self.context, name, path);
-        const model = try gltf_asset.buildModel();
-        try self.models.append(model);
+    ) !*ModelInstance {
+        // var gltf_asset = try GltfAsset.init(self.context, name, path);
+        // const model = try gltf_asset.buildModel();
+        const model = try ModelInstance.initWithConfig(self.context, .{
+            .name = name,
+            .file_path = path,
+            .animator_type = .live_animator,
+        });
+        try self.model_instances.append(model);
         return model;
     }
 
@@ -136,8 +142,8 @@ pub const ResourceManager = struct {
 
     /// Delete all tracked GL resources in the correct order.
     pub fn cleanUp(self: *Self) void {
-        // Models own their arenas and internal textures
-        for (self.models.items()) |model| {
+        // Model instances own their arenas and internal textures
+        for (self.model_instances.items()) |model| {
             model.deleteGlObjects();
         }
 
@@ -146,7 +152,7 @@ pub const ResourceManager = struct {
             shape.deleteGlObjects();
         }
 
-        // Standalone textures (not owned by models)
+        // Standalone textures (not owned by model instances)
         for (self.textures.items()) |tex| {
             tex.deleteGlObjects();
         }

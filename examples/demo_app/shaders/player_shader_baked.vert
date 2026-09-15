@@ -1,6 +1,5 @@
 #version 410 core
 
-// Input attributes
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 inTexCoord;
 layout(location = 2) in vec3 inNormal;
@@ -26,14 +25,13 @@ uniform samplerBuffer modelMatrixes;
 uniform mat4 matProjection;
 uniform mat4 matView;
 uniform mat4 matModel;
+uniform mat4 matLightSpace;
 
-// Outputs to the fragment shader
-out vec3 fragWorldPosition;
 out vec2 fragTexCoord;
-out vec3 fragTangent;
-out vec4 fragColor;
 out vec3 fragNormal;
-out mat3 fragTBN;
+out vec4 fragColor;
+out vec4 fragPosLightSpace;
+out vec3 fragWorldPos;
 
 mat4 fetchMatrix(samplerBuffer data, int index) {
     vec4 col1 = texelFetch(data, index * 4 + 0);
@@ -44,9 +42,8 @@ mat4 fetchMatrix(samplerBuffer data, int index) {
 }
 
 void main() {
-    vec4 totalPosition = vec4(0.0);
-    vec3 totalNormal = vec3(0.0);
-    vec3 totalTangent = vec3(0.0);
+    vec4 totalPosition = vec4(0.0f);
+    vec3 totalNormal = vec3(0.0f);
 
     int frameOffset = frameId * (numMeshes + numJoints) + animationOffset;
     int jointOffset = frameOffset + numMeshes;
@@ -59,62 +56,38 @@ void main() {
             }
 
             if (inJointIds[i] >= MAX_JOINTS) {
-                totalPosition = vec4(inPosition, 1.0);
+                totalPosition = vec4(inPosition, 1.0f);
                 totalNormal = inNormal;
-                totalTangent = inTangent;
                 break;
             }
 
             mat4 jointMatrix = fetchMatrix(animationData, jointOffset + inJointIds[i]);
 
-            vec4 localPosition = jointMatrix * vec4(inPosition, 1.0);
+            vec4 localPosition = jointMatrix * vec4(inPosition, 1.0f);
             totalPosition += localPosition * inWeights[i];
 
             vec3 localNormal = mat3(jointMatrix) * inNormal;
             totalNormal += localNormal * inWeights[i];
-
-            vec3 localTangent = mat3(jointMatrix) * inTangent;
-            totalTangent += localTangent * inWeights[i];
         }
     } else {
         // Use node transform for non-skinned models
         mat4 nodeTransform = fetchMatrix(animationData, frameOffset + meshId);
-        totalPosition = nodeTransform * vec4(inPosition, 1.0);
-         totalNormal = inNormal;
-         totalTangent = inTangent;
-//        totalNormal = mat3(nodeTransform) * inNormal;
-//        totalTangent = mat3(nodeTransform) * inTangent;
+        totalPosition = nodeTransform * vec4(inPosition, 1.0f);
+        totalNormal = mat3(nodeTransform) * inNormal;
     }
 
     mat4 modelTransform = fetchMatrix(modelMatrixes, gl_InstanceID);
 
-    // Compute the normal matrix from the model matrix for correct normal transformation.
-    mat3 normalMatrix = transpose(inverse(mat3(modelTransform)));
+    gl_Position = matProjection * matView * modelTransform * totalPosition;
 
-    // Transform the normal and tangent into world space.
-    vec3 N = normalize(normalMatrix * totalNormal);
-    vec3 T = normalize(normalMatrix * totalTangent);
-
-    // Re-orthogonalize the tangent relative to the normal.
-    T = normalize(T - dot(T, N) * N);
-
-    // Compute the bitangent using the cross product.
-    vec3 B = cross(N, T);
-
-    // Compute the world-space position.
-    vec4 worldPos = modelTransform * totalPosition;
-    fragWorldPosition = worldPos.xyz;
-
-    // Pass through texture coordinates and vertex color.
     fragTexCoord = inTexCoord;
     fragColor = inColor;
 
-    // Output the transformed normal.
-    fragNormal = N;
+    // Derive the normal matrix from this instance's transform, not the shared
+    // matModel uniform — each instance has its own modelTransform.
+    mat3 matNormal = transpose(inverse(mat3(modelTransform)));
+    fragNormal = normalize(matNormal * totalNormal);
 
-    // Construct the TBN matrix to transform normals from tangent space to world space.
-    fragTBN = mat3(T, B, N);
-
-    // Compute the final vertex position in clip space.
-    gl_Position = matProjection * matView * modelTransform * totalPosition;
+    fragWorldPos = vec3(modelTransform * totalPosition);
+    fragPosLightSpace = matLightSpace * vec4(fragWorldPos, 1.0);
 }

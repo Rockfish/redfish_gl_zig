@@ -17,6 +17,8 @@ const animation = @import("animator.zig");
 const Shader = @import("shader.zig").Shader;
 const TextureBuffer = @import("texture_buffer.zig").TextureBuffer;
 
+const gl_debug = @import("gl_debug.zig");
+
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
 const Vec4 = math.Vec4;
@@ -104,6 +106,10 @@ pub const BakedAnimator = struct {
         self.current_time = 0;
     }
 
+    pub fn getAnimationCount(self: *Self) u32 {
+        return @intCast(self.headers.len);
+    }
+
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
         self.current_frame = self.getFrame(delta_time);
     }
@@ -115,7 +121,10 @@ pub const BakedAnimator = struct {
         shader.setInt("numMeshes", @intCast(self.headers[self.anim_id].num_meshes));
         shader.setInt("numJoints", @intCast(self.headers[self.anim_id].num_joints));
         shader.setInt("animationOffset", @intCast(self.headers[self.anim_id].animation_offset));
+        gl_debug.check("bake: set ints");
+
         shader.bindTextureBufferAuto("animationData", self.gl_texture_id);
+        gl_debug.check("baked: bind animationData");
 
         for (0..self.headers[self.anim_id].num_meshes) |index| {
             shader.setInt("meshId", @intCast(index));
@@ -125,6 +134,8 @@ pub const BakedAnimator = struct {
     }
 
     fn getFrame(self: *Self, delta_time: f32) u32 {
+        if (self.headers.len == 0) return 0;
+
         var frame_index: u32 = @intFromFloat(@round(self.current_time / self.headers[self.anim_id].frame_delta));
         self.current_time += delta_time;
         if (frame_index > self.headers[self.anim_id].num_frames - 1) {
@@ -212,6 +223,8 @@ pub const BakedAnimation = struct {
         const frame_delta = 1.0 / frame_rate;
         const num_frames: u32 = @as(u32, @ceil(state_duration / frame_delta)) + 1;
 
+        const num_joints: u32 = if (animator.gltf_asset.gltf.skins) |skins| @intCast(skins[0].joints.len) else 0;
+
         const self = try allocator.create(BakedAnimation);
         self.* = .{
             .header = .{
@@ -219,7 +232,7 @@ pub const BakedAnimation = struct {
                 .duration = state_duration,
                 .num_frames = num_frames,
                 .num_meshes = @intCast(animator.gltf_asset.gltf.meshes.?.len),
-                .num_joints = @intCast(animator.gltf_asset.gltf.skins.?[0].joints.len),
+                .num_joints = num_joints,
                 .animation_offset = 0,
             },
             .frames = try allocator.alloc(FrameData, num_frames),
@@ -256,7 +269,7 @@ pub const BakedAnimation = struct {
     fn saveFrameData(self: *BakedAnimation, allocator: Allocator, animator: *Animator, frame_index: usize) !void {
         const data = try allocator.alloc(Mat4, self.header.num_meshes + self.header.num_joints);
 
-        const num_joints = animator.gltf_asset.gltf.skins.?[0].joints.len;
+        const num_joints = self.header.num_joints;
 
         for (animator.gltf_asset.gltf.nodes.?, 0..) |node, node_index| {
             const animator_node = animator.nodes[node_index];

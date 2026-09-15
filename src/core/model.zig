@@ -25,9 +25,7 @@ pub const Model = struct {
     alloc: Allocator,
     name: []const u8,
     scene: usize,
-    meshes: *ManagedArrayList(*Mesh),
     animator: *Animator,
-    single_mesh_select: i32 = -1,
     gltf_asset: *GltfAsset,
 
     const Self = @This();
@@ -38,24 +36,11 @@ pub const Model = struct {
         animator: *Animator,
         gltf_asset: *GltfAsset,
     ) !*Self {
-
-        // Create meshes
-        const meshes = try alloc.create(ManagedArrayList(*Mesh));
-        meshes.* = ManagedArrayList(*Mesh).init(alloc);
-
-        if (gltf_asset.gltf.meshes) |gltf_meshes| {
-            for (gltf_meshes, 0..) |gltf_mesh, mesh_index| {
-                const mesh = try Mesh.init(alloc, gltf_asset, gltf_mesh, mesh_index);
-                try meshes.append(mesh);
-            }
-        }
-
         const model = try alloc.create(Model);
         model.* = Model{
             .alloc = alloc,
             .scene = 0,
             .name = try alloc.dupe(u8, name),
-            .meshes = meshes,
             .animator = animator,
             .gltf_asset = gltf_asset,
         };
@@ -64,7 +49,7 @@ pub const Model = struct {
     }
 
     pub fn deleteGlObjects(self: *Self) void {
-        for (self.meshes.items()) |mesh| {
+        for (self.gltf_asset.meshes) |mesh| {
             mesh.deleteGlObjects();
         }
 
@@ -121,7 +106,7 @@ pub const Model = struct {
             const transform = self.animator.nodes[node_index].calculated_transform.?;
             const local_matrix = transform.toMatrix();
             shader.setMat4(constants.Uniforms.Node_Transform, &local_matrix);
-            const mesh = self.meshes.list.items[mesh_index];
+            const mesh: *Mesh = self.gltf_asset.meshes[mesh_index];
             mesh.draw(self.gltf_asset, shader, instance_count);
         }
 
@@ -135,151 +120,6 @@ pub const Model = struct {
 
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
         try self.animator.updateAnimation(delta_time);
-    }
-
-    pub fn calculateBoundingBox(self: *Self) AABB {
-        var bbox = AABB.init();
-
-        // Get the scene nodes and calculate bounds
-        const scene = self.gltf_asset.gltf.scenes.?[self.scene];
-        if (scene.nodes) |nodes| {
-            for (nodes) |node_index| {
-                const node = self.gltf_asset.gltf.nodes.?[node_index];
-                self.calculateNodeBounds(&bbox, node, Mat4.Identity);
-            }
-        }
-
-        return bbox;
-    }
-
-    fn calculateNodeBounds(self: *Self, bbox: *AABB, node: gltf_types.Node, parent_transform: Mat4) void {
-        const transform = Transform{
-            .translation = node.translation orelse vec3(0.0, 0.0, 0.0),
-            .rotation = node.rotation orelse math.quat(0.0, 0.0, 0.0, 1.0),
-            .scale = node.scale orelse vec3(1.0, 1.0, 1.0),
-        };
-        const local_matrix = transform.toMatrix();
-        const global_matrix = parent_transform.mulMat4(&local_matrix);
-
-        // If this node has a mesh, calculate its bounds
-        if (node.mesh) |mesh_index| {
-            if (self.gltf_asset.gltf.meshes) |meshes| {
-                const mesh = meshes[mesh_index];
-                self.calculateMeshBounds(bbox, mesh, global_matrix);
-            }
-        }
-
-        // Process child nodes
-        if (node.children) |children| {
-            for (children) |child_index| {
-                const child_node = self.gltf_asset.gltf.nodes.?[child_index];
-                self.calculateNodeBounds(bbox, child_node, global_matrix);
-            }
-        }
-    }
-
-    fn calculateMeshBounds(self: *Self, bbox: *AABB, mesh: gltf_types.Mesh, transform: Mat4) void {
-        for (mesh.primitives) |primitive| {
-            if (primitive.attributes.position) |position_accessor_index| {
-                const accessor = self.gltf_asset.gltf.accessors.?[position_accessor_index];
-
-                // Use accessor min/max if available (optimized path)
-                if (accessor.min != null and accessor.max != null) {
-                    const min_pos = vec3(accessor.min.?[0], accessor.min.?[1], accessor.min.?[2]);
-                    const max_pos = vec3(accessor.max.?[0], accessor.max.?[1], accessor.max.?[2]);
-
-                    // Transform the min/max corners and expand bounding box
-                    const corners = [_]Vec3{
-                        min_pos,
-                        vec3(min_pos.x, min_pos.y, max_pos.z),
-                        vec3(min_pos.x, max_pos.y, min_pos.z),
-                        vec3(min_pos.x, max_pos.y, max_pos.z),
-                        vec3(max_pos.x, min_pos.y, min_pos.z),
-                        vec3(max_pos.x, min_pos.y, max_pos.z),
-                        vec3(max_pos.x, max_pos.y, min_pos.z),
-                        max_pos,
-                    };
-
-                    for (corners) |corner| {
-                        const transformed_pos = transform.mulVec4(vec4(corner.x, corner.y, corner.z, 1.0)).toVec3();
-                        bbox.expandWithVec3(transformed_pos);
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn setMeshVisibility(self: *Self, mesh_name: []const u8, visible: bool) void {
-        for (self.meshes.list.items) |mesh| {
-            if (mesh.name) |name| {
-                if (std.mem.eql(u8, name, mesh_name)) {
-                    mesh.is_visible = visible;
-                }
-            }
-        }
-    }
-
-    pub fn hideAllMeshes(self: *Self) void {
-        for (self.meshes.list.items) |mesh| {
-            mesh.is_visible = false;
-        }
-    }
-
-    pub fn showAllMeshes(self: *Self) void {
-        for (self.meshes.list.items) |mesh| {
-            mesh.is_visible = true;
-        }
-    }
-
-    pub fn setNodeVisibility(self: *Self, node_name: []const u8, visible: bool) void {
-        for (self.animator.nodes) |*node| {
-            if (node.name) |name| {
-                if (std.mem.eql(u8, name, node_name)) {
-                    node.is_visible = visible;
-                }
-            }
-        }
-    }
-
-    pub fn hideAllNodes(self: *Self) void {
-        for (self.animator.nodes) |*node| {
-            node.is_visible = false;
-        }
-    }
-
-    pub fn showAllNodes(self: *Self) void {
-        for (self.animator.nodes) |*node| {
-            node.is_visible = true;
-        }
-    }
-
-    pub fn getVertexCount(self: *Self) u32 {
-        var total_vertices: u32 = 0;
-        for (self.meshes.list.items) |mesh| {
-            for (mesh.primitives.list.items) |primitive| {
-                total_vertices += primitive.vertex_count;
-            }
-        }
-        return total_vertices;
-    }
-
-    pub fn getTextureCount(self: *Self) u32 {
-        return @intCast(self.gltf_asset.loaded_textures.count());
-    }
-
-    pub fn getAnimationCount(self: *Self) u32 {
-        if (self.gltf_asset.gltf.animations) |animations| {
-            return @intCast(animations.len);
-        }
-        return 0;
-    }
-
-    pub fn getMeshPrimitiveCount(self: *Self) u32 {
-        var total_primitives: u32 = 0;
-        for (self.meshes.list.items) |mesh| {
-            total_primitives += @intCast(mesh.primitives.list.items.len);
-        }
-        return total_primitives;
     }
 };
 

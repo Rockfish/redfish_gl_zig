@@ -442,6 +442,10 @@ pub const Animator = struct {
         }
     }
 
+    pub fn getAnimationCount(self: *Self) u32 {
+        return @intCast(self.animations.len);
+    }
+
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
         for (self.active_animations.list.items) |*anim_state| {
             anim_state.update(delta_time);

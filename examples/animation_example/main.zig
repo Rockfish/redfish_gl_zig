@@ -177,26 +177,26 @@ const model_configs = [_]ModelConfig{
             transform.scale(vec3(0.1, 0.1, 0.1));
             break :blk transform;
         },
-        // .addTextures = &[_]TexConfigs{
-        // .{ .mesh_name = "Player", .uniform_name = "texture_diffuse", .texture_path = "Textures/Player_D.tga", .config = texture_config },
-        // .{ .mesh_name = "Player", .uniform_name = "texture_specular", .texture_path = "Textures/Player_M.tga", .config = texture_config },
-        // .{ .mesh_name = "Player", .uniform_name = "texture_emissive", .texture_path = "Textures/Player_E.tga", .config = texture_config },
-        // .{ .mesh_name = "Player", .uniform_name = "texture_normal", .texture_path = "Textures/Player_NRM.tga", .config = texture_config },
-        // .{ .mesh_name = "Gun", .uniform_name = "texture_diffuse", .texture_path = "Textures/Gun_D.tga", .config = texture_config },
-        // .{ .mesh_name = "Gun", .uniform_name = "texture_specular", .texture_path = "Textures/Gun_M.tga", .config = texture_config },
-        // .{ .mesh_name = "Gun", .uniform_name = "texture_emissive", .texture_path = "Textures/Gun_E.tga", .config = texture_config },
-        // .{ .mesh_name = "Gun", .uniform_name = "texture_normal", .texture_path = "Textures/Gun_NRM.tga", .config = texture_config },
-        // },
         .addTextures = &[_]TexConfigs{
-            .{ .mesh_name = "Player", .uniform_name = "baseColorTexture", .texture_path = "Textures/Player_D.tga", .config = texture_config },
-            .{ .mesh_name = "Player", .uniform_name = "metallicRoughnessTexture", .texture_path = "Textures/Player_M.tga", .config = texture_config },
-            .{ .mesh_name = "Player", .uniform_name = "emissiveTexture", .texture_path = "Textures/Player_E.tga", .config = texture_config },
-            .{ .mesh_name = "Player", .uniform_name = "normalTexture", .texture_path = "Textures/Player_NRM.tga", .config = texture_config },
-            .{ .mesh_name = "Gun", .uniform_name = "baseColorTexture", .texture_path = "Textures/Gun_D.tga", .config = texture_config },
-            .{ .mesh_name = "Gun", .uniform_name = "metallicRoughnessTexture", .texture_path = "Textures/Gun_M.tga", .config = texture_config },
-            .{ .mesh_name = "Gun", .uniform_name = "emissiveTexture", .texture_path = "Textures/Gun_E.tga", .config = texture_config },
-            .{ .mesh_name = "Gun", .uniform_name = "normalTexture", .texture_path = "Textures/Gun_NRM.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "texture_diffuse", .texture_path = "Textures/Player_D.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "texture_specular", .texture_path = "Textures/Player_M.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "texture_emissive", .texture_path = "Textures/Player_E.tga", .config = texture_config },
+            .{ .mesh_name = "Player", .uniform_name = "texture_normal", .texture_path = "Textures/Player_NRM.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "texture_diffuse", .texture_path = "Textures/Gun_D.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "texture_specular", .texture_path = "Textures/Gun_M.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "texture_emissive", .texture_path = "Textures/Gun_E.tga", .config = texture_config },
+            .{ .mesh_name = "Gun", .uniform_name = "texture_normal", .texture_path = "Textures/Gun_NRM.tga", .config = texture_config },
         },
+        // .addTextures = &[_]TexConfigs{
+        //     .{ .mesh_name = "Player", .uniform_name = "baseColorTexture", .texture_path = "Textures/Player_D.tga", .config = texture_config },
+        //     .{ .mesh_name = "Player", .uniform_name = "metallicRoughnessTexture", .texture_path = "Textures/Player_M.tga", .config = texture_config },
+        //     .{ .mesh_name = "Player", .uniform_name = "emissiveTexture", .texture_path = "Textures/Player_E.tga", .config = texture_config },
+        //     .{ .mesh_name = "Player", .uniform_name = "normalTexture", .texture_path = "Textures/Player_NRM.tga", .config = texture_config },
+        //     .{ .mesh_name = "Gun", .uniform_name = "baseColorTexture", .texture_path = "Textures/Gun_D.tga", .config = texture_config },
+        //     .{ .mesh_name = "Gun", .uniform_name = "metallicRoughnessTexture", .texture_path = "Textures/Gun_M.tga", .config = texture_config },
+        //     .{ .mesh_name = "Gun", .uniform_name = "emissiveTexture", .texture_path = "Textures/Gun_E.tga", .config = texture_config },
+        //     .{ .mesh_name = "Gun", .uniform_name = "normalTexture", .texture_path = "Textures/Gun_NRM.tga", .config = texture_config },
+        // },
         .animationClip = AnimationClip.init(0, 0.0, 294.0 / 30.0, AnimationRepeat.Forever),
         .cameraPosition = CameraPosition{ .position = vec3(0.0, 10.0, 30.0), .target = vec3(0.0, 10.0, 0.0) },
     },
@@ -241,8 +241,8 @@ const model_configs = [_]ModelConfig{
 // glTF-Sample-Models/InterpolationTest/glTF/InterpolationTest.gltf
 
 // Select model based on enum
-const SELECTED_MODEL: ModelChoice = .spacesuit;
-// const SELECTED_MODEL: ModelChoice = .player;
+// const SELECTED_MODEL: ModelChoice = .spacesuit;
+const SELECTED_MODEL: ModelChoice = .player;
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -339,7 +339,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
 
     gl.enable(gl.DEPTH_TEST);
 
-    const shader = if (SELECTED_MODEL == .securitybot)
+    const shader = if (SELECTED_MODEL == .player)
         try Shader.init(
             init.io,
             context.alloc,
@@ -387,6 +387,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !vo
     var gltf_asset = try GltfAsset.init(context, model_name, model_path);
 
     log.info("Main: adding custom textures", .{});
+
     for (model_config.addTextures) |texture_config_item| {
         try gltf_asset.addCustomTexture(
             texture_config_item.mesh_name,
@@ -615,7 +616,6 @@ fn keyHandler(
 pub fn processKeys() void {
     var iterator = state.input.key_presses.iterator();
     while (iterator.next()) |k| {
-
         switch (k) {
             .t => log.info("time: {d}\n", .{state.delta_time}),
             .w => {
@@ -633,7 +633,6 @@ pub fn processKeys() void {
             else => {},
         }
 
-
         // One-shot keys: fire once per press
         if (state.input.key_processed.contains(k)) {
             continue;
@@ -643,27 +642,27 @@ pub fn processKeys() void {
         switch (k) {
             .n => {
                 // if (!state.input.key_processed.contains(.n)) {
-                    if (state.baked) {
-                        switch (state.model.animator_type) {
-                            .baked_animator => |baked| {
-                                state.animation_index += 1;
-                                if (state.animation_index >= baked.headers.len) {
-                                    state.animation_index = 0;
-                                }
-                                baked.playAnimationById(state.animation_index);
-                                log.info("animation: {d}", .{state.animation_index});
-                            },
-                            else => {},
-                        }
+                if (state.baked) {
+                    switch (state.model.animator_impl) {
+                        .baked_animator => |baked| {
+                            state.animation_index += 1;
+                            if (state.animation_index >= baked.headers.len) {
+                                state.animation_index = 0;
+                            }
+                            baked.playAnimationById(state.animation_index);
+                            log.info("animation: {d}", .{state.animation_index});
+                        },
+                        else => {},
                     }
-                    // else if (SELECTED_MODEL == .player) {
-                        // state.animation_index = (state.animation_index + 1) % player_clips.len;
-                        // const current_clip = player_clips[state.animation_index];
-                        // log.info("Switching to animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ current_clip.name, current_clip.clip.start_time, current_clip.clip.end_time });
-                        // state.model.playClip(current_clip.clip) catch |err| {
-                            // log.info("Failed to play animation clip: {}\n", .{err});
-                        // };
-                    // }
+                }
+                // else if (SELECTED_MODEL == .player) {
+                // state.animation_index = (state.animation_index + 1) % player_clips.len;
+                // const current_clip = player_clips[state.animation_index];
+                // log.info("Switching to animation clip: {s} (start: {d:.3}, end: {d:.3})\n", .{ current_clip.name, current_clip.clip.start_time, current_clip.clip.end_time });
+                // state.model.playClip(current_clip.clip) catch |err| {
+                // log.info("Failed to play animation clip: {}\n", .{err});
+                // };
+                // }
                 // }
             },
             .space => {
