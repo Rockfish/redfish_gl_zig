@@ -2,6 +2,27 @@
 
 ## Recent Changes
 
+### 2026-09-19 - Baked Animation Fixes & Depth Precision 🎞️
+- **Z-fighting on large models diagnosed and fixed**: Shimmer on FBX-converted models in demo_app was depth buffer starvation, not a shader issue
+  - **Root Cause**: Camera near/far of 0.01/2000 (1:200,000) combined with framing distances of several hundred units gave a depth step of ~3 units on the Player model
+  - **Camera Defaults**: Changed to 0.1/1000 (1:10,000); added `Camera.setNearFar()` with depth precision rules of thumb in its doc comment
+  - **Model Normalization**: demo_app now centers every model on the origin and scales its largest extent to `TARGET_MODEL_SIZE`, so lighting, camera speeds, and clip planes are tuned once instead of per model
+  - **Constant Framing**: `positionCameraForModel` uses fixed distances now that all models are the same size
+- **Baked Animator Hardening** (`src/core/baked_animator.zig`):
+  - **GL Leak Fix**: `BakedAnimator` owns its `TextureBuffer` so both the buffer object and texture are freed; `ModelInstance.deleteGlObjects` now cleans up the baked animator
+  - **Frame Data**: Each baked frame starts as identity and skips nodes the animator never visited, instead of leaving undefined slots or panicking on meshes outside the scene hierarchy
+  - **Loop Point**: Frames are baked at explicit times clamped to the clip end, so the last frame holds the end pose rather than a wrapped start pose
+  - **Playback Clock**: `getFrame` wraps with modulo and clamps the index; fixes a freeze on frame zero after the first loop and removes per-cycle drift
+  - **Dead Code Repairs**: `printData` used a nonexistent header field and `playTick` wrapped void calls in `try`; both only built because nothing called them
+- **Shader Fix**: Non-skinned path in `pbr.vert` and `pbr_anim_baked.vert` now applies the node transform to normals and tangents
+- **demo_app**: `BAKE_ANIMATION` flag switches between the live animator with `pbr.vert` and the baked animator with `pbr_anim_baked.vert`; all demo models render correctly through the baked path except multi-animation playback (InterpolationTest), which bakes one animation at a time by design
+- **Known Limitations**: `.clips` capture indexes headers by clip position while `playClip` indexes by animation id; clip end time and repeat mode are ignored at playback
+
+### 2026-09-15 - Xcode 27 Toolchain Workaround 🛠️
+- **macOS 27 SDK breaks Zig 0.16 libc++**: New `math.h` defers `INFINITY` to `float.h` via `__need_infinity_nan` (LLVM 22 behavior); Zig's bundled LLVM 21 `float.h` ignores it, failing with `use of undeclared identifier 'INFINITY'`
+- **Fix**: Patched `float.h` in the Zig install (backup kept as `float.h.orig`); must be re-applied after Zig upgrades until Zig ships LLVM 22 headers
+- **Documented** in `CLAUDE.md` along with the Xcode license and stale `SDKROOT` gotchas
+
 ### 2025-07-13 - Enhanced glTF Development Tools 🔧
 - **Complete glTF Report System Enhancement**: Added detailed animation keyframes and skin data reporting for advanced debugging
   - **Animation Keyframe Details**: Human-readable animation data with actual time/value pairs instead of index references
