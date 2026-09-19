@@ -22,15 +22,7 @@ pub const AnimatorType = enum {
     baked_animator,
 };
 
-// const NullAnimator = struct {
-    // pub fn init(allocator: Allocator) !*NullAnimator {
-        // const null_animator = try allocator.create(NullAnimator);
-        // null_animator.* = NullAnimator{};
-        // return null_animator;
-    // }
-// };
-
-const AnimatorImpl = union(enum) {
+pub const AnimatorImpl = union(enum) {
     //none: *NullAnimator,
     null_animator,
     live_animator: *Animator,
@@ -75,10 +67,9 @@ pub const ModelInstance = struct {
         const animator = try Animator.init(context, gltf_asset);
 
         const animator_impl: AnimatorImpl = switch (config.animator_type) {
-            //.none => .{ .none = try NullAnimator.init(context.alloc)},
             .none => .null_animator,
             .live_animator => .{ .live_animator = animator },
-            .baked_animator => .{ .baked_animator = try BakedAnimator.init(context, animator, .{ .frame_rate = 30.0, .capture = .all })},
+            .baked_animator => .{ .baked_animator = try BakedAnimator.init(context, animator, .{ .frame_rate = 30.0, .capture = .all }) },
         };
 
         const model = try context.alloc.create(ModelInstance);
@@ -96,6 +87,10 @@ pub const ModelInstance = struct {
             mesh.deleteGlObjects();
         }
         self.gltf_asset.deleteGlObjects();
+        switch (self.animator_impl) {
+            .baked_animator => |obj| obj.deleteGlObjects(),
+            else => {},
+        }
     }
 
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {

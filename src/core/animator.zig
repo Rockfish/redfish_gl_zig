@@ -398,9 +398,9 @@ pub const Animator = struct {
             anim_state.current_time = time;
         }
         if (self.active_animations.list.items.len > 0) {
-            try self.updateNodeTransformations();
-            try self.calculateWorldTransforms();
-            try self.setShaderMatrices();
+            self.updateNodeTransformations();
+            self.calculateWorldTransforms();
+            self.setShaderMatrices();
         }
     }
 

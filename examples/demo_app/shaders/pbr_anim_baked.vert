@@ -81,10 +81,8 @@ void main() {
         // Use node transform for non-skinned models
         mat4 nodeTransform = fetchMatrix(animationData, frameOffset + meshId);
         totalPosition = nodeTransform * vec4(inPosition, 1.0);
-         totalNormal = inNormal;
-         totalTangent = inTangent;
-//        totalNormal = mat3(nodeTransform) * inNormal;
-//        totalTangent = mat3(nodeTransform) * inTangent;
+        totalNormal = mat3(nodeTransform) * inNormal;
+        totalTangent = mat3(nodeTransform) * inTangent;
     }
 
     //mat4 modelTransform = fetchMatrix(modelMatrixes, gl_InstanceID);

@@ -58,8 +58,8 @@ void main() {
     } else {
         // Use node transform for non-skinned models
         totalPosition = nodeTransform * vec4(inPosition, 1.0);
-        totalNormal = inNormal;
-        totalTangent = inTangent;
+        totalNormal = mat3(nodeTransform) * inNormal;
+        totalTangent = mat3(nodeTransform) * inTangent;
     }
 
     // Compute the normal matrix from the model matrix for correct normal transformation.

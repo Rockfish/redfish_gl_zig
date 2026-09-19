@@ -38,6 +38,7 @@ pub const AnimationStateMachine = @import("animation_fsm.zig").AnimationStateMac
 pub const BakedAnimation = @import("baked_animator.zig").BakedAnimation;
 pub const BakedAnimator = @import("baked_animator.zig").BakedAnimator;
 pub const ModelInstance = @import("model_instance.zig").ModelInstance;
+pub const AnimatorImpl = @import("model_instance.zig").AnimatorImpl;
 
 pub const TextureBuffer = @import("texture_buffer.zig").TextureBuffer;
 
