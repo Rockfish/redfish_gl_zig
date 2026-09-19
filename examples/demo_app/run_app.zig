@@ -31,6 +31,16 @@ const Mat4 = math.Mat4;
 // Lighting
 const NON_BLUE: f32 = 0.9;
 
+/// Every model is centered on the origin and scaled so its largest bounding box
+/// extent equals this, so lighting, camera speeds, and clip planes are tuned once
+/// instead of per model (the raw assets range from ~2 to ~300 units).
+const TARGET_MODEL_SIZE: f32 = 20.0;
+
+/// Clip planes for the normalized model size. See Camera.setNearFar for the
+/// rules of thumb; the ratio here is 1:10,000.
+const CAMERA_NEAR: f32 = 0.1;
+const CAMERA_FAR: f32 = 1000.0;
+
 const state_ = @import("state.zig");
 
 var buf1: [1024]u8 = undefined;
@@ -44,6 +54,9 @@ const ModelScope = struct {
     arenas: *Arenas,
     context: Context,
     model: ?*ModelInstance = null,
+    /// Normalizing model matrix (see normalizedModelTransform), sent as matModel.
+    model_transform: Mat4 = Mat4.Identity,
+    model_scale: f32 = 1.0,
 
     pub fn init(gpa: Allocator, io: std.Io) !*ModelScope {
         const arenas = try Arenas.init(gpa);
@@ -60,6 +73,8 @@ const ModelScope = struct {
 
     pub fn setModel(self: *ModelScope, model: *ModelInstance) void {
         self.model = model;
+        self.model_scale = normalizedModelScale(model);
+        self.model_transform = normalizedModelTransform(model, self.model_scale);
     }
 
     pub fn getModel(self: *ModelScope) *ModelInstance {
@@ -72,6 +87,8 @@ const ModelScope = struct {
     pub fn cleanUp(self: *ModelScope) void {
         self.deleteGlObjects();
         self.model = null;
+        self.model_transform = Mat4.Identity;
+        self.model_scale = 1.0;
         self.arenas.resetAll();
     }
 
@@ -86,6 +103,29 @@ const ModelScope = struct {
         self.allocator.destroy(self);
     }
 };
+
+/// Uniform scale that brings the model's largest rest-pose extent to TARGET_MODEL_SIZE.
+fn normalizedModelScale(model: *ModelInstance) f32 {
+    const bbox = model.gltf_asset.calculateBoundingBox(0);
+    const size = bbox.max.sub(bbox.min);
+    const max_extent = @max(@max(size.x, size.y), size.z);
+    if (max_extent <= 0.0) {
+        return 1.0;
+    }
+    return TARGET_MODEL_SIZE / max_extent;
+}
+
+/// Model matrix that moves the rest-pose bounding box center to the origin and
+/// then applies the uniform scale: M = S * T(-center). Uniform scale is safe for
+/// skinned meshes because the vertex shader applies matModel after skinning.
+fn normalizedModelTransform(model: *ModelInstance, scale: f32) Mat4 {
+    const bbox = model.gltf_asset.calculateBoundingBox(0);
+    const center = bbox.min.add(bbox.max).mulScalar(0.5);
+
+    var transform = Mat4.fromScale(vec3(scale, scale, scale));
+    transform.translate(center.mulScalar(-1.0));
+    return transform;
+}
 
 fn swapScope(current: **ModelScope, next: **ModelScope) void {
     std.mem.swap(*ModelScope, current, next);
@@ -145,40 +185,24 @@ fn loadModel(context: Context, model_info: assets_list.ModelInfo, state: *state_
 }
 
 // Camera positioning helper function
-fn positionCameraForModel(model: *ModelInstance, camera: *Camera) void {
-    const bbox = model.gltf_asset.calculateBoundingBox(0);
+fn positionCameraForModel(scope: *ModelScope, camera: *Camera) void {
+    // Models are normalized to TARGET_MODEL_SIZE and centered on the origin, so
+    // the framing is the same for every model. The factor leaves slack for
+    // animations that swing outside the rest-pose bounds.
+    const distance = TARGET_MODEL_SIZE * 2.5;
+    const camera_pos = vec3(0.0, TARGET_MODEL_SIZE * 0.3, distance);
 
-    // Calculate the center and size of the bounding box
-    const center = vec3(
-        (bbox.min.x + bbox.max.x) * 0.5,
-        (bbox.min.y + bbox.max.y) * 0.5,
-        (bbox.min.z + bbox.max.z) * 0.5,
-    );
+    camera.movement.reset(camera_pos, Vec3.Zero);
 
-    const size = vec3(
-        bbox.max.x - bbox.min.x,
-        bbox.max.y - bbox.min.y,
-        bbox.max.z - bbox.min.z,
-    );
-
-    // Calculate the maximum extent
-    const max_extent = @max(@max(size.x, size.y), size.z);
-
-    // Position camera at a reasonable distance
-    const distance = max_extent * 2.5; // Factor to ensure model fits in view
-    const camera_pos = vec3(center.x, center.y + max_extent * 0.3, center.z + distance);
-
-    // Update camera position and target with proper orientation vectors
-    camera.movement.reset(camera_pos, center);
-
-    outputPositions(model, camera);
+    outputPositions(scope, camera);
 }
 
-fn outputPositions(model: *ModelInstance, camera: *Camera) void {
-    const bbox = model.gltf_asset.calculateBoundingBox(0);
-    std.debug.print("Model bounds - min: {s}  max: {s}\n", .{
+fn outputPositions(scope: *ModelScope, camera: *Camera) void {
+    const bbox = scope.getModel().gltf_asset.calculateBoundingBox(0);
+    std.debug.print("Model bounds - min: {s}  max: {s}  normalized scale: {d:.4}\n", .{
         bbox.min.asString(&buf1),
         bbox.max.asString(&buf2),
+        scope.model_scale,
     });
     std.debug.print("Camera positioned at: {s}  looking at: {s}\n", .{
         camera.movement.transform.translation.asString(&buf1),
@@ -244,6 +268,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
             .scr_height = scaled_height,
         },
     );
+    camera.setNearFar(CAMERA_NEAR, CAMERA_FAR);
 
     state_.state = state_.State{
         .viewport_width = viewport_width,
@@ -300,14 +325,15 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
     std.debug.print("\n--- Build gltf model ----------------------\n\n", .{});
 
     // Load initial model from demo list
-    current_scope.model = try loadModel(
+    const initial_model = try loadModel(
         current_scope.context,
         state_.getCurrentModelInfo(),
         state,
     );
+    current_scope.setModel(initial_model);
 
     // Position camera for initial model
-    positionCameraForModel(current_scope.getModel(), camera);
+    positionCameraForModel(current_scope, camera);
 
     std.debug.print("\n----------------------\n", .{});
 
@@ -385,12 +411,12 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
         // Check if camera repositioning is requested
         if (state.camera_reposition_requested) {
             std.debug.print("Repositioning camera for current model...\n", .{});
-            positionCameraForModel(current_scope.getModel(), camera);
+            positionCameraForModel(current_scope, camera);
             state.camera_reposition_requested = false;
         }
 
         if (state.output_position_requested) {
-            outputPositions(current_scope.getModel(), state.camera);
+            outputPositions(current_scope, state.camera);
             state.output_position_requested = false;
         }
 
@@ -442,8 +468,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
         const ctx = state.camera.getRenderContext(state.total_time);
         shader.setMat4(constants.Uniforms.Projection_View, &ctx.projection_view);
 
-        var model_transform = Mat4.Identity;
-        shader.setMat4(constants.Uniforms.Mat_Model, &model_transform);
+        shader.setMat4(constants.Uniforms.Mat_Model, &current_scope.model_transform);
 
         // Basic shader
         shader.setBool("useLight", true);
@@ -455,7 +480,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
         // PBR shader
         // shader.setVec3("lightPosition", vec3(state.camera.movement.transform.translation.x + 50.0, state.camera.movement.transform.translation.y + 50.0, state.camera.movement.transform.translation.z + 50.0));
         // shader.setVec3("lightPosition", vec3(state.camera_initial_position.x + 50.0, state.camera_initial_position.y + 50.0, state.camera_initial_position.z + 50.0));
-        shader.setVec3("lightPosition", vec3(50.0,50.0, 50.0));
+        shader.setVec3("lightPosition", vec3(50.0, 50.0, 50.0));
         shader.setVec3("lightColor", vec3(1.0, 1.0, 1.0));
         shader.setFloat("lightIntensity", 100.0);
 

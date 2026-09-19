@@ -64,8 +64,8 @@ pub const Camera = struct {
             .movement = movement,
             .fov = 75.0,
             .aspect = config.scr_width / config.scr_height,
-            .near = 0.01,
-            .far = 2000.0,
+            .near = 0.1,
+            .far = 1000.0,
             .ortho_scale = 40.0,
             .projection_type = .Perspective,
             .cached_movement_tick = 0,
@@ -199,6 +199,27 @@ pub const Camera = struct {
 
     pub fn setScreenDimensions(self: *Self, width: f32, height: f32) void {
         self.aspect = width / height;
+        self.projection_cache_valid = false;
+    }
+
+    /// Set the near and far clip planes and invalidate the cached projection.
+    ///
+    /// Rules of thumb for a 24-bit depth buffer (the OpenGL default):
+    /// - Nearly all depth precision is spent close to the near plane. The depth
+    ///   step at distance d is roughly d * d / (near * 2^24), so halving `near`
+    ///   halves the precision everywhere in the scene.
+    /// - Keep far / near at or below about 10,000. Around 100,000, surfaces that
+    ///   are close together start to z-fight, which shows up as shimmer on the
+    ///   surface while the camera or animation moves.
+    /// - Push `near` out as far as the scene tolerates before the camera clips
+    ///   into geometry, and pull `far` in to just past what is drawn. `far`
+    ///   matters much less than `near`.
+    /// - Scale both to the scene units: 0.1 / 1000 suits meter-sized scenes,
+    ///   1.0 / 10000 suits centimeter-sized FBX imports.
+    pub fn setNearFar(self: *Self, near: f32, far: f32) void {
+        std.debug.assert(near > 0.0 and far > near);
+        self.near = near;
+        self.far = far;
         self.projection_cache_valid = false;
     }
 
