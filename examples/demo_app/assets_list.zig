@@ -25,20 +25,6 @@ pub const model_infos = [_]ModelInfo{
         .description = "Spacesuit character model with animations converted from FBX",
     },
     .{
-        .path = "assets/angrybots_assets/Models/Player/Player.gltf",
-        .name = "Player Model",
-        .format = "glTF",
-        .category = "Complex",
-        .description = "Player character model with animations converted from FBX",
-    },
-    .{
-        .path = "assets/angrybots_assets/Models/Player/Player.gltf",
-        .name = "Player Model",
-        .format = "glTF",
-        .category = "Complex",
-        .description = "Player character model with animations converted from FBX",
-    },
-    .{
         .path = "assets_nas/glTF-Sample-Models/2.0/InterpolationTest/glTF/InterpolationTest.gltf",
         .name = "Interpolation Test",
         .format = "glTF",
@@ -122,13 +108,6 @@ pub const model_infos = [_]ModelInfo{
         .description = "Lamp post with lantern",
     },
 
-    // .{
-    //     .path = "assets_nas/glTF-Sample-Models/2.0/BoxAnimated/glTF-Binary/BoxAnimated.glb",
-    //     .name = "Animated Box",
-    //     .format = "GLB",
-    //     .category = "Animated",
-    //     .description = "Simple rotation animation",
-    // },
     .{
         .path = "assets_nas/glTF-Sample-Models/2.0/BoxAnimated/glTF/BoxAnimated.gltf",
         .name = "Animated Box",

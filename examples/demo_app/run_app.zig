@@ -21,6 +21,7 @@ const gl = zopengl.bindings;
 
 // const Model = core.Model;
 const ModelInstance = core.ModelInstance;
+const AnimatorImpl = core.AnimatorImpl;
 
 const Shader = core.Shader;
 
@@ -144,19 +145,21 @@ fn loadModel(context: Context, model_info: assets_list.ModelInfo, state: *state_
     try gltf_asset.load();
 
     const animator = try core.Animator.init(context, gltf_asset);
-    const baked_animator = try core.BakedAnimator.init(
-        context,
-        animator,
-        .{
-            .frame_rate = 30.0,
-            .capture = .all,
-        },
-    );
-    _ = baked_animator;
+    var animator_impl: AnimatorImpl = .{ .live_animator = animator };
 
-    // const model = try ModelInstance.init(context.alloc, model_info.name, .{ .baked_animator = baked_animator}, gltf_asset);
-    // const model = try ModelInstance.init(context.alloc, model_info.name, .{ .live_animator = animator }, gltf_asset);
-    const model = try ModelInstance.init(context.alloc, model_info.name, .null_animator, gltf_asset);
+    if (BAKE_ANIMATION) {
+        const baked_animator = try core.BakedAnimator.init(
+            context,
+            animator,
+            .{
+                .frame_rate = 30.0,
+                .capture = .all,
+            },
+        );
+        animator_impl = .{ .baked_animator = baked_animator };
+    }
+
+    const model = try ModelInstance.init(context.alloc, model_info.name, animator_impl, gltf_asset);
     errdefer gltf_asset.deleteGlObjects();
 
     // Check if model has animations and start appropriate animation(s)
@@ -238,6 +241,8 @@ fn switchModel(state: *state_.State, current_scope: **ModelScope, next_scope: **
 const camera_position = vec3(0.0, 12.0, 40.0);
 const camera_target = vec3(0.0, 12.0, 0.0);
 
+const BAKE_ANIMATION: bool = true;
+
 pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i32, max_duration: ?f32) !void {
     std.debug.print("running app\n", .{});
 
@@ -299,28 +304,36 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
 
     // Initialize UI system
     var ui_state = ui_display.UIState.init(context.io, context.alloc, window);
-    // defer ui_state.deinit();
 
     // Initialize screenshot system
     var screenshot_mgr = screenshot.ScreenshotManager.init(context.io, context.alloc);
-    // defer screenshot_mgr.deinit();
 
-    const shader = try Shader.init(
-        context.io,
-        context.alloc,
-        // "examples/demo_app/shaders/basic_model.vert",
-        // "examples/demo_app/shaders/basic_model.frag",
-        // "examples/demo_app/shaders/player_shader.vert",
-        // "examples/demo_app/shaders/player_shader.frag",
-        "examples/demo_app/shaders/pbr.vert",
-        // "examples/demo_app/shaders/pbr_anim_baked.vert",
-        "examples/demo_app/shaders/pbr.frag",
-    );
+    const shader = if (BAKE_ANIMATION)
+        try Shader.init(
+            context.io,
+            context.alloc,
+            // "examples/demo_app/shaders/basic_model.vert",
+            // "examples/demo_app/shaders/basic_model.frag",
+            // "examples/demo_app/shaders/player_shader.vert",
+            // "examples/demo_app/shaders/player_shader.frag",
+            "examples/demo_app/shaders/pbr_anim_baked.vert",
+            "examples/demo_app/shaders/pbr.frag",
+        )
+    else
+        try Shader.init(
+            context.io,
+            context.alloc,
+            // "examples/demo_app/shaders/basic_model.vert",
+            // "examples/demo_app/shaders/basic_model.frag",
+            // "examples/demo_app/shaders/player_shader.vert",
+            // "examples/demo_app/shaders/player_shader.frag",
+            "examples/demo_app/shaders/pbr.vert",
+            "examples/demo_app/shaders/pbr.frag",
+        );
 
     std.debug.print("Shader id: {d}\n", .{shader.id});
 
     const ambientColor: Vec3 = vec3(NON_BLUE * 0.7, NON_BLUE * 0.7, 0.7);
-    // var texture_cache = std.ArrayList(*Texture).init(allocator);
 
     std.debug.print("\n--- Build gltf model ----------------------\n\n", .{});
 
@@ -392,7 +405,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
         }
 
         // Update UI system
-        // ui_state.update(window);
+        ui_state.update(window);
 
         // Check if model reload is requested
         if (state.model_reload_requested) {
@@ -525,7 +538,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
         }
 
         // Draw UI overlay
-        // ui_state.draw(current_scope.getModel());
+        ui_state.draw(current_scope.getModel());
         // gl_debug.check("ui pass");
 
         //try core.dumpModelNodes(model);
