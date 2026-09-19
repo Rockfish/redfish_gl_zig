@@ -16,7 +16,7 @@
   - **Dead Code Repairs**: `printData` used a nonexistent header field and `playTick` wrapped void calls in `try`; both only built because nothing called them
 - **Shader Fix**: Non-skinned path in `pbr.vert` and `pbr_anim_baked.vert` now applies the node transform to normals and tangents
 - **demo_app**: `BAKE_ANIMATION` flag switches between the live animator with `pbr.vert` and the baked animator with `pbr_anim_baked.vert`; all demo models render correctly through the baked path except multi-animation playback (InterpolationTest), which bakes one animation at a time by design
-- **Known Limitations**: `.clips` capture indexes headers by clip position while `playClip` indexes by animation id; clip end time and repeat mode are ignored at playback
+- **Clip Playback Dropped from Baked**: `.clips` capture is kept (each range bakes to its own entry) but baked entries are played only by index via `playAnimationById`; `ModelInstance.playClip` returns `error.ClipPlaybackNotSupported` for baked models. Repeat mode is not applied at baked playback (always loops)
 
 ### 2026-09-15 - Xcode 27 Toolchain Workaround 🛠️
 - **macOS 27 SDK breaks Zig 0.16 libc++**: New `math.h` defers `INFINITY` to `float.h` via `__need_infinity_nan` (LLVM 22 behavior); Zig's bundled LLVM 21 `float.h` ignores it, failing with `use of undeclared identifier 'INFINITY'`

@@ -104,7 +104,8 @@ pub const ModelInstance = struct {
     pub fn playClip(self: *Self, clip: AnimationClip) !void {
         switch (self.animator_impl) {
             .live_animator => |obj| try obj.playClip(clip),
-            .baked_animator => |obj| obj.playClip(clip),
+            // Baked animations are played by index; see BakedAnimator.playAnimationById.
+            .baked_animator => return error.ClipPlaybackNotSupported,
             else => {},
         }
     }

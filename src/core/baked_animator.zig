@@ -29,7 +29,6 @@ const Quat = math.Quat;
 
 const Animator = animation.Animator;
 const AnimationClip = animation.AnimationClip;
-const AnimationRepeat = animation.AnimationRepeatMode;
 
 const print = log.debug;
 
@@ -90,15 +89,10 @@ pub const BakedAnimator = struct {
         self.texture_buffer.deleteGlObjects();
     }
 
-    pub fn playClip(self: *Self, clip: AnimationClip) void {
-        if (@as(usize, @intCast(clip.animation_index)) >= self.headers.len) {
-            log.err("BakedAnimator: Invalid animation id {d}, max is {d}", .{ clip.animation_index, self.headers.len - 1 });
-            return;
-        }
-        self.anim_id = clip.animation_index;
-        self.current_time = clip.start_time;
-    }
-
+    /// Select a baked animation by its index in the capture list. With `.all`
+    /// this is the glTF animation index; with `.indexes` or `.clips` it is the
+    /// position in the list passed at bake time. Clips are played by that index
+    /// rather than by the original AnimationClip.
     pub fn playAnimationById(self: *Self, anim_id: u32) void {
         if (@as(usize, @intCast(anim_id)) >= self.headers.len) {
             log.err("BakedAnimator: Invalid animation id {d}, max is {d}", .{ anim_id, self.headers.len - 1 });
