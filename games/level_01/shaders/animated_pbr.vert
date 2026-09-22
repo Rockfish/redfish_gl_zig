@@ -12,7 +12,8 @@ const int MAX_JOINTS = 100;
 const int MAX_JOINT_INFLUENCE = 4;
 
 // Uniforms
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 uniform mat4 matModel;
 uniform mat4 nodeTransform;
 uniform mat4 jointMatrices[MAX_JOINTS];
@@ -94,5 +95,5 @@ void main() {
     fragTBN = mat3(T, B, N);
 
     // Compute the final vertex position in clip space.
-    gl_Position = projectionView * matModel * totalPosition;
+    gl_Position = matProjection * matView * matModel * totalPosition;
 }

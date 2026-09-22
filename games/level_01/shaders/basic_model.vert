@@ -9,7 +9,8 @@ layout(location = 5) in ivec4 inJointIds;
 layout(location = 6) in vec4 inWeights;
 
 uniform mat4 matModel;
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 
 out vec2 fragTexCoord;
 out vec3 fragNormal;
@@ -20,7 +21,7 @@ void main()
     fragTexCoord = inTexCoord;
     fragColor = inColor;
 
-    gl_Position = projectionView * matModel * vec4(inPosition, 1.0);
+    gl_Position = matProjection * matView * matModel * vec4(inPosition, 1.0);
 
     mat4 matNormal = transpose(inverse(matModel));
     fragNormal = normalize(vec3(matNormal * vec4(inNormal, 1.0)));
