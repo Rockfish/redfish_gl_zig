@@ -133,7 +133,7 @@ The existing `examples/demo_app/` structure provides a solid foundation:
 **Goal**: Leverage existing shader system with glTF material support
 
 **Tasks**:
-- [x] Update `render.zig` for our asset loader system
+- [x] Update `render_context.zig` for our asset loader system
 - [x] Adapt shader uniform setup for our asset loader
 - [x] Support PBR material properties from glTF
 - [x] Maintain compatibility with basic and PBR shaders

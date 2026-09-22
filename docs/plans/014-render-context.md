@@ -15,7 +15,7 @@ Every drawable object in the bullets example takes `(projection: *const Mat4, vi
 
 ### `RenderContext` struct
 
-A per-frame value computed once from the camera, passed to all draw calls. Lives in `src/core/render.zig` alongside future `RenderPass`.
+A per-frame value computed once from the camera, passed to all draw calls. Lives in `../../src/core/render_context.zig` alongside future `RenderPass`.
 
 ```zig
 pub const RenderContext = struct {
@@ -114,7 +114,7 @@ pub fn draw(self: *Self, time: f32) void {
 ## Changes Implemented
 
 ### Core engine
-1. **`src/core/render.zig`** (NEW) — `RenderContext` struct definition
+1. **`../../src/core/render_context.zig`** (NEW) — `RenderContext` struct definition
 2. **`src/core/root.zig`** — export `render` module and `RenderContext`
 3. **`src/core/camera.zig`** — add `getRenderContext(time)` method
 4. **`src/core/camera_gimbal.zig`** — add `getRenderContext(time)` method
@@ -217,7 +217,7 @@ Some passes modify the context (shadow pass uses a light-space camera instead of
 
 ### When to Build It
 
-Not yet. The current priority is getting lighting working in bullets. `RenderPass` becomes relevant when shadows land in bullets, at which point the angrybot shadow code serves as the reference implementation to extract a clean pattern from. Both `RenderContext` and `RenderPass` will live in `src/core/render.zig`.
+Not yet. The current priority is getting lighting working in bullets. `RenderPass` becomes relevant when shadows land in bullets, at which point the angrybot shadow code serves as the reference implementation to extract a clean pattern from. Both `RenderContext` and `RenderPass` will live in `../../src/core/render_context.zig`.
 
 ## Verification
 

@@ -47,7 +47,7 @@ pub const SceneLights = lights.SceneLights;
 pub const PointLight = lights.PointLight;
 pub const DirectionLight = lights.DirectionLight;
 
-pub const render = @import("render.zig");
+pub const render = @import("render_context.zig");
 pub const RenderContext = render.RenderContext;
 
 pub const shapes = @import("shapes/root.zig");

@@ -8,7 +8,7 @@ const MovementDirection = @import("movement.zig").MovementDirection;
 const Vec3 = math.Vec3;
 const Mat4 = math.Mat4;
 const Transform = @import("transform.zig").Transform;
-const RenderContext = @import("render.zig").RenderContext;
+const RenderContext = @import("render_context.zig").RenderContext;
 
 const MIN_FOV: f32 = 10.0;
 const MAX_FOV: f32 = 120.0;
@@ -270,7 +270,7 @@ pub const Camera = struct {
             .projection = projection,
             .projection_view = projection.mulMat4(&view),
             .view = view,
-            .view_pos = self.getCameraPosition(),
+            .view_position = self.getCameraPosition(),
             .time = time,
         };
     }

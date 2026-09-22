@@ -12,6 +12,6 @@ pub const RenderContext = struct {
     projection: Mat4,
     projection_view: Mat4,
     view: Mat4,
-    view_pos: Vec3,
+    view_position: Vec3,
     time: f32 = 0.0,
 };
