@@ -16,7 +16,7 @@ pub const SceneCamera = struct {
         getCamera_fn: *const fn (ptr: *anyopaque) *core.Camera,
     };
 
-    pub fn init(allocator: Allocator, name: []const u8, object_ptr: anytype) !*SceneCamera {
+    pub fn init(allocator: Allocator, name: []const u8, object_ptr: anytype) !*Self {
         const gen = struct {
             const ObjectType = @TypeOf(object_ptr);
             const node_ptr_info = @typeInfo(ObjectType);
@@ -37,8 +37,8 @@ pub const SceneCamera = struct {
             }
         };
 
-        const scene_camera = try allocator.create(SceneCamera);
-        scene_camera.* = SceneCamera{
+        const scene_camera = try allocator.create(Self);
+        scene_camera.* = Self{
             .name = name,
             .dispatch = .{
                 .obj_ptr = object_ptr,

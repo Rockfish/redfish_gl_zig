@@ -23,13 +23,14 @@ const uniforms = core.constants.Uniforms;
 const RenderContext = core.RenderContext;
 const Input = core.Input;
 const AnimationRepeatMode = core.AnimationRepeatMode;
-const FSM = core.AnimationStateMachine(Animation);
+
+const ToonStateMachine = core.AnimationStateMachine(ToonAnimation);
 
 const path_soldier = "assets/toon_shooter_kit/Characters/glTF/Character_Soldier.gltf";
 const path_enemy = "assets/toon_shooter_kit/Characters/glTF/Character_Enemy.gltf";
 const path_hazmat = "assets/toon_shooter_kit/Characters/glTF/Character_Hazmat.gltf";
 
-const Animation = enum(u32) {
+const ToonAnimation = enum(u32) {
     death,
     duck,
     hit_react,
@@ -67,16 +68,16 @@ const Weapon = enum {
 };
 
 pub const ToonSoldier = struct {
-    model: *core.Model,
+    model: *core.ModelInstance,
     shader: *core.Shader,
     position: Vec3 = vec3(0.0, 0.0, 3.0),
     direction: Vec2 = vec2(0.0, 0.0),
     scale: Vec3 = vec3(1.0, 1.0, 1.0),
     transform: core.Transform = core.Transform.identity(),
     rotation_speed: f32 = 2.0,
-    walk_speed: f32 = 0.02,
-    run_speed: f32 = 0.04,
-    fsm: FSM,
+    walk_speed: f32 = -0.002,
+    run_speed: f32 = -0.01,
+    state_machine: ToonStateMachine,
     current_weapon: Weapon = .ShortCannon,
 
     const Self = @This();
@@ -92,14 +93,14 @@ pub const ToonSoldier = struct {
         const model = try rm.loadModel("toon_soldier", path_enemy);
 
         const configs = buildStateConfigs();
-        var fsm = FSM.init(configs, .idle, model.animator.animations);
+        var fsm = ToonStateMachine.init(configs, .idle, model);
         fsm.debug = true;
 
         const soldier = try allocator.create(ToonSoldier);
         soldier.* = .{
             .model = model,
             .shader = shader,
-            .fsm = fsm,
+            .state_machine = fsm,
         };
 
         soldier.transform.translation = soldier.position;
@@ -120,7 +121,7 @@ pub const ToonSoldier = struct {
     }
 
     pub fn update(self: *Self, input: *Input) !void {
-        try self.fsm.update(self.model, input.total_time, input.delta_time);
+        try self.state_machine.update(self.model, input.total_time, input.delta_time);
     }
 
     pub fn updateLights(self: *Self, lights: Lights) void {
@@ -130,7 +131,8 @@ pub const ToonSoldier = struct {
     pub fn draw(self: *Self, ctx: RenderContext) void {
         const model_mat = self.transform.toMatrix();
 
-        self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
+        self.shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        self.shader.setMat4(uniforms.Mat_View, &ctx.view);
         self.shader.setMat4(uniforms.Mat_Model, &model_mat);
         self.model.draw(self.shader, 1);
     }
@@ -157,70 +159,69 @@ pub const ToonSoldier = struct {
             self.transform.translation = self.transform.translation.add(fwd.mulScalar(speed));
 
             if (is_running) {
-                _ = self.fsm.requestState(.run_shoot);
+                _ = self.state_machine.requestState(.run_shoot);
             } else {
-                _ = self.fsm.requestState(.walk);
+                _ = self.state_machine.requestState(.walk);
             }
         } else if (input.key_presses.contains(.s)) {
             const fwd = self.transform.forward();
             self.transform.translation = self.transform.translation.sub(fwd.mulScalar(self.walk_speed));
-            _ = self.fsm.requestState(.walk);
+            _ = self.state_machine.requestState(.walk);
         } else {
-            _ = self.fsm.requestState(.idle);
+            _ = self.state_machine.requestState(.idle);
         }
     }
 
     fn processOneShotKeys(self: *Self, input: *core.Input) void {
         const one_shot_keys = .{
-            .{ .key = .space, .anim = Animation.jump },
-            .{ .key = .one, .anim = Animation.punch },
-            .{ .key = .two, .anim = Animation.duck },
-            .{ .key = .three, .anim = Animation.wave },
-            .{ .key = .four, .anim = Animation.yes },
-            .{ .key = .five, .anim = Animation.no },
-            .{ .key = .six, .anim = Animation.walk_shoot },
-            .{ .key = .seven, .anim = Animation.run_shoot },
+            .{ .key = .space, .anim = ToonAnimation.jump },
+            .{ .key = .one, .anim = ToonAnimation.punch },
+            .{ .key = .two, .anim = ToonAnimation.duck },
+            .{ .key = .three, .anim = ToonAnimation.wave },
+            .{ .key = .four, .anim = ToonAnimation.yes },
+            .{ .key = .five, .anim = ToonAnimation.no },
+            .{ .key = .six, .anim = ToonAnimation.walk_shoot },
+            .{ .key = .seven, .anim = ToonAnimation.run_shoot },
         };
 
         inline for (one_shot_keys) |entry| {
             if (input.key_presses.contains(entry.key) and !input.key_processed.contains(entry.key)) {
-                _ = self.fsm.requestState(entry.anim);
+                _ = self.state_machine.requestState(entry.anim);
             }
         }
     }
 };
 
-fn buildStateConfigs() [FSM.count]FSM.Config {
-    const C = FSM.Config;
+fn buildStateConfigs() [ToonStateMachine.count]ToonStateMachine.StateConfig {
     const Forever = AnimationRepeatMode.Forever;
     const Once = AnimationRepeatMode.Once;
 
-    var configs: [FSM.count]C = undefined;
+    var configs: [ToonStateMachine.count]ToonStateMachine.StateConfig = undefined;
 
     // Locomotion (looping, interruptible)
-    configs[@intFromEnum(Animation.idle)] = .{ .animation_id = 3, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
-    configs[@intFromEnum(Animation.walk)] = .{ .animation_id = 13, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
-    configs[@intFromEnum(Animation.run)] = .{ .animation_id = 10, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
-    configs[@intFromEnum(Animation.run_gun)] = .{ .animation_id = 11, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
-    configs[@intFromEnum(Animation.run_shoot)] = .{ .animation_id = 12, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
-    configs[@intFromEnum(Animation.walk_shoot)] = .{ .animation_id = 14, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
+    configs[@intFromEnum(ToonAnimation.idle)] = .{ .animation_id = 3, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
+    configs[@intFromEnum(ToonAnimation.walk)] = .{ .animation_id = 13, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
+    configs[@intFromEnum(ToonAnimation.run)] = .{ .animation_id = 10, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
+    configs[@intFromEnum(ToonAnimation.run_gun)] = .{ .animation_id = 11, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
+    configs[@intFromEnum(ToonAnimation.run_shoot)] = .{ .animation_id = 12, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
+    configs[@intFromEnum(ToonAnimation.walk_shoot)] = .{ .animation_id = 14, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
 
     // Idle variants (looping, interruptible)
-    configs[@intFromEnum(Animation.idle_shoot)] = .{ .animation_id = 4, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
-    configs[@intFromEnum(Animation.jump_idle)] = .{ .animation_id = 6, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
+    configs[@intFromEnum(ToonAnimation.idle_shoot)] = .{ .animation_id = 4, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
+    configs[@intFromEnum(ToonAnimation.jump_idle)] = .{ .animation_id = 6, .repeat = Forever, .crossfade_in = 0.15, .interruptible = true, .return_state = null };
 
     // One-shot actions (play once, return to idle, not interruptible)
-    configs[@intFromEnum(Animation.punch)] = .{ .animation_id = 9, .repeat = Once, .crossfade_in = 0.10, .interruptible = false, .return_state = .idle };
-    configs[@intFromEnum(Animation.jump)] = .{ .animation_id = 5, .repeat = Once, .crossfade_in = 0.10, .interruptible = false, .return_state = .idle };
-    configs[@intFromEnum(Animation.jump_land)] = .{ .animation_id = 7, .repeat = Once, .crossfade_in = 0.10, .interruptible = false, .return_state = .idle };
-    configs[@intFromEnum(Animation.duck)] = .{ .animation_id = 1, .repeat = Once, .crossfade_in = 0.10, .interruptible = false, .return_state = .idle };
-    configs[@intFromEnum(Animation.wave)] = .{ .animation_id = 15, .repeat = Once, .crossfade_in = 0.15, .interruptible = true, .return_state = .idle };
-    configs[@intFromEnum(Animation.yes)] = .{ .animation_id = 16, .repeat = Once, .crossfade_in = 0.15, .interruptible = true, .return_state = .idle };
-    configs[@intFromEnum(Animation.no)] = .{ .animation_id = 8, .repeat = Once, .crossfade_in = 0.15, .interruptible = true, .return_state = .idle };
+    configs[@intFromEnum(ToonAnimation.punch)] = .{ .animation_id = 9, .repeat = Once, .crossfade_in = 0.10, .interruptible = false, .return_state = .idle };
+    configs[@intFromEnum(ToonAnimation.jump)] = .{ .animation_id = 5, .repeat = Once, .crossfade_in = 0.10, .interruptible = false, .return_state = .idle };
+    configs[@intFromEnum(ToonAnimation.jump_land)] = .{ .animation_id = 7, .repeat = Once, .crossfade_in = 0.10, .interruptible = false, .return_state = .idle };
+    configs[@intFromEnum(ToonAnimation.duck)] = .{ .animation_id = 1, .repeat = Once, .crossfade_in = 0.10, .interruptible = false, .return_state = .idle };
+    configs[@intFromEnum(ToonAnimation.wave)] = .{ .animation_id = 15, .repeat = Once, .crossfade_in = 0.15, .interruptible = true, .return_state = .idle };
+    configs[@intFromEnum(ToonAnimation.yes)] = .{ .animation_id = 16, .repeat = Once, .crossfade_in = 0.15, .interruptible = true, .return_state = .idle };
+    configs[@intFromEnum(ToonAnimation.no)] = .{ .animation_id = 8, .repeat = Once, .crossfade_in = 0.15, .interruptible = true, .return_state = .idle };
 
     // Reactions (play once, not interruptible)
-    configs[@intFromEnum(Animation.hit_react)] = .{ .animation_id = 2, .repeat = Once, .crossfade_in = 0.10, .interruptible = false, .return_state = .idle };
-    configs[@intFromEnum(Animation.death)] = .{ .animation_id = 0, .repeat = Once, .crossfade_in = 0.20, .interruptible = false, .return_state = null };
+    configs[@intFromEnum(ToonAnimation.hit_react)] = .{ .animation_id = 2, .repeat = Once, .crossfade_in = 0.10, .interruptible = false, .return_state = .idle };
+    configs[@intFromEnum(ToonAnimation.death)] = .{ .animation_id = 0, .repeat = Once, .crossfade_in = 0.20, .interruptible = false, .return_state = null };
 
     return configs;
 }

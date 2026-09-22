@@ -1,8 +1,8 @@
 #version 330 core
 layout(location = 0) in vec3 inPosition;
 
-uniform mat4 matView;
 uniform mat4 matProjection;
+uniform mat4 matView;
 
 out vec3 TexCoord;
 

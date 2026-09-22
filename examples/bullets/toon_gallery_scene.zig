@@ -16,7 +16,7 @@ const Mat4 = math.Mat4;
 const Allocator = std.mem.Allocator;
 const ResourceManager = core.ResourceManager;
 const Shader = core.Shader;
-const Model = core.Model;
+const ModelInstance = core.ModelInstance;
 const uniforms = core.constants.Uniforms;
 const RenderContext = core.RenderContext;
 
@@ -89,7 +89,7 @@ pub const ToonGalleryScene = struct {
     resource_manager: *ResourceManager,
     scene_camera: *SceneCamera,
     floor: Floor,
-    models: [gltf_files.len]*Model,
+    models: [gltf_files.len]*ModelInstance,
     model_matrices: [gltf_files.len]Mat4,
     shader: *Shader,
 
@@ -114,7 +114,7 @@ pub const ToonGalleryScene = struct {
         shader.setVec3("lightColor", vec3(1.0, 0.95, 0.9));
         shader.setFloat("lightIntensity", 2.5);
 
-        var models: [gltf_files.len]*Model = undefined;
+        var models: [gltf_files.len]*ModelInstance = undefined;
         var model_matrices: [gltf_files.len]Mat4 = undefined;
 
         for (gltf_files, 0..) |file, i| {

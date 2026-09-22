@@ -60,7 +60,8 @@ pub const Floor = struct {
     }
 
     pub fn draw(self: *Self, ctx: RenderContext) void {
-        self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
+        self.shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        self.shader.setMat4(uniforms.Mat_View, &ctx.view);
         self.shader.setMat4(uniforms.Mat_Model, &Mat4.Identity);
         self.shader.bindTextureAuto(uniforms.Texture_Diffuse, self.plane.texture_diffuse.gl_texture_id);
         self.shader.bindTextureAuto(uniforms.Texture_Normal, self.plane.texture_normal.gl_texture_id);

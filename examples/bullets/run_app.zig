@@ -11,6 +11,8 @@ const World = world_module.World;
 
 const log = std.log.scoped(.BulletsApp);
 
+const FULL_SCREEN: bool = false;
+
 pub fn run_app(init: std.process.Init, window: *glfw.Window, max_duration: ?f32) !void {
     log.info("Starting simple bullets test app", .{});
     const input = Input.init(window);
@@ -18,23 +20,29 @@ pub fn run_app(init: std.process.Init, window: *glfw.Window, max_duration: ?f32)
     const world = try World.init(init, input);
     defer world.deinit(init);
 
-    gl.enable(gl.DEPTH_TEST);
-    gl.enable(gl.BLEND);
 
     log.info("Starting main loop", .{});
 
     // glfw.setWindowMonitor( window, null, 0, 0, 3440, 1440, 3000);
     // 1836.2 fps
-    const monitor = glfw.getPrimaryMonitor();
-    const mode = try glfw.getVideoMode(monitor.?); // Gets native res/refresh
-    glfw.setWindowMonitor(window, monitor, 0, 0, mode.*.width, mode.*.height, mode.*.refresh_rate);
-    glfw.maximizeWindow(window);
-    try glfw.setInputMode(window, glfw.InputMode.cursor, glfw.InputMode.ValueType(glfw.InputMode.cursor).disabled);
+
+    if (FULL_SCREEN) {
+        const monitor = glfw.getPrimaryMonitor();
+        const mode = try glfw.getVideoMode(monitor.?); // Gets native res/refresh
+        glfw.setWindowMonitor(window, monitor, 0, 0, mode.*.width, mode.*.height, mode.*.refresh_rate);
+        glfw.maximizeWindow(window);
+    }
+
+    // Disable cursor
+    // try glfw.setInputMode(window, glfw.InputMode.cursor, glfw.InputMode.ValueType(glfw.InputMode.cursor).disabled);
 
     // Turn off vsync
     glfw.swapInterval(0);
 
     var frame_counter = core.FrameCounter.init(init.io);
+
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
 
     var count: u64 = 0;
     while (!window.shouldClose()) {

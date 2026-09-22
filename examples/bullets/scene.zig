@@ -32,7 +32,9 @@ pub const Scene = struct {
 
             pub fn drawFn(obj_ptr: *anyopaque, time: f32) void {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
-                return obj.draw(time);
+                if (std.meta.hasMethod(ObjectType, "draw")) {
+                    return obj.draw(time);
+                }
             }
 
             pub fn cleanUpFn(obj_ptr: *anyopaque) void {
@@ -61,10 +63,6 @@ pub const Scene = struct {
         self.dispatch.clean_up_fn(self.dispatch.obj_ptr);
     }
 
-    //
-    // Interface
-    //
-
     pub fn update(self: *Scene, state: *anyopaque) anyerror!void {
         try self.dispatch.update_fn(self.dispatch.obj_ptr, state);
     }
@@ -73,16 +71,13 @@ pub const Scene = struct {
         self.dispatch.draw_fn(self.dispatch.obj_ptr, time);
     }
 
-    // Could we use a union with pointers?
-
+    // Possible other functions:
+    // frameStart()
+    // frameEnd()
     // new()
     // exit()
     // resized()
     // render_gui()
-
-    //
-    // Extra bits
-    //
 
     pub fn castTo(self: *Self, comptime T: type) ?*T {
         if (self.dispatch.type_id != typeId(T)) return null;

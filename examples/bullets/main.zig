@@ -3,8 +3,8 @@ const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
 const run_app = @import("run_app.zig").run_app;
 
-const SCR_WIDTH: f32 = 1000.0;
-const SCR_HEIGHT: f32 = 1000.0;
+const SCR_WIDTH: f32 = 1500.0;
+const SCR_HEIGHT: f32 = 1200.0;
 
 fn printUsage() void {
     std.debug.print("Usage: bullets [options]\n", .{});
@@ -65,9 +65,8 @@ pub fn main(init: std.process.Init) !void {
 
     glfw.makeContextCurrent(window);
     glfw.swapInterval(1);
+
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
     try run_app(init, window, runtime_duration);
-
-    glfw.terminate();
 }

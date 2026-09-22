@@ -58,7 +58,7 @@ pub const MotionObject = enum {
     base,
     gimbal,
     turret,
-    man,
+    spacesuit,
     soldier,
     enemy,
     camera,
@@ -77,7 +77,7 @@ pub const SceneDebug = struct {
     barrel: *Shape = undefined,
     input_tick: u64 = 0,
     motion_type: MotionType = .circle,
-    motion_object: MotionObject = .turret,
+    motion_object: MotionObject = .spacesuit,
     reset: bool = false,
     run_animation: bool = true,
 
@@ -156,7 +156,7 @@ pub const SceneDebug = struct {
         switch (self.motion_object) {
             .turret => try self.turret.processInput(input),
             .camera => try self.scene_camera.processInput(input),
-            .man => try self.spacesuit.processInput(input),
+            .spacesuit => try self.spacesuit.processInput(input),
             .soldier => try self.toon_soldier.processInput(input),
             else => {},
         }
@@ -228,7 +228,7 @@ pub const SceneDebug = struct {
                     }
                 },
                 .m => {
-                    self.motion_object = .man;
+                    self.motion_object = .spacesuit;
                 },
                 .r => try self.turret.fire(),
                 .t => {
