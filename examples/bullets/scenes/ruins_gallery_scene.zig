@@ -3,11 +3,11 @@ const core = @import("core");
 const math = @import("math");
 
 const Context = core.Context;
-const Scene = @import("scene.zig").Scene;
-const SceneCamera = @import("scene_camera.zig").SceneCamera;
-const FreeCamera = @import("scene/free_camera.zig").FreeCamera;
-const scene_lights = @import("scene/lights.zig");
-const Floor = @import("scene/floor.zig").Floor;
+const Scene = @import("../scene.zig").Scene;
+const SceneCamera = @import("../scene_camera.zig").SceneCamera;
+const FreeCamera = @import("../objects/free_camera.zig").FreeCamera;
+const scene_lights = @import("../objects/lights.zig");
+const Floor = @import("../objects/floor.zig").Floor;
 
 const Vec3 = math.Vec3;
 const vec3 = math.vec3;
@@ -201,7 +201,8 @@ pub const RuinsGalleryScene = struct {
         const ctx = camera.getRenderContext(time);
 
         // Draw all OBJ shapes
-        self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
+        self.shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        self.shader.setMat4(uniforms.Mat_View, &ctx.view);
         for (self.shapes, 0..) |shape, i| {
             self.shader.setMat4(uniforms.Mat_Model, &self.model_matrices[i]);
             shape.draw(self.shader, 1);

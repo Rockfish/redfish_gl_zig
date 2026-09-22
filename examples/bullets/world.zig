@@ -11,9 +11,9 @@ const Io = std.Io;
 const Context = core.Context;
 const Input = core.Input;
 const Scene = @import("scene.zig").Scene;
-const SceneDebug = @import("debug_scene.zig").SceneDebug;
-const RuinsGalleryScene = @import("ruins_gallery_scene.zig").RuinsGalleryScene;
-const ToonGalleryScene = @import("toon_gallery_scene.zig").ToonGalleryScene;
+const SceneDebug = @import("scenes/debug_scene.zig").SceneDebug;
+const RuinsGalleryScene = @import("scenes/ruins_gallery_scene.zig").RuinsGalleryScene;
+const ToonGalleryScene = @import("scenes/toon_gallery_scene.zig").ToonGalleryScene;
 
 const SceneId = enum {
     debug,

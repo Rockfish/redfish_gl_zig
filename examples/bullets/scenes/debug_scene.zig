@@ -3,23 +3,23 @@ const core = @import("core");
 const math = @import("math");
 
 const Context = core.Context;
-const Scene = @import("scene.zig").Scene;
-const SceneCamera = @import("scene_camera.zig").SceneCamera;
+const Scene = @import("../scene.zig").Scene;
+const SceneCamera = @import("../scene_camera.zig").SceneCamera;
 const ResourceManager = core.ResourceManager;
 
-const FreeCamera = @import("scene/free_camera.zig").FreeCamera;
-const grids = @import("scene/grid.zig");
-const AxisLines = @import("scene/axis_lines.zig").AxisLines;
-const Cube = @import("scene/cube.zig").Cube;
-const Floor = @import("scene/floor.zig").Floor;
-const scene_lights = @import("scene/lights.zig");
+const FreeCamera = @import("../objects/free_camera.zig").FreeCamera;
+const grids = @import("../objects/grid.zig");
+const AxisLines = @import("../objects/axis_lines.zig").AxisLines;
+const Cube = @import("../objects/cube.zig").Cube;
+const Floor = @import("../objects/floor.zig").Floor;
+const scene_lights = @import("../objects/lights.zig");
 const Lights = scene_lights.Lights;
-const SkyBoxDirections = @import("scene/skyboxes.zig").SkyBoxDirections;
-const Spacesuit = @import("scene/spacesuit.zig").Spacesuit;
-const ToonSoldier = @import("scene/toon_soldier.zig").ToonSoldier;
+const SkyBoxDirections = @import("../objects/skyboxes.zig").SkyBoxDirections;
+const Spacesuit = @import("../objects/spacesuit.zig").Spacesuit;
+const ToonSoldier = @import("../objects/toon_soldier.zig").ToonSoldier;
 
-const BulletSystem = @import("projectiles/bullet_system.zig").BulletSystem;
-const Turret = @import("projectiles/turret.zig").Turret;
+const BulletSystem = @import("../projectiles/bullet_system.zig").BulletSystem;
+const Turret = @import("../projectiles/turret.zig").Turret;
 
 const Vec3 = math.Vec3;
 const Vec4 = math.Vec4;
