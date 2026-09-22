@@ -63,7 +63,7 @@ const ShapeWithTexture = struct {
     texture: *Texture,
 
     pub fn draw(self: *ShapeWithTexture, shader: *Shader, instance_count: u32) void {
-        shader.bindTextureAuto("texture_diffuse", self.texture.gl_texture_id);
+        shader.bindTextureAuto(uniforms.Texture_Diffuse, self.texture.gl_texture_id);
         self.shape.draw(shader, instance_count);
     }
 
@@ -206,7 +206,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         "assets/textures/container.jpg",
         texture_config,
     );
-    cube_texture.deleteGlObjects();
+    defer cube_texture.deleteGlObjects();
 
     texture_config.wrap = .Repeat;
 
@@ -215,7 +215,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         "assets/Textures/Floor/Floor D.png",
         texture_config,
     );
-    surface_texture.deleteGlObjects();
+    defer surface_texture.deleteGlObjects();
 
     const model_paths = [_][]const u8{
         "/Users/john/Dev/Assets/spacekit_2/Models/OBJ format/alien.obj",
@@ -421,9 +421,9 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             basic_shader.setVec4("hitColor", vec4(0.0, 0.0, 0.0, 0.0));
         }
 
-        const plane_transform = Mat4.fromTranslation(vec3(0.0, -1.0, 0.0));
+        const floor_transform = Mat4.fromTranslation(vec3(0.0, -1.0, 0.0));
 
-        basic_shader.setMat4(uniforms.Mat_Model, &plane_transform);
+        basic_shader.setMat4(uniforms.Mat_Model, &floor_transform);
         basic_shader.setBool("hasTexture", true);
         basic_shader.bindTextureAuto("textureDiffuse", surface_texture.gl_texture_id);
         floor.draw(basic_shader, 1);
