@@ -479,7 +479,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window, initial_model_index: i3
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         const ctx = state.camera.getRenderContext(state.total_time);
-        shader.setMat4(constants.Uniforms.Projection_View, &ctx.projection_view);
+        shader.setMat4(constants.Uniforms.Mat_Projection, &ctx.projection);
+        shader.setMat4(constants.Uniforms.Mat_View, &ctx.view);
 
         shader.setMat4(constants.Uniforms.Mat_Model, &current_scope.model_transform);
 

@@ -15,7 +15,8 @@ uniform mat4 nodeTransform;
 uniform mat4 jointMatrices[MAX_JOINTS];
 uniform bool hasSkin;
 
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 uniform mat4 matModel;
 uniform mat4 matLightSpace;
 
@@ -50,7 +51,7 @@ void main() {
         totalPosition = nodeTransform * vec4(inPosition, 1.0f);
     }
 
-    gl_Position = projectionView * matModel * totalPosition;
+    gl_Position = matProjection * matView * matModel * totalPosition;
 
     fragTexCoord = inTexCoord;
     fragColor = inColor;

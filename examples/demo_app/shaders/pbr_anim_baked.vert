@@ -23,9 +23,8 @@ uniform int animationOffset;
 uniform samplerBuffer animationData;
 //uniform samplerBuffer modelMatrixes;
 
-//uniform mat4 matProjection;
-//uniform mat4 matView;
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 uniform mat4 matModel;
 
 // Outputs to the fragment shader
@@ -115,6 +114,5 @@ void main() {
     fragTBN = mat3(T, B, N);
 
     // Compute the final vertex position in clip space.
-    //gl_Position = matProjection * matView * modelTransform * totalPosition;
-    gl_Position = projectionView * matModel * totalPosition;
+    gl_Position = matProjection * matView * matModel * totalPosition;
 }
