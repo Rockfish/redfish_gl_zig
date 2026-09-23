@@ -13,7 +13,7 @@ const uniforms = core.constants.Uniforms;
 const gl = zopengl.bindings;
 
 const Model = core.Model;
-const GltfAsset = core.asset_loader.GltfAsset;
+const GltfAsset = core.gltf_asset.GltfAsset;
 const animation = core.animation;
 const Camera = core.Camera;
 const Shader = core.Shader;

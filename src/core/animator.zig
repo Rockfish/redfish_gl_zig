@@ -445,7 +445,12 @@ pub const Animator = struct {
     pub fn getAnimationCount(self: *Self) u32 {
         return @intCast(self.animations.len);
     }
-
+    
+    pub fn getAnimationDuration(self: *Self, anim_id: u32) f32 {
+        std.debug.assert(anim_id < self.animations.len);
+        return self.animations[@intCast(anim_id)].duration;
+    }
+    
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
         for (self.active_animations.list.items) |*anim_state| {
             anim_state.update(delta_time);

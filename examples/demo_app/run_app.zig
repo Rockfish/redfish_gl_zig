@@ -14,7 +14,7 @@ const Arenas = core.Arenas;
 const Context = core.Context;
 const constants = core.constants;
 const Camera = core.Camera;
-const asset_loader = core.asset_loader;
+const asset_loader = core.gltf_asset;
 const gl_debug = core.gl_debug;
 
 const gl = zopengl.bindings;

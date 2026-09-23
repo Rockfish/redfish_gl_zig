@@ -26,7 +26,7 @@ const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const EnumSet = std.EnumSet;
 
-const GltfAsset = core.asset_loader.GltfAsset;
+const GltfAsset = core.gltf_asset.GltfAsset;
 const Shader = core.Shader;
 const Texture = core.texture.Texture;
 const TextureType = core.texture.TextureType;

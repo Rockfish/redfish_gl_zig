@@ -106,6 +106,11 @@ pub const BakedAnimator = struct {
         return @intCast(self.headers.len);
     }
 
+    pub fn getAnimationDuration(self: *Self, anim_id: u32) f32 {
+        std.debug.assert(anim_id < self.headers.len);
+        return self.headers[@intCast(anim_id)].duration;
+    }
+
     pub fn updateAnimation(self: *Self, delta_time: f32) !void {
         self.current_frame = self.getFrame(delta_time);
     }

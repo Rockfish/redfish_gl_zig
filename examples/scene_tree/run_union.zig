@@ -31,7 +31,7 @@ const TextureWrap = core.texture.TextureWrap;
 const Transform = core.Transform;
 const Camera = core.Camera;
 const Model = core.Model;
-const GltfAsset = core.asset_loader.GltfAsset;
+const GltfAsset = core.gltf_asset.GltfAsset;
 
 // const cam = @import("camera.zig");
 // const Camera = cam.Camera;

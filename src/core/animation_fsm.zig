@@ -1,6 +1,6 @@
 const std = @import("std");
 const animator_mod = @import("animator.zig");
-const Model = @import("model.zig").Model;
+const ModelInstance = @import("model_instance.zig").ModelInstance;
 
 const WeightedAnimation = animator_mod.WeightedAnimation;
 const AnimationRepeatMode = animator_mod.AnimationRepeatMode;
@@ -24,7 +24,7 @@ pub fn AnimationStateMachine(comptime StateEnum: type) type {
         const Self = @This();
         pub const count = state_count;
 
-        pub const Config = struct {
+        pub const StateConfig = struct {
             animation_id: u32,
             repeat: AnimationRepeatMode,
             crossfade_in: f32,
@@ -32,7 +32,7 @@ pub fn AnimationStateMachine(comptime StateEnum: type) type {
             return_state: ?StateEnum,
         };
 
-        state_configs: [state_count]Config,
+        state_configs: [state_count]StateConfig,
         animation_durations: [state_count]f32,
 
         current_state: StateEnum,
@@ -45,25 +45,27 @@ pub fn AnimationStateMachine(comptime StateEnum: type) type {
         debug: bool,
 
         pub fn init(
-            configs: [state_count]Config,
+            state_configs: [state_count]StateConfig,
             initial_state: StateEnum,
-            animations: []const Animation,
+            model: *ModelInstance,
         ) Self {
+            const num_animations = model.getAnimationCount();
             var durations: [state_count]f32 = undefined;
-            for (configs, 0..) |config, i| {
-                if (config.animation_id < animations.len) {
-                    durations[i] = animations[config.animation_id].duration;
+
+            for (state_configs, 0..) |config, i| {
+                if (config.animation_id < num_animations) {
+                    durations[i] = model.getAnimationDuration(config.animation_id);
                 } else {
                     std.debug.print("FSM: animation_id {d} out of range (max {d})\n", .{
                         config.animation_id,
-                        animations.len,
+                        num_animations,
                     });
                     durations[i] = 1.0;
                 }
             }
 
             return .{
-                .state_configs = configs,
+                .state_configs = state_configs,
                 .animation_durations = durations,
                 .current_state = initial_state,
                 .previous_state = null,
@@ -138,7 +140,7 @@ pub fn AnimationStateMachine(comptime StateEnum: type) type {
 
         /// Advance the FSM by one frame. Handles crossfade blending and one-shot
         /// auto-return transitions. Calls model.updateWeightedAnimations() internally.
-        pub fn update(self: *Self, model: *Model, frame_time: f32, delta_time: f32) !void {
+        pub fn update(self: *Self, model: *ModelInstance, frame_time: f32, delta_time: f32) !void {
             self.last_frame_time = frame_time;
 
             // Check one-shot completion

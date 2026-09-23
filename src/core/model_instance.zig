@@ -3,6 +3,7 @@ const math = @import("math");
 const Shader = @import("shader.zig").Shader;
 const Mesh = @import("mesh.zig").Mesh;
 const Animator = @import("animator.zig").Animator;
+const WeightedAnimation = @import("animator.zig").WeightedAnimation;
 const AnimationClip = @import("animator.zig").AnimationClip;
 const gltf_types = @import("gltf/gltf.zig");
 const GltfAsset = @import("gltf_asset.zig").GltfAsset;
@@ -23,7 +24,6 @@ pub const AnimatorType = enum {
 };
 
 pub const AnimatorImpl = union(enum) {
-    //none: *NullAnimator,
     null_animator,
     live_animator: *Animator,
     baked_animator: *BakedAnimator,
@@ -101,6 +101,14 @@ pub const ModelInstance = struct {
         }
     }
 
+    pub fn updateWeightedAnimations(self: *Self, weighted_animations: []const WeightedAnimation, frame_time: f32) !void {
+        switch (self.animator_impl) {
+            .live_animator => |obj| try obj.updateWeightedAnimations(weighted_animations, frame_time),
+            .baked_animator => log.err("Baked animations not supported yet for weighted updates", .{}),
+            else => {},
+        }
+    }
+
     pub fn playClip(self: *Self, clip: AnimationClip) !void {
         switch (self.animator_impl) {
             .live_animator => |obj| try obj.playClip(clip),
@@ -130,6 +138,14 @@ pub const ModelInstance = struct {
             .live_animator => |obj| return obj.getAnimationCount(),
             .baked_animator => |obj| return obj.getAnimationCount(),
             else => return 0,
+        }
+    }
+
+    pub fn getAnimationDuration(self: *Self, anim_id: u32) f32 {
+        switch (self.animator_impl) {
+            .live_animator => |obj| return obj.getAnimationDuration(anim_id),
+            .baked_animator => |obj| return obj.getAnimationDuration(anim_id),
+            else => return 0.0,
         }
     }
 

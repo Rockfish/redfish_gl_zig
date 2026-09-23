@@ -1,6 +1,6 @@
 const std = @import("std");
 const core = @import("core");
-const GltfAsset = core.asset_loader.GltfAsset;
+const GltfAsset = core.gltf_asset.GltfAsset;
 
 // Integration test for GLB loading workflow
 pub fn main(init: std.process.Init) !void {

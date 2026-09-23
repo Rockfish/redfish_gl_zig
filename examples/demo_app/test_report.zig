@@ -2,7 +2,7 @@ const std = @import("std");
 const core = @import("core");
 const assets_list = @import("assets_list.zig");
 
-const GltfAsset = core.asset_loader.GltfAsset;
+const GltfAsset = core.gltf_asset.GltfAsset;
 const GltfReport = core.gltf_report.GltfReport;
 
 pub fn main() !void {

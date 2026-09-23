@@ -46,6 +46,7 @@ pub const Node = struct {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
                 const state: StateType = @ptrCast(@alignCast(state_pointer));
 
+                // Object should own updating animation
                 if (std.meta.hasMethod(ObjectType, "updateAnimation")) {
                     return obj.updateAnimation(state.delta_time);
                 }
@@ -57,13 +58,15 @@ pub const Node = struct {
 
             pub fn drawFn(obj_ptr: *anyopaque, shader: *Shader, instance_count: u32) void {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
-                return obj.draw(shader, instance_count);
+                if (std.meta.hasMethod(ObjectType, "draw")) {
+                    return obj.draw(shader, instance_count);
+                }
             }
 
             pub fn cleanUpFn(obj_ptr: *anyopaque) void {
                 const obj: ObjectType = @ptrCast(@alignCast(obj_ptr));
                 if (std.meta.hasMethod(ObjectType, "cleanUp")) {
-                    obj.cleanUp();
+                    return obj.cleanUp();
                 }
             }
         };

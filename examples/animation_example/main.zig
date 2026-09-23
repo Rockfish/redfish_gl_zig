@@ -19,7 +19,7 @@ const print = log.info;
 
 const Context = core.Context;
 const Model = core.Model;
-const GltfAsset = core.asset_loader.GltfAsset;
+const GltfAsset = core.gltf_asset.GltfAsset;
 const TextureConfig = core.texture.TextureConfig;
 const animation = core.animation;
 const Camera = core.Camera;

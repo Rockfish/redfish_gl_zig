@@ -2,7 +2,7 @@ pub const zstbi = @import("zstbi");
 pub const string = @import("string.zig");
 pub const texture = @import("texture.zig");
 pub const utils = @import("utils/root.zig");
-pub const asset_loader = @import("gltf_asset.zig");
+pub const gltf_asset = @import("gltf_asset.zig");
 pub const gltf_report = @import("gltf/report.zig");
 pub const constants = @import("constants.zig");
 pub const gl_debug = @import("gl_debug.zig");
@@ -27,7 +27,9 @@ pub const AABB = @import("aabb.zig").AABB;
 pub const Ray = @import("aabb.zig").Ray;
 
 pub const Model = @import("model.zig").Model;
+pub const ModelInstance = @import("model_instance.zig").ModelInstance;
 pub const Mesh = @import("mesh.zig").Mesh;
+
 pub const animation = @import("animator.zig");
 pub const Animator = @import("animator.zig").Animator;
 pub const AnimationClip = @import("animator.zig").AnimationClip;
@@ -37,7 +39,6 @@ pub const AnimationStateMachine = @import("animation_fsm.zig").AnimationStateMac
 
 pub const BakedAnimation = @import("baked_animator.zig").BakedAnimation;
 pub const BakedAnimator = @import("baked_animator.zig").BakedAnimator;
-pub const ModelInstance = @import("model_instance.zig").ModelInstance;
 pub const AnimatorImpl = @import("model_instance.zig").AnimatorImpl;
 
 pub const TextureBuffer = @import("texture_buffer.zig").TextureBuffer;

@@ -26,7 +26,7 @@ const EnumSet = std.EnumSet;
 const Arenas = core.Arenas;
 const Context = core.Context;
 const Model = core.Model;
-const GltfAsset = core.asset_loader.GltfAsset;
+const GltfAsset = core.gltf_asset.GltfAsset;
 const Shader = core.Shader;
 const Texture = core.texture.Texture;
 const TextureConfig = core.texture.TextureConfig;
@@ -35,6 +35,7 @@ const TextureWrap = core.texture.TextureWrap;
 const Node = nodes_.Node;
 const Transform = core.Transform;
 const Camera = core.Camera;
+const uniforms = core.constants.Uniforms;
 
 const Window = glfw.Window;
 
@@ -48,6 +49,8 @@ const SIZE_OF_QUAT = @sizeOf(Quat);
 
 pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     var common_arenas = try Arenas.init(init.gpa);
+    defer common_arenas.deinit();
+
     const context = common_arenas.context(init.io);
 
     gl.enable(gl.DEPTH_TEST);
@@ -144,13 +147,13 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     texture_diffuse.wrap = TextureWrap.Repeat;
     const surface_texture = try Texture.initFromFile(
         context,
-        "assets/Textures/Floor/Floor D.png",
+        "assets/textures/Floor/Floor D.png",
         texture_diffuse,
     );
     defer surface_texture.deleteGlObjects();
 
     // const model_path = ""/Users/john/Dev/Repos/Egregoria/assets/models/pedestrian.glb"";
-    const model_path = "glTF-Sample-Models/CesiumMan/glTF-Binary/CesiumMan.glb";
+    const model_path = "assets/models/CesiumMan/CesiumMan_converted.gltf";
     var gltf_asset = try GltfAsset.init(context, "alien", model_path);
     try gltf_asset.load();
 
@@ -331,7 +334,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         root_node.draw(basic_model_shader, 1);
 
         const plane_transform = Mat4.fromTranslation(vec3(0.0, -1.0, 0.0));
-        basic_model_shader.setMat4("matModel", &plane_transform);
+        basic_model_shader.setMat4(uniforms.Mat_Model, &plane_transform);
         basic_model_shader.bindTextureAuto("textureDiffuse", surface_texture.gl_texture_id);
         plane.draw(basic_model_shader, 1);
 
@@ -344,7 +347,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
     }
 
     glfw.terminate();
-    common_arenas.deinit();
 }
 
 pub fn updateSpin(node: *Node, st: *State) void {
