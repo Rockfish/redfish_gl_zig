@@ -8,7 +8,8 @@ layout(location = 4) in vec4 inColor;
 layout(location = 5) in ivec4 inJointIds;
 layout(location = 6) in vec4 inWeights;
 
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 uniform mat4 model;
 uniform mat4 aimRot;
 uniform mat4 lightSpaceMatrix;
@@ -33,7 +34,7 @@ void main() {
     if (depth_mode) {
         gl_Position = lightSpaceMatrix * model * vec4(inPosition.x + xOffset, inPosition.y, inPosition.z, 1.0);
     } else {
-        gl_Position = projectionView * model * vec4(inPosition.x + xOffset, inPosition.y, inPosition.z, 1.0);
+        gl_Position = matProjection * matView * model * vec4(inPosition.x + xOffset, inPosition.y, inPosition.z, 1.0);
     }
 
     fragTextureCoord = inTexCoord;

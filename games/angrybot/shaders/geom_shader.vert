@@ -17,7 +17,8 @@ uniform mat4 finalBonesMatrices[MAX_BONES];
 uniform mat4 nodeTransform;
 
 // Transformation matrices
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 uniform mat4 model;
 
 vec4 get_animated_position() {
@@ -46,7 +47,7 @@ vec4 get_animated_position() {
 void main() {
     vec4 final_position = get_animated_position();
 
-    gl_Position = projectionView * model * final_position;
+    gl_Position = matProjection * matView * model * final_position;
 
     fragTextureCoord = inTexCoord;
 }

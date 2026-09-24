@@ -15,7 +15,8 @@ uniform mat4 nodeTransform;
 uniform mat4 jointMatrices[MAX_JOINTS];
 uniform bool hasSkin;
 
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 uniform mat4 model;
 uniform mat4 aimRot;
 
@@ -63,7 +64,7 @@ void main() {
     if (depth_mode) {
         gl_Position = lightSpaceMatrix * model * final_position;
     } else {
-        gl_Position = projectionView * model * final_position;
+        gl_Position = matProjection * matView * model * final_position;
     }
 
     // Outputs

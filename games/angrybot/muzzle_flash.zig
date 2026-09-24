@@ -12,6 +12,8 @@ const ManagedArrayList = containers.ManagedArrayList;
 const Context = core.Context;
 const Mat4 = math.Mat4;
 const Shader = core.Shader;
+const RenderContext = core.RenderContext;
+const uniforms = core.constants.Uniforms;
 const Texture = core.texture.Texture;
 const TextureConfig = core.texture.TextureConfig;
 const TextureWrap = core.texture.TextureWrap;
@@ -96,13 +98,14 @@ pub const MuzzleFlash = struct {
         try self.muzzle_flash_sprites_age.append(sprite_age);
     }
 
-    pub fn draw(self: *const Self, sprite_shader: *Shader, projection_view: *const Mat4, projectile_spawn_point: Vec3) void {
+    pub fn draw(self: *const Self, sprite_shader: *Shader, ctx: *const RenderContext, projectile_spawn_point: Vec3) void {
         if (self.muzzle_flash_sprites_age.list.items.len == 0) {
             return;
         }
 
         sprite_shader.useShader();
-        sprite_shader.setMat4("projectionView", projection_view);
+        sprite_shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        sprite_shader.setMat4(uniforms.Mat_View, &ctx.view);
 
         gl.enable(gl.BLEND);
         gl.depthMask(gl.FALSE);

@@ -21,6 +21,8 @@ const Texture = core.texture.Texture;
 const TextureConfig = core.texture.TextureConfig;
 const TextureWrap = core.texture.TextureWrap;
 const Shader = core.Shader;
+const RenderContext = core.RenderContext;
+const uniforms = core.constants.Uniforms;
 
 pub const BurnMark = struct {
     position: Vec3,
@@ -71,13 +73,14 @@ pub const BurnMarks = struct {
         try self.marks.append(burn_mark);
     }
 
-    pub fn drawMarks(self: *Self, shader: *Shader, projection_view: *const Mat4, delta_time: f32) void {
+    pub fn drawMarks(self: *Self, shader: *Shader, ctx: *const RenderContext, delta_time: f32) void {
         if (self.marks.list.items.len == 0) {
             return;
         }
 
         shader.useShader();
-        shader.setMat4("projectionView", projection_view);
+        shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        shader.setMat4(uniforms.Mat_View, &ctx.view);
 
         shader.bindTextureAuto("texture_diffuse", self.mark_texture.gl_texture_id);
         shader.bindTextureAuto("texture_normal", self.mark_texture.gl_texture_id);

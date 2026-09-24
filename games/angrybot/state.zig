@@ -71,11 +71,6 @@ pub const ClipData = struct {
     file: [:0]const u8,
 };
 
-pub const ProjectionView = struct {
-    projection: Mat4,
-    view: Mat4,
-};
-
 pub const Input = struct {
     first_mouse: bool = false,
     mouse_x: f32 = 0.0,
@@ -114,51 +109,6 @@ pub const State = struct {
 };
 
 var state: *State = undefined;
-
-pub fn updateCameras() void {
-    // state.game_camera.movement.transform.translation = state.player.position.add(&camera_follow_vec);
-
-    var pv: ProjectionView = undefined;
-    switch (state.active_camera) {
-        CameraType.Game => {
-            const up_vec = state.game_camera.movement.transform.up();
-            const game_view = Mat4.lookAtRhGl(
-                &state.game_camera.movement.transform.translation,
-                &state.player.position,
-                &up_vec,
-            );
-            pv = .{ .projection = state.game_projection, .view = game_view };
-        },
-        CameraType.Floating => {
-            const up_vec = state.floating_camera.movement.transform.up();
-            const view = Mat4.lookAtRhGl(
-                &state.floating_camera.movement.transform.translation,
-                &state.player.position,
-                &up_vec,
-            );
-            pv = .{ .projection = state.floating_projection, .view = view };
-        },
-        CameraType.TopDown => {
-            const view = Mat4.lookAtRhGl(
-                &vec3(state.player.position.x, 1.0, state.player.position.z),
-                //&player.position.add(&vec3(0.0, 1.0, 0.0)),
-                &state.player.position,
-                &vec3(0.0, 0.0, -1.0),
-            );
-            pv = .{ .projection = state.orthographic_projection, .view = view };
-        },
-        CameraType.Side => {
-            const view = Mat4.lookAtRhGl(
-                &state.player.position.add(&vec3(0.0, 0.0, -3.0)),
-                &state.player.position,
-                &vec3(0.0, 1.0, 0.0),
-            );
-            pv = .{ .projection = state.orthographic_projection, .view = view };
-        },
-    }
-
-    state.projection_view = pv.projection.mulMat4(&pv.view);
-}
 
 pub fn getMousePointAngle(view: *const Mat4, position: *Vec3) f32 {
     var point_angle: f32 = 0.0;

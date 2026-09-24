@@ -4,8 +4,9 @@ layout(location = 0) in vec3 inPosition;
 
 // Transformation matrices
 uniform mat4 model;
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 
 void main() {
-    gl_Position = projectionView * model * vec4(inPosition, 1.0);
+    gl_Position = matProjection * matView * model * vec4(inPosition, 1.0);
 }

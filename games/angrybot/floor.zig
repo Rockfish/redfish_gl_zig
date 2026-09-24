@@ -15,6 +15,8 @@ const ArenaAllocator = std.heap.ArenaAllocator;
 const Allocator = std.mem.Allocator;
 const gl = zopengl.bindings;
 const Shader = core.Shader;
+const RenderContext = core.RenderContext;
+const uniforms = core.constants.Uniforms;
 const Texture = core.texture.Texture;
 const TextureConfig = core.texture.TextureConfig;
 const TextureWrap = core.texture.TextureWrap;
@@ -118,7 +120,7 @@ pub const Floor = struct {
         };
     }
 
-    pub fn draw(self: *const Self, shader: *const Shader, projection_view: *const Mat4) void {
+    pub fn draw(self: *const Self, shader: *const Shader, ctx: *const RenderContext) void {
         shader.useShader();
         shader.bindTextureAuto("texture_diffuse", self.texture_floor_diffuse.gl_texture_id);
         shader.bindTextureAuto("texture_normal", self.texture_floor_normal.gl_texture_id);
@@ -129,7 +131,9 @@ pub const Floor = struct {
 
         const model = Mat4.Identity;
 
-        shader.setMat4("projectionView", projection_view);
+        shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+
+        shader.setMat4(uniforms.Mat_View, &ctx.view);
         shader.setMat4("model", &model);
 
         gl.bindVertexArray(self.floor_vao);

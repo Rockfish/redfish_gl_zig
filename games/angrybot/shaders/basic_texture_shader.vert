@@ -8,11 +8,12 @@ out vec3 fragWorldPos;
 
 // Transformation matrices
 uniform mat4 model;
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 uniform mat4 lightSpaceMatrix;
 
 void main() {
-    gl_Position = projectionView * model * vec4(inPosition, 1.0);
+    gl_Position = matProjection * matView * model * vec4(inPosition, 1.0);
     fragTextureCoord = inTexCoord;
     fragWorldPos = vec3(model * vec4(inPosition, 1.0));
     fragPosLightSpace = lightSpaceMatrix * vec4(fragWorldPos, 1.0);

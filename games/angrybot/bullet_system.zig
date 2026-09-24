@@ -15,6 +15,8 @@ const Context = core.Context;
 const AABB = core.AABB;
 const State = world.State;
 const Shader = core.Shader;
+const RenderContext = core.RenderContext;
+const uniforms = core.constants.Uniforms;
 const Animation = core.animation;
 const SpriteSheet = sprites.SpriteSheet;
 const SpriteSheetSprite = sprites.SpriteSheetSprite;
@@ -487,7 +489,7 @@ pub const BulletSystem = struct {
         self.positions_vbo = positions_vbo;
     }
 
-    pub fn drawBullets(self: *Self, shader: *Shader, projection_view: *const Mat4) void {
+    pub fn drawBullets(self: *Self, shader: *Shader, ctx: *const RenderContext) void {
         if (self.bullet_positions.items().len == 0) {
             return;
         }
@@ -499,7 +501,8 @@ pub const BulletSystem = struct {
         gl.disable(gl.CULL_FACE);
 
         shader.useShader();
-        shader.setMat4("projectionView", projection_view);
+        shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        shader.setMat4(uniforms.Mat_View, &ctx.view);
         shader.setBool("useLight", false);
 
         shader.bindTextureAuto("texture_diffuse", self.bullet_texture.gl_texture_id);
@@ -540,9 +543,10 @@ pub const BulletSystem = struct {
         gl.depthMask(gl.TRUE);
     }
 
-    pub fn drawBulletImpacts(self: *const Self, sprite_shader: *Shader, projection_view: *const Mat4) void {
+    pub fn drawBulletImpacts(self: *const Self, sprite_shader: *Shader, ctx: *const RenderContext) void {
         sprite_shader.useShader();
-        sprite_shader.setMat4("projectionView", projection_view);
+        sprite_shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        sprite_shader.setMat4(uniforms.Mat_View, &ctx.view);
 
         sprite_shader.setInt("numCols", @intFromFloat(self.bullet_impact_spritesheet.num_columns));
         sprite_shader.setFloat("timePerSprite", self.bullet_impact_spritesheet.time_per_sprite);

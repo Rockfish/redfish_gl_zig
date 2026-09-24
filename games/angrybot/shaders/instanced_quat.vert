@@ -11,7 +11,8 @@ layout(location = 3) in vec3 positionOffset;
 out vec2 fragTextureCoord;
 
 // Transformation matrices
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 
 vec4 hamiltonProduct(vec4 q1, const vec4 q2) {
     return vec4(
@@ -80,7 +81,7 @@ vec3 rotateVec(vec3 v, vec4 q) {
 void main() {
     vec3 rotatedInPos = rotateVec(inPosition, rotationQuat);
 
-    gl_Position = projectionView * vec4(rotatedInPos + positionOffset, 1.0);
+    gl_Position = matProjection * matView * vec4(rotatedInPos + positionOffset, 1.0);
 
     fragTextureCoord = inTexCoord;
 }

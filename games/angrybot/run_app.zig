@@ -35,6 +35,7 @@ const quads = @import("quads.zig");
 
 const Camera = core.Camera;
 const Shader = core.Shader;
+const uniforms = core.constants.Uniforms;
 const SoundEngine = core.SoundEngine;
 
 const log = std.log.scoped(.run_app);
@@ -246,10 +247,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         },
     );
 
-    // const game_projection = game_camera.getProjectionMatrixWithType(.Perspective);
-    // const floating_projection = floating_camera.getProjectionMatrixWithType(.Perspective);
-    // const orthographic_projection = ortho_camera.getProjectionMatrixWithType(.Orthographic);
-
     log.info("camers loaded", .{});
 
     // Models and systems
@@ -287,10 +284,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         .floating_camera = floating_camera,
         .ortho_camera = ortho_camera,
         .active_camera = game_camera,
-        // .game_projection = game_projection,
-        // .floating_projection = floating_projection,
-        // .orthographic_projection = orthographic_projection,
-        // .projection_view = undefined,
         .player = player,
         .enemies = ManagedArrayList(?Enemy).init(context.alloc),
         .light_postion = vec3(1.2, 1.0, 2.0),
@@ -319,7 +312,6 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
 
     defer player.deleteGlObjects();
     defer enemy_system.deleteGlObjects();
-    // defer state.enemies.deinit();
 
     // Set constant shader uniforms
 
@@ -386,21 +378,19 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             framebufferUpdate(viewport_width, viewport_height, use_framebuffers);
         }
 
-        state.game_camera.movement.target = state.player.position;
-        state.active_camera.movement.target = state.player.position;
-
+        const p = state.player.position;
         state.game_camera.reset(
             state.player.position.add(camera_follow_vec),
             state.player.position,
         );
-
-        // world.updateCameras();
-        //
-        // const game_view = Mat4.lookAtRhGl(
-        // &state.game_camera.movement.position,
-        // &state.player.position,
-        // &state.game_camera.movement.up,
-        // );
+        state.floating_camera.reset(
+            vec3(p.x, 0.5, p.z + 4.0),
+            state.player.position,
+        );
+        state.ortho_camera.reset(
+            vec3(p.x, 4.0, p.z),
+            state.player.position,
+        );
 
         if (player.is_alive) {
             aim_angle = world.getMousePointAngle(&state.game_camera.getView(), &state.player.position);
@@ -462,6 +452,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         const light_view = Mat4.lookAtRhGl(player.position.sub(player_light_dir.mulScalar(20)), player.position, Vec3.World_Up);
         const light_space_matrix = light_projection.mulMat4(&light_view);
 
+        const ctx = state.active_camera.getRenderContext(state.frame_time);
+
         // log.info("light_projection = {any}\nplayer.position = {any}\neye = {any}\nlight_view = {any}\nlight_space_matrix = {any}", .{
         //     light_projection,
         //     player.position,
@@ -471,7 +463,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         // });
 
         // log.info("updating shaders", .{});
-        player_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
+        player_shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        player_shader.setMat4(uniforms.Mat_View, &ctx.view);
         player_shader.setMat4("model", &player_transform);
         player_shader.setMat4("aimRot", &aim_rotation_matrix);
         player_shader.setVec3("viewPos", state.game_camera.movement.transform.translation);
@@ -495,14 +488,16 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         gl.viewport(0, 0, fb.SHADOW_WIDTH, fb.SHADOW_HEIGHT);
         gl.clear(gl.DEPTH_BUFFER_BIT);
 
+        player_shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        player_shader.setMat4(uniforms.Mat_View, &ctx.view);
         player_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
-        player_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
         player_shader.setBool("depth_mode", true);
         player_shader.setBool("useLight", false);
 
         player.draw(player_shader);
 
-        enemy_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
+        enemy_shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        enemy_shader.setMat4(uniforms.Mat_View, &ctx.view);
         enemy_shader.setMat4("lightSpaceMatrix", &light_space_matrix);
         enemy_shader.setBool("depth_mode", true);
 
@@ -522,7 +517,8 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
             player_emissive_shader.useShader();
-            player_emissive_shader.setMat4("projectionView", &state.active_camera.getProjectionView());
+            player_emissive_shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+            player_emissive_shader.setMat4(uniforms.Mat_View, &ctx.view);
             player_emissive_shader.setMat4("model", &player_transform);
 
             // log.info("drawing player with emissive shader", .{});
@@ -548,7 +544,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
             // }
 
             // log.info("drawing bullet_store ", .{});
-            bullet_system.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
+            bullet_system.drawBullets(instanced_matrix_shader, &ctx);
 
             gl_debug.check("emission pass");
 
@@ -605,7 +601,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         floor_shader.setBool("useSpec", true);
 
         // log.info("drawing floor", .{});
-        floor.draw(floor_shader, &state.active_camera.getProjectionView());
+        floor.draw(floor_shader, &ctx);
 
         player_shader.setBool("useLight", true);
         player_shader.setBool("useEmissive", true);
@@ -614,7 +610,7 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         // log.info("drawing player", .{});
         player.draw(player_shader);
 
-        muzzle_flash.draw(sprite_shader, &state.active_camera.getProjectionView(), projectile_spawn_point);
+        muzzle_flash.draw(sprite_shader, &ctx, projectile_spawn_point);
 
         enemy_shader.setBool("useLight", true);
         enemy_shader.setBool("useEmissive", false);
@@ -624,13 +620,13 @@ pub fn run(init: std.process.Init, window: *glfw.Window) !void {
         enemy_system.drawEnemies(enemy_shader, &state);
 
         // log.debug("drawing burn_marks", .{});
-        state.burn_marks.drawMarks(basic_texture_shader, &state.active_camera.getProjectionView(), state.delta_time);
+        state.burn_marks.drawMarks(basic_texture_shader, &ctx, state.delta_time);
 
         // log.info("drawing bullet_impacts", .{});
-        bullet_system.drawBulletImpacts(sprite_shader, &state.active_camera.getProjectionView());
+        bullet_system.drawBulletImpacts(sprite_shader, &ctx);
 
         if (!use_framebuffers) {
-            bullet_system.drawBullets(instanced_matrix_shader, &state.active_camera.getProjectionView());
+            bullet_system.drawBullets(instanced_matrix_shader, &ctx);
         }
 
         gl_debug.check("scene pass");

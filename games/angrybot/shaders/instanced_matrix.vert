@@ -13,7 +13,8 @@ layout(location = 5) in vec4 transformRow3;
 out vec2 fragTextureCoord;
 
 // Transformation matrices
-uniform mat4 projectionView;
+uniform mat4 matProjection;
+uniform mat4 matView;
 
 void main() {
     // Reconstruct the transform matrix from the 4 vec4 attributes
@@ -25,7 +26,7 @@ void main() {
     );
 
     // Apply the complete transformation: projection * view * model * vertex
-    gl_Position = projectionView * transform * vec4(inPosition, 1.0);
+    gl_Position = matProjection * matView * transform * vec4(inPosition, 1.0);
 
     fragTextureCoord = inTexCoord;
 }
