@@ -190,6 +190,11 @@ pub const Movement = struct {
         return self.transform.translation;
     }
 
+    pub fn setPosition(self: *Self, position: Vec3) void {
+        self.transform.translation = position;
+        self.bumpTick();
+    }
+
     pub fn getTarget(self: *const Self) Vec3 {
         return self.target;
     }

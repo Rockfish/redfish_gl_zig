@@ -242,6 +242,10 @@ pub const Camera = struct {
         return self.movement.getPosition();
     }
 
+    pub fn setPosition(self: *Self, position: Vec3) void {
+        self.movement.setPosition(position);
+    }
+
     pub fn getForward(self: *const Self) Vec3 {
         return self.movement.getTransform().forward();
     }

@@ -2,6 +2,16 @@
 
 ## Recent Changes
 
+### 2026-09-24 - Standardize on matProjection / matView Uniforms 🎥
+- **Decision**: Every vertex shader takes `matProjection` and `matView` separately instead of a premultiplied `projectionView`
+  - **Why**: Cost is identical, but skyboxes, billboards, fog, view-space lighting, and depth reconstruction need the view or projection on its own; separate uniforms let shaders grow without changing the calling code, and map directly onto a future per-frame uniform block
+- **Converted**: `level_01`, `demo_app`, `angrybot`, and `bullets` shaders and their Zig call sites, using the `Mat_Projection` / `Mat_View` constants from `core.constants.Uniforms`
+  - **angrybot**: floor, muzzle flash, burn marks, and bullet system draws take a `RenderContext` from the active camera instead of a projection-view matrix pointer; dead `updateCameras` block and `projection_view` state field removed
+  - **bullets**: cube and plain-cube debug draws were still feeding the removed uniform to `basic_texture.vert` and would have rendered nothing
+- **Removed**: `Projection_View` and `Projection_View_Alt` constants; no shader or caller in `src/`, `examples/`, or `games/` references the combined uniform
+- **Renamed**: `render.zig` → `render_context.zig`, `RenderContext.view_pos` → `view_position`
+- **level_01 Fix**: floor and cube textures were deleted from the GPU immediately after loading (missing `defer` from the arena refactor); per-shape texture now binds to `Texture_Diffuse`
+
 ### 2026-09-19 - Baked Animation Fixes & Depth Precision 🎞️
 - **Z-fighting on large models diagnosed and fixed**: Shimmer on FBX-converted models in demo_app was depth buffer starvation, not a shader issue
   - **Root Cause**: Camera near/far of 0.01/2000 (1:200,000) combined with framing distances of several hundred units gave a depth step of ~3 units on the Player model
