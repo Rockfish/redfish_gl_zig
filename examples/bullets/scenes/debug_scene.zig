@@ -11,6 +11,7 @@ const FreeCamera = @import("../objects/free_camera.zig").FreeCamera;
 const grids = @import("../objects/grid.zig");
 const AxisLines = @import("../objects/axis_lines.zig").AxisLines;
 const Cube = @import("../objects/cube.zig").Cube;
+const Cannon = @import("../objects/cannon.zig").Cannon;
 const Floor = @import("../objects/floor.zig").Floor;
 const scene_lights = @import("../objects/lights.zig");
 const Lights = scene_lights.Lights;
@@ -22,6 +23,7 @@ const BulletSystem = @import("../projectiles/bullet_system.zig").BulletSystem;
 const Turret = @import("../projectiles/turret.zig").Turret;
 
 const Vec3 = math.Vec3;
+const vec3 = math.vec3;
 const Vec4 = math.Vec4;
 const Mat4 = math.Mat4;
 const Quat = math.Quat;
@@ -58,6 +60,7 @@ pub const MotionObject = enum {
     base,
     gimbal,
     turret,
+    cannon,
     spacesuit,
     soldier,
     enemy,
@@ -68,6 +71,7 @@ pub const SceneDebug = struct {
     resource_manager: *ResourceManager,
     scene_camera: *SceneCamera,
     cube: Cube = undefined,
+    cannon: Cannon = undefined,
     skybox: SkyBoxDirections = undefined,
     floor: Floor = undefined,
     axis_lines: AxisLines = undefined,
@@ -97,6 +101,7 @@ pub const SceneDebug = struct {
             .resource_manager = rm,
             .scene_camera = camera,
             .cube = try Cube.init(rm),
+            .cannon = try Cannon.init(rm),
             .skybox = try SkyBoxDirections.init(rm),
             .floor = try Floor.init(rm),
             .axis_lines = try AxisLines.init(rm),
@@ -108,6 +113,8 @@ pub const SceneDebug = struct {
 
         scene.floor.update_lights(basic_lights);
         scene.cube.update_lights(basic_lights);
+        scene.cannon.update_lights(basic_lights);
+        scene.cannon.transform = Transform.fromTranslation(vec3(5.0, 0.0, 0.0));
 
         scene.floor.plane.shape.is_visible = true;
         scene.skybox.is_visible = false;
@@ -133,6 +140,7 @@ pub const SceneDebug = struct {
         if (self.run_animation == true) {
             try self.turret.update(input);
         }
+        self.cannon.update(input.delta_time);
     }
 
     pub fn draw(self: *Self, time: f32) void {
@@ -144,6 +152,7 @@ pub const SceneDebug = struct {
         self.skybox.draw(ctx);
 
         self.turret.draw(ctx);
+        self.cannon.draw(ctx);
         self.spacesuit.draw(ctx);
         self.toon_soldier.draw(ctx);
 
@@ -155,6 +164,7 @@ pub const SceneDebug = struct {
 
         switch (self.motion_object) {
             .turret => try self.turret.processInput(input),
+            .cannon => try self.cannon.processInput(input),
             .camera => try self.scene_camera.processInput(input),
             .spacesuit => try self.spacesuit.processInput(input),
             .soldier => try self.toon_soldier.processInput(input),
@@ -212,6 +222,10 @@ pub const SceneDebug = struct {
                 },
                 .c => {
                     self.motion_object = .camera;
+                },
+                .n => {
+                    self.motion_object = .cannon;
+                    std.debug.print("Motion object: cannon (arrows aim, r fires)\n", .{});
                 },
                 .f => {
                     self.floor.plane.shape.is_visible = !self.floor.plane.shape.is_visible;

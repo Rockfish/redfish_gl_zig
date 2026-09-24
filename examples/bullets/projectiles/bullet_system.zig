@@ -54,6 +54,7 @@ pub const BulletSystem = struct {
     bullet_velocities: ManagedArrayList(Vec3),
     bullet_right_vectors: ManagedArrayList(Vec3),
     bullet_rotations_initial: ManagedArrayList(Quat), // used only for drawing initial path lines
+    aim_origin: Vec3 = Vec3.Zero, // start of the initial path lines
     bullet_cube: *core.shapes.Shape,
     rotations_vbo: gl.Uint = 0,
     positions_vbo: gl.Uint = 0,
@@ -170,6 +171,8 @@ pub const BulletSystem = struct {
         const start: usize = start_index;
         const end = start + bullet_group_size;
 
+        self.aim_origin = aim_transform.translation;
+
         for (start..end) |index| {
             const count = index - start;
             const i = @divTrunc(count, Bullets_Per_Side);
@@ -254,13 +257,13 @@ pub const BulletSystem = struct {
             const rotation = self.bullet_rotations_initial.items()[i];
             const line_dir = rotation.rotateVec(Vec3.World_Forward);
             transformed[i] = .{
-                .start = Vec3.Zero,
-                .end = line_dir.mulScalar(10.0),
+                .start = self.aim_origin,
+                .end = self.aim_origin.add(line_dir.mulScalar(10.0)),
                 .color = Color.yellow,
             };
         }
 
-        self.lines.draw(&transformed, &ctx.projection, &ctx.view);
+        self.lines.draw(transformed[start..end], &ctx.projection, &ctx.view);
     }
 
     pub fn drawBullets(self: *Self, ctx: RenderContext) void {
