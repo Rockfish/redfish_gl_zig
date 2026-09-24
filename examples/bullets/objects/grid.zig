@@ -112,7 +112,6 @@
 //     }
 //
 //     pub fn draw(self: *const Self, shader: *const Shader, ctx: RenderContext) void {
-//         shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
 //         shader.bindTextureAuto("textureDiffuse", self.texture_id);
 //
 //         shader.setMat4(uniforms.Mat_Model, &self.x_plus_mat);

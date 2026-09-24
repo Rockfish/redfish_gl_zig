@@ -68,7 +68,8 @@ pub const Cube = struct {
     }
 
     pub fn draw(self: *Self, ctx: RenderContext) void {
-        self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
+        self.shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        self.shader.setMat4(uniforms.Mat_View, &ctx.view);
         self.shader.setMat4(uniforms.Mat_Model, &self.transform.toMatrix());
         self.shape.draw(self.shader, 1);
     }

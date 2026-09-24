@@ -39,7 +39,6 @@ pub const Uniforms = struct {
     pub const Mat_Projection: [:0]const u8 = "matProjection";
     pub const Mat_View: [:0]const u8 = "matView";
     pub const Mat_Model: [:0]const u8 = "matModel";
-    pub const Projection_View: [:0]const u8 = "projectionView";
 
     // Animation system (glTF native)
     pub const Joint_Matrices: [:0]const u8 = "jointMatrices";
@@ -64,7 +63,6 @@ pub const Uniforms = struct {
     pub const View: [:0]const u8 = "view";
     pub const Projection: [:0]const u8 = "projection";
     pub const Model_Transform: [:0]const u8 = "model_transform";
-    pub const Projection_View_Alt: [:0]const u8 = "projection_view";
 
     // Lighting uniforms (legacy - used by animated_pbr shaders)
     pub const Ambient_Color: [:0]const u8 = "ambientColor";

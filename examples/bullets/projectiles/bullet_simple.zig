@@ -202,7 +202,8 @@ pub const BulletSystem = struct {
 
     pub fn drawCube(self: *Self, ctx: RenderContext) void {
         self.plain_cube_shader.useShader();
-        self.plain_cube_shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
+        self.plain_cube_shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        self.plain_cube_shader.setMat4(uniforms.Mat_View, &ctx.view);
         self.plain_cube_shader.setMat4(uniforms.Mat_Model, &Mat4.Identity);
         self.plain_cube.draw(self.plain_cube_shader);
     }
@@ -210,7 +211,8 @@ pub const BulletSystem = struct {
     /// Debug: Draw rotated cube by updating vertices locally
     pub fn drawRotatedCube(self: *Self, ctx: RenderContext) void {
         self.plain_cube_shader.useShader();
-        self.plain_cube_shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
+        self.plain_cube_shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        self.plain_cube_shader.setMat4(uniforms.Mat_View, &ctx.view);
         self.plain_cube_shader.setMat4(uniforms.Mat_Model, &Mat4.Identity);
 
         const start: usize = 0;
@@ -269,7 +271,8 @@ pub const BulletSystem = struct {
         }
 
         self.shader.useShader();
-        self.shader.setMat4(uniforms.Projection_View, &ctx.projection_view);
+        self.shader.setMat4(uniforms.Mat_Projection, &ctx.projection);
+        self.shader.setMat4(uniforms.Mat_View, &ctx.view);
 
         gl.bindVertexArray(self.bullet_cube.vao);
 

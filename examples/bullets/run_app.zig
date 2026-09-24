@@ -20,7 +20,6 @@ pub fn run_app(init: std.process.Init, window: *glfw.Window, max_duration: ?f32)
     const world = try World.init(init, input);
     defer world.deinit(init);
 
-
     log.info("Starting main loop", .{});
 
     // glfw.setWindowMonitor( window, null, 0, 0, 3440, 1440, 3000);
